@@ -48,3 +48,15 @@ app.*.map.json
 lib/core/constants/secrets.dart
 android/local.properties
 android/app/google-services.json
+
+# IDE / 메타데이터
+.metadata
+android_manifest_template.xml
+ios_info_plist_additions.xml
+
+# 문서 파일
+*.docx.pdf
+*.html
+
+# Claude 설정
+.claude/
