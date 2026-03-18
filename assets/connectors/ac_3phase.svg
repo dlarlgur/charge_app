@@ -1,0 +1,13 @@
+<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <!-- AC3상 (Type 2 / Mennekes) -->
+  <circle cx="24" cy="24" r="21" fill="none" stroke="currentColor" stroke-width="2.5"/>
+  <!-- 상단 3핀 -->
+  <circle cx="14" cy="14" r="3.5" fill="currentColor"/>
+  <circle cx="24" cy="11" r="3.5" fill="currentColor"/>
+  <circle cx="34" cy="14" r="3.5" fill="currentColor"/>
+  <!-- 중단 2핀 -->
+  <circle cx="17" cy="26" r="3.5" fill="currentColor"/>
+  <circle cx="31" cy="26" r="3.5" fill="currentColor"/>
+  <!-- 하단 접지 -->
+  <rect x="21" y="33" width="6" height="7" rx="3" fill="currentColor"/>
+</svg>

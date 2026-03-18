@@ -1,0 +1,11 @@
+<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <!-- NACS (North American Charging Standard) -->
+  <rect x="11" y="5" width="26" height="38" rx="7" fill="none" stroke="currentColor" stroke-width="2.5"/>
+  <!-- 상단 핀 2개 (납작) -->
+  <rect x="15" y="12" width="8" height="5" rx="2.5" fill="currentColor"/>
+  <rect x="25" y="12" width="8" height="5" rx="2.5" fill="currentColor"/>
+  <!-- 중간 가로 핀 -->
+  <rect x="15" y="22" width="18" height="4" rx="2" fill="currentColor"/>
+  <!-- 하단 핀 -->
+  <rect x="15" y="31" width="18" height="4" rx="2" fill="currentColor"/>
+</svg>

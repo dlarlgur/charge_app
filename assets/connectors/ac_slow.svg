@@ -1,0 +1,10 @@
+<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <!-- AC완속 (J1772 Type 1) -->
+  <circle cx="24" cy="24" r="21" fill="none" stroke="currentColor" stroke-width="2.5"/>
+  <circle cx="24" cy="24" r="16" fill="none" stroke="currentColor" stroke-width="1.5"/>
+  <!-- 상단 2핀 -->
+  <rect x="18" y="13" width="5" height="8" rx="2.5" fill="currentColor"/>
+  <rect x="25" y="13" width="5" height="8" rx="2.5" fill="currentColor"/>
+  <!-- 하단 접지핀 -->
+  <rect x="21" y="28" width="6" height="9" rx="3" fill="currentColor"/>
+</svg>

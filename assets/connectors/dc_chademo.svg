@@ -1,0 +1,11 @@
+<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <!-- DC차데모 (CHAdeMO) -->
+  <circle cx="24" cy="24" r="21" fill="none" stroke="currentColor" stroke-width="2.5"/>
+  <!-- 상단 3핀 -->
+  <circle cx="14" cy="15" r="3.5" fill="currentColor"/>
+  <circle cx="24" cy="12" r="3.5" fill="currentColor"/>
+  <circle cx="34" cy="15" r="3.5" fill="currentColor"/>
+  <!-- 하단 2핀 (대형) -->
+  <circle cx="17" cy="31" r="5" fill="none" stroke="currentColor" stroke-width="2.5"/>
+  <circle cx="31" cy="31" r="5" fill="none" stroke="currentColor" stroke-width="2.5"/>
+</svg>

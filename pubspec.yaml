@@ -1,0 +1,81 @@
+name: charge_helper
+description: 주유/충전 도우미 - 주유소 + 전기차 충전소 통합 앱
+publish_to: 'none'
+version: 1.0.2+3
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.4.0
+
+  # HTTP
+  dio: ^5.4.0
+
+  # Local Storage
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # Location
+  geolocator: ^12.0.0
+
+  # Navigation
+  go_router: ^14.0.0
+
+  # UI
+  flutter_svg: ^2.0.9
+  shimmer: ^3.0.0
+
+  # Utils
+  intl: any
+  url_launcher: ^6.2.0
+  permission_handler: ^11.0.0
+
+  # Map
+  flutter_naver_map: ^1.2.0
+
+  # Splash
+  flutter_native_splash: ^2.3.10
+  package_info_plus: ^9.0.0
+
+  # Firebase & Push
+  firebase_core: ^3.0.0
+  firebase_messaging: ^15.0.0
+  flutter_local_notifications: ^18.0.0
+  uuid: ^4.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_native_splash:
+  color: "#FFFFFF"
+  color_dark: "#0C0E13"
+  image: "assets/Gemini_Generated_Image_a8i9dda8i9dda8i9.png"
+  android: true
+  ios: true
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/Gemini_Generated_Image_a8i9dda8i9dda8i9.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/icon_adaptive.png"
+  remove_alpha_ios: true
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
+    - assets/brands/
+    - assets/ev_operators/
+    - assets/connectors/

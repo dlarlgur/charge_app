@@ -1,0 +1,143 @@
+import 'dart:convert';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_naver_map/flutter_naver_map.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'app.dart';
+import 'core/constants/secrets.dart';
+import 'data/services/alert_service.dart';
+import 'data/services/notification_service.dart';
+
+/// 백그라운드 isolate에서 Hive에 알림 내역 저장
+Future<void> _saveGasPriceToHive(Map<String, dynamic> data) async {
+  try {
+    await Hive.initFlutter();
+    final box = await Hive.openBox('settings');
+    final raw = data['stations'];
+    if (raw == null) return;
+    final stations =
+        List<Map<String, dynamic>>.from(jsonDecode(raw as String));
+    if (stations.isEmpty) return;
+    final body = stations.map((s) {
+      final name = s['name'] as String;
+      final price = s['price'] as int;
+      final priceStr = price
+          .toString()
+          .replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+              (m) => '${m[1]},');
+      final change = s['change'] as int? ?? 0;
+      String changeStr = '';
+      if (change > 0) changeStr = ' ▲$change원';
+      else if (change < 0) changeStr = ' ▼${change.abs()}원';
+      final fuelType = s['fuelType'] as String? ?? '';
+      final fuelSuffix = fuelType.isNotEmpty ? ' ($fuelType)' : '';
+      return '• $name  ${priceStr}원/L$changeStr$fuelSuffix';
+    }).join('\n');
+    final msgs = List<Map<String, dynamic>>.from(
+      ((box.get('push_messages', defaultValue: <dynamic>[]) as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))),
+    );
+    msgs.insert(0, {
+      'id': DateTime.now().millisecondsSinceEpoch.toString(),
+      'title': '⛽ 오늘의 주유 가격',
+      'body': body,
+      'timestamp': DateTime.now().toIso8601String(),
+    });
+    if (msgs.length > 50) msgs.removeLast();
+    await box.put('push_messages', msgs);
+    final unread = ((box.get('push_unread_count', defaultValue: 0) as int?) ?? 0) + 1;
+    await box.put('push_unread_count', unread);
+  } catch (_) {}
+}
+
+/// "읽음" 액션 버튼: 앱 열지 않고 미읽음 수만 0으로 초기화
+@pragma('vm:entry-point')
+void _onBackgroundNotificationResponse(NotificationResponse details) async {
+  if (details.actionId == 'mark_read') {
+    try {
+      await Hive.initFlutter();
+      final box = Hive.isBoxOpen('settings')
+          ? Hive.box('settings')
+          : await Hive.openBox('settings');
+      await box.put('push_unread_count', 0);
+    } catch (_) {}
+  }
+}
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  final androidPlugin = notificationPlugin
+      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+  await androidPlugin?.createNotificationChannel(gasPriceChannel);
+  await androidPlugin?.createNotificationChannel(gasPriceChannelVibrate);
+  await androidPlugin?.createNotificationChannel(gasPriceChannelSilent);
+  await notificationPlugin.initialize(
+    const InitializationSettings(
+      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+    ),
+    onDidReceiveBackgroundNotificationResponse: _onBackgroundNotificationResponse,
+  );
+  if (message.data['type'] == 'gas_price_alert') {
+    await Hive.initFlutter();
+    final box = await Hive.openBox('settings');
+    final soundMode = (box.get('alert_sound_mode', defaultValue: 0) as int?) ?? 0;
+    showGasPriceNotification(message.data, soundMode: soundMode);
+    await _saveGasPriceToHive(message.data);
+  }
+}
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      systemNavigationBarColor: Colors.transparent,
+    ),
+  );
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
+  await Firebase.initializeApp();
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // 로컬 알림 초기화 (소리/진동/무음 채널 각각 등록)
+  final androidPlugin = notificationPlugin
+      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+  await androidPlugin?.createNotificationChannel(gasPriceChannel);
+  await androidPlugin?.createNotificationChannel(gasPriceChannelVibrate);
+  await androidPlugin?.createNotificationChannel(gasPriceChannelSilent);
+  await notificationPlugin.initialize(
+    const InitializationSettings(
+      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+    ),
+    onDidReceiveNotificationResponse: (details) {
+      if (details.actionId == 'mark_read') {
+        AlertService().markAllRead();
+      } else {
+        // 알림 본문 탭 또는 "상세보기" 버튼 → 알림 페이지로 이동
+        navigateToAlertsNotifier.value++;
+      }
+    },
+    onDidReceiveBackgroundNotificationResponse: _onBackgroundNotificationResponse,
+  );
+
+  await Hive.initFlutter();
+  await Hive.openBox('settings');
+  await Hive.openBox('favorites');
+
+  await FlutterNaverMap().init(
+    clientId: Secrets.naverMapClientId,
+    onAuthFailed: (e) => debugPrint('네이버 지도 인증 실패: $e'),
+  );
+
+  runApp(const ProviderScope(child: ChargeHelperApp()));
+}
