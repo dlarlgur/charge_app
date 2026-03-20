@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
@@ -30,6 +31,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   bool _mapReady = false;
   int _markersGeneration = 0;
   final Map<String, NMarker> _markerRefs = {};
+  Timer? _markerDebounce;
   double? _lastMinGasPrice;
   bool _isLocating = false;
   bool _isAtMyLocation = false;
@@ -60,8 +62,21 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   @override
   void dispose() {
+    _markerDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _scheduleUpdateMarkers() {
+    _markerDebounce?.cancel();
+    _markerDebounce = Timer(const Duration(milliseconds: 80), _updateMarkers);
+  }
+
+  void _clearMarkers() {
+    _markerDebounce?.cancel();
+    _markersGeneration++;
+    _markerRefs.clear();
+    _mapController?.clearOverlays(type: NOverlayType.marker);
   }
 
   void _setShowGas(bool value) {
@@ -109,8 +124,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   /// 줌 레벨 → 대략적인 반경(m). 지도 초기화 시 bounds가 없을 때만 사용.
   static int _zoomToRadius(double zoom) {
-    if (zoom >= 15) return 1000;
-    if (zoom >= 14) return 2000;
+    if (zoom >= 17) return 300;
+    if (zoom >= 16) return 500;
+    if (zoom >= 15) return 800;
+    if (zoom >= 14) return 1500;
     if (zoom >= 13) return 3000;
     if (zoom >= 12) return 5000;
     if (zoom >= 11) return 10000;
@@ -132,12 +149,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     // 수평 반경 (중심 → 동쪽 가장자리)
     final horizDist = earthR * ((ne.longitude - center.longitude) * math.pi / 180).abs() * math.cos(latRad);
     final dist = math.min(vertDist, horizDist);
-    return dist.clamp(1000, maxRadius).toInt();
+    return dist.clamp(200, maxRadius).toInt();
   }
 
   void _searchAtCurrentCenter() async {
     final controller = _mapController;
     if (controller == null) return;
+    _clearMarkers(); // 탭 즉시 기존 마커 제거
     final pos = await controller.getCameraPosition();
     final bounds = await controller.getContentBounds();
     final radius = bounds != null
@@ -146,7 +164,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     ref.read(mapCenterProvider.notifier).state = (lat: pos.target.latitude, lng: pos.target.longitude);
     ref.read(mapRadiusProvider.notifier).state = radius;
     setState(() { _showSearchHere = false; _selectedStation = null; });
-    _updateMarkers();
   }
 
   // ─── 검색 ───
@@ -244,8 +261,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final vehicleType = ref.watch(settingsProvider).vehicleType;
 
-    ref.listen(mapGasStationsProvider, (_, __) => _updateMarkers());
-    ref.listen(mapEvStationsProvider, (_, __) => _updateMarkers());
+    ref.listen(mapGasStationsProvider, (prev, next) {
+      if (next is AsyncLoading && prev is AsyncData) _clearMarkers();
+      else if (next is AsyncData) _scheduleUpdateMarkers();
+    });
+    ref.listen(mapEvStationsProvider, (prev, next) {
+      if (next is AsyncLoading && prev is AsyncData) _clearMarkers();
+      else if (next is AsyncData) _scheduleUpdateMarkers();
+    });
     // 실시간 위치 스트림 → 파란 점 업데이트
     ref.listen(locationStreamProvider, (_, next) {
       next.whenData((loc) {
@@ -723,8 +746,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             (_selectedStation as EvStation).statId == s.statId;
         final color = isSelected
             ? _kSelectedColor
-            : (s.isTesla ? AppColors.evGreen : (s.hasAvailable ? AppColors.evGreen : const Color(0xFF94A3B8)));
-        final markerLabel = s.isTesla ? 'Tesla' : '${s.chargingCount}/${s.totalCount}';
+            : (s.isTesla ? AppColors.evGreen : (s.availableCount > 0 ? AppColors.evGreen : const Color(0xFF9CA3AF)));
+        final markerLabel = s.isTesla ? 'Tesla' : '${s.availableCount}/${s.totalCount}';
         final markerId = 'ev_${s.statId}';
         final marker = NMarker(
           id: markerId,
@@ -736,7 +759,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           final prev = _selectedStation;
           setState(() { _selectedStation = s; _isEvSelected = true; });
           await _restoreMarkerIcon(prev, _lastMinGasPrice);
-          await _highlightMarker(markerId, _kSelectedColor, '${s.chargingCount}/${s.totalCount}', true);
+          await _highlightMarker(markerId, _kSelectedColor, '${s.availableCount}/${s.totalCount}', true);
         });
         await controller.addOverlay(marker);
       }
@@ -765,8 +788,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       final markerId = 'ev_${prev.statId}';
       final marker = _markerRefs[markerId];
       if (marker == null) return;
-      final color = (prev.isTesla || prev.hasAvailable) ? AppColors.evGreen : const Color(0xFF94A3B8);
-      marker.setIcon(await _badgeIcon(prev.isTesla ? 'Tesla' : '${prev.chargingCount}/${prev.totalCount}', color, false));
+      final color = prev.isTesla ? AppColors.evGreen : (prev.availableCount > 0 ? AppColors.evGreen : const Color(0xFF9CA3AF));
+      marker.setIcon(await _badgeIcon(prev.isTesla ? 'Tesla' : '${prev.availableCount}/${prev.totalCount}', color, false));
     }
   }
 
@@ -803,6 +826,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         priceText: s.priceNonMemberText,
         priceMemberText: s.priceMemberText,
         hasAvailable: s.hasAvailable,
+        isTesla: s.isTesla,
+        totalCount: s.totalCount,
         onDetail: () => context.push('/ev/${s.statId}', extra: s),
         onNavigate: () => _openNavigation(s.lat, s.lng, s.name),
         onDismiss: () async {
@@ -822,6 +847,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     String? priceText,
     String? priceMemberText,
     bool hasAvailable = true,
+    bool isTesla = false,
+    int totalCount = 0,
     required VoidCallback onDetail,
     required VoidCallback onNavigate,
     required VoidCallback onDismiss,
@@ -887,14 +914,19 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: hasAvailable
+                                color: isTesla
                                     ? (isDark ? AppColors.darkBadgeAvailBg : AppColors.lightBadgeAvailBg)
-                                    : (isDark ? AppColors.darkBadgeOfflineBg : AppColors.lightBadgeOfflineBg),
+                                    : hasAvailable
+                                        ? (isDark ? AppColors.darkBadgeAvailBg : AppColors.lightBadgeAvailBg)
+                                        : (isDark ? AppColors.darkBadgeOfflineBg : AppColors.lightBadgeOfflineBg),
                                 borderRadius: BorderRadius.circular(4),
                               ),
-                              child: Text(hasAvailable ? '이용가능' : '이용불가',
-                                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600,
-                                      color: hasAvailable ? AppColors.statusAvailable : AppColors.statusOffline)),
+                              child: Text(
+                                isTesla ? '$totalCount대' : (hasAvailable ? '이용가능' : '이용불가'),
+                                style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600,
+                                    color: isTesla ? AppColors.evGreen
+                                        : (hasAvailable ? AppColors.statusAvailable : AppColors.statusOffline)),
+                              ),
                             ),
                           ],
                         ],

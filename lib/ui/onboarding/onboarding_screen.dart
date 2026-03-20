@@ -232,14 +232,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   // ─── Step: 충전기 타입 (복수 선택) ───
   Widget _chargerStep() {
-    // 실제 환경부 API 코드: 01=DC차데모, 02=AC완속, 03=DC콤보, 04=AC3상, 09=NACS, SC=슈퍼차저
+    // 실제 사용: 01=DC차데모, 02=AC완속, 03=DC차데모+AC3상, 04=DC콤보, 07=AC3상, 09=NACS, SC=슈퍼차저
     final types = [
-      ('03', 'DC콤보'),
-      ('01', 'DC차데모'),
-      ('04', 'AC3상'),
       ('02', 'AC완속'),
-      ('SC', '슈퍼차저'),
+      ('07', 'AC3상'),
+      ('04', 'DC콤보'),
+      ('01', 'DC차데모'),
       ('09', 'NACS'),
+      ('SC', '슈퍼차저'),
     ];
 
     return Column(

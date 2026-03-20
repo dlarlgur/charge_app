@@ -531,15 +531,15 @@ class EvStatusBadge extends StatelessWidget {
       textColor = const Color(0xFFE5484D);
       label = '실시간 미지원';
     } else {
-      final inUse = station.totalCount - station.availableCount;
-      if (station.hasAvailable) {
+      final available = station.availableCount;
+      if (available > 0) {
         bgColor = isDark ? AppColors.darkBadgeAvailBg : AppColors.lightBadgeAvailBg;
         textColor = isDark ? AppColors.statusAvailable : AppColors.evGreenDark;
-        label = '$inUse/${station.totalCount} 이용가능';
+        label = '$available/${station.totalCount}';
       } else {
-        bgColor = isDark ? AppColors.darkBadgeOfflineBg : AppColors.lightBadgeOfflineBg;
-        textColor = AppColors.statusOffline;
-        label = station.totalCount > 0 ? '${station.totalCount}/${station.totalCount} 이용불가' : '이용불가';
+        bgColor = isDark ? const Color(0x1A9CA3AF) : const Color(0x129CA3AF);
+        textColor = isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280);
+        label = station.totalCount > 0 ? '0/${station.totalCount}' : '이용불가';
       }
     }
 

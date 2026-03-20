@@ -215,8 +215,9 @@ class Charger {
   final String type; // 01, 02, 03, 04, 05, 06, 07
   final int output; // kW
   final ChargerStatus status;
-  final DateTime? lastStatusUpdate;
-  final DateTime? lastChargeEnd; // lastTedt
+  final DateTime? chargingStarted; // nowTsdt: 현재 충전 시작 시각 (충전중일 때)
+  final DateTime? lastChargeEnd;   // lastTedt: 마지막 충전 종료 시각
+  final DateTime? lastStatusUpdate; // statUpdDt: 마지막 상태 업데이트 시각
   final int? unitPrice;
 
   Charger({
@@ -224,8 +225,9 @@ class Charger {
     required this.type,
     required this.output,
     required this.status,
-    this.lastStatusUpdate,
+    this.chargingStarted,
     this.lastChargeEnd,
+    this.lastStatusUpdate,
     this.unitPrice,
   });
 
@@ -243,8 +245,9 @@ class Charger {
       type: json['chgerType'] ?? '02',
       output: (json['output'] ?? 7).toInt(),
       status: ChargerStatus.fromCode(json['stat'] ?? 9),
-      lastStatusUpdate: _parseDt(json['statUpdDt']?.toString()),
+      chargingStarted: _parseDt(json['nowTsdt']?.toString()),
       lastChargeEnd: _parseDt(json['lastTedt']?.toString()),
+      lastStatusUpdate: _parseDt(json['statUpdDt']?.toString()),
       unitPrice: json['unitPrice'] != null ? (json['unitPrice'] as num).toInt() : null,
     );
   }
@@ -253,13 +256,14 @@ class Charger {
     switch (type) {
       case '01': return 'DC차데모';
       case '02': return 'AC완속';
-      case '03': return 'DC콤보';
-      case '04': return 'AC3상';
-      case '05': return 'DC차데모+AC3상';
-      case '06': return 'DC차데모+DC콤보';
-      case '07': return 'DC차데모+AC3상+DC콤보';
-      case '08': return '수소';
+      case '03': return 'DC차데모+AC3상';
+      case '04': return 'DC콤보';
+      case '05': return 'DC차데모+DC콤보';
+      case '06': return 'DC차데모+AC3상+DC콤보';
+      case '07': return 'AC3상';
+      case '08': return 'DC콤보(저속)';
       case '09': return 'NACS';
+      case '89': return 'H2(수소)';
       case 'SC': return '슈퍼차저';
       case 'DT': return '데스티네이션';
       default: return '기타';

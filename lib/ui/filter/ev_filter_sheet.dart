@@ -24,21 +24,19 @@ class EvFilterSheet extends ConsumerStatefulWidget {
 class _EvFilterSheetState extends ConsumerState<EvFilterSheet> {
   late EvFilterOptions _options;
 
-  // 실제 환경부 API chgerType 코드
-  // 01: DC차데모, 02: AC완속, 03: DC콤보, 04: AC3상, 09: NACS
-  // 환경부 코드: 01=DC차데모, 02=AC완속, 03=DC콤보, 04=AC3상, 09=NACS
-  // Tesla: SC=슈퍼차저, DT=데스티네이션
-  // 환경부: 01=DC차데모, 02=AC완속, 03=DC콤보, 04=AC3상, 09=NACS
-  // Tesla OCM: SC=슈퍼차저 (데스티네이션은 OCM 한국 데이터 없음)
-  static const _allChargerTypes = ['02', '03', '01', '04', '09', 'SC'];
+  // 환경부 API chgerType 코드 (실제 사용)
+  // 01=DC차데모, 02=AC완속, 03=DC차데모+AC3상, 04=DC콤보, 05=DC차데모+DC콤보
+  // 06=DC차데모+AC3상+DC콤보, 07=AC3상, 08=DC콤보(저속), 09=NACS, 89=H2(수소)
+  static const _allChargerTypes = ['02', '07', '04', '01', '09', 'SC', 'DT'];
 
   static const _connectorTypes = [
-    ('02', 'AC완속',   'assets/connectors/ac_slow.svg'),
-    ('03', 'DC콤보',   'assets/connectors/dc_combo.svg'),
-    ('01', 'DC차데모', 'assets/connectors/dc_chademo.svg'),
-    ('04', 'AC3상',    'assets/connectors/ac_3phase.svg'),
-    ('09', 'NACS',     'assets/connectors/nacs.svg'),
-    ('SC', '슈퍼차저', 'assets/connectors/supercharger.svg'),
+    ('02', 'AC완속',    'assets/connectors/ac_slow.svg'),
+    ('07', 'AC3상',     'assets/connectors/ac_3phase.svg'),
+    ('04', 'DC콤보',    'assets/connectors/dc_combo.svg'),
+    ('01', 'DC차데모',  'assets/connectors/dc_chademo.svg'),
+    ('09', 'NACS',      'assets/connectors/nacs.svg'),
+    ('SC', '슈퍼차저',  'assets/connectors/supercharger.svg'),
+    ('DT', '데스티네이션', 'assets/connectors/destination.svg'),
   ];
 
   // 주요 업체 목록 (기타 = 이 목록 외)

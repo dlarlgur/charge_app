@@ -146,13 +146,13 @@ class SettingsScreen extends ConsumerWidget {
 
   void _showChargerTypePicker(BuildContext context, WidgetRef ref) {
     final types = [
-      ('01', 'DC콤보'),
-      ('02', 'DC차데모'),
-      ('06', 'AC3상'),
-      ('04', '완속'),
-      ('07', '수퍼차저'),
-      ('08', '데스티네이션'),
+      ('02', 'AC완속'),
+      ('07', 'AC3상'),
+      ('04', 'DC콤보'),
+      ('01', 'DC차데모'),
       ('09', 'NACS'),
+      ('SC', '슈퍼차저'),
+      ('DT', '데스티네이션'),
     ];
     showModalBottomSheet(
       context: context,

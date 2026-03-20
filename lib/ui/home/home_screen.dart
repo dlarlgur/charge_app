@@ -1075,11 +1075,16 @@ String _chargerTypeLabel(String type) {
   switch (type) {
     case '01': return 'DC차데모';
     case '02': return 'AC완속';
-    case '03': return 'DC콤보';
-    case '04': return 'AC3상';
-    case '05': return '차데모+AC3상';
-    case '06': return '차데모+DC콤보';
-    case '07': return '차데모+AC+DC';
+    case '03': return 'DC차데모+AC3상';
+    case '04': return 'DC콤보';
+    case '05': return 'DC차데모+DC콤보';
+    case '06': return 'DC차데모+AC3상+DC콤보';
+    case '07': return 'AC3상';
+    case '08': return 'DC콤보(저속)';
+    case '09': return 'NACS';
+    case '89': return 'H2(수소)';
+    case 'SC': return '슈퍼차저';
+    case 'DT': return '데스티네이션';
     default: return type;
   }
 }

@@ -142,12 +142,14 @@ final locationStreamProvider = StreamProvider<({double lat, double lng})>((ref) 
 });
 
 // chgerType 복합 타입을 단일 커넥터 코드로 확장
-// 05: DC차데모+AC3상, 06: DC차데모+DC콤보, 07: DC차데모+AC3상+DC콤보
+// 01=DC차데모, 02=AC완속, 03=DC차데모+AC3상, 04=DC콤보, 05=DC차데모+DC콤보
+// 06=DC차데모+AC3상+DC콤보, 07=AC3상, 08=DC콤보(저속), 09=NACS, 89=H2(수소)
 Set<String> _expandChargerType(String type) {
   switch (type) {
-    case '05': return {'01', '04'};
-    case '06': return {'01', '03'};
-    case '07': return {'01', '03', '04'};
+    case '03': return {'01', '07'};  // DC차데모 + AC3상
+    case '05': return {'01', '04'};  // DC차데모 + DC콤보
+    case '06': return {'01', '07', '04'};  // DC차데모 + AC3상 + DC콤보
+    case '08': return {'04'};  // DC콤보(저속) → DC콤보로 매칭
     default: return {type};
   }
 }
@@ -358,7 +360,8 @@ class GasFilterNotifier extends StateNotifier<GasFilterOptions> {
   void _load() {
     final savedRadius = _box.get(AppConstants.keyGasFilterRadius, defaultValue: 5000) as int;
     // 저장된 반경이 유효하지 않으면 기본값(5000)으로 리셋
-    final validRadius = AppConstants.radiusOptions.contains(savedRadius) ? savedRadius : 5000;
+    const validOptions = [1000, 3000, 5000];
+    final validRadius = validOptions.contains(savedRadius) ? savedRadius : 5000;
     
     state = GasFilterOptions(
       sort: _box.get(AppConstants.keyGasFilterSort, defaultValue: 1),

@@ -106,9 +106,12 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
                           const SizedBox(height: 6),
                           Row(
                             children: [
-                              _badge(s.hasAvailable ? '이용가능' : '이용불가',
-                                  s.hasAvailable ? AppColors.statusAvailable : AppColors.statusOffline,
-                                  isDark ? AppColors.darkBadgeAvailBg : AppColors.lightBadgeAvailBg),
+                              s.isTesla
+                                  ? _badge('${s.totalCount}대', AppColors.evGreen,
+                                      isDark ? AppColors.darkBadgeAvailBg : AppColors.lightBadgeAvailBg)
+                                  : _badge(s.hasAvailable ? '이용가능' : '이용불가',
+                                      s.hasAvailable ? AppColors.statusAvailable : AppColors.statusOffline,
+                                      isDark ? AppColors.darkBadgeAvailBg : AppColors.lightBadgeAvailBg),
                               const SizedBox(width: 6),
                               Text(s.operator, style: TextStyle(fontSize: 12,
                                   color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
@@ -157,15 +160,29 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
             ],
           ),
           const SizedBox(height: 10),
-          Row(
-            children: [
-              _statusCounter('이용가능', s.availableCount, AppColors.statusAvailable, isDark),
-              const SizedBox(width: 8),
-              _statusCounter('충전중', s.chargingCount, AppColors.statusCharging, isDark),
-              const SizedBox(width: 8),
-              _statusCounter('고장', s.offlineCount, AppColors.statusOffline, isDark),
-            ],
-          ),
+          if (s.isTesla)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: (isDark ? Colors.white : Colors.black).withOpacity(0.04),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder, width: 0.5),
+              ),
+              child: Text('실시간 정보 없음',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+            )
+          else
+            Row(
+              children: [
+                _statusCounter('이용가능', s.availableCount, AppColors.statusAvailable, isDark),
+                const SizedBox(width: 8),
+                _statusCounter('충전중', s.chargingCount, AppColors.statusCharging, isDark),
+                const SizedBox(width: 8),
+                _statusCounter('고장', s.offlineCount, AppColors.statusOffline, isDark),
+              ],
+            ),
           const SizedBox(height: 20),
 
           // 개별 충전기 목록
@@ -173,7 +190,14 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
             Text('충전기 목록', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
                 color: isDark ? const Color(0xFF60A5FA) : AppColors.gasBlueDark)),
             const SizedBox(height: 10),
-            ...s.chargers.map((charger) => _chargerTile(charger, isDark)),
+            ...([...s.chargers]..sort((a, b) {
+                int order(ChargerStatus s) => switch (s) {
+                  ChargerStatus.available => 0,
+                  ChargerStatus.charging  => 1,
+                  _                       => 2,
+                };
+                return order(a.status).compareTo(order(b.status));
+              })).map((charger) => _chargerTile(charger, isDark)),
             const SizedBox(height: 8),
             Text('충전기 상태는 실시간과 다를 수 있습니다',
               style: TextStyle(fontSize: 11,
@@ -258,14 +282,17 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
         ),
         child: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-              decoration: BoxDecoration(
-                color: tierColor.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(6),
+            SizedBox(
+              width: 52,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                decoration: BoxDecoration(
+                  color: tierColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(tier, textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: tierColor)),
               ),
-              child: Text(tier,
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: tierColor)),
             ),
             const SizedBox(width: 12),
             priceCol('급속', fast, AppColors.statusFast),
@@ -325,59 +352,90 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
   }
 
   Widget _chargerTile(Charger charger, bool isDark) {
+    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+
     Color statusColor;
     String statusText;
+    String? subText;
+    Color subTextColor;
 
     switch (charger.status) {
       case ChargerStatus.available:
         statusColor = AppColors.statusAvailable;
-        statusText = '이용가능';
+        statusText = '충전가능';
+        subText = charger.lastStatusUpdate != null
+            ? '${_timeAgo(charger.lastStatusUpdate!)} 마지막 충전'
+            : null;
+        subTextColor = mutedColor;
         break;
       case ChargerStatus.charging:
         statusColor = AppColors.statusCharging;
         statusText = '충전중';
+        final startDt = charger.chargingStarted ?? charger.lastStatusUpdate;
+        subText = startDt != null ? _chargingElapsed(startDt) : null;
+        subTextColor = AppColors.statusCharging;
+        break;
+      case ChargerStatus.unknown:
+        statusColor = AppColors.statusOffline;
+        statusText = '상태확인 불가';
+        subText = charger.lastStatusUpdate != null
+            ? '${_timeAgo(charger.lastStatusUpdate!)} 고장'
+            : null;
+        subTextColor = AppColors.statusOffline;
         break;
       default:
         statusColor = AppColors.statusOffline;
         statusText = charger.status.label;
+        subText = charger.lastStatusUpdate != null
+            ? '${_timeAgo(charger.lastStatusUpdate!)} 고장'
+            : null;
+        subTextColor = mutedColor;
     }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkCard : AppColors.lightCard,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder, width: 0.5),
+        border: Border.all(
+            color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
+            width: 0.5),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Container(
-            width: 8, height: 8,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: statusColor),
-          ),
-          const SizedBox(width: 10),
+          // 왼쪽: 상태 + 시간 서브텍스트
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${charger.typeText} · ${charger.output}kW', style: Theme.of(context).textTheme.titleSmall),
-                if (charger.status == ChargerStatus.available && charger.lastChargeEnd != null)
-                  Text('${_timeAgo(charger.lastChargeEnd!)} 종료',
-                      style: Theme.of(context).textTheme.labelSmall)
-                else if (charger.lastStatusUpdate != null)
-                  Text('${_timeAgo(charger.lastStatusUpdate!)} 업데이트',
-                      style: Theme.of(context).textTheme.labelSmall),
+                Text(statusText,
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: statusColor)),
+                if (subText != null) ...[
+                  const SizedBox(height: 3),
+                  Text(subText,
+                      style: TextStyle(fontSize: 11, color: subTextColor)),
+                ],
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: statusColor.withOpacity(isDark ? 0.15 : 0.1),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(statusText, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: statusColor)),
+          // 오른쪽: 충전기 타입 + 출력
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(charger.typeText,
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: isDark ? Colors.white70 : Colors.black87)),
+              const SizedBox(height: 2),
+              Text('${charger.output}kW',
+                  style: TextStyle(fontSize: 11, color: mutedColor)),
+            ],
           ),
         ],
       ),
@@ -404,7 +462,19 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
     final diff = DateTime.now().difference(dt);
     if (diff.inMinutes < 1) return '방금';
     if (diff.inMinutes < 60) return '${diff.inMinutes}분 전';
-    if (diff.inHours < 24) return '${diff.inHours}시간 전';
+    if (diff.inHours < 24) {
+      final m = diff.inMinutes % 60;
+      return m > 0 ? '${diff.inHours}시간 ${m}분 전' : '${diff.inHours}시간 전';
+    }
     return '${diff.inDays}일 전';
+  }
+
+  String _chargingElapsed(DateTime startDt) {
+    final diff = DateTime.now().difference(startDt);
+    if (diff.inMinutes < 1) return '방금 시작';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}분 충전중';
+    final h = diff.inHours;
+    final m = diff.inMinutes % 60;
+    return m > 0 ? '$h시간 ${m}분 충전중' : '$h시간 충전중';
   }
 }

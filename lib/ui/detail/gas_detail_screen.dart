@@ -176,14 +176,14 @@ class _GasDetailScreenState extends ConsumerState<GasDetailScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: isDark ? const Color(0x1F10B981) : const Color(0xFFD1FAE5),
+                              color: isDark ? const Color(0x1F3B82F6) : const Color(0xFFDBEAFE),
                               borderRadius: BorderRadius.circular(6),
                             ),
-                            child: Text(fuelLabel, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFF34D399) : const Color(0xFF059669))),
+                            child: Text(fuelLabel, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isDark ? AppColors.gasBlue : AppColors.gasBlueDark)),
                           ),
                           Text(
                             priceText,
-                            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.gasBlue, letterSpacing: -0.5),
+                            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: isDark ? AppColors.gasBlue : AppColors.gasBlueDark, letterSpacing: -0.5),
                           ),
                         ],
                       ),
