@@ -50,6 +50,10 @@ dependencies:
   flutter_local_notifications: ^18.0.0
   uuid: ^4.0.0
 
+  # Home Widget & Background Tasks
+  home_widget: ^0.6.0
+  workmanager: ^0.9.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

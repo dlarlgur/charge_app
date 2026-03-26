@@ -17,6 +17,31 @@ Future<void> showNavigationSheet(
   );
 }
 
+Future<void> showViaWaypointNavigationSheet(
+  BuildContext context, {
+  required double waypointLat,
+  required double waypointLng,
+  required String waypointName,
+  required double destinationLat,
+  required double destinationLng,
+  required String destinationName,
+}) async {
+  await showModalBottomSheet(
+    context: context,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (_) => _ViaWaypointNavigationSheet(
+      waypointLat: waypointLat,
+      waypointLng: waypointLng,
+      waypointName: waypointName,
+      destinationLat: destinationLat,
+      destinationLng: destinationLng,
+      destinationName: destinationName,
+    ),
+  );
+}
+
 class _NavigationSheet extends StatelessWidget {
   final double lat, lng;
   final String name;
@@ -67,6 +92,103 @@ class _NavigationSheet extends StatelessWidget {
               onTap: () => _launch(
                 context,
                 'tmap://route?goalname=${Uri.encodeComponent(name)}&goaly=$lat&goalx=$lng',
+                fallback: 'https://www.tmap.co.kr',
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _navItem(BuildContext context, {required Widget icon, required String label, required String subtitle, required VoidCallback onTap}) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      leading: icon,
+      title: Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+      trailing: const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+      onTap: () {
+        Navigator.pop(context);
+        onTap();
+      },
+    );
+  }
+
+  Future<void> _launch(BuildContext context, String url, {required String fallback}) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      await launchUrl(Uri.parse(fallback), mode: LaunchMode.externalApplication);
+    }
+  }
+}
+
+class _ViaWaypointNavigationSheet extends StatelessWidget {
+  final double waypointLat, waypointLng;
+  final String waypointName;
+  final double destinationLat, destinationLng;
+  final String destinationName;
+
+  const _ViaWaypointNavigationSheet({
+    required this.waypointLat,
+    required this.waypointLng,
+    required this.waypointName,
+    required this.destinationLat,
+    required this.destinationLng,
+    required this.destinationName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+            ),
+            const SizedBox(height: 16),
+            const Text('경유 길찾기 앱 선택', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            _navItem(
+              context,
+              icon: _NaverIcon(),
+              label: '네이버 지도',
+              subtitle: '네이버',
+              onTap: () => _launch(
+                context,
+                'nmap://route/car?slat=$waypointLat&slng=$waypointLng&sname=${Uri.encodeComponent(waypointName)}'
+                '&dlat=$destinationLat&dlng=$destinationLng&dname=${Uri.encodeComponent(destinationName)}'
+                '&appname=${AppConstants.packageName}',
+                fallback: 'https://map.naver.com',
+              ),
+            ),
+            _navItem(
+              context,
+              icon: _KakaoIcon(),
+              label: '카카오내비',
+              subtitle: '카카오',
+              onTap: () => _launch(
+                context,
+                'kakaonavi://navigate?ep=${destinationLng}_${destinationLat}&via=${waypointLng}_${waypointLat}&by=CAR',
+                fallback: 'https://kakaonavi.kakao.com',
+              ),
+            ),
+            _navItem(
+              context,
+              icon: _TmapIcon(),
+              label: '티맵',
+              subtitle: 'SK텔레콤',
+              onTap: () => _launch(
+                context,
+                'tmap://route?goalname=${Uri.encodeComponent(destinationName)}&goaly=$destinationLat&goalx=$destinationLng',
                 fallback: 'https://www.tmap.co.kr',
               ),
             ),

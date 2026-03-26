@@ -1,5 +1,26 @@
 import 'dart:math';
 
+import 'package:intl/intl.dart';
+
+/// 정수 천 단위 콤마 (홈 요약 카드 등). 소수는 버림(truncate), NaN/∞ 는 0.
+String formatThousandsInt(num value) {
+  if (value is double && (value.isNaN || value.isInfinite)) {
+    return NumberFormat('#,###', 'ko_KR').format(0);
+  }
+  return NumberFormat('#,###', 'ko_KR').format(value.truncate());
+}
+
+/// API 숫자 필드(PRICE/DIFF 등)가 num 또는 문자열로 올 때 안전하게 파싱
+double parseApiDouble(dynamic v) {
+  if (v == null) return 0;
+  if (v is num) return v.toDouble();
+  if (v is String) {
+    final t = v.trim().replaceAll(',', '');
+    return double.tryParse(t) ?? 0;
+  }
+  return 0;
+}
+
 /// 가격 포맷 (1,234원)
 String formatPrice(double price) {
   return '${price.toInt().toString().replaceAllMapped(

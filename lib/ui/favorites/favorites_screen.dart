@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/constants/api_constants.dart';
+import '../../data/services/widget_service.dart';
 
 /// 즐겨찾기 관리 서비스 (Hive 로컬 DB)
 class FavoriteService {
@@ -68,6 +69,12 @@ class FavoritesNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   bool toggle({required String id, required String type, required String name, required String subtitle}) {
     final result = FavoriteService.toggle(id: id, type: type, name: name, subtitle: subtitle);
     state = FavoriteService.getAll();
+    // 즐겨찾기 변경 시 위젯 데이터도 갱신
+    if (type == 'gas') {
+      WidgetService.updateGasWidget();
+    } else if (type == 'ev') {
+      WidgetService.updateEvWidget();
+    }
     return result;
   }
 }

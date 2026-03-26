@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/helpers.dart';
 import '../../data/models/models.dart';
 import '../../data/services/alert_service.dart';
 import '../../data/services/api_service.dart';
@@ -603,6 +604,7 @@ class GasSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colors = isDark ? AppColors.gasSummaryGradientDark : AppColors.gasSummaryGradientLight;
+    final diffSafe = (priceDiff.isNaN || priceDiff.isInfinite) ? 0.0 : priceDiff;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -622,7 +624,7 @@ class GasSummaryCard extends StatelessWidget {
                 color: isDark ? const Color(0xFF60A5FA) : AppColors.gasBlueDark)),
               const SizedBox(height: 4),
               RichText(text: TextSpan(children: [
-                TextSpan(text: '${avgPrice.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}',
+                TextSpan(text: formatThousandsInt(avgPrice),
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
                 TextSpan(text: '원/L', style: TextStyle(fontSize: 13, color: AppColors.darkTextMuted)),
               ])),
@@ -632,11 +634,12 @@ class GasSummaryCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '${priceDiff >= 0 ? "▲" : "▼"} ${priceDiff.abs().toInt()}원',
+                '${diffSafe >= 0 ? "▲" : "▼"} ${formatThousandsInt(diffSafe.abs())}원',
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
-                  color: priceDiff >= 0 ? AppColors.error : AppColors.success),
+                  color: diffSafe >= 0 ? AppColors.error : AppColors.success),
               ),
-              Text('전주 대비', style: TextStyle(fontSize: 10, color: AppColors.darkTextMuted)),
+              // 오피넷 DIFF는 전일 대비 등락(원/L 단위)
+              Text('전일 대비', style: TextStyle(fontSize: 10, color: AppColors.darkTextMuted)),
             ],
           ),
         ],

@@ -5,12 +5,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/helpers.dart';
 import '../../core/constants/api_constants.dart';
 import '../../data/models/models.dart';
 import '../../data/services/alert_service.dart';
 import '../../data/services/notification_service.dart';
 import '../../data/services/version_service.dart';
 import '../../providers/providers.dart';
+import '../ai/ai_main_screen.dart';
 import '../map/map_screen.dart';
 import '../widgets/shared_widgets.dart';
 import '../widgets/update_dialog.dart';
@@ -139,16 +141,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: [
           _HomeTab(key: _messageBadgeKey),
           const _MapTab(),
+          const AiMainScreen(),
           const _FavoritesTab(),
           const _SettingsTab(),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
         currentIndex: bottomIndex,
         onTap: (i) => ref.read(bottomNavIndexProvider.notifier).state = i,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: '홈'),
           BottomNavigationBarItem(icon: Icon(Icons.map_rounded), label: '지도'),
+          BottomNavigationBarItem(icon: Icon(Icons.auto_awesome_rounded), label: 'AI'),
           BottomNavigationBarItem(icon: Icon(Icons.favorite_rounded), label: '즐겨찾기'),
           BottomNavigationBarItem(icon: Icon(Icons.settings_rounded), label: '설정'),
         ],
@@ -412,7 +417,11 @@ class _GasListViewState extends ConsumerState<_GasListView> {
                 final fuelCode = filter.fuelTypes.isNotEmpty ? filter.fuelTypes.first : 'B027';
                 final fuelLabel = FuelType.fromCode(fuelCode).label;
                 final priceDiff = avgAsync.when(
-                  data: (m) => (m[fuelCode]?['diff'] as num?)?.toDouble() ?? 0.0,
+                  data: (m) {
+                    final row = m[fuelCode];
+                    if (row is! Map) return 0.0;
+                    return parseApiDouble(row['diff']);
+                  },
                   loading: () => 0.0,
                   error: (_, __) => 0.0,
                 );

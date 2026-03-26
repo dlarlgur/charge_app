@@ -7,10 +7,26 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:workmanager/workmanager.dart';
 import 'app.dart';
 import 'core/constants/secrets.dart';
 import 'data/services/alert_service.dart';
 import 'data/services/notification_service.dart';
+import 'data/services/widget_service.dart';
+
+/// WorkManager 백그라운드 콜백 (top-level 함수 필수)
+@pragma('vm:entry-point')
+void callbackDispatcher() {
+  Workmanager().executeTask((task, inputData) async {
+    switch (task) {
+      case 'widgetGasUpdate':
+        return await WidgetService.backgroundUpdateGas();
+      case 'widgetEvUpdate':
+        return await WidgetService.backgroundUpdateEv();
+    }
+    return Future.value(true);
+  });
+}
 
 /// 백그라운드 isolate에서 Hive에 알림 내역 저장
 Future<void> _saveGasPriceToHive(Map<String, dynamic> data) async {
@@ -133,6 +149,30 @@ void main() async {
   await Hive.initFlutter();
   await Hive.openBox('settings');
   await Hive.openBox('favorites');
+
+  // 홈 위젯 초기화 및 WorkManager 등록
+  await WidgetService.init();
+  try {
+    await Workmanager().initialize(callbackDispatcher);
+    await Workmanager().registerPeriodicTask(
+      'widgetGasUpdate',
+      'widgetGasUpdate',
+      frequency: const Duration(minutes: 30),
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
+      constraints: Constraints(networkType: NetworkType.connected),
+    );
+    await Workmanager().registerPeriodicTask(
+      'widgetEvUpdate',
+      'widgetEvUpdate',
+      frequency: const Duration(minutes: 15),
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
+      constraints: Constraints(networkType: NetworkType.connected),
+    );
+  } catch (e) {
+    debugPrint('[WorkManager] 초기화 실패 (무시됨): $e');
+  }
+  // 앱 시작 시 즉시 1회 갱신
+  WidgetService.updateAll();
 
   await FlutterNaverMap().init(
     clientId: Secrets.naverMapClientId,

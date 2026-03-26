@@ -45,6 +45,7 @@ final settingsProvider = StateNotifierProvider<SettingsNotifier, SettingsState>(
 
 class SettingsState {
   final bool onboardingDone;
+  final bool aiOnboardingDone;
   final VehicleType vehicleType;
   final FuelType fuelType;
   final List<String> chargerTypes;
@@ -53,6 +54,7 @@ class SettingsState {
 
   const SettingsState({
     this.onboardingDone = false,
+    this.aiOnboardingDone = false,
     this.vehicleType = VehicleType.gas,
     this.fuelType = FuelType.gasoline,
     this.chargerTypes = const ['01', '04'],
@@ -61,11 +63,12 @@ class SettingsState {
   });
 
   SettingsState copyWith({
-    bool? onboardingDone, VehicleType? vehicleType, FuelType? fuelType,
+    bool? onboardingDone, bool? aiOnboardingDone, VehicleType? vehicleType, FuelType? fuelType,
     List<String>? chargerTypes, int? radius, int? defaultTab,
   }) {
     return SettingsState(
       onboardingDone: onboardingDone ?? this.onboardingDone,
+      aiOnboardingDone: aiOnboardingDone ?? this.aiOnboardingDone,
       vehicleType: vehicleType ?? this.vehicleType,
       fuelType: fuelType ?? this.fuelType,
       chargerTypes: chargerTypes ?? this.chargerTypes,
@@ -85,6 +88,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   void _load() {
     state = SettingsState(
       onboardingDone: _box.get(AppConstants.keyOnboardingDone, defaultValue: false),
+      aiOnboardingDone: _box.get(AppConstants.keyAiOnboardingDone, defaultValue: false),
       vehicleType: VehicleType.fromCode(_box.get(AppConstants.keyVehicleType, defaultValue: 'gas')),
       fuelType: FuelType.fromCode(_box.get(AppConstants.keyFuelType, defaultValue: 'B027')),
       chargerTypes: List<String>.from(_box.get(AppConstants.keyChargerTypes, defaultValue: ['01', '04'])),
@@ -120,6 +124,11 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   void completeOnboarding() {
     state = state.copyWith(onboardingDone: true);
     _box.put(AppConstants.keyOnboardingDone, true);
+  }
+
+  void completeAiOnboarding() {
+    state = state.copyWith(aiOnboardingDone: true);
+    _box.put(AppConstants.keyAiOnboardingDone, true);
   }
 }
 

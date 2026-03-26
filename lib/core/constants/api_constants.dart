@@ -25,6 +25,13 @@ class ApiConstants {
   // ─── 검색 ───
   static const searchPlaces = '/search/places';
 
+  // ─── 지오코딩 ───
+  static const reverseGeocode = '/geocode/reverse';
+
+  // ─── AI 추천 ───
+  static const routeDriving = '/route/driving';
+  static const refuelAnalyze = '/v1/refuel/analyze';
+
   // ─── 오피넷 유종 코드 ───
   static const fuelCodeGasoline = 'B027';
   static const fuelCodePremium = 'B034';
@@ -97,4 +104,14 @@ class AppConstants {
   // Map Toggle Keys (둘다 모드일 때만 저장)
   static const keyMapShowGas = 'map_show_gas';
   static const keyMapShowEv = 'map_show_ev';
+
+  // AI Onboarding / Analyze Keys
+  static const keyAiOnboardingDone = 'ai_onboarding_done';
+  static const keyAiFuelType = 'ai_fuel_type';
+  static const keyAiTankCapacity = 'ai_tank_capacity';
+  static const keyAiEfficiency = 'ai_efficiency';
+  static const keyAiCurrentLevelPercent = 'ai_current_level_percent';
+  static const keyAiTargetMode = 'ai_target_mode'; // FULL | PRICE | LITER
+  static const keyAiTargetValue = 'ai_target_value';
+  static const keyAiLiterTarget = 'ai_liter_target';
 }

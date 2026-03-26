@@ -16,8 +16,8 @@ class ApiService {
     ));
 
     _dio.interceptors.add(LogInterceptor(
-      requestBody: false,
-      responseBody: false,
+      requestBody: true,
+      responseBody: true,
       logPrint: (obj) => print('[API] $obj'),
     ));
   }
@@ -94,6 +94,43 @@ class ApiService {
     }
     final res = await _dio.get(ApiConstants.searchPlaces, queryParameters: params);
     return List<Map<String, dynamic>>.from(res.data['results'] ?? []);
+  }
+
+  // ─── AI 추천 ───
+  Future<Map<String, dynamic>> getDrivingRoute({
+    required double startLat,
+    required double startLng,
+    required double goalLat,
+    required double goalLng,
+  }) async {
+    final res = await _dio.get(
+      ApiConstants.routeDriving,
+      queryParameters: {
+        'start_lat': startLat,
+        'start_lng': startLng,
+        'goal_lat': goalLat,
+        'goal_lng': goalLng,
+      },
+    );
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> postRefuelAnalyze(Map<String, dynamic> body) async {
+    final res = await _dio.post(ApiConstants.refuelAnalyze, data: body);
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<String?> reverseGeocode(double lat, double lng) async {
+    try {
+      final res = await _dio.get(
+        ApiConstants.reverseGeocode,
+        queryParameters: {'lat': lat, 'lng': lng},
+      );
+      if (res.data['success'] == true) return res.data['address'] as String?;
+      return null;
+    } catch (_) {
+      return null;
+    }
   }
 
 }
