@@ -476,13 +476,36 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
         List<Map<String, dynamic>>? viaSegments;
         final nav = data['navigation'] is Map ? data['navigation'] as Map<String, dynamic> : null;
         final vpr = nav?['via_primary_route'] is Map ? nav!['via_primary_route'] as Map<String, dynamic> : null;
+        final onRouteVia = onRoute?['via_route'] is Map ? onRoute!['via_route'] as Map<String, dynamic> : null;
+        final detourVia = bestDetour?['via_route'] is Map ? bestDetour!['via_route'] as Map<String, dynamic> : null;
+        final primaryVia = choice == 'best_detour' ? detourVia : onRouteVia;
         var usedServerPrimaryRoute = false;
-        if (vpr != null) {
+        // 1순위: 추천 카드 자체의 via_route (on_route/best_detour)
+        if (primaryVia != null) {
+          final parsed = _pathPointsFromServerJson(primaryVia['path_points']);
+          if (parsed != null) {
+            viaPathPoints = parsed;
+            viaSegments = _parsePathSegments(primaryVia['path_segments']);
+            usedServerPrimaryRoute = true;
+            _debugSegmentStats(
+              label: 'primaryVia(on_route/best_detour)',
+              pathSegments: viaSegments,
+              pathPoints: viaPathPoints,
+            );
+          }
+        }
+        // 2순위: navigation.via_primary_route (레거시/폴백)
+        if (!usedServerPrimaryRoute && vpr != null) {
           final parsed = _pathPointsFromServerJson(vpr['path_points']);
           if (parsed != null) {
             viaPathPoints = parsed;
             viaSegments = _parsePathSegments(vpr['path_segments']);
             usedServerPrimaryRoute = true;
+            _debugSegmentStats(
+              label: 'navigation.via_primary_route',
+              pathSegments: viaSegments,
+              pathPoints: viaPathPoints,
+            );
           }
         }
         if (!usedServerPrimaryRoute && stLat != null && stLng != null) {
@@ -496,6 +519,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
               final parsed = _pathPointsFromServerJson(vr['path_points']);
               if (parsed != null) viaPathPoints = parsed;
               viaSegments = _parsePathSegments(vr['path_segments']);
+              _debugSegmentStats(
+                label: 'client.getDrivingRoute(fallback)',
+                pathSegments: viaSegments,
+                pathPoints: viaPathPoints,
+              );
             }
           } catch (_) {}
         }
@@ -606,14 +634,40 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
   }
 
   // ── 정체도(congestion) → 색상 변환 ──
+  // 네이버 체감 톤에 가깝게 조정:
+  // 1(원활)=초록, 2(서행)=노랑, 3(지체)=주황, 4(정체)=빨강
   static Color _congestionColor(int congestion) {
     switch (congestion) {
-      case 1: return const Color(0xFF00A650); // 원활 (초록)
-      case 2: return const Color(0xFFFF8C00); // 서행 (주황)
-      case 3: return const Color(0xFFE03030); // 지체 (빨강)
-      case 4: return const Color(0xFF880000); // 정체 (진빨강)
+      case 1: return const Color(0xFF00B050); // 원활 (초록)
+      case 2: return const Color(0xFFFFCC00); // 서행 (노랑)
+      case 3: return const Color(0xFFFF8A00); // 지체 (주황)
+      case 4: return const Color(0xFFE53935); // 정체 (빨강)
       default: return _kPrimary;              // 미확인 (앱 기본색)
     }
+  }
+
+  void _debugSegmentStats({
+    required String label,
+    List<Map<String, dynamic>>? pathSegments,
+    required List<Map<String, dynamic>> pathPoints,
+  }) {
+    final segCount = pathSegments?.length ?? 0;
+    final hist = <int, int>{};
+    if (pathSegments != null) {
+      for (final s in pathSegments) {
+        final c = s['congestion'];
+        if (c is num) {
+          final k = c.toInt();
+          hist[k] = (hist[k] ?? 0) + 1;
+        }
+      }
+    }
+    debugPrint(
+      '[AI_MAP_SEGMENTS] $label '
+      'path_points=${pathPoints.length} '
+      'path_segments=$segCount '
+      'congestion_hist=$hist',
+    );
   }
 
   // ── 분석 결과 지도에 그리기 ──
@@ -676,8 +730,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
           width: 8,
           outlineWidth: 2,
         ));
+      } else {
+        debugPrint('[AI_MAP_SEGMENTS] path_segments 존재하지만 유효 coords가 없어 multipart 렌더 실패');
       }
     } else if (pathPoints.length >= 2) {
+      debugPrint('[AI_MAP_SEGMENTS] path_segments 없음/비어있음 -> 단색 경로로 폴백');
       // 교통 세그먼트 없음: 네이버 ‘원활’ 구간과 동일한 초록 단색(구간색 있을 때와 톤 맞춤)
       final coords = pathPoints
           .map((p) => NLatLng(
@@ -856,6 +913,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
         pathPoints = parsed;
         pathSegments = _parsePathSegments(vrMap['path_segments']);
         usedServerAlt = true;
+        _debugSegmentStats(
+          label: 'alternative.via_route',
+          pathSegments: pathSegments,
+          pathPoints: pathPoints,
+        );
       }
     }
     if (!usedServerAlt) {
@@ -869,6 +931,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
           final parsed = _pathPointsFromServerJson(vr['path_points']);
           if (parsed != null) pathPoints = parsed;
           pathSegments = _parsePathSegments(vr['path_segments']);
+          _debugSegmentStats(
+            label: 'alternative.client.getDrivingRoute(fallback)',
+            pathSegments: pathSegments,
+            pathPoints: pathPoints,
+          );
         }
       } catch (_) {}
     }

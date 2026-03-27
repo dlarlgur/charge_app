@@ -1,7 +1,7 @@
 name: charge_helper
 description: 주유/충전 도우미 - 주유소 + 전기차 충전소 통합 앱
 publish_to: 'none'
-version: 1.0.3+4
+version: 1.0.4+5
 
 environment:
   sdk: '>=3.2.0 <4.0.0'
