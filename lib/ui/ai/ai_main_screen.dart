@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -11,6 +12,7 @@ import 'package:intl/intl.dart';
 import '../../core/constants/api_constants.dart';
 import '../../data/models/models.dart';
 import '../../data/services/api_service.dart';
+import '../../data/services/location_service.dart';
 import '../../providers/providers.dart';
 import 'ai_onboarding_screen.dart';
 import 'ai_result_screen.dart';
@@ -30,6 +32,11 @@ class AiMainScreen extends ConsumerStatefulWidget {
 class _AiMainScreenState extends ConsumerState<AiMainScreen> {
   // ── 지도 ──
   NaverMapController? _mapController;
+  StreamSubscription<({double lat, double lng})>? _locationSub;
+  bool _isLocating = false;
+  bool _isAtMyLocation = false;
+  bool _suppressCameraChange = false;
+  bool _addressLoaded = false;
 
   // ── 피커 모드 (지도에서 위치 선택) ──
   bool _isPickerMode = false;
@@ -63,20 +70,58 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
   String? _errorMessage;
   bool _onboardingPushed = false;
 
+  // ── 결과 지도 모드 ──
+  bool _isResultMode = false;
+  Map<String, dynamic>? _lastResultData;
+  String? _lastRouteSummary;
+
+  // ── 결과 패널 시트 크기 추적 ──
+  final DraggableScrollableController _sheetController = DraggableScrollableController();
+  double _sheetSize = 0.45;
+
+  // ── AI 추천 복원용 원본 파라미터 ──
+  List<Map<String, dynamic>> _lastRecPathPoints = [];
+  List<Map<String, dynamic>>? _lastRecSegments;
+  double? _lastRecStLat, _lastRecStLng;
+  String _lastRecStName = '';
+  int? _lastRecStPrice;
+  double? _lastRecSt2Lat, _lastRecSt2Lng;
+  String _lastRecSt2Name = '';
+  int? _lastRecSt2Price;
+  List<dynamic>? _lastRecAlternatives;
+
   static final _wonFmt = NumberFormat('#,###', 'ko_KR');
 
   @override
   void initState() {
     super.initState();
     _loadSaved();
-    _loadCurrentAddress();
+    _sheetController.addListener(_onSheetChanged);
+  }
+
+  void _onSheetChanged() {
+    if (mounted && _sheetController.isAttached) {
+      setState(() => _sheetSize = _sheetController.size);
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_addressLoaded) {
+      _addressLoaded = true;
+      _loadCurrentAddress();
+    }
   }
 
   @override
   void dispose() {
+    _sheetController.removeListener(_onSheetChanged);
+    _sheetController.dispose();
     _priceController.dispose();
     _literController.dispose();
     _reverseGeocodeDebounce?.cancel();
+    _locationSub?.cancel();
     super.dispose();
   }
 
@@ -98,29 +143,74 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
       final loc = await ref.read(locationProvider.future);
       if (loc == null || !mounted) return;
       final addr = await ApiService().reverseGeocode(loc.lat, loc.lng);
-      if (mounted) setState(() => _currentLocationAddress = addr);
+      if (mounted) setState(() => _currentLocationAddress = addr ?? _currentLocationAddress);
     } catch (_) {}
   }
 
-  // ── 지도 준비 → GPS 위치로 이동 ──
-  void _onMapReady(NaverMapController controller) async {
+  // ── 지도 준비 → GPS 위치로 이동 + location overlay 표시 (지도탭과 동일) ──
+  void _onMapReady(NaverMapController controller) {
     _mapController = controller;
-    try {
-      final loc = await ref.read(locationProvider.future);
+    ref.read(locationProvider.future).then((loc) {
       if (loc == null || !mounted) return;
-      await controller.updateCamera(
-        NCameraUpdate.scrollAndZoomTo(
-          target: NLatLng(loc.lat, loc.lng),
-          zoom: 14,
-        ),
-      );
-    } catch (_) {}
+      _suppressCameraChange = true;
+      controller.updateCamera(NCameraUpdate.withParams(
+        target: NLatLng(loc.lat, loc.lng),
+        zoom: 14,
+      ));
+      final overlay = controller.getLocationOverlay();
+      overlay.setIsVisible(true);
+      overlay.setPosition(NLatLng(loc.lat, loc.lng));
+      if (mounted) setState(() => _isAtMyLocation = true);
+      Future.delayed(const Duration(milliseconds: 800), () {
+        _suppressCameraChange = false;
+      });
+    });
+
+    // 위치 스트림 구독 → overlay 실시간 갱신
+    _locationSub?.cancel();
+    _locationSub = ref.read(locationStreamProvider.stream).listen((loc) {
+      final overlay = _mapController?.getLocationOverlay();
+      overlay?.setIsVisible(true);
+      overlay?.setPosition(NLatLng(loc.lat, loc.lng));
+    });
+  }
+
+  // ── 현재 위치 버튼 ──
+  void _moveToMyLocation() async {
+    if (_isLocating) return;
+    setState(() => _isLocating = true);
+    try {
+      final streamed = ref.read(locationStreamProvider).valueOrNull;
+      ({double lat, double lng})? loc = streamed;
+      if (loc == null) {
+        final pos = await LocationService().getFreshPosition();
+        if (pos == null) return;
+        loc = (lat: pos.latitude, lng: pos.longitude);
+      }
+      final target = NLatLng(loc.lat, loc.lng);
+      _suppressCameraChange = true;
+      _mapController?.updateCamera(NCameraUpdate.withParams(target: target, zoom: 14));
+      final overlay = _mapController?.getLocationOverlay();
+      overlay?.setIsVisible(true);
+      overlay?.setPosition(target);
+      if (mounted) setState(() => _isAtMyLocation = true);
+      Future.delayed(const Duration(milliseconds: 800), () {
+        _suppressCameraChange = false;
+      });
+    } finally {
+      if (mounted) setState(() => _isLocating = false);
+    }
   }
 
   // ── 카메라 정지 → 피커 모드에서 역지오코딩 ──
   void _onCameraIdle() async {
-    if (!_isPickerMode || _mapController == null) return;
-    final pos = await _mapController!.getCameraPosition();
+    if (!_isPickerMode || _mapController == null || _suppressCameraChange) return;
+    final NCameraPosition pos;
+    try {
+      pos = await _mapController!.getCameraPosition();
+    } catch (_) {
+      return;
+    }
     if (!mounted) return;
     setState(() {
       _pickerLatLng = pos.target;
@@ -147,7 +237,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
       _pickerLatLng = null;
       _isReverseGeocoding = true;
     });
-    Future.delayed(const Duration(milliseconds: 300), _onCameraIdle);
+    // _suppressCameraChange(800ms)가 풀린 뒤에 역지오코딩 시작
+    Future.delayed(const Duration(milliseconds: 900), _onCameraIdle);
   }
 
   void _exitPickerMode() {
@@ -285,6 +376,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
       {'lat': startLat, 'lng': startLng},
       {'lat': _destLat!, 'lng': _destLng!},
     ];
+    int? directDurationMs;
 
     try {
       final dr = await ApiService().getDrivingRoute(
@@ -292,6 +384,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
         goalLat: _destLat!, goalLng: _destLng!,
       );
       if (dr['success'] == true) {
+        // 직접 경로 소요시간 (고속도로 IC 필터용)
+        if (dr['duration_ms'] is num) {
+          directDurationMs = (dr['duration_ms'] as num).round();
+        }
         final raw = dr['path_points'];
         if (raw is List && raw.length >= 2) {
           final parsed = <Map<String, dynamic>>[];
@@ -329,8 +425,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
         'origin': {'lat': startLat, 'lng': startLng},
         'destination': {'lat': _destLat, 'lng': _destLng},
         'path_points': pathPoints,
+        if (directDurationMs != null) 'duration_ms': directDurationMs,
       },
-      'recommendation': {'top_n_candidates_returned': 5},
+      'recommendation': {'top_n_candidates_returned': 3},
     };
 
     try {
@@ -339,18 +436,101 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
       final status = data['meta'] is Map ? (data['meta'] as Map)['status']?.toString() : null;
       if (status == 'ok') {
         final originLabel = _originName ?? '현재 위치';
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => AiResultScreen(
-              data: data,
-              destinationName: _destName ?? '목적지',
-              routeSummary: '$originLabel → ${_destName ?? '목적지'}',
-              originLat: _lastStartLat,
-              originLng: _lastStartLng,
-              pathPoints: _lastPathPoints,
-            ),
-          ),
+        final rec = data['recommendation'] is Map ? data['recommendation'] as Map<String, dynamic> : null;
+        final choice = rec?['choice']?.toString() ?? 'on_route';
+        final onRoute = data['on_route'] is Map ? data['on_route'] as Map<String, dynamic> : null;
+        final bestDetour = data['best_detour'] is Map ? data['best_detour'] as Map<String, dynamic> : null;
+        final onRouteSt = onRoute?['station'] is Map ? onRoute!['station'] as Map<String, dynamic> : null;
+        final detourSt = bestDetour?['station'] is Map ? bestDetour!['station'] as Map<String, dynamic> : null;
+
+        // 추천 주유소를 1번(주황), 다른 주유소를 2번(파랑)으로 표시
+        final primarySt = choice == 'best_detour' ? detourSt : onRouteSt;
+        final secondarySt = choice == 'best_detour' ? onRouteSt : detourSt;
+
+        double? stLat, stLng, st2Lat, st2Lng;
+        String stName = '추천 주유소', st2Name = '';
+        int? stPrice, st2Price;
+        if (primarySt != null) {
+          stLat = primarySt['lat'] is num ? (primarySt['lat'] as num).toDouble() : null;
+          stLng = primarySt['lng'] is num ? (primarySt['lng'] as num).toDouble() : null;
+          stName = primarySt['name']?.toString() ?? '추천 주유소';
+          final p = primarySt['price_won_per_liter'];
+          stPrice = p is num ? p.round() : null;
+        }
+        if (secondarySt != null) {
+          st2Lat = secondarySt['lat'] is num ? (secondarySt['lat'] as num).toDouble() : null;
+          st2Lng = secondarySt['lng'] is num ? (secondarySt['lng'] as num).toDouble() : null;
+          st2Name = secondarySt['name']?.toString() ?? '';
+          final p2 = secondarySt['price_won_per_liter'];
+          st2Price = p2 is num ? p2.round() : null;
+        }
+
+        setState(() {
+          _isResultMode = true;
+          _lastResultData = data;
+          _lastRouteSummary = '$originLabel → ${_destName ?? '목적지'}';
+        });
+
+        // 추천 주유소 경유 실제 경로 요청
+        var viaPathPoints = _lastPathPoints;
+        List<Map<String, dynamic>>? viaSegments;
+        if (stLat != null && stLng != null) {
+          try {
+            final vr = await ApiService().getDrivingRoute(
+              startLat: _lastStartLat, startLng: _lastStartLng,
+              goalLat: _destLat!, goalLng: _destLng!,
+              waypointLat: stLat, waypointLng: stLng,
+            );
+            if (vr['success'] == true) {
+              final raw = vr['path_points'];
+              if (raw is List && raw.length >= 2) {
+                final parsed = <Map<String, dynamic>>[];
+                for (final e in raw) {
+                  if (e is Map) {
+                    final lat = e['lat']; final lng = e['lng'];
+                    if (lat is num && lng is num) {
+                      parsed.add({'lat': lat.toDouble(), 'lng': lng.toDouble()});
+                    }
+                  }
+                }
+                if (parsed.length >= 2) viaPathPoints = parsed;
+              }
+              // 교통 구간 데이터 파싱
+              viaSegments = _parsePathSegments(vr['path_segments']);
+            }
+          } catch (_) {}
+        }
+
+        // AI 추천 복원용 파라미터 저장
+        final recAlts = data['alternatives'] is List ? data['alternatives'] as List : null;
+        _lastRecPathPoints = viaPathPoints;
+        _lastRecSegments = viaSegments;
+        _lastRecStLat = stLat;
+        _lastRecStLng = stLng;
+        _lastRecStName = stName;
+        _lastRecStPrice = stPrice;
+        _lastRecSt2Lat = st2Lat;
+        _lastRecSt2Lng = st2Lng;
+        _lastRecSt2Name = st2Name;
+        _lastRecSt2Price = st2Price;
+        _lastRecAlternatives = recAlts;
+
+        _drawResultOnMap(
+          pathPoints: viaPathPoints,
+          pathSegments: viaSegments,
+          originLat: _lastStartLat,
+          originLng: _lastStartLng,
+          stLat: stLat,
+          stLng: stLng,
+          stName: stName,
+          stPrice: stPrice,
+          st2Lat: st2Lat,
+          st2Lng: st2Lng,
+          st2Name: st2Name,
+          st2Price: st2Price,
+          destLat: _destLat!,
+          destLng: _destLng!,
+          alternatives: recAlts,
         );
       } else {
         final err = data['error'];
@@ -372,6 +552,423 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
     } finally {
       if (mounted) setState(() => _analyzing = false);
     }
+  }
+
+  // ── 결과 마커 핀 아이콘 생성 (배지 + 아래 꼬리) ──
+  Future<NOverlayImage> _resultMarkerIcon(String label, Color color) {
+    const double badgeH = 24.0;
+    const double triH = 6.0;
+    const double fontSize = 11.0;
+    const double hPad = 9.0;
+    // 한글/숫자 평균 너비 기반 추정
+    final double w = (label.length * 8.0 + hPad * 2).clamp(36.0, 110.0);
+    final double totalH = badgeH + triH;
+
+    return NOverlayImage.fromWidget(
+      widget: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            height: badgeH,
+            width: w,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(badgeH / 2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.28),
+                  blurRadius: 3,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+              border: Border.all(color: Colors.white, width: 1.5),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: fontSize,
+                fontWeight: FontWeight.w700,
+                height: 1.0,
+              ),
+            ),
+          ),
+          CustomPaint(
+            size: const Size(10, triH),
+            painter: _DownTrianglePainter(color),
+          ),
+        ],
+      ),
+      size: Size(w, totalH),
+      context: context,
+    );
+  }
+
+  /// 두 지점 간 거리(m). 경로 첫 점과 출발 좌표 불일치(네이버 rawPath 스냅) 시 라인 끊김 보정용.
+  double _haversineM(double lat1, double lng1, double lat2, double lng2) {
+    const r = 6371000.0;
+    final p1 = lat1 * pi / 180;
+    final p2 = lat2 * pi / 180;
+    final dLat = (lat2 - lat1) * pi / 180;
+    final dLng = (lng2 - lng1) * pi / 180;
+    final a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(p1) * cos(p2) * sin(dLng / 2) * sin(dLng / 2);
+    return 2 * r * asin(min(1.0, sqrt(a)));
+  }
+
+  /// path_segments 첫 좌표가 출발지와 떨어져 있으면 출발점을 앞에 붙여 출발 핀·요청 좌표에서 라인이 이어지게 함.
+  void _prependOriginToRouteStart(List<NLatLng> coords, double originLat, double originLng) {
+    if (coords.isEmpty) return;
+    final first = coords.first;
+    if (_haversineM(originLat, originLng, first.latitude, first.longitude) <= 5.0) return;
+    coords.insert(0, NLatLng(originLat, originLng));
+  }
+
+  /// 경로선 안쪽 방향 화살표(네이버 지도 스타일). coords는 실제 주행 폴리라인 전체를 넘길 것.
+  Future<void> _addRouteDirectionArrows(List<NLatLng> pathCoords) async {
+    final mc = _mapController;
+    if (mc == null || pathCoords.length < 2) return;
+    await mc.addOverlay(NArrowheadPathOverlay(
+      id: 'route_arrows',
+      coords: pathCoords,
+      width: 5,
+      color: Colors.white.withValues(alpha: 0.92),
+      outlineWidth: 0,
+      outlineColor: Colors.transparent,
+      elevation: 4,
+      headSizeRatio: 3.0,
+    ));
+  }
+
+  // ── 정체도(congestion) → 색상 변환 ──
+  static Color _congestionColor(int congestion) {
+    switch (congestion) {
+      case 1: return const Color(0xFF00A650); // 원활 (초록)
+      case 2: return const Color(0xFFFF8C00); // 서행 (주황)
+      case 3: return const Color(0xFFE03030); // 지체 (빨강)
+      case 4: return const Color(0xFF880000); // 정체 (진빨강)
+      default: return _kPrimary;              // 미확인 (앱 기본색)
+    }
+  }
+
+  // ── 분석 결과 지도에 그리기 ──
+  void _drawResultOnMap({
+    required List<Map<String, dynamic>> pathPoints,
+    List<Map<String, dynamic>>? pathSegments, // 교통 구간 데이터
+    required double originLat,
+    required double originLng,
+    required double? stLat,
+    required double? stLng,
+    required String stName,
+    int? stPrice,
+    double? st2Lat,
+    double? st2Lng,
+    String st2Name = '',
+    int? st2Price,
+    required double destLat,
+    required double destLng,
+    List<dynamic>? alternatives, // 대안 후보 (회색 마커)
+  }) async {
+    if (_mapController == null) return;
+
+    await _mapController!.clearOverlays(type: NOverlayType.pathOverlay);
+    await _mapController!.clearOverlays(type: NOverlayType.multipartPathOverlay);
+    await _mapController!.clearOverlays(type: NOverlayType.arrowheadPathOverlay);
+    await _mapController!.clearOverlays(type: NOverlayType.marker);
+
+    // ── 경로 라인 ──
+    if (pathSegments != null && pathSegments.isNotEmpty) {
+      // ① NMultipartPathOverlay: 교통 색상 연속 경로
+      final multiPaths = <NMultipartPath>[];
+      final allRouteCoords = <NLatLng>[]; // 전체 좌표 수집 (화살표 샘플링용)
+
+      for (int si = 0; si < pathSegments.length; si++) {
+        final seg = pathSegments[si];
+        final rawCoords = seg['coords'];
+        if (rawCoords is! List || rawCoords.length < 2) continue;
+        final coords = rawCoords
+            .whereType<Map>()
+            .map((c) => NLatLng(
+                  (c['lat'] as num).toDouble(),
+                  (c['lng'] as num).toDouble(),
+                ))
+            .toList();
+        if (si == 0) _prependOriginToRouteStart(coords, originLat, originLng);
+        if (coords.length < 2) continue;
+        final congestion = seg['congestion'] is num ? (seg['congestion'] as num).toInt() : 0;
+        final color = _congestionColor(congestion);
+        multiPaths.add(NMultipartPath(
+          coords: coords,
+          color: color,
+          outlineColor: Colors.white.withValues(alpha: 0.9),
+          passedColor: color.withValues(alpha: 0.4),
+          passedOutlineColor: Colors.white.withValues(alpha: 0.4),
+        ));
+        // 경계 좌표 중복 제거: 두 번째 세그먼트부터 첫 좌표(공유점) skip
+        allRouteCoords.addAll(si == 0 ? coords : coords.skip(1));
+      }
+
+      if (multiPaths.isNotEmpty) {
+        await _mapController!.addOverlay(NMultipartPathOverlay(
+          id: 'result_route_traffic',
+          paths: multiPaths,
+          width: 8,
+          outlineWidth: 2,
+        ));
+
+        // ② 화살표: 네이버 ArrowheadPathOverlay는 전체 폴리라인을 넘겨야 방향·간격이 자연스럽다(버티스만 쪼개 넣으면 경로가 깨짐).
+        await _addRouteDirectionArrows(allRouteCoords);
+      }
+    } else if (pathPoints.length >= 2) {
+      // 교통 데이터 없음: 단색 NPathOverlay 폴백
+      final coords = pathPoints
+          .map((p) => NLatLng(
+                (p['lat'] as num).toDouble(),
+                (p['lng'] as num).toDouble(),
+              ))
+          .toList();
+      await _mapController!.addOverlay(NPathOverlay(
+        id: 'result_route',
+        coords: coords,
+        color: _kPrimary,
+        width: 8,
+        outlineColor: Colors.white,
+        outlineWidth: 2,
+      ));
+      await _addRouteDirectionArrows(coords);
+    }
+
+    // 출발지 마커 (초록)
+    final originMarker = NMarker(
+      id: 'result_origin',
+      position: NLatLng(originLat, originLng),
+      icon: await _resultMarkerIcon('출발', const Color(0xFF1B6B3A)),
+      anchor: const NPoint(0.5, 1.0),
+    );
+    await _mapController!.addOverlay(originMarker);
+
+    // 추천 주유소 마커 (주황)
+    if (stLat != null && stLng != null) {
+      final stLabel = stPrice != null && stPrice > 0
+          ? '${_wonFmt.format(stPrice)}원'
+          : stName;
+      final stMarker = NMarker(
+        id: 'result_station',
+        position: NLatLng(stLat, stLng),
+        icon: await _resultMarkerIcon(stLabel, const Color(0xFFE8700A)),
+        anchor: const NPoint(0.5, 1.0),
+      );
+      await _mapController!.addOverlay(stMarker);
+    }
+
+    // 대안 주유소 마커 (중간회색)
+    if (st2Lat != null && st2Lng != null && st2Name.isNotEmpty) {
+      final st2Label = st2Price != null && st2Price > 0
+          ? '${_wonFmt.format(st2Price)}원'
+          : st2Name;
+      final st2Marker = NMarker(
+        id: 'result_station2',
+        position: NLatLng(st2Lat, st2Lng),
+        icon: await _resultMarkerIcon(st2Label, const Color(0xFF757575)),
+        anchor: const NPoint(0.5, 1.0),
+      );
+      await _mapController!.addOverlay(st2Marker);
+    }
+
+    // 목적지 마커 (빨강)
+    final destMarker = NMarker(
+      id: 'result_dest',
+      position: NLatLng(destLat, destLng),
+      icon: await _resultMarkerIcon('도착', const Color(0xFFB71C1C)),
+      anchor: const NPoint(0.5, 1.0),
+    );
+    await _mapController!.addOverlay(destMarker);
+
+    // 대안 후보 마커 (회색) — primary/secondary 위치와 겹치면 스킵
+    final altLats = <double>[];
+    final altLngs = <double>[];
+    if (alternatives != null) {
+      int altIdx = 0;
+      for (final alt in alternatives) {
+        if (alt is! Map) { altIdx++; continue; }
+        final altSt = alt['station'] is Map ? alt['station'] as Map : null;
+        if (altSt == null) { altIdx++; continue; }
+        final altLat = altSt['lat'] is num ? (altSt['lat'] as num).toDouble() : null;
+        final altLng = altSt['lng'] is num ? (altSt['lng'] as num).toDouble() : null;
+        if (altLat == null || altLng == null) { altIdx++; continue; }
+        final isNearPrimary = stLat != null && stLng != null &&
+            (stLat - altLat).abs() < 0.0002 && (stLng - altLng).abs() < 0.0002;
+        final isNearSecondary = st2Lat != null && st2Lng != null &&
+            (st2Lat - altLat).abs() < 0.0002 && (st2Lng - altLng).abs() < 0.0002;
+        if (!isNearPrimary && !isNearSecondary) {
+          final altPriceRaw = altSt['price_won_per_liter'];
+          final altPriceVal = altPriceRaw is num ? altPriceRaw.round() : null;
+          final altLabel = altPriceVal != null ? '${_wonFmt.format(altPriceVal)}원' : '후보${altIdx + 1}';
+          final altMarker = NMarker(
+            id: 'result_alt_$altIdx',
+            position: NLatLng(altLat, altLng),
+            icon: await _resultMarkerIcon(altLabel, const Color(0xFF9E9E9E)),
+            anchor: const NPoint(0.5, 1.0),
+          );
+          await _mapController!.addOverlay(altMarker);
+          altLats.add(altLat);
+          altLngs.add(altLng);
+        }
+        altIdx++;
+      }
+    }
+
+    // 카메라: 전체 경로가 보이도록 fitBounds
+    final allLats = [
+      originLat, destLat,
+      if (stLat != null) stLat,
+      if (st2Lat != null) st2Lat,
+      ...altLats,
+    ];
+    final allLngs = [
+      originLng, destLng,
+      if (stLng != null) stLng,
+      if (st2Lng != null) st2Lng,
+      ...altLngs,
+    ];
+    final minLat = allLats.reduce(min);
+    final maxLat = allLats.reduce(max);
+    final minLng = allLngs.reduce(min);
+    final maxLng = allLngs.reduce(max);
+
+    _suppressCameraChange = true;
+    await _mapController!.updateCamera(
+      NCameraUpdate.fitBounds(
+        NLatLngBounds(
+          southWest: NLatLng(minLat, minLng),
+          northEast: NLatLng(maxLat, maxLng),
+        ),
+        // 하단 패널(45%) 높이만큼 여백 확보
+        padding: const EdgeInsets.fromLTRB(48, 80, 48, 340),
+      ),
+    );
+    Future.delayed(const Duration(milliseconds: 1000), () {
+      if (mounted) _suppressCameraChange = false;
+    });
+  }
+
+  // ── path_segments JSON → Dart List 변환 헬퍼 ──
+  static List<Map<String, dynamic>>? _parsePathSegments(dynamic raw) {
+    if (raw is! List || raw.isEmpty) return null;
+    final result = <Map<String, dynamic>>[];
+    for (final item in raw) {
+      if (item is Map) result.add(Map<String, dynamic>.from(item));
+    }
+    return result.isEmpty ? null : result;
+  }
+
+  // ── 다른 후보 경로보기 ──
+  Future<void> _showAltRouteOnMap(double stLat, double stLng, String stName, int priceL) async {
+    if (_destLat == null || _destLng == null) return;
+    var pathPoints = _lastPathPoints;
+    List<Map<String, dynamic>>? pathSegments;
+    try {
+      final vr = await ApiService().getDrivingRoute(
+        startLat: _lastStartLat, startLng: _lastStartLng,
+        goalLat: _destLat!, goalLng: _destLng!,
+        waypointLat: stLat, waypointLng: stLng,
+      );
+      if (vr['success'] == true) {
+        final raw = vr['path_points'];
+        if (raw is List && raw.length >= 2) {
+          final parsed = <Map<String, dynamic>>[];
+          for (final e in raw) {
+            if (e is Map) {
+              final lat = e['lat']; final lng = e['lng'];
+              if (lat is num && lng is num) {
+                parsed.add({'lat': lat.toDouble(), 'lng': lng.toDouble()});
+              }
+            }
+          }
+          if (parsed.length >= 2) pathPoints = parsed;
+        }
+        pathSegments = _parsePathSegments(vr['path_segments']);
+      }
+    } catch (_) {}
+
+    _drawResultOnMap(
+      pathPoints: pathPoints,
+      pathSegments: pathSegments,
+      originLat: _lastStartLat,
+      originLng: _lastStartLng,
+      stLat: stLat,
+      stLng: stLng,
+      stName: stName,
+      stPrice: priceL,
+      st2Lat: _lastRecStLat,
+      st2Lng: _lastRecStLng,
+      st2Name: _lastRecStName,
+      st2Price: _lastRecStPrice,
+      destLat: _destLat!,
+      destLng: _destLng!,
+      alternatives: _lastRecAlternatives,
+    );
+  }
+
+  Future<void> _clearResult() async {
+    await _mapController?.clearOverlays(type: NOverlayType.pathOverlay);
+    await _mapController?.clearOverlays(type: NOverlayType.multipartPathOverlay);
+    await _mapController?.clearOverlays(type: NOverlayType.arrowheadPathOverlay);
+    await _mapController?.clearOverlays(type: NOverlayType.marker);
+    setState(() {
+      _isResultMode = false;
+      _lastResultData = null;
+      _lastRouteSummary = null;
+      _sheetSize = 0.45;
+    });
+    _moveToMyLocation();
+  }
+
+  // ── AI 추천 경로로 복원 ──
+  void _resetToAiRec() {
+    if (_destLat == null || _destLng == null) return;
+    _drawResultOnMap(
+      pathPoints: _lastRecPathPoints,
+      pathSegments: _lastRecSegments,
+      originLat: _lastStartLat,
+      originLng: _lastStartLng,
+      stLat: _lastRecStLat,
+      stLng: _lastRecStLng,
+      stName: _lastRecStName,
+      stPrice: _lastRecStPrice,
+      st2Lat: _lastRecSt2Lat,
+      st2Lng: _lastRecSt2Lng,
+      st2Name: _lastRecSt2Name,
+      st2Price: _lastRecSt2Price,
+      destLat: _destLat!,
+      destLng: _destLng!,
+      alternatives: _lastRecAlternatives,
+    );
+  }
+
+  void _showExitDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('앱 종료'),
+        content: const Text('앱을 종료하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              SystemNavigator.pop();
+            },
+            child: const Text('종료', style: TextStyle(color: Color(0xFFE24B4A))),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showLevelEditSheet() {
@@ -402,8 +999,18 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
 
+    // AI 탭(index 2)에 진입할 때마다 지도를 내 위치로 이동 + 주소 재로드
+    ref.listen(bottomNavIndexProvider, (prev, next) {
+      if (next == 2 && prev != 2) {
+        if (_mapController != null) _moveToMyLocation();
+        if (_currentLocationAddress == null) _loadCurrentAddress();
+      }
+    });
+
     if (!settings.aiOnboardingDone) {
-      if (TickerMode.of(context) && !_onboardingPushed) {
+      // AI 탭이 실제로 선택됐을 때만 온보딩 표시 (IndexedStack에서 미리 빌드되는 것 방지)
+      final currentTab = ref.watch(bottomNavIndexProvider);
+      if (currentTab == 2 && !_onboardingPushed) {
         _onboardingPushed = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
@@ -421,11 +1028,21 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
     final efficiency = (box.get(AppConstants.keyAiEfficiency, defaultValue: 12.5) as num).toDouble();
     final fuelLabel = FuelType.fromCode(fuelCode).label;
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (_isResultMode) {
+          _clearResult();
+        } else {
+          _showExitDialog();
+        }
+      },
+      child: Scaffold(
       body: Stack(
         children: [
           // ── 배경 지도 ──
-          NaverMapWidget(
+          NaverMap(
             options: const NaverMapViewOptions(
               mapType: NMapType.basic,
               locationButtonEnable: false,
@@ -433,6 +1050,32 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
             ),
             onMapReady: _onMapReady,
             onCameraIdle: _onCameraIdle,
+            onCameraChange: (_, __) {
+              if (_suppressCameraChange) return;
+              // 일반 모드: 카메라 이동 시 내 위치 표시 해제
+              if (!_isPickerMode) {
+                if (_isAtMyLocation) setState(() => _isAtMyLocation = false);
+                return;
+              }
+              // 피커 모드에서 드래그 중 역지오코딩 준비 표시
+              setState(() => _isReverseGeocoding = true);
+              _reverseGeocodeDebounce?.cancel();
+              // 디바운스 후 controller에서 현재 카메라 위치 읽어 역지오코딩
+              _reverseGeocodeDebounce = Timer(const Duration(milliseconds: 500), () async {
+                if (_mapController == null || !mounted) return;
+                final camPos = await _mapController!.getCameraPosition();
+                if (!mounted) return;
+                setState(() => _pickerLatLng = camPos.target);
+                final addr = await ApiService().reverseGeocode(
+                    camPos.target.latitude, camPos.target.longitude);
+                if (mounted) {
+                  setState(() {
+                    _pickerAddress = addr ?? '주소를 가져올 수 없습니다';
+                    _isReverseGeocoding = false;
+                  });
+                }
+              });
+            },
           ),
 
           // ── 피커 모드: 가운데 핀 ──
@@ -557,7 +1200,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
             ),
 
           // ── 일반 모드: 상단 오버레이 ──
-          if (!_isPickerMode)
+          if (!_isPickerMode && !_isResultMode)
             Positioned(
               top: 0, left: 0, right: 0,
               child: SafeArea(
@@ -610,7 +1253,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
             ),
 
           // ── 일반 모드: 하단 패널 ──
-          if (!_isPickerMode)
+          if (!_isPickerMode && !_isResultMode)
             Positioned(
               bottom: 0, left: 0, right: 0,
               child: SafeArea(
@@ -719,9 +1362,174 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
                 ),
               ),
             ),
+
+          // ── 결과 모드: 상단 뒤로가기 + 경로 요약 ──
+          if (_isResultMode)
+            Positioned(
+              top: 0, left: 0, right: 0,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                  child: Row(
+                    children: [
+                      GestureDetector(
+                        onTap: _clearResult,
+                        child: Container(
+                          width: 38, height: 38,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [BoxShadow(
+                              color: Colors.black.withOpacity(0.12),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            )],
+                          ),
+                          child: const Icon(Icons.arrow_back_rounded,
+                              size: 18, color: Color(0xFF1a1a1a)),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 9),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            )],
+                          ),
+                          child: Text(
+                            _lastRouteSummary ?? '분석 결과',
+                            style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF1a1a1a)),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+          // ── 결과 모드: 드래그 가능한 분석 결과 패널 ──
+          if (_isResultMode && _lastResultData != null)
+            DraggableScrollableSheet(
+              controller: _sheetController,
+              initialChildSize: 0.45,
+              minChildSize: 0.12,
+              maxChildSize: 0.9,
+              snap: true,
+              snapSizes: const [0.12, 0.45, 0.9],
+              builder: (_, sc) => Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(20)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.15),
+                      blurRadius: 20,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
+                child: AiResultBody(
+                  data: _lastResultData!,
+                  destinationName: _destName ?? '목적지',
+                  originLat: _lastStartLat,
+                  originLng: _lastStartLng,
+                  scrollController: sc,
+                  onAltRouteView: _showAltRouteOnMap,
+                  onResetToAiRec: _resetToAiRec,
+                ),
+              ),
+            ),
+
+          // ── 현재위치 버튼 (결과 모드: 시트 위에 붙어 이동) ──
+          if (_isResultMode)
+            Positioned(
+              right: 16,
+              bottom: MediaQuery.of(context).padding.bottom +
+                  MediaQuery.of(context).size.height * _sheetSize + 12,
+              child: GestureDetector(
+                onTap: _moveToMyLocation,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 44, height: 44,
+                  decoration: BoxDecoration(
+                    color: (_isLocating || _isAtMyLocation)
+                        ? _kPrimary
+                        : Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [BoxShadow(
+                      color: Colors.black.withOpacity(0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    )],
+                  ),
+                  child: _isLocating
+                      ? const Padding(
+                          padding: EdgeInsets.all(11),
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : Icon(Icons.my_location_rounded,
+                          size: 22,
+                          color: _isAtMyLocation
+                              ? Colors.white
+                              : const Color(0xFF666666)),
+                ),
+              ),
+            ),
+
+          // ── 일반 모드: 현재위치 버튼 (우하단) ──
+          if (!_isPickerMode && !_isResultMode)
+            Positioned(
+              right: 16,
+              bottom: MediaQuery.of(context).padding.bottom + 180,
+              child: GestureDetector(
+                onTap: _moveToMyLocation,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: (_isLocating || _isAtMyLocation) ? _kPrimary : Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: _isLocating
+                      ? const Padding(
+                          padding: EdgeInsets.all(11),
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : Icon(Icons.my_location_rounded,
+                          size: 22,
+                          color: _isAtMyLocation
+                              ? Colors.white
+                              : const Color(0xFF666666)),
+                ),
+              ),
+            ),
         ],
       ),
-    );
+      ), // Scaffold
+    ); // PopScope
   }
 }
 
@@ -763,10 +1571,12 @@ class _RouteCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // 도트 + 선
+          // 도트 + 선 — 각 점이 해당 행 중앙에 정렬되도록 고정 높이
+          // 각 행 34px + divider 1px = 69px 총
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              const SizedBox(height: 12),  // 34/2 - 10/2
               Container(
                 width: 10, height: 10,
                 decoration: BoxDecoration(
@@ -774,13 +1584,11 @@ class _RouteCard extends StatelessWidget {
                   border: Border.all(color: _kPrimary, width: 2.5),
                 ),
               ),
-              Container(
-                  width: 2, height: 26,
-                  color: const Color(0xFFEEEEEE),
-                  margin: const EdgeInsets.symmetric(vertical: 4)),
+              Container(width: 2, height: 25, color: const Color(0xFFEEEEEE)),
               Container(
                   width: 10, height: 10,
                   decoration: const BoxDecoration(shape: BoxShape.circle, color: _kDanger)),
+              const SizedBox(height: 12),  // 34/2 - 10/2
             ],
           ),
           const SizedBox(width: 12),
@@ -800,7 +1608,12 @@ class _RouteCard extends StatelessWidget {
                             originLabel,
                             style: TextStyle(
                               fontSize: 13,
-                              color: usingGps ? const Color(0xFF888888) : const Color(0xFF1a1a1a),
+                              // GPS 모드: 주소가 있으면 진하게, 없으면 흐리게
+                              color: usingGps
+                                  ? (currentLocationAddress != null
+                                      ? const Color(0xFF444444)
+                                      : const Color(0xFF888888))
+                                  : const Color(0xFF1a1a1a),
                               fontWeight: usingGps ? FontWeight.w400 : FontWeight.w500,
                             ),
                             maxLines: 1,
@@ -882,12 +1695,35 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
   final _searchFocus = FocusNode();
   List<Map<String, dynamic>> _results = [];
   bool _isLoading = false;
+  bool _myLocationSelected = false; // "내위치" 클릭 후 상단 옵션 표시
   Timer? _debounce;
+
+  // 시트 내부에서 현재 위치 주소를 직접 로드
+  String? _localCurrentAddress;
+  bool _addressLoading = true;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _searchFocus.requestFocus());
+    _loadAddress();
+  }
+
+  Future<void> _loadAddress() async {
+    // 칩 subtitle용 주소만 로드 — 검색창은 건드리지 않음
+    final preloaded = widget.currentLocationAddress;
+    if (preloaded != null && preloaded.isNotEmpty) {
+      if (mounted) setState(() { _localCurrentAddress = preloaded; _addressLoading = false; });
+      return;
+    }
+    try {
+      final loc = await ref.read(locationProvider.future);
+      if (loc == null || !mounted) { setState(() => _addressLoading = false); return; }
+      final addr = await ApiService().reverseGeocode(loc.lat, loc.lng);
+      if (mounted) setState(() { _localCurrentAddress = addr; _addressLoading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _addressLoading = false);
+    }
   }
 
   @override
@@ -901,7 +1737,7 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
   void _onSearchChanged(String query) {
     _debounce?.cancel();
     if (query.trim().isEmpty) {
-      setState(() { _results = []; _isLoading = false; });
+      setState(() { _results = []; _isLoading = false; _myLocationSelected = false; });
       return;
     }
     setState(() => _isLoading = true);
@@ -914,6 +1750,24 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
         if (mounted) setState(() { _results = []; _isLoading = false; });
       }
     });
+  }
+
+  // "내위치" 칩 클릭 → 현재 주소를 검색창에 채우고 검색 (이미 채워졌으면 GPS 바로 사용)
+  void _onMyLocationChipTap() {
+    final addr = _localCurrentAddress;
+    if (addr != null && addr.isNotEmpty) {
+      if (_searchController.text == addr && _myLocationSelected) {
+        // 이미 현재 주소로 채워진 상태 → GPS 그대로 사용
+        widget.onMyLocation();
+        return;
+      }
+      _searchController.text = addr;
+      setState(() { _myLocationSelected = true; });
+      _onSearchChanged(addr);
+      _searchFocus.requestFocus();
+    } else {
+      widget.onMyLocation();
+    }
   }
 
   @override
@@ -935,46 +1789,22 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
             ),
             // 타이틀
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
               child: Text(
                 widget.isOrigin ? '출발지 설정' : '목적지 설정',
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ),
-            // 내위치 / 지도에서 선택
+            // ① 검색 필드 (상단)
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _ActionChip(
-                      icon: Icons.my_location_rounded,
-                      label: '내위치',
-                      subtitle: widget.currentLocationAddress,
-                      color: _kPrimary,
-                      onTap: widget.onMyLocation,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _ActionChip(
-                      icon: Icons.map_rounded,
-                      label: '지도에서 선택',
-                      color: const Color(0xFF378ADD),
-                      onTap: widget.onMapPick,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            // 검색 필드
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: TextField(
                 controller: _searchController,
                 focusNode: _searchFocus,
-                onChanged: _onSearchChanged,
+                onChanged: (v) {
+                  if (_myLocationSelected) setState(() => _myLocationSelected = false);
+                  _onSearchChanged(v);
+                },
                 style: const TextStyle(fontSize: 14),
                 decoration: InputDecoration(
                   hintText: widget.isOrigin ? '출발지 검색' : '목적지 검색',
@@ -990,34 +1820,107 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
                 ),
               ),
             ),
+            // ② 내위치 / 지도에서 선택 (검색창 바로 아래)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _ThinChip(
+                      icon: Icons.my_location_rounded,
+                      label: _addressLoading
+                          ? '내위치 (확인 중...)'
+                          : (_localCurrentAddress != null
+                              ? '내위치 · $_localCurrentAddress'
+                              : '내위치'),
+                      color: _kPrimary,
+                      onTap: _onMyLocationChipTap,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _ThinChip(
+                      icon: Icons.map_outlined,
+                      label: '지도에서 선택',
+                      color: const Color(0xFF378ADD),
+                      onTap: widget.onMapPick,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
             // 검색 결과
             Expanded(
               child: _isLoading
                   ? const Center(
                       child: CircularProgressIndicator(color: _kPrimary, strokeWidth: 2))
-                  : _results.isEmpty && _searchController.text.isNotEmpty
+                  : _searchController.text.isEmpty && !_myLocationSelected
                       ? const Center(
-                          child: Text('검색 결과가 없습니다',
-                              style: TextStyle(fontSize: 14, color: Color(0xFF999999))))
-                      : ListView.separated(
-                          itemCount: _results.length,
-                          separatorBuilder: (_, __) =>
-                              const Divider(height: 1, indent: 56),
+                          child: Text('장소명, 주소를 입력하세요',
+                              style: TextStyle(fontSize: 14, color: Color(0xFFBBBBBB))))
+                      : _results.isEmpty && !_myLocationSelected
+                          ? const Center(
+                              child: Text('검색 결과가 없습니다',
+                                  style: TextStyle(fontSize: 14, color: Color(0xFF999999))))
+                          : ListView.builder(
+                          itemCount: _results.length + (_myLocationSelected ? 1 : 0),
                           itemBuilder: (_, i) {
-                            final r = _results[i];
-                            return ListTile(
-                              leading: const Icon(Icons.place_outlined, color: _kPrimary, size: 20),
-                              title: Text(r['name']?.toString() ?? '',
-                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-                              subtitle: (r['address']?.toString() ?? '').isNotEmpty
-                                  ? Text(r['address'].toString(),
-                                      style: const TextStyle(fontSize: 12, color: Color(0xFF999999)))
-                                  : null,
-                              onTap: () => widget.onSearchResult(r),
+                            // 내위치 클릭 후 상단에 "현재 위치 그대로 사용" 옵션
+                            if (_myLocationSelected && i == 0) {
+                              return Column(
+                                children: [
+                                  ListTile(
+                                    leading: Container(
+                                      width: 36, height: 36,
+                                      decoration: BoxDecoration(
+                                        color: _kPrimaryLight,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(Icons.my_location_rounded,
+                                          color: _kPrimary, size: 18),
+                                    ),
+                                    title: const Text('현재 위치 사용',
+                                        style: TextStyle(fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            color: _kPrimary)),
+                                    subtitle: widget.currentLocationAddress != null
+                                        ? Text(widget.currentLocationAddress!,
+                                            style: const TextStyle(
+                                                fontSize: 12, color: Color(0xFF888888)),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis)
+                                        : null,
+                                    onTap: widget.onMyLocation,
+                                  ),
+                                  if (_results.isNotEmpty)
+                                    const Divider(height: 1, indent: 56),
+                                ],
+                              );
+                            }
+                            final r = _results[i - (_myLocationSelected ? 1 : 0)];
+                            return Column(
+                              children: [
+                                ListTile(
+                                  leading: const Icon(Icons.place_outlined,
+                                      color: _kPrimary, size: 20),
+                                  title: Text(r['name']?.toString() ?? '',
+                                      style: const TextStyle(
+                                          fontSize: 14, fontWeight: FontWeight.w500)),
+                                  subtitle: (r['address']?.toString() ?? '').isNotEmpty
+                                      ? Text(r['address'].toString(),
+                                          style: const TextStyle(
+                                              fontSize: 12, color: Color(0xFF999999)))
+                                      : null,
+                                  onTap: () => widget.onSearchResult(r),
+                                ),
+                                if (i < _results.length - 1 + (_myLocationSelected ? 1 : 0))
+                                  const Divider(height: 1, indent: 56),
+                              ],
                             );
                           },
                         ),
-            ),
+              ),
           ],
         ),
       ),
@@ -1025,17 +1928,17 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
   }
 }
 
-class _ActionChip extends StatelessWidget {
+// ─── 얇은 칩 (하단 내위치/지도에서선택용) ──────────────────────────────────────
+
+class _ThinChip extends StatelessWidget {
   final IconData icon;
   final String label;
-  final String? subtitle;
   final Color color;
   final VoidCallback onTap;
 
-  const _ActionChip({
+  const _ThinChip({
     required this.icon,
     required this.label,
-    this.subtitle,
     required this.color,
     required this.onTap,
   });
@@ -1045,29 +1948,23 @@ class _ActionChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.07),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.2)),
+          color: color.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withOpacity(0.18)),
         ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 18, color: color),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(label,
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color)),
-                  if (subtitle != null)
-                    Text(subtitle!,
-                        style: const TextStyle(fontSize: 10, color: Color(0xFF999999)),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
-                ],
+            Icon(icon, size: 15, color: color),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -1190,6 +2087,9 @@ class _LevelEditSheet extends StatefulWidget {
 class _LevelEditSheetState extends State<_LevelEditSheet> {
   late double _level;
   late String _mode;
+  bool _useDte = false;
+  final _dteController = TextEditingController();
+  String? _dteError;
 
   @override
   void initState() {
@@ -1198,10 +2098,30 @@ class _LevelEditSheetState extends State<_LevelEditSheet> {
     _mode = widget.initialMode;
   }
 
+  @override
+  void dispose() {
+    _dteController.dispose();
+    super.dispose();
+  }
+
   Color get _thumbColor {
     if (_level <= 20) return const Color(0xFFE24B4A);
     if (_level <= 50) return const Color(0xFFEF9F27);
     return _kPrimary;
+  }
+
+  void _applyDte(String val) {
+    final box = Hive.box(AppConstants.settingsBox);
+    final tank = (box.get(AppConstants.keyAiTankCapacity, defaultValue: 55.0) as num).toDouble();
+    final eff = (box.get(AppConstants.keyAiEfficiency, defaultValue: 12.5) as num).toDouble();
+    final dte = double.tryParse(val.replaceAll(',', '.'));
+    if (dte == null || dte <= 0) {
+      setState(() => _dteError = '올바른 거리를 입력해주세요');
+      return;
+    }
+    final liters = dte / eff;
+    final pct = (liters / tank * 100).clamp(0.0, 100.0);
+    setState(() { _level = pct; _dteError = null; });
   }
 
   @override
@@ -1227,37 +2147,90 @@ class _LevelEditSheetState extends State<_LevelEditSheet> {
                 ],
               ),
               const SizedBox(height: 12),
-              const Text('현재 잔량',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF999999))),
-              const SizedBox(height: 8),
+
+              // ── 잔량 입력 모드 토글 ──
               Row(
                 children: [
-                  Expanded(
-                    child: SliderTheme(
-                      data: SliderTheme.of(context).copyWith(
-                        activeTrackColor: _thumbColor,
-                        inactiveTrackColor: const Color(0xFFF0F0F0),
-                        thumbColor: _thumbColor,
-                        overlayColor: _thumbColor.withOpacity(0.12),
-                        trackHeight: 8,
-                        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+                  const Text('현재 잔량',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF999999))),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () => setState(() { _useDte = !_useDte; _dteError = null; }),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _useDte ? _kPrimary.withOpacity(0.1) : const Color(0xFFF5F5F5),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: _useDte ? _kPrimary : const Color(0xFFDDDDDD)),
                       ),
-                      child: Slider(
-                        value: _level,
-                        min: 0, max: 100, divisions: 100,
-                        onChanged: (v) => setState(() => _level = v),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.speed_rounded, size: 13,
+                              color: _useDte ? _kPrimary : const Color(0xFF888888)),
+                          const SizedBox(width: 4),
+                          Text('주행가능거리 입력',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
+                                  color: _useDte ? _kPrimary : const Color(0xFF888888))),
+                        ],
                       ),
                     ),
                   ),
-                  SizedBox(
-                    width: 44,
-                    child: Text('${_level.toStringAsFixed(0)}%',
-                        textAlign: TextAlign.right,
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
-                            color: Color(0xFF1a1a1a))),
-                  ),
                 ],
               ),
+              const SizedBox(height: 8),
+
+              // ── DTE 입력 or % 슬라이더 ──
+              if (_useDte) ...[
+                TextField(
+                  controller: _dteController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: const TextStyle(fontSize: 14),
+                  decoration: InputDecoration(
+                    labelText: '계기판 주행가능거리 (km)',
+                    hintText: '예: 120',
+                    suffixText: 'km',
+                    errorText: _dteError,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  ),
+                  onChanged: _applyDte,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '→ 잔량 약 ${_level.toStringAsFixed(1)}%로 계산됨',
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF888888)),
+                ),
+              ] else ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          activeTrackColor: _thumbColor,
+                          inactiveTrackColor: const Color(0xFFF0F0F0),
+                          thumbColor: _thumbColor,
+                          overlayColor: _thumbColor.withOpacity(0.12),
+                          trackHeight: 8,
+                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+                        ),
+                        child: Slider(
+                          value: _level,
+                          min: 0, max: 100, divisions: 100,
+                          onChanged: (v) => setState(() => _level = v),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 44,
+                      child: Text('${_level.toStringAsFixed(0)}%',
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
+                              color: Color(0xFF1a1a1a))),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 16),
               const Text('목표 주유',
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF999999))),
@@ -1330,4 +2303,24 @@ class _LevelEditSheetState extends State<_LevelEditSheet> {
       ),
     );
   }
+}
+
+// ── 아래 꼬리 삼각형 페인터 ──────────────────────────────────────────────────
+class _DownTrianglePainter extends CustomPainter {
+  final Color color;
+  const _DownTrianglePainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width / 2, size.height)
+      ..close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(_DownTrianglePainter old) => old.color != color;
 }

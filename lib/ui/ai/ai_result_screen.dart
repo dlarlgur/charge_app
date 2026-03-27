@@ -5,20 +5,95 @@ import '../../core/utils/navigation_util.dart';
 
 const _kPrimary = Color(0xFF1D9E75);
 const _kPrimaryLight = Color(0xFFE1F5EE);
-const _kPrimaryDark = Color(0xFF04342C);
-const _kDanger = Color(0xFFE24B4A);
+const _kSelected = Color(0xFF7B61FF);
+const _kSelectedLight = Color(0xFFF5F2FF);
+
+// ─── 결과 화면 (독립 페이지로 push 할 때) ─────────────────────────────────────
 
 class AiResultScreen extends StatelessWidget {
   final Map<String, dynamic> data;
   final String destinationName;
   final String? routeSummary;
+  final double originLat;
+  final double originLng;
+  final List<Map<String, dynamic>> pathPoints;
 
   const AiResultScreen({
     super.key,
     required this.data,
     required this.destinationName,
     this.routeSummary,
+    this.originLat = 0,
+    this.originLng = 0,
+    this.pathPoints = const [],
   });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1a1a1a)),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('분석 결과',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF1a1a1a))),
+            if (routeSummary != null)
+              Text(routeSummary!,
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF999999))),
+          ],
+        ),
+      ),
+      body: AiResultBody(
+        data: data,
+        destinationName: destinationName,
+        originLat: originLat,
+        originLng: originLng,
+      ),
+    );
+  }
+}
+
+// ─── 결과 Body ──────────────────────────────────────────────────────────────
+
+class AiResultBody extends StatefulWidget {
+  final Map<String, dynamic> data;
+  final String destinationName;
+  final double originLat;
+  final double originLng;
+  final ScrollController? scrollController;
+  /// 대안 "확인" 탭 시 지도 업데이트 콜백
+  final void Function(double lat, double lng, String name, int priceL)? onAltRouteView;
+  /// 대안 선택 취소 → AI 추천으로 복원 콜백
+  final VoidCallback? onResetToAiRec;
+
+  const AiResultBody({
+    super.key,
+    required this.data,
+    required this.destinationName,
+    this.originLat = 0,
+    this.originLng = 0,
+    this.scrollController,
+    this.onAltRouteView,
+    this.onResetToAiRec,
+  });
+
+  @override
+  State<AiResultBody> createState() => _AiResultBodyState();
+}
+
+class _AiResultBodyState extends State<AiResultBody> {
+  /// 사용자가 대안에서 선택한 아이템 (null = AI 추천 유지)
+  Map<String, dynamic>? _selectedAltItem;
+  /// 대안 선택 시 표시할 커스텀 AI 메시지
+  String? _altAiMessage;
 
   static final _wonFmt = NumberFormat('#,###', 'ko_KR');
 
@@ -33,211 +108,489 @@ class AiResultScreen extends StatelessWidget {
     return int.tryParse(v.toString()) ?? 0;
   }
 
+  void _selectAlt(dynamic altItem) {
+    if (altItem == null) {
+      // 선택 취소 → AI 추천으로 복원
+      setState(() { _selectedAltItem = null; _altAiMessage = null; });
+      widget.onResetToAiRec?.call();
+      return;
+    }
+    if (altItem is! Map) return;
+    final st = altItem['station'];
+    if (st is! Map) return;
+    final lat = _d(st['lat']);
+    final lng = _d(st['lng']);
+    if (lat == null || lng == null) return;
+    final name = st['name']?.toString() ?? '';
+    final price = _d(st['price_won_per_liter'])?.round() ?? 0;
+    setState(() {
+      _selectedAltItem = Map<String, dynamic>.from(altItem);
+      _altAiMessage = _buildAltMessage(altItem, name, price);
+    });
+    widget.onAltRouteView?.call(lat, lng, name, price);
+  }
+
+  String _buildAltMessage(Map altItem, String name, int price) {
+    final detourM = _i(altItem['detour_distance_m']);
+    final savings = _i(altItem['savings_vs_on_route_won']);
+    final detourText = detourM <= 500
+        ? '경로상 위치'
+        : detourM >= 1000
+            ? '${(detourM / 1000).toStringAsFixed(1)}km 우회 필요'
+            : '${detourM}m 우회 필요';
+
+    final lines = <String>[
+      '$name을 선택하셨습니다.',
+      '리터당 ${_wonFmt.format(price)}원, $detourText.',
+    ];
+    if (savings > 0) {
+      lines.add('경로상 최저가 대비 ${_wonFmt.format(savings)}원 절약됩니다.');
+    } else if (savings < 0) {
+      lines.add('경로상 최저가보다 ${_wonFmt.format(-savings)}원 더 비쌉니다.');
+    }
+    return lines.join('\n');
+  }
+
   @override
   Widget build(BuildContext context) {
-    final computed =
-        data['computed'] is Map ? data['computed'] as Map<String, dynamic> : null;
-    final rec = data['recommendation'] is Map
-        ? data['recommendation'] as Map<String, dynamic>
-        : null;
-    final station =
-        rec?['station'] is Map ? rec!['station'] as Map<String, dynamic> : null;
-    final metrics =
-        rec?['metrics'] is Map ? rec!['metrics'] as Map<String, dynamic> : null;
-    final uiMessage = rec?['ui_message']?.toString() ?? '';
-    final nav =
-        data['navigation'] is Map ? data['navigation'] as Map<String, dynamic> : null;
-    final dest =
-        nav?['destination'] is Map ? nav!['destination'] as Map<String, dynamic> : null;
-    final alternatives = data['alternatives'] is List
-        ? data['alternatives'] as List<dynamic>
-        : const [];
-    final comparison = data['comparison'] is Map
-        ? data['comparison'] as Map<String, dynamic>
-        : null;
-    final onRouteBlock = comparison?['on_route'] is Map
-        ? comparison!['on_route'] as Map<String, dynamic>
-        : null;
-    final orStation = onRouteBlock?['station'] is Map
-        ? onRouteBlock!['station'] as Map<String, dynamic>
-        : null;
-    final orMetrics = onRouteBlock?['metrics'] is Map
-        ? onRouteBlock!['metrics'] as Map<String, dynamic>
-        : null;
+    final data = widget.data;
+    final computed = data['computed'] is Map ? data['computed'] as Map<String, dynamic> : null;
+    final onRoute = data['on_route'] is Map ? data['on_route'] as Map<String, dynamic> : null;
+    final bestDetour = data['best_detour'] is Map ? data['best_detour'] as Map<String, dynamic> : null;
+    final rec = data['recommendation'] is Map ? data['recommendation'] as Map<String, dynamic> : null;
+    final nav = data['navigation'] is Map ? data['navigation'] as Map<String, dynamic> : null;
+    final dest = nav?['destination'] is Map ? nav!['destination'] as Map<String, dynamic> : null;
 
-    final stLat = _d(station?['lat']);
-    final stLng = _d(station?['lng']);
-    final stName = station?['name']?.toString() ?? '추천 주유소';
-    final stAddr = station?['address']?.toString();
-    final priceL = _d(station?['price_won_per_liter']);
+    final choice = rec?['choice']?.toString() ?? 'on_route';
+    final uiMessage = _altAiMessage ?? rec?['ui_message']?.toString() ?? '';
+
+    final onRouteSt = onRoute?['station'] is Map ? onRoute!['station'] as Map<String, dynamic> : null;
+    final detourSt = bestDetour?['station'] is Map ? bestDetour!['station'] as Map<String, dynamic> : null;
+
     final destLat = _d(dest?['lat']);
     final destLng = _d(dest?['lng']);
-
-    final orName = orStation?['name']?.toString() ?? '';
-    final orAddr = orStation?['address']?.toString();
-    final orLat = _d(orStation?['lat']);
-    final orLng = _d(orStation?['lng']);
-    final orPrice = _d(orStation?['price_won_per_liter']);
-
-    final diffWon = comparison != null
-        ? _i(comparison['recommended_vs_on_route_won'])
-        : 0;
-    final netSavings = metrics != null ? _i(metrics['net_savings_won']) : 0;
     final goalL = _d(computed?['goal_liters']);
-    final avgPrice = _d(computed?['avg_price_won_per_liter_used']);
-    final avgSrc = computed?['avg_price_source']?.toString();
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1a1a1a)),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '분석 결과',
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF1a1a1a)),
-            ),
-            if (routeSummary != null)
-              Text(
-                routeSummary!,
-                style: const TextStyle(
-                    fontSize: 12, color: Color(0xFF999999)),
+    // on_route 데이터
+    final orLat = _d(onRouteSt?['lat']);
+    final orLng = _d(onRouteSt?['lng']);
+    final orPrice = _d(onRouteSt?['price_won_per_liter']);
+    final orCost = _i(onRoute?['expected_cost_won']);
+    final orDetourM = _i(onRoute?['detour_distance_m']);
+    final orTimeMins = onRoute?['detour_time_min'] is num
+        ? (onRoute!['detour_time_min'] as num).round()
+        : null;
+
+    // best_detour 데이터
+    final dtLat = _d(detourSt?['lat']);
+    final dtLng = _d(detourSt?['lng']);
+    final dtPrice = _d(detourSt?['price_won_per_liter']);
+    final dtCost = _i(bestDetour?['expected_cost_won']);
+    final dtDetourM = _i(bestDetour?['detour_distance_m']);
+    final dtTimeMins = bestDetour?['detour_time_min'] is num
+        ? (bestDetour!['detour_time_min'] as num).round()
+        : null;
+    final dtSavings = _i(bestDetour?['savings_vs_on_route_won']);
+
+    // 우회가 경로상보다 비싸면 숨김
+    final showDetour = detourSt != null &&
+        (dtPrice == null || orPrice == null || dtPrice <= orPrice);
+
+    final hasOverride = _selectedAltItem != null;
+    final aiRecIsDetour = choice == 'best_detour' && showDetour;
+
+    // ── Primary 카드 (상단) 계산
+    _CardInfo primary;
+    if (hasOverride) {
+      final ovSt = _selectedAltItem!['station'] is Map
+          ? Map<String, dynamic>.from(_selectedAltItem!['station'] as Map)
+          : <String, dynamic>{};
+      primary = _CardInfo(
+        name: ovSt['name']?.toString() ?? '',
+        addr: ovSt['address']?.toString(),
+        lat: _d(ovSt['lat']),
+        lng: _d(ovSt['lng']),
+        price: _d(ovSt['price_won_per_liter']),
+        cost: _i(_selectedAltItem!['expected_cost_won']),
+        detourM: _i(_selectedAltItem!['detour_distance_m']),
+        timeMins: null,
+        savings: 0,
+        tag: '선택됨',
+        tagColor: _kSelected,
+        isAiRec: false,
+        isUserSelected: true,
+      );
+    } else if (aiRecIsDetour) {
+      primary = _CardInfo(
+        name: detourSt['name']?.toString() ?? '',
+        addr: detourSt['address']?.toString(),
+        lat: dtLat,
+        lng: dtLng,
+        price: dtPrice,
+        cost: dtCost,
+        detourM: dtDetourM,
+        timeMins: dtTimeMins,
+        savings: dtSavings,
+        tag: '우회 최저가',
+        tagColor: const Color(0xFF1D6FE0),
+        isAiRec: true,
+        isUserSelected: false,
+      );
+    } else {
+      primary = _CardInfo(
+        name: onRouteSt?['name']?.toString() ?? '',
+        addr: onRouteSt?['address']?.toString(),
+        lat: orLat,
+        lng: orLng,
+        price: orPrice,
+        cost: orCost,
+        detourM: orDetourM,
+        timeMins: orTimeMins,
+        savings: 0,
+        tag: '경로상 최저가',
+        tagColor: const Color(0xFF555555),
+        isAiRec: true,
+        isUserSelected: false,
+      );
+    }
+
+    // ── Secondary 카드 (하단 참고용) 계산
+    _CardInfo? secondary;
+    if (hasOverride) {
+      // 오버라이드 시: AI 추천을 참고용으로 표시
+      if (aiRecIsDetour) {
+        secondary = _CardInfo(
+          name: detourSt['name']?.toString() ?? '',
+          addr: detourSt['address']?.toString(),
+          lat: dtLat,
+          lng: dtLng,
+          price: dtPrice,
+          cost: dtCost,
+          detourM: dtDetourM,
+          timeMins: dtTimeMins,
+          savings: dtSavings,
+          tag: 'AI 추천',
+          tagColor: _kPrimary,
+          isAiRec: false,
+          isUserSelected: false,
+        );
+      } else if (onRouteSt != null) {
+        secondary = _CardInfo(
+          name: onRouteSt['name']?.toString() ?? '',
+          addr: onRouteSt['address']?.toString(),
+          lat: orLat,
+          lng: orLng,
+          price: orPrice,
+          cost: orCost,
+          detourM: orDetourM,
+          timeMins: orTimeMins,
+          savings: 0,
+          tag: 'AI 추천',
+          tagColor: _kPrimary,
+          isAiRec: false,
+          isUserSelected: false,
+        );
+      }
+    } else if (aiRecIsDetour && onRouteSt != null) {
+      // 우회 AI 추천 → 경로상 최저가를 하단 참고로
+      secondary = _CardInfo(
+        name: onRouteSt['name']?.toString() ?? '',
+        addr: onRouteSt['address']?.toString(),
+        lat: orLat,
+        lng: orLng,
+        price: orPrice,
+        cost: orCost,
+        detourM: orDetourM,
+        timeMins: orTimeMins,
+        savings: 0,
+        tag: '경로상 최저가',
+        tagColor: const Color(0xFF555555),
+        isAiRec: false,
+        isUserSelected: false,
+      );
+    } else if (!aiRecIsDetour && showDetour) {
+      // 경로 AI 추천 → 우회 최저가를 하단 참고로
+      secondary = _CardInfo(
+        name: detourSt['name']?.toString() ?? '',
+        addr: detourSt['address']?.toString(),
+        lat: dtLat,
+        lng: dtLng,
+        price: dtPrice,
+        cost: dtCost,
+        detourM: dtDetourM,
+        timeMins: dtTimeMins,
+        savings: dtSavings,
+        tag: '우회 최저가',
+        tagColor: const Color(0xFF1D6FE0),
+        isAiRec: false,
+        isUserSelected: false,
+      );
+    }
+
+    return ListView(
+      controller: widget.scrollController,
+      padding: EdgeInsets.fromLTRB(16, widget.scrollController != null ? 4 : 8, 16, 32),
+      children: [
+        // 드래그 핸들
+        if (widget.scrollController != null)
+          Center(
+            child: Container(
+              width: 36, height: 4,
+              margin: const EdgeInsets.only(bottom: 10),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
               ),
-          ],
-        ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-        children: [
-          // ── AI 분석 메시지 ──
-          if (uiMessage.isNotEmpty) ...[
-            _AiMessageCard(message: uiMessage),
-            const SizedBox(height: 12),
-          ],
+            ),
+          ),
 
-          // ── 추천 주유소 카드 ──
-          _RecCard(
-            stName: stName,
-            stAddr: stAddr,
-            priceL: priceL,
-            metrics: metrics,
-            netSavings: netSavings,
-            goalL: goalL,
-            avgPrice: avgPrice,
-            avgSrc: avgSrc,
-            stLat: stLat,
-            stLng: stLng,
-            destLat: destLat,
-            destLng: destLng,
-            destinationName: destinationName,
+        // ── AI 메시지 ──
+        if (uiMessage.isNotEmpty) ...[
+          _AiMessageBanner(message: uiMessage),
+          const SizedBox(height: 12),
+        ],
+
+        // ── 두 후보 비교 배너 (오버라이드 없을 때만) ──
+        if (!hasOverride && secondary != null && dtSavings > 0 && showDetour) ...[
+          _ComparisonBanner(
+            savings: dtSavings,
+            detourMins: dtTimeMins,
+            choice: choice,
             wonFmt: _wonFmt,
-            onNavViaWaypoint: (stLat != null &&
-                    stLng != null &&
-                    destLat != null &&
-                    destLng != null)
-                ? () => showViaWaypointNavigationSheet(
-                      context,
-                      waypointLat: stLat,
-                      waypointLng: stLng,
-                      waypointName: stName,
-                      destinationLat: destLat,
-                      destinationLng: destLng,
-                      destinationName: destinationName,
-                    )
-                : null,
-            onNavStation: (stLat != null && stLng != null)
-                ? () => showNavigationSheet(context,
-                      lat: stLat, lng: stLng, name: stName)
-                : null,
           ),
           const SizedBox(height: 12),
-
-          // ── 경로상 비교 카드 ──
-          if (orStation != null && orName.isNotEmpty) ...[
-            _CompareCard(
-              orName: orName,
-              orAddr: orAddr,
-              orPrice: orPrice,
-              orMetrics: orMetrics,
-              diffWon: diffWon,
-              orLat: orLat,
-              orLng: orLng,
-              wonFmt: _wonFmt,
-              onNav: (orLat != null && orLng != null)
-                  ? () => showNavigationSheet(context,
-                        lat: orLat, lng: orLng, name: orName)
-                  : null,
-            ),
-            const SizedBox(height: 12),
-          ],
-
-          // ── 다른 후보 ──
-          if (alternatives.isNotEmpty) ...[
-            _AltList(alternatives: alternatives, wonFmt: _wonFmt),
-          ],
         ],
-      ),
+
+        // ── Primary 카드 ──
+        _buildCard(primary, destLat, destLng),
+        const SizedBox(height: 10),
+
+        // ── Secondary 카드 ──
+        if (secondary != null) ...[
+          _buildCard(secondary, destLat, destLng),
+          const SizedBox(height: 12),
+        ],
+
+        // ── 다른 후보 ──
+        if (data['alternatives'] is List &&
+            (data['alternatives'] as List).isNotEmpty) ...[
+          _AltSection(
+            alternatives: data['alternatives'] as List<dynamic>,
+            wonFmt: _wonFmt,
+            onSelect: _selectAlt,
+            selectedItem: _selectedAltItem,
+          ),
+          const SizedBox(height: 12),
+        ],
+
+        // ── 기준 정보 ──
+        if (goalL != null)
+          Center(
+            child: Text(
+              '목표 주유량 약 ${goalL.toStringAsFixed(1)}L 기준',
+              style: const TextStyle(fontSize: 11, color: Color(0xFF999999)),
+            ),
+          ),
+      ],
     );
+  }
+
+  Widget _buildCard(_CardInfo c, double? destLat, double? destLng) {
+    final detourLabel = _detourLabel(c.detourM, c.timeMins);
+    final extraInfo = (c.savings > 0 && !c.isUserSelected)
+        ? _ExtraInfo(savings: c.savings, timeMins: c.timeMins)
+        : null;
+    return _OptionCard(
+      tag: c.tag,
+      tagColor: c.tagColor,
+      isAiRec: c.isAiRec,
+      isUserSelected: c.isUserSelected,
+      stName: c.name,
+      stAddr: c.addr,
+      priceL: c.price,
+      expectedCost: c.cost,
+      detourLabel: detourLabel,
+      extraInfo: extraInfo,
+      stLat: c.lat,
+      stLng: c.lng,
+      destLat: destLat,
+      destLng: destLng,
+      destinationName: widget.destinationName,
+      originLat: widget.originLat,
+      originLng: widget.originLng,
+      wonFmt: _wonFmt,
+    );
+  }
+
+  static String _detourLabel(int detourM, int? timeMins) {
+    if (timeMins != null && timeMins == 0) return '우회 없음';
+    if (timeMins != null && timeMins > 0) {
+      if (detourM <= 0) return '직행 대비 약 $timeMins분 추가';
+      final distText = detourM >= 1000
+          ? '${(detourM / 1000).toStringAsFixed(1)}km'
+          : '${detourM}m';
+      return '$distText · $timeMins분 추가';
+    }
+    if (detourM > 0) {
+      return detourM >= 1000
+          ? '${(detourM / 1000).toStringAsFixed(1)}km 우회'
+          : '${detourM}m 우회';
+    }
+    return '우회 없음';
   }
 }
 
-// ─── AI 메시지 카드 ───────────────────────────────────────────────────────────
+// ─── 카드 데이터 헬퍼 ──────────────────────────────────────────────────────────
 
-class _AiMessageCard extends StatelessWidget {
+class _CardInfo {
+  final String name;
+  final String? addr;
+  final double? lat, lng, price;
+  final int cost, detourM, savings;
+  final int? timeMins;
+  final String tag;
+  final Color tagColor;
+  final bool isAiRec;
+  final bool isUserSelected;
+
+  const _CardInfo({
+    required this.name,
+    required this.addr,
+    required this.lat,
+    required this.lng,
+    required this.price,
+    required this.cost,
+    required this.detourM,
+    required this.timeMins,
+    required this.savings,
+    required this.tag,
+    required this.tagColor,
+    required this.isAiRec,
+    required this.isUserSelected,
+  });
+}
+
+class _ExtraInfo {
+  final int savings;
+  final int? timeMins;
+  const _ExtraInfo({required this.savings, required this.timeMins});
+}
+
+// ─── AI 메시지 배너 ────────────────────────────────────────────────────────────
+
+class _AiMessageBanner extends StatelessWidget {
   final String message;
-  const _AiMessageCard({required this.message});
+  const _AiMessageBanner({required this.message});
 
   @override
   Widget build(BuildContext context) {
+    // \n 또는 마침표 뒤 공백으로 문장 분리
+    final sentences = _splitSentences(message);
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFAFAFA),
-        borderRadius: BorderRadius.circular(14),
+        color: const Color(0xFFF5FBF8),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFCCEEDE)),
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 20,
-                height: 20,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE1F5EE),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Icon(Icons.auto_awesome_rounded,
-                    size: 12, color: _kPrimary),
-              ),
-              const SizedBox(width: 6),
-              const Text(
-                'AI 분석',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: _kPrimary,
-                ),
-              ),
-            ],
+          Container(
+            width: 20, height: 20,
+            margin: const EdgeInsets.only(top: 1),
+            decoration: BoxDecoration(
+              color: _kPrimaryLight,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Icon(Icons.auto_awesome_rounded, size: 12, color: _kPrimary),
           ),
-          const SizedBox(height: 8),
-          Text(
-            message,
-            style: const TextStyle(
-              fontSize: 13,
-              height: 1.6,
-              color: Color(0xFF1a1a1a),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('AI 분석',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _kPrimary)),
+                const SizedBox(height: 6),
+                ...sentences.asMap().entries.map((e) => Padding(
+                  padding: EdgeInsets.only(top: e.key == 0 ? 0 : 5),
+                  child: Text(
+                    e.value,
+                    style: const TextStyle(fontSize: 13, height: 1.5, color: Color(0xFF1a1a1a)),
+                  ),
+                )),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static List<String> _splitSentences(String text) {
+    // 리터럴 \n (백슬래시+n) → 실제 개행으로 정규화
+    final normalized = text.replaceAll(r'\n', '\n');
+    // 먼저 \n 기준으로 분리, 없으면 ". " 기준 분리
+    final byNewline = normalized.split('\n').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+    if (byNewline.length > 1) return byNewline;
+    // 마침표+공백 기준 분리
+    final byPeriod = text.split('. ');
+    if (byPeriod.length > 1) {
+      return byPeriod.asMap().entries.map((e) {
+        final s = e.value.trim();
+        return (e.key < byPeriod.length - 1 && !s.endsWith('.')) ? '$s.' : s;
+      }).where((s) => s.isNotEmpty).toList();
+    }
+    return [text.trim()];
+  }
+}
+
+// ─── 비교 요약 배너 ─────────────────────────────────────────────────────────────
+
+class _ComparisonBanner extends StatelessWidget {
+  final int savings;
+  final int? detourMins;
+  final String choice;
+  final NumberFormat wonFmt;
+
+  const _ComparisonBanner({
+    required this.savings,
+    required this.detourMins,
+    required this.choice,
+    required this.wonFmt,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final timeText = (detourMins != null && detourMins! > 0)
+        ? '대신 $detourMins분 더 걸림'
+        : '시간 차이 거의 없음';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F4FF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFB8CCFF)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.compare_arrows_rounded, size: 18, color: Color(0xFF1D6FE0)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 13, color: Color(0xFF1a1a1a)),
+                children: [
+                  TextSpan(
+                    text: '우회 시 ${wonFmt.format(savings)}원 절약',
+                    style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF1D6FE0)),
+                  ),
+                  TextSpan(text: ' · $timeText'),
+                ],
+              ),
             ),
           ),
         ],
@@ -246,260 +599,260 @@ class _AiMessageCard extends StatelessWidget {
   }
 }
 
-// ─── 추천 주유소 카드 ─────────────────────────────────────────────────────────
+// ─── 옵션 카드 ────────────────────────────────────────────────────────────────
 
-class _RecCard extends StatelessWidget {
+class _OptionCard extends StatelessWidget {
+  final String tag;
+  final Color tagColor;
+  final bool isAiRec;
+  final bool isUserSelected;
   final String stName;
   final String? stAddr;
   final double? priceL;
-  final Map<String, dynamic>? metrics;
-  final int netSavings;
-  final double? goalL;
-  final double? avgPrice;
-  final String? avgSrc;
+  final int expectedCost;
+  final String detourLabel;
+  final _ExtraInfo? extraInfo;
   final double? stLat, stLng, destLat, destLng;
   final String destinationName;
+  final double originLat, originLng;
   final NumberFormat wonFmt;
-  final VoidCallback? onNavViaWaypoint;
-  final VoidCallback? onNavStation;
 
-  const _RecCard({
+  const _OptionCard({
+    required this.tag,
+    required this.tagColor,
+    required this.isAiRec,
+    required this.isUserSelected,
     required this.stName,
     required this.stAddr,
     required this.priceL,
-    required this.metrics,
-    required this.netSavings,
-    required this.goalL,
-    required this.avgPrice,
-    required this.avgSrc,
+    required this.expectedCost,
+    required this.detourLabel,
+    required this.extraInfo,
     required this.stLat,
     required this.stLng,
     required this.destLat,
     required this.destLng,
     required this.destinationName,
+    required this.originLat,
+    required this.originLng,
     required this.wonFmt,
-    required this.onNavViaWaypoint,
-    required this.onNavStation,
   });
-
-  static int _i(dynamic v) {
-    if (v is num) return v.round();
-    return int.tryParse(v.toString()) ?? 0;
-  }
 
   @override
   Widget build(BuildContext context) {
-    final detourM = metrics != null ? _i(metrics!['detour_distance_m']) : 0;
-    final fuelCost =
-        metrics != null ? _i(metrics!['expected_fuel_cost_won']) : 0;
-    final detourCost =
-        metrics != null ? _i(metrics!['detour_cost_won']) : 0;
-    final baseCost = fuelCost + detourCost + netSavings;
+    final canNav = stLat != null && stLng != null && destLat != null && destLng != null;
+
+    final Color borderColor;
+    final Color bgColor;
+    final Color navBtnColor;
+    final Color navBtnTextColor;
+
+    if (isUserSelected) {
+      borderColor = _kSelected;
+      bgColor = _kSelectedLight;
+      navBtnColor = _kSelected;
+      navBtnTextColor = Colors.white;
+    } else if (isAiRec) {
+      borderColor = _kPrimary;
+      bgColor = _kPrimaryLight;
+      navBtnColor = _kPrimary;
+      navBtnTextColor = Colors.white;
+    } else {
+      borderColor = const Color(0xFFDDDDDD);
+      bgColor = Colors.white;
+      navBtnColor = const Color(0xFFEEEEEE);
+      navBtnTextColor = const Color(0xFF444444);
+    }
 
     return Container(
       decoration: BoxDecoration(
+        color: bgColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _kPrimary, width: 1.5),
+        border: Border.all(
+          color: borderColor,
+          width: (isAiRec || isUserSelected) ? 2 : 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── 헤더 ──
-          Container(
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
-            decoration: const BoxDecoration(
-              color: _kPrimaryLight,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(14),
-                topRight: Radius.circular(14),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _kPrimary,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Text(
-                    '추천 주유소',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  stName,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                    color: _kPrimaryDark,
-                  ),
-                ),
-                if (stAddr != null && stAddr!.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    stAddr!,
-                    style: const TextStyle(
-                        fontSize: 12, color: Color(0xFF0F6E56)),
-                  ),
-                ],
-              ],
-            ),
-          ),
-
-          // ── 통계 3종 ──
-          IntrinsicHeight(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
             child: Row(
               children: [
-                _StatCell(
-                  value: priceL != null ? wonFmt.format(priceL!.round()) : '—',
-                  label: '원/L',
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: tagColor,
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: Text(tag,
+                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
                 ),
-                const VerticalDivider(width: 1, color: Color(0xFFEEEEEE)),
-                _StatCell(
-                  value: detourM >= 1000
-                      ? '${(detourM / 1000).toStringAsFixed(1)}km'
-                      : '${detourM}m',
-                  label: '우회',
-                ),
-                const VerticalDivider(width: 1, color: Color(0xFFEEEEEE)),
-                _StatCell(
-                  value: wonFmt.format(netSavings.abs()),
-                  label: netSavings >= 0 ? '원 절약' : '원 손실',
-                  valueColor:
-                      netSavings >= 0 ? const Color(0xFF0F6E56) : _kDanger,
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: Color(0xFFEEEEEE)),
-
-          // ── 절약 pill ──
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 4),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                color: _kPrimaryLight,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.check_circle_rounded,
-                      size: 14, color: Color(0xFF0F6E56)),
-                  const SizedBox(width: 4),
-                  Text(
-                    '경로상 대비 ${wonFmt.format(netSavings.abs())}원 ${netSavings >= 0 ? '절약' : '추가'}',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF0F6E56),
+                if (isAiRec) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: _kPrimary,
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.auto_awesome_rounded, size: 10, color: Colors.white),
+                        SizedBox(width: 3),
+                        Text('AI 추천',
+                            style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                      ],
                     ),
                   ),
                 ],
-              ),
+                if (isUserSelected) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: _kSelected,
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.check_circle_outline_rounded, size: 10, color: Colors.white),
+                        SizedBox(width: 3),
+                        Text('내가 선택',
+                            style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
 
-          // ── 비용 테이블 ──
+          // ── 주유소명 + 주소 ──
           Padding(
-            padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFEEEEEE)),
-              ),
-              child: Column(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(stName,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1a1a1a))),
+                if (stAddr != null && stAddr!.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(stAddr!, style: const TextStyle(fontSize: 12, color: Color(0xFF888888))),
+                ],
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // ── 핵심 수치 3종 ──
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF7F7F7),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: IntrinsicHeight(
+              child: Row(
                 children: [
-                  _CostRow(label: '예상 주유비', value: '${wonFmt.format(fuelCost)}원'),
-                  const Divider(height: 1, color: Color(0xFFF5F5F5)),
-                  _CostRow(label: '우회 연료비', value: '+${wonFmt.format(detourCost)}원'),
-                  const Divider(height: 1, color: Color(0xFFF5F5F5)),
-                  _CostRow(
-                      label: '기준 비용 (경로상)',
-                      value: '${wonFmt.format(baseCost > 0 ? baseCost : fuelCost + detourCost + netSavings.abs())}원'),
-                  const Divider(height: 1, color: Color(0xFFF5F5F5)),
-                  _CostRow(
-                    label: '순 절약',
-                    value: '${netSavings >= 0 ? '-' : '+'}${wonFmt.format(netSavings.abs())}원',
-                    valueColor: netSavings >= 0 ? const Color(0xFF0F6E56) : _kDanger,
+                  _NumCell(
+                    value: priceL != null ? '${wonFmt.format(priceL!.round())}원' : '—',
+                    label: '리터당',
+                  ),
+                  const VerticalDivider(width: 1, color: Color(0xFFDDDDDD)),
+                  _NumCell(value: detourLabel, label: '우회'),
+                  const VerticalDivider(width: 1, color: Color(0xFFDDDDDD)),
+                  _NumCell(
+                    value: expectedCost > 0 ? '${wonFmt.format(expectedCost)}원' : '—',
+                    label: '예상 주유비',
+                    valueSize: 14,
                   ),
                 ],
               ),
             ),
           ),
 
-          if (goalL != null || avgPrice != null) ...[
+          // ── 절약/시간 정보 (우회 카드) ──
+          if (extraInfo != null) ...[
+            const SizedBox(height: 10),
             Padding(
-              padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
-              child: Text(
-                [
-                  if (goalL != null)
-                    '목표 주유량 약 ${goalL!.toStringAsFixed(1)}L',
-                  if (avgPrice != null)
-                    '기준 유가 ${wonFmt.format(avgPrice!.round())}원/L',
-                  if (avgSrc != null && avgSrc!.isNotEmpty) '($avgSrc)',
-                ].join(' · '),
-                style: const TextStyle(
-                    fontSize: 11, color: Color(0xFF999999)),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEEF4FF),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.savings_outlined, size: 15, color: Color(0xFF1D6FE0)),
+                        const SizedBox(width: 6),
+                        Text(
+                          '경로상 대비 ${wonFmt.format(extraInfo!.savings)}원 절약',
+                          style: const TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1D6FE0)),
+                        ),
+                      ],
+                    ),
+                    if (extraInfo!.timeMins != null && extraInfo!.timeMins! > 0) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.access_time_rounded, size: 14, color: Color(0xFF888888)),
+                          const SizedBox(width: 6),
+                          Text(
+                            '대신 ${extraInfo!.timeMins}분 더 소요',
+                            style: const TextStyle(fontSize: 12, color: Color(0xFF666666)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ),
           ],
 
           // ── 길안내 버튼 ──
           Padding(
-            padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
-            child: Column(
-              children: [
-                SizedBox(
-                  width: double.infinity,
-                  height: 46,
-                  child: ElevatedButton.icon(
-                    onPressed: onNavViaWaypoint,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _kPrimary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      elevation: 0,
-                    ),
-                    icon: const Icon(Icons.route_rounded, size: 18),
-                    label: const Text(
-                      '경유 길안내',
-                      style: TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.w600),
-                    ),
-                  ),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+            child: SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: ElevatedButton.icon(
+                onPressed: canNav
+                    ? () => showViaWaypointNavigationSheet(
+                          context,
+                          originLat: originLat,
+                          originLng: originLng,
+                          waypointLat: stLat!,
+                          waypointLng: stLng!,
+                          waypointName: stName,
+                          destinationLat: destLat!,
+                          destinationLng: destLng!,
+                          destinationName: destinationName,
+                        )
+                    : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: navBtnColor,
+                  foregroundColor: navBtnTextColor,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  elevation: 0,
                 ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  height: 46,
-                  child: OutlinedButton.icon(
-                    onPressed: onNavStation,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF1a1a1a),
-                      side: const BorderSide(color: Color(0xFFEEEEEE)),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                    ),
-                    icon: const Icon(Icons.local_gas_station_outlined,
-                        size: 18),
-                    label: const Text(
-                      '주유소만',
-                      style: TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-              ],
+                icon: const Icon(Icons.route_rounded, size: 16),
+                label: const Text('경유 길안내',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              ),
             ),
           ),
         ],
@@ -508,164 +861,20 @@ class _RecCard extends StatelessWidget {
   }
 }
 
-// ─── 경로상 비교 카드 ─────────────────────────────────────────────────────────
+// ─── 다른 후보 섹션 ───────────────────────────────────────────────────────────
 
-class _CompareCard extends StatelessWidget {
-  final String orName;
-  final String? orAddr;
-  final double? orPrice;
-  final Map<String, dynamic>? orMetrics;
-  final int diffWon;
-  final double? orLat, orLng;
-  final NumberFormat wonFmt;
-  final VoidCallback? onNav;
-
-  const _CompareCard({
-    required this.orName,
-    required this.orAddr,
-    required this.orPrice,
-    required this.orMetrics,
-    required this.diffWon,
-    required this.orLat,
-    required this.orLng,
-    required this.wonFmt,
-    required this.onNav,
-  });
-
-  static int _i(dynamic v) {
-    if (v is num) return v.round();
-    return int.tryParse(v.toString()) ?? 0;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final orTotalCost =
-        orMetrics != null ? _i(orMetrics!['total_expected_cost_won']) : 0;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFEEEEEE)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5F5F5),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text(
-                  '경로상 최저가',
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF999999)),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            orName,
-            style: const TextStyle(
-                fontSize: 15, fontWeight: FontWeight.w500),
-          ),
-          if (orAddr != null && orAddr!.isNotEmpty) ...[
-            const SizedBox(height: 2),
-            Text(orAddr!,
-                style: const TextStyle(
-                    fontSize: 12, color: Color(0xFF999999))),
-          ],
-          const SizedBox(height: 6),
-          if (orPrice != null)
-            Text(
-              '우회 없음 · ${wonFmt.format(orPrice!.round())}원/L',
-              style: const TextStyle(
-                  fontSize: 12, color: Color(0xFF999999)),
-            ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFAFAFA),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('총 비용',
-                        style: TextStyle(
-                            fontSize: 13, color: Color(0xFF999999))),
-                    Text(
-                      '${wonFmt.format(orTotalCost)}원',
-                      style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('추천 대비',
-                        style: TextStyle(
-                            fontSize: 13, color: Color(0xFF999999))),
-                    Text(
-                      diffWon > 0
-                          ? '+${wonFmt.format(diffWon)}원 더 비쌈'
-                          : diffWon < 0
-                              ? '-${wonFmt.format(-diffWon)}원 더 저렴'
-                              : '거의 동일',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: diffWon > 0
-                            ? _kDanger
-                            : diffWon < 0
-                                ? const Color(0xFF0F6E56)
-                                : const Color(0xFF999999),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          if (onNav != null) ...[
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: onNav,
-                style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF1a1a1a)),
-                icon: const Icon(Icons.navigation_rounded, size: 16),
-                label: const Text('이 주유소 길찾기',
-                    style: TextStyle(fontSize: 13)),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-// ─── 다른 후보 리스트 ─────────────────────────────────────────────────────────
-
-class _AltList extends StatelessWidget {
+class _AltSection extends StatelessWidget {
   final List<dynamic> alternatives;
   final NumberFormat wonFmt;
+  final void Function(dynamic altItem)? onSelect;
+  final Map<String, dynamic>? selectedItem;
 
-  const _AltList({required this.alternatives, required this.wonFmt});
+  const _AltSection({
+    required this.alternatives,
+    required this.wonFmt,
+    this.onSelect,
+    this.selectedItem,
+  });
 
   static double? _d(dynamic v) {
     if (v == null) return null;
@@ -680,28 +889,22 @@ class _AltList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final valid =
-        alternatives.where((r) => r is Map).toList();
+    final valid = alternatives.whereType<Map>().toList();
     if (valid.isEmpty) return const SizedBox.shrink();
+
+    final selectedId = selectedItem?['station'] is Map
+        ? (selectedItem!['station'] as Map)['id']?.toString()
+        : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        const Row(
           children: [
-            const Text(
-              '다른 후보',
-              style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF1a1a1a)),
-            ),
-            Text(
-              '순절약 순',
-              style: TextStyle(
-                  fontSize: 12, color: Colors.grey[500]),
-            ),
+            Text('다른 후보',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1a1a1a))),
+            SizedBox(width: 6),
+            Text('가격 순', style: TextStyle(fontSize: 11, color: Color(0xFF999999))),
           ],
         ),
         const SizedBox(height: 8),
@@ -712,88 +915,111 @@ class _AltList extends StatelessWidget {
           ),
           child: Column(
             children: List.generate(valid.length, (idx) {
-              final raw = Map<String, dynamic>.from(valid[idx] as Map);
-              final st = raw['station'] is Map
-                  ? raw['station'] as Map<String, dynamic>
-                  : null;
-              final m = raw['metrics'] is Map
-                  ? raw['metrics'] as Map<String, dynamic>
-                  : null;
+              final item = valid[idx];
+              final st = item['station'] is Map ? item['station'] as Map : null;
               final name = st?['name']?.toString() ?? '';
+              final itemId = st?['id']?.toString();
               final price = _d(st?['price_won_per_liter']);
-              final save = m != null ? _i(m['net_savings_won']) : 0;
-              final det = m != null ? _i(m['detour_distance_m']) : 0;
+              final detourM = _i(item['detour_distance_m']);
+              final savings = _i(item['savings_vs_on_route_won']);
               final isLast = idx == valid.length - 1;
+              final isSelected = selectedId != null && selectedId == itemId;
+
+              final detourText = detourM <= 500
+                  ? '우회 없음'
+                  : detourM >= 1000
+                      ? '${(detourM / 1000).toStringAsFixed(1)}km 우회'
+                      : '${detourM}m 우회';
 
               return Column(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     child: Row(
                       children: [
+                        // 번호 뱃지 (선택됨이면 체크)
                         Container(
-                          width: 24,
-                          height: 24,
+                          width: 22, height: 22,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: const Color(0xFFF5F5F5),
+                            color: isSelected ? _kSelected : const Color(0xFFF0F0F0),
                           ),
                           child: Center(
-                            child: Text(
-                              '${idx + 2}',
-                              style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF999999)),
-                            ),
+                            child: isSelected
+                                ? const Icon(Icons.check, size: 13, color: Colors.white)
+                                : Text('${idx + 1}',
+                                    style: const TextStyle(
+                                        fontSize: 11, fontWeight: FontWeight.w600,
+                                        color: Color(0xFF888888))),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 10),
+                        // 이름 + 정보
                         Expanded(
                           child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    color: Color(0xFF1a1a1a)),
-                              ),
+                              Text(name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: isSelected ? _kSelected : const Color(0xFF1a1a1a))),
                               const SizedBox(height: 2),
                               Text(
                                 [
-                                  if (price != null)
-                                    '${wonFmt.format(price.round())}원/L',
-                                  '우회 ${det >= 1000 ? '${(det / 1000).toStringAsFixed(1)}km' : '${det}m'}',
+                                  if (price != null) '${wonFmt.format(price.round())}원/L',
+                                  detourText,
                                 ].join(' · '),
-                                style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Color(0xFF999999)),
+                                style: const TextStyle(fontSize: 11, color: Color(0xFF999999)),
                               ),
                             ],
                           ),
                         ),
+                        const SizedBox(width: 6),
+                        // 절약 금액
                         Text(
-                          '${save >= 0 ? '-' : '+'}${wonFmt.format(save.abs())}원',
+                          savings >= 0
+                              ? '${wonFmt.format(savings)}원 절약'
+                              : '+${wonFmt.format(-savings)}원',
                           style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: save >= 0
-                                ? const Color(0xFF0F6E56)
-                                : _kDanger,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: savings >= 0
+                                ? const Color(0xFF1D9E75)
+                                : const Color(0xFFE24B4A),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // 확인 버튼 (선택됐으면 "선택됨")
+                        GestureDetector(
+                          onTap: () => onSelect?.call(isSelected ? null : item),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? _kSelectedLight
+                                  : const Color(0xFFEEF4FF),
+                              borderRadius: BorderRadius.circular(8),
+                              border: isSelected
+                                  ? Border.all(color: _kSelected, width: 1)
+                                  : null,
+                            ),
+                            child: Text(
+                              isSelected ? '선택됨' : '확인',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: isSelected ? _kSelected : const Color(0xFF1D6FE0),
+                              ),
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  if (!isLast)
-                    const Divider(
-                        height: 1, color: Color(0xFFF0F0F0)),
+                  if (!isLast) const Divider(height: 1, color: Color(0xFFF0F0F0)),
                 ],
               );
             }),
@@ -804,72 +1030,31 @@ class _AltList extends StatelessWidget {
   }
 }
 
-// ─── 공통 위젯들 ──────────────────────────────────────────────────────────────
+// ─── 공통 위젯 ────────────────────────────────────────────────────────────────
 
-class _StatCell extends StatelessWidget {
+class _NumCell extends StatelessWidget {
   final String value;
   final String label;
-  final Color? valueColor;
+  final double? valueSize;
 
-  const _StatCell({
-    required this.value,
-    required this.label,
-    this.valueColor,
-  });
+  const _NumCell({required this.value, required this.label, this.valueSize});
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: valueColor ?? const Color(0xFF1a1a1a),
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: const TextStyle(
-                  fontSize: 11, color: Color(0xFF999999)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CostRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color? valueColor;
-
-  const _CostRow({required this.label, required this.value, this.valueColor});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          Text(value,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: valueSize ?? 15,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF1a1a1a),
+              )),
+          const SizedBox(height: 3),
           Text(label,
-              style: const TextStyle(
-                  fontSize: 13, color: Color(0xFF999999))),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: valueColor ?? const Color(0xFF1a1a1a),
-            ),
-          ),
+              style: const TextStyle(fontSize: 11, color: Color(0xFF999999))),
         ],
       ),
     );

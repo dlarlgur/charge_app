@@ -102,6 +102,8 @@ class ApiService {
     required double startLng,
     required double goalLat,
     required double goalLng,
+    double? waypointLat,
+    double? waypointLng,
   }) async {
     final res = await _dio.get(
       ApiConstants.routeDriving,
@@ -110,6 +112,8 @@ class ApiService {
         'start_lng': startLng,
         'goal_lat': goalLat,
         'goal_lng': goalLng,
+        if (waypointLat != null) 'waypoint_lat': waypointLat,
+        if (waypointLng != null) 'waypoint_lng': waypointLng,
       },
     );
     return Map<String, dynamic>.from(res.data ?? {});

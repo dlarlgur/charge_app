@@ -19,6 +19,9 @@ Future<void> showNavigationSheet(
 
 Future<void> showViaWaypointNavigationSheet(
   BuildContext context, {
+  required double originLat,
+  required double originLng,
+  String originName = '출발지',
   required double waypointLat,
   required double waypointLng,
   required String waypointName,
@@ -32,6 +35,9 @@ Future<void> showViaWaypointNavigationSheet(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
     builder: (_) => _ViaWaypointNavigationSheet(
+      originLat: originLat,
+      originLng: originLng,
+      originName: originName,
       waypointLat: waypointLat,
       waypointLng: waypointLng,
       waypointName: waypointName,
@@ -127,12 +133,17 @@ class _NavigationSheet extends StatelessWidget {
 }
 
 class _ViaWaypointNavigationSheet extends StatelessWidget {
+  final double originLat, originLng;
+  final String originName;
   final double waypointLat, waypointLng;
   final String waypointName;
   final double destinationLat, destinationLng;
   final String destinationName;
 
   const _ViaWaypointNavigationSheet({
+    required this.originLat,
+    required this.originLng,
+    required this.originName,
     required this.waypointLat,
     required this.waypointLng,
     required this.waypointName,
@@ -164,7 +175,8 @@ class _ViaWaypointNavigationSheet extends StatelessWidget {
               subtitle: '네이버',
               onTap: () => _launch(
                 context,
-                'nmap://route/car?slat=$waypointLat&slng=$waypointLng&sname=${Uri.encodeComponent(waypointName)}'
+                'nmap://route/car?slat=$originLat&slng=$originLng&sname=${Uri.encodeComponent(originName)}'
+                '&v1lat=$waypointLat&v1lng=$waypointLng&v1name=${Uri.encodeComponent(waypointName)}'
                 '&dlat=$destinationLat&dlng=$destinationLng&dname=${Uri.encodeComponent(destinationName)}'
                 '&appname=${AppConstants.packageName}',
                 fallback: 'https://map.naver.com',
@@ -177,8 +189,11 @@ class _ViaWaypointNavigationSheet extends StatelessWidget {
               subtitle: '카카오',
               onTap: () => _launch(
                 context,
-                'kakaonavi://navigate?ep=${destinationLng}_${destinationLat}&via=${waypointLng}_${waypointLat}&by=CAR',
-                fallback: 'https://kakaonavi.kakao.com',
+                // kakaomap://route 사용 (lat,lng 순서, 쉼표 구분)
+                'kakaomap://route?sp=$originLat,$originLng&sname=${Uri.encodeComponent(originName)}'
+                '&ep=$destinationLat,$destinationLng&ename=${Uri.encodeComponent(destinationName)}'
+                '&via1=$waypointLat,$waypointLng&by=CAR',
+                fallback: 'https://map.kakao.com',
               ),
             ),
             _navItem(
@@ -188,7 +203,10 @@ class _ViaWaypointNavigationSheet extends StatelessWidget {
               subtitle: 'SK텔레콤',
               onTap: () => _launch(
                 context,
-                'tmap://route?goalname=${Uri.encodeComponent(destinationName)}&goaly=$destinationLat&goalx=$destinationLng',
+                // 경유지 파라미터: viaX1/viaY1/vianame1 (번호형 필수)
+                'tmap://route?startX=$originLng&startY=$originLat&startname=${Uri.encodeComponent(originName)}'
+                '&goalname=${Uri.encodeComponent(destinationName)}&goaly=$destinationLat&goalx=$destinationLng'
+                '&viaX1=$waypointLng&viaY1=$waypointLat&vianame1=${Uri.encodeComponent(waypointName)}',
                 fallback: 'https://www.tmap.co.kr',
               ),
             ),
