@@ -8,6 +8,36 @@ const _kPrimaryLight = Color(0xFFE1F5EE);
 const _kSelected = Color(0xFF7B61FF);
 const _kSelectedLight = Color(0xFFF5F2FF);
 
+/// 직행 대비 추가 시간이 1분 이하면 '우회 없음', 2분부터 '우회'.
+const int _kDetourStartMinutes = 2;
+
+int? _detourMinutesForUi(num? detourTimeMin) {
+  if (detourTimeMin == null) return null;
+  final m = detourTimeMin.ceil();
+  return m < 0 ? 0 : m;
+}
+
+bool _detourIsNegligible({required int detourM, required num? detourTimeMin}) {
+  final m = _detourMinutesForUi(detourTimeMin);
+  if (m != null) return m < _kDetourStartMinutes;
+  return detourM <= 500;
+}
+
+int? _meaningfulDetourMinutes(num? detourTimeMin) {
+  final m = _detourMinutesForUi(detourTimeMin);
+  if (m == null || m < _kDetourStartMinutes) return null;
+  return m;
+}
+
+String _detourAltListSubtitle({required int detourM, required num? detourTimeMin}) {
+  if (_detourIsNegligible(detourM: detourM, detourTimeMin: detourTimeMin)) return '우회 없음';
+  final m = _meaningfulDetourMinutes(detourTimeMin);
+  if (m != null && m > 0) return '약 ${m}분 우회';
+  if (detourM >= 1000) return '${(detourM / 1000).toStringAsFixed(1)}km 우회';
+  if (detourM > 0) return '${detourM}m 우회';
+  return '조금 우회';
+}
+
 // ─── 결과 화면 (독립 페이지로 push 할 때) ─────────────────────────────────────
 
 class AiResultScreen extends StatelessWidget {
@@ -69,8 +99,8 @@ class AiResultBody extends StatefulWidget {
   final double originLat;
   final double originLng;
   final ScrollController? scrollController;
-  /// 대안 "확인" 탭 시 지도 업데이트 콜백
-  final void Function(double lat, double lng, String name, int priceL)? onAltRouteView;
+  /// 대안 "확인" 탭 시 지도 업데이트 (서버 `via_route` 포함 시 그대로 사용)
+  final void Function(Map<String, dynamic> altItem)? onAltRouteView;
   /// 대안 선택 취소 → AI 추천으로 복원 콜백
   final VoidCallback? onResetToAiRec;
 
@@ -127,26 +157,35 @@ class _AiResultBodyState extends State<AiResultBody> {
       _selectedAltItem = Map<String, dynamic>.from(altItem);
       _altAiMessage = _buildAltMessage(altItem, name, price);
     });
-    widget.onAltRouteView?.call(lat, lng, name, price);
+    widget.onAltRouteView?.call(Map<String, dynamic>.from(altItem));
   }
 
   String _buildAltMessage(Map altItem, String name, int price) {
     final detourM = _i(altItem['detour_distance_m']);
     final savings = _i(altItem['savings_vs_on_route_won']);
-    final detourText = detourM <= 500
-        ? '경로상 위치'
-        : detourM >= 1000
-            ? '${(detourM / 1000).toStringAsFixed(1)}km 우회 필요'
-            : '${detourM}m 우회 필요';
+    final detourTimeMin = altItem['detour_time_min'] is num ? altItem['detour_time_min'] as num : null;
+    final String detourText;
+    if (_detourIsNegligible(detourM: detourM, detourTimeMin: detourTimeMin)) {
+      detourText = '우회 없음(직행과 비슷한 소요)';
+    } else {
+      final m = _meaningfulDetourMinutes(detourTimeMin);
+      if (m != null && m > 0) {
+        detourText = '약 ${m}분 우회';
+      } else if (detourM >= 1000) {
+        detourText = '${(detourM / 1000).toStringAsFixed(1)}km 우회 필요';
+      } else {
+        detourText = '${detourM}m 우회 필요';
+      }
+    }
 
     final lines = <String>[
       '$name을 선택하셨습니다.',
       '리터당 ${_wonFmt.format(price)}원, $detourText.',
     ];
     if (savings > 0) {
-      lines.add('경로상 최저가 대비 ${_wonFmt.format(savings)}원 절약됩니다.');
+      lines.add('AI 추천 경로 대비 ${_wonFmt.format(savings)}원 절약됩니다.');
     } else if (savings < 0) {
-      lines.add('경로상 최저가보다 ${_wonFmt.format(-savings)}원 더 비쌉니다.');
+      lines.add('AI 추천 경로보다 ${_wonFmt.format(-savings)}원 더 비쌉니다.');
     }
     return lines.join('\n');
   }
@@ -177,9 +216,8 @@ class _AiResultBodyState extends State<AiResultBody> {
     final orPrice = _d(onRouteSt?['price_won_per_liter']);
     final orCost = _i(onRoute?['expected_cost_won']);
     final orDetourM = _i(onRoute?['detour_distance_m']);
-    final orTimeMins = onRoute?['detour_time_min'] is num
-        ? (onRoute!['detour_time_min'] as num).round()
-        : null;
+    final orDetourTimeMin =
+        onRoute?['detour_time_min'] is num ? onRoute!['detour_time_min'] as num : null;
 
     // best_detour 데이터
     final dtLat = _d(detourSt?['lat']);
@@ -187,9 +225,9 @@ class _AiResultBodyState extends State<AiResultBody> {
     final dtPrice = _d(detourSt?['price_won_per_liter']);
     final dtCost = _i(bestDetour?['expected_cost_won']);
     final dtDetourM = _i(bestDetour?['detour_distance_m']);
-    final dtTimeMins = bestDetour?['detour_time_min'] is num
-        ? (bestDetour!['detour_time_min'] as num).round()
-        : null;
+    final dtDetourTimeMin =
+        bestDetour?['detour_time_min'] is num ? bestDetour!['detour_time_min'] as num : null;
+    final dtTimeMinsBanner = _meaningfulDetourMinutes(dtDetourTimeMin);
     final dtSavings = _i(bestDetour?['savings_vs_on_route_won']);
 
     // 우회가 경로상보다 비싸면 숨김
@@ -213,7 +251,9 @@ class _AiResultBodyState extends State<AiResultBody> {
         price: _d(ovSt['price_won_per_liter']),
         cost: _i(_selectedAltItem!['expected_cost_won']),
         detourM: _i(_selectedAltItem!['detour_distance_m']),
-        timeMins: null,
+        detourTimeMin: _selectedAltItem!['detour_time_min'] is num
+            ? _selectedAltItem!['detour_time_min'] as num
+            : null,
         savings: 0,
         tag: '선택됨',
         tagColor: _kSelected,
@@ -229,7 +269,7 @@ class _AiResultBodyState extends State<AiResultBody> {
         price: dtPrice,
         cost: dtCost,
         detourM: dtDetourM,
-        timeMins: dtTimeMins,
+        detourTimeMin: dtDetourTimeMin,
         savings: dtSavings,
         tag: '우회 최저가',
         tagColor: const Color(0xFF1D6FE0),
@@ -245,7 +285,7 @@ class _AiResultBodyState extends State<AiResultBody> {
         price: orPrice,
         cost: orCost,
         detourM: orDetourM,
-        timeMins: orTimeMins,
+        detourTimeMin: orDetourTimeMin,
         savings: 0,
         tag: '경로상 최저가',
         tagColor: const Color(0xFF555555),
@@ -267,7 +307,7 @@ class _AiResultBodyState extends State<AiResultBody> {
           price: dtPrice,
           cost: dtCost,
           detourM: dtDetourM,
-          timeMins: dtTimeMins,
+          detourTimeMin: dtDetourTimeMin,
           savings: dtSavings,
           tag: 'AI 추천',
           tagColor: _kPrimary,
@@ -283,7 +323,7 @@ class _AiResultBodyState extends State<AiResultBody> {
           price: orPrice,
           cost: orCost,
           detourM: orDetourM,
-          timeMins: orTimeMins,
+          detourTimeMin: orDetourTimeMin,
           savings: 0,
           tag: 'AI 추천',
           tagColor: _kPrimary,
@@ -301,7 +341,7 @@ class _AiResultBodyState extends State<AiResultBody> {
         price: orPrice,
         cost: orCost,
         detourM: orDetourM,
-        timeMins: orTimeMins,
+        detourTimeMin: orDetourTimeMin,
         savings: 0,
         tag: '경로상 최저가',
         tagColor: const Color(0xFF555555),
@@ -318,7 +358,7 @@ class _AiResultBodyState extends State<AiResultBody> {
         price: dtPrice,
         cost: dtCost,
         detourM: dtDetourM,
-        timeMins: dtTimeMins,
+        detourTimeMin: dtDetourTimeMin,
         savings: dtSavings,
         tag: '우회 최저가',
         tagColor: const Color(0xFF1D6FE0),
@@ -354,7 +394,7 @@ class _AiResultBodyState extends State<AiResultBody> {
         if (!hasOverride && secondary != null && dtSavings > 0 && showDetour) ...[
           _ComparisonBanner(
             savings: dtSavings,
-            detourMins: dtTimeMins,
+            detourMins: dtTimeMinsBanner,
             choice: choice,
             wonFmt: _wonFmt,
           ),
@@ -396,9 +436,9 @@ class _AiResultBodyState extends State<AiResultBody> {
   }
 
   Widget _buildCard(_CardInfo c, double? destLat, double? destLng) {
-    final detourLabel = _detourLabel(c.detourM, c.timeMins);
+    final canRestoreAiRec = _selectedAltItem != null && c.tag == 'AI 추천';
     final extraInfo = (c.savings > 0 && !c.isUserSelected)
-        ? _ExtraInfo(savings: c.savings, timeMins: c.timeMins)
+        ? _ExtraInfo(savings: c.savings, timeMins: _meaningfulDetourMinutes(c.detourTimeMin))
         : null;
     return _OptionCard(
       tag: c.tag,
@@ -409,7 +449,8 @@ class _AiResultBodyState extends State<AiResultBody> {
       stAddr: c.addr,
       priceL: c.price,
       expectedCost: c.cost,
-      detourLabel: detourLabel,
+      detourM: c.detourM,
+      detourTimeMin: c.detourTimeMin,
       extraInfo: extraInfo,
       stLat: c.lat,
       stLng: c.lng,
@@ -419,24 +460,16 @@ class _AiResultBodyState extends State<AiResultBody> {
       originLat: widget.originLat,
       originLng: widget.originLng,
       wonFmt: _wonFmt,
+      onRestoreAiRec: canRestoreAiRec
+          ? () {
+              setState(() {
+                _selectedAltItem = null;
+                _altAiMessage = null;
+              });
+              widget.onResetToAiRec?.call();
+            }
+          : null,
     );
-  }
-
-  static String _detourLabel(int detourM, int? timeMins) {
-    if (timeMins != null && timeMins == 0) return '우회 없음';
-    if (timeMins != null && timeMins > 0) {
-      if (detourM <= 0) return '직행 대비 약 $timeMins분 추가';
-      final distText = detourM >= 1000
-          ? '${(detourM / 1000).toStringAsFixed(1)}km'
-          : '${detourM}m';
-      return '$distText · $timeMins분 추가';
-    }
-    if (detourM > 0) {
-      return detourM >= 1000
-          ? '${(detourM / 1000).toStringAsFixed(1)}km 우회'
-          : '${detourM}m 우회';
-    }
-    return '우회 없음';
   }
 }
 
@@ -447,7 +480,7 @@ class _CardInfo {
   final String? addr;
   final double? lat, lng, price;
   final int cost, detourM, savings;
-  final int? timeMins;
+  final num? detourTimeMin;
   final String tag;
   final Color tagColor;
   final bool isAiRec;
@@ -461,7 +494,7 @@ class _CardInfo {
     required this.price,
     required this.cost,
     required this.detourM,
-    required this.timeMins,
+    required this.detourTimeMin,
     required this.savings,
     required this.tag,
     required this.tagColor,
@@ -610,12 +643,14 @@ class _OptionCard extends StatelessWidget {
   final String? stAddr;
   final double? priceL;
   final int expectedCost;
-  final String detourLabel;
+  final int detourM;
+  final num? detourTimeMin;
   final _ExtraInfo? extraInfo;
   final double? stLat, stLng, destLat, destLng;
   final String destinationName;
   final double originLat, originLng;
   final NumberFormat wonFmt;
+  final VoidCallback? onRestoreAiRec;
 
   const _OptionCard({
     required this.tag,
@@ -626,7 +661,8 @@ class _OptionCard extends StatelessWidget {
     required this.stAddr,
     required this.priceL,
     required this.expectedCost,
-    required this.detourLabel,
+    required this.detourM,
+    required this.detourTimeMin,
     required this.extraInfo,
     required this.stLat,
     required this.stLng,
@@ -636,6 +672,7 @@ class _OptionCard extends StatelessWidget {
     required this.originLat,
     required this.originLng,
     required this.wonFmt,
+    this.onRestoreAiRec,
   });
 
   @override
@@ -728,6 +765,25 @@ class _OptionCard extends StatelessWidget {
                     ),
                   ),
                 ],
+                const Spacer(),
+                if (onRestoreAiRec != null)
+                  TextButton.icon(
+                    onPressed: onRestoreAiRec,
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    icon: const Icon(Icons.refresh_rounded, size: 14, color: _kPrimary),
+                    label: const Text(
+                      'AI 추천 복원',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: _kPrimary,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -766,7 +822,7 @@ class _OptionCard extends StatelessWidget {
                     label: '리터당',
                   ),
                   const VerticalDivider(width: 1, color: Color(0xFFDDDDDD)),
-                  _NumCell(value: detourLabel, label: '우회'),
+                  _DetourStatsCell(detourM: detourM, detourTimeMin: detourTimeMin),
                   const VerticalDivider(width: 1, color: Color(0xFFDDDDDD)),
                   _NumCell(
                     value: expectedCost > 0 ? '${wonFmt.format(expectedCost)}원' : '—',
@@ -922,14 +978,11 @@ class _AltSection extends StatelessWidget {
               final price = _d(st?['price_won_per_liter']);
               final detourM = _i(item['detour_distance_m']);
               final savings = _i(item['savings_vs_on_route_won']);
+              final detourTimeMin = item['detour_time_min'] is num ? item['detour_time_min'] as num : null;
               final isLast = idx == valid.length - 1;
               final isSelected = selectedId != null && selectedId == itemId;
 
-              final detourText = detourM <= 500
-                  ? '우회 없음'
-                  : detourM >= 1000
-                      ? '${(detourM / 1000).toStringAsFixed(1)}km 우회'
-                      : '${detourM}m 우회';
+              final detourText = _detourAltListSubtitle(detourM: detourM, detourTimeMin: detourTimeMin);
 
               return Column(
                 children: [
@@ -1031,6 +1084,76 @@ class _AltSection extends StatelessWidget {
 }
 
 // ─── 공통 위젯 ────────────────────────────────────────────────────────────────
+
+/// 우회 거리·시간을 한 줄에 몰아 넣지 않고 구분해 표시한다.
+class _DetourStatsCell extends StatelessWidget {
+  final int detourM;
+  final num? detourTimeMin;
+
+  const _DetourStatsCell({required this.detourM, required this.detourTimeMin});
+
+  static const _valueStyle = TextStyle(
+    fontSize: 15,
+    fontWeight: FontWeight.w700,
+    color: Color(0xFF1a1a1a),
+  );
+  static const _subStyle = TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.w600,
+    color: Color(0xFF546E7A),
+  );
+  static const _labelStyle = TextStyle(
+    fontSize: 11,
+    color: Color(0xFF999999),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          ..._valueWidgets(),
+          const SizedBox(height: 3),
+          const Text('우회', textAlign: TextAlign.center, style: _labelStyle),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _valueWidgets() {
+    if (_detourIsNegligible(detourM: detourM, detourTimeMin: detourTimeMin)) {
+      return [
+        const Text('우회 없음', textAlign: TextAlign.center, style: _valueStyle),
+      ];
+    }
+    final m = _meaningfulDetourMinutes(detourTimeMin);
+    final list = <Widget>[];
+    if (detourM > 0) {
+      final dist = detourM >= 1000
+          ? '${(detourM / 1000).toStringAsFixed(1)} km'
+          : '$detourM m';
+      list.add(Text(dist, textAlign: TextAlign.center, style: _valueStyle));
+      list.add(const SizedBox(height: 4));
+    }
+    if (m != null) {
+      list.add(Text(
+        detourM > 0 ? '직행보다 +약 $m분' : '직행 대비 약 $m분 추가',
+        textAlign: TextAlign.center,
+        style: _subStyle,
+      ));
+    } else {
+      list.add(
+        const Text(
+          '조금 우회',
+          textAlign: TextAlign.center,
+          style: _subStyle,
+        ),
+      );
+    }
+    return list;
+  }
+}
 
 class _NumCell extends StatelessWidget {
   final String value;

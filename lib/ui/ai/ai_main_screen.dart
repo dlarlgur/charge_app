@@ -471,10 +471,21 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
           _lastRouteSummary = '$originLabel → ${_destName ?? '목적지'}';
         });
 
-        // 추천 주유소 경유 실제 경로 요청
+        // 추천 주유소 경유 경로: 서버에서 미리 받은 전체 길찾기 우선, 없으면 클라이언트 네이버 호출
         var viaPathPoints = _lastPathPoints;
         List<Map<String, dynamic>>? viaSegments;
-        if (stLat != null && stLng != null) {
+        final nav = data['navigation'] is Map ? data['navigation'] as Map<String, dynamic> : null;
+        final vpr = nav?['via_primary_route'] is Map ? nav!['via_primary_route'] as Map<String, dynamic> : null;
+        var usedServerPrimaryRoute = false;
+        if (vpr != null) {
+          final parsed = _pathPointsFromServerJson(vpr['path_points']);
+          if (parsed != null) {
+            viaPathPoints = parsed;
+            viaSegments = _parsePathSegments(vpr['path_segments']);
+            usedServerPrimaryRoute = true;
+          }
+        }
+        if (!usedServerPrimaryRoute && stLat != null && stLng != null) {
           try {
             final vr = await ApiService().getDrivingRoute(
               startLat: _lastStartLat, startLng: _lastStartLng,
@@ -482,20 +493,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
               waypointLat: stLat, waypointLng: stLng,
             );
             if (vr['success'] == true) {
-              final raw = vr['path_points'];
-              if (raw is List && raw.length >= 2) {
-                final parsed = <Map<String, dynamic>>[];
-                for (final e in raw) {
-                  if (e is Map) {
-                    final lat = e['lat']; final lng = e['lng'];
-                    if (lat is num && lng is num) {
-                      parsed.add({'lat': lat.toDouble(), 'lng': lng.toDouble()});
-                    }
-                  }
-                }
-                if (parsed.length >= 2) viaPathPoints = parsed;
-              }
-              // 교통 구간 데이터 파싱
+              final parsed = _pathPointsFromServerJson(vr['path_points']);
+              if (parsed != null) viaPathPoints = parsed;
               viaSegments = _parsePathSegments(vr['path_segments']);
             }
           } catch (_) {}
@@ -606,42 +605,6 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
     );
   }
 
-  /// 두 지점 간 거리(m). 경로 첫 점과 출발 좌표 불일치(네이버 rawPath 스냅) 시 라인 끊김 보정용.
-  double _haversineM(double lat1, double lng1, double lat2, double lng2) {
-    const r = 6371000.0;
-    final p1 = lat1 * pi / 180;
-    final p2 = lat2 * pi / 180;
-    final dLat = (lat2 - lat1) * pi / 180;
-    final dLng = (lng2 - lng1) * pi / 180;
-    final a = sin(dLat / 2) * sin(dLat / 2) +
-        cos(p1) * cos(p2) * sin(dLng / 2) * sin(dLng / 2);
-    return 2 * r * asin(min(1.0, sqrt(a)));
-  }
-
-  /// path_segments 첫 좌표가 출발지와 떨어져 있으면 출발점을 앞에 붙여 출발 핀·요청 좌표에서 라인이 이어지게 함.
-  void _prependOriginToRouteStart(List<NLatLng> coords, double originLat, double originLng) {
-    if (coords.isEmpty) return;
-    final first = coords.first;
-    if (_haversineM(originLat, originLng, first.latitude, first.longitude) <= 5.0) return;
-    coords.insert(0, NLatLng(originLat, originLng));
-  }
-
-  /// 경로선 안쪽 방향 화살표(네이버 지도 스타일). coords는 실제 주행 폴리라인 전체를 넘길 것.
-  Future<void> _addRouteDirectionArrows(List<NLatLng> pathCoords) async {
-    final mc = _mapController;
-    if (mc == null || pathCoords.length < 2) return;
-    await mc.addOverlay(NArrowheadPathOverlay(
-      id: 'route_arrows',
-      coords: pathCoords,
-      width: 5,
-      color: Colors.white.withValues(alpha: 0.92),
-      outlineWidth: 0,
-      outlineColor: Colors.transparent,
-      elevation: 4,
-      headSizeRatio: 3.0,
-    ));
-  }
-
   // ── 정체도(congestion) → 색상 변환 ──
   static Color _congestionColor(int congestion) {
     switch (congestion) {
@@ -680,9 +643,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
 
     // ── 경로 라인 ──
     if (pathSegments != null && pathSegments.isNotEmpty) {
-      // ① NMultipartPathOverlay: 교통 색상 연속 경로
+      // ① NMultipartPathOverlay: 네이버 도로 폴리라인 그대로(출발 GPS를 끼워 넣지 않음 — 블록 가로지르는 직선 방지)
       final multiPaths = <NMultipartPath>[];
-      final allRouteCoords = <NLatLng>[]; // 전체 좌표 수집 (화살표 샘플링용)
 
       for (int si = 0; si < pathSegments.length; si++) {
         final seg = pathSegments[si];
@@ -695,7 +657,6 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
                   (c['lng'] as num).toDouble(),
                 ))
             .toList();
-        if (si == 0) _prependOriginToRouteStart(coords, originLat, originLng);
         if (coords.length < 2) continue;
         final congestion = seg['congestion'] is num ? (seg['congestion'] as num).toInt() : 0;
         final color = _congestionColor(congestion);
@@ -706,8 +667,6 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
           passedColor: color.withValues(alpha: 0.4),
           passedOutlineColor: Colors.white.withValues(alpha: 0.4),
         ));
-        // 경계 좌표 중복 제거: 두 번째 세그먼트부터 첫 좌표(공유점) skip
-        allRouteCoords.addAll(si == 0 ? coords : coords.skip(1));
       }
 
       if (multiPaths.isNotEmpty) {
@@ -717,12 +676,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
           width: 8,
           outlineWidth: 2,
         ));
-
-        // ② 화살표: 네이버 ArrowheadPathOverlay는 전체 폴리라인을 넘겨야 방향·간격이 자연스럽다(버티스만 쪼개 넣으면 경로가 깨짐).
-        await _addRouteDirectionArrows(allRouteCoords);
       }
     } else if (pathPoints.length >= 2) {
-      // 교통 데이터 없음: 단색 NPathOverlay 폴백
+      // 교통 세그먼트 없음: 네이버 ‘원활’ 구간과 동일한 초록 단색(구간색 있을 때와 톤 맞춤)
       final coords = pathPoints
           .map((p) => NLatLng(
                 (p['lat'] as num).toDouble(),
@@ -732,15 +688,14 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
       await _mapController!.addOverlay(NPathOverlay(
         id: 'result_route',
         coords: coords,
-        color: _kPrimary,
+        color: _congestionColor(1),
         width: 8,
         outlineColor: Colors.white,
         outlineWidth: 2,
       ));
-      await _addRouteDirectionArrows(coords);
     }
 
-    // 출발지 마커 (초록)
+    // 출발 핀: 길찾기 요청과 동일한 좌표(현재 위치 또는 사용자가 고른 출발지). 도로 스냅 없음.
     final originMarker = NMarker(
       id: 'result_origin',
       position: NLatLng(originLat, originLng),
@@ -854,6 +809,22 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
     });
   }
 
+  /// 서버 `path_points` JSON → 지도용 좌표열
+  static List<Map<String, dynamic>>? _pathPointsFromServerJson(dynamic raw) {
+    if (raw is! List || raw.length < 2) return null;
+    final parsed = <Map<String, dynamic>>[];
+    for (final e in raw) {
+      if (e is Map) {
+        final lat = e['lat'];
+        final lng = e['lng'];
+        if (lat is num && lng is num) {
+          parsed.add({'lat': lat.toDouble(), 'lng': lng.toDouble()});
+        }
+      }
+    }
+    return parsed.length >= 2 ? parsed : null;
+  }
+
   // ── path_segments JSON → Dart List 변환 헬퍼 ──
   static List<Map<String, dynamic>>? _parsePathSegments(dynamic raw) {
     if (raw is! List || raw.isEmpty) return null;
@@ -865,33 +836,42 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
   }
 
   // ── 다른 후보 경로보기 ──
-  Future<void> _showAltRouteOnMap(double stLat, double stLng, String stName, int priceL) async {
+  Future<void> _showAltRouteOnMap(Map<String, dynamic> altItem) async {
     if (_destLat == null || _destLng == null) return;
+    final st = altItem['station'] is Map ? altItem['station'] as Map : null;
+    if (st == null) return;
+    final stLat = _asDouble(st['lat']);
+    final stLng = _asDouble(st['lng']);
+    if (stLat == null || stLng == null) return;
+    final stName = st['name']?.toString() ?? '';
+    final priceL = st['price_won_per_liter'] is num ? (st['price_won_per_liter'] as num).round() : 0;
+
     var pathPoints = _lastPathPoints;
     List<Map<String, dynamic>>? pathSegments;
-    try {
-      final vr = await ApiService().getDrivingRoute(
-        startLat: _lastStartLat, startLng: _lastStartLng,
-        goalLat: _destLat!, goalLng: _destLng!,
-        waypointLat: stLat, waypointLng: stLng,
-      );
-      if (vr['success'] == true) {
-        final raw = vr['path_points'];
-        if (raw is List && raw.length >= 2) {
-          final parsed = <Map<String, dynamic>>[];
-          for (final e in raw) {
-            if (e is Map) {
-              final lat = e['lat']; final lng = e['lng'];
-              if (lat is num && lng is num) {
-                parsed.add({'lat': lat.toDouble(), 'lng': lng.toDouble()});
-              }
-            }
-          }
-          if (parsed.length >= 2) pathPoints = parsed;
-        }
-        pathSegments = _parsePathSegments(vr['path_segments']);
+    final vrMap = altItem['via_route'] is Map ? altItem['via_route'] as Map<String, dynamic> : null;
+    var usedServerAlt = false;
+    if (vrMap != null) {
+      final parsed = _pathPointsFromServerJson(vrMap['path_points']);
+      if (parsed != null) {
+        pathPoints = parsed;
+        pathSegments = _parsePathSegments(vrMap['path_segments']);
+        usedServerAlt = true;
       }
-    } catch (_) {}
+    }
+    if (!usedServerAlt) {
+      try {
+        final vr = await ApiService().getDrivingRoute(
+          startLat: _lastStartLat, startLng: _lastStartLng,
+          goalLat: _destLat!, goalLng: _destLng!,
+          waypointLat: stLat, waypointLng: stLng,
+        );
+        if (vr['success'] == true) {
+          final parsed = _pathPointsFromServerJson(vr['path_points']);
+          if (parsed != null) pathPoints = parsed;
+          pathSegments = _parsePathSegments(vr['path_segments']);
+        }
+      } catch (_) {}
+    }
 
     _drawResultOnMap(
       pathPoints: pathPoints,
@@ -1696,7 +1676,7 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
   List<Map<String, dynamic>> _results = [];
   bool _isLoading = false;
   bool _myLocationSelected = false; // "내위치" 클릭 후 상단 옵션 표시
-  Timer? _debounce;
+  int _searchRequestSeq = 0;
 
   // 시트 내부에서 현재 위치 주소를 직접 로드
   String? _localCurrentAddress;
@@ -1730,26 +1710,29 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
   void dispose() {
     _searchController.dispose();
     _searchFocus.dispose();
-    _debounce?.cancel();
     super.dispose();
   }
 
-  void _onSearchChanged(String query) {
-    _debounce?.cancel();
+  Future<void> _onSearchChanged(String query) async {
     if (query.trim().isEmpty) {
       setState(() { _results = []; _isLoading = false; _myLocationSelected = false; });
       return;
     }
+    final reqId = ++_searchRequestSeq;
     setState(() => _isLoading = true);
-    _debounce = Timer(const Duration(milliseconds: 350), () async {
-      try {
-        final loc = await ref.read(locationProvider.future);
-        final results = await ApiService().searchPlaces(query, lat: loc?.lat, lng: loc?.lng);
-        if (mounted) setState(() { _results = results; _isLoading = false; });
-      } catch (_) {
-        if (mounted) setState(() { _results = []; _isLoading = false; });
-      }
-    });
+    try {
+      // 지도 탭과 동일하게 "좌표 근처 우선 검색"을 사용
+      final center = ref.read(mapCenterProvider);
+      final loc = center == null ? await ref.read(locationProvider.future) : null;
+      final lat = center?.lat ?? loc?.lat;
+      final lng = center?.lng ?? loc?.lng;
+      final results = await ApiService().searchPlaces(query.trim(), lat: lat, lng: lng);
+      if (!mounted || reqId != _searchRequestSeq) return;
+      setState(() { _results = results; _isLoading = false; });
+    } catch (_) {
+      if (!mounted || reqId != _searchRequestSeq) return;
+      setState(() { _results = []; _isLoading = false; });
+    }
   }
 
   // "내위치" 칩 클릭 → 현재 주소를 검색창에 채우고 검색 (이미 채워졌으면 GPS 바로 사용)

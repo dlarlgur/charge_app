@@ -70,7 +70,7 @@ class _NavigationSheet extends StatelessWidget {
             const SizedBox(height: 8),
             _navItem(
               context,
-              icon: _NaverIcon(),
+              icon: const _NavAssetIcon('assets/nav/naver_logo.png'),
               label: '네이버 지도',
               subtitle: '네이버',
               onTap: () => _launch(
@@ -81,7 +81,7 @@ class _NavigationSheet extends StatelessWidget {
             ),
             _navItem(
               context,
-              icon: _KakaoIcon(),
+              icon: const _NavAssetIcon('assets/nav/kakaomap_logo.png'),
               label: '카카오내비',
               subtitle: '카카오',
               onTap: () => _launch(
@@ -92,7 +92,7 @@ class _NavigationSheet extends StatelessWidget {
             ),
             _navItem(
               context,
-              icon: _TmapIcon(),
+              icon: const _NavAssetIcon('assets/nav/tmap_logo.webp'),
               label: '티맵',
               subtitle: 'SK텔레콤',
               onTap: () => _launch(
@@ -170,7 +170,7 @@ class _ViaWaypointNavigationSheet extends StatelessWidget {
             const SizedBox(height: 8),
             _navItem(
               context,
-              icon: _NaverIcon(),
+              icon: const _NavAssetIcon('assets/nav/naver_logo.png'),
               label: '네이버 지도',
               subtitle: '네이버',
               onTap: () => _launch(
@@ -184,7 +184,7 @@ class _ViaWaypointNavigationSheet extends StatelessWidget {
             ),
             _navItem(
               context,
-              icon: _KakaoIcon(),
+              icon: const _NavAssetIcon('assets/nav/kakaomap_logo.png'),
               label: '카카오내비',
               subtitle: '카카오',
               onTap: () => _launch(
@@ -198,7 +198,7 @@ class _ViaWaypointNavigationSheet extends StatelessWidget {
             ),
             _navItem(
               context,
-              icon: _TmapIcon(),
+              icon: const _NavAssetIcon('assets/nav/tmap_logo.webp'),
               label: '티맵',
               subtitle: 'SK텔레콤',
               onTap: () => _launch(
@@ -241,113 +241,28 @@ class _ViaWaypointNavigationSheet extends StatelessWidget {
   }
 }
 
-// ─── 네이버 지도 아이콘 ───
-class _NaverIcon extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 48, height: 48,
-      decoration: BoxDecoration(
-        color: const Color(0xFF03C75A),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: const Center(
-        child: Text('N', style: TextStyle(
-          color: Colors.white,
-          fontSize: 24,
-          fontWeight: FontWeight.w900,
-          fontFamily: 'serif',
-        )),
-      ),
-    );
-  }
-}
+class _NavAssetIcon extends StatelessWidget {
+  final String assetPath;
+  const _NavAssetIcon(this.assetPath);
 
-// ─── 카카오내비 아이콘 ───
-class _KakaoIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 48, height: 48,
-      decoration: BoxDecoration(
-        color: const Color(0xFFFEE500),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Center(
-        child: CustomPaint(
-          size: const Size(26, 24),
-          painter: _KakaoPainter(),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Image.asset(
+        assetPath,
+        width: 48,
+        height: 48,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: const Color(0xFFEDEDED),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(Icons.map, color: Colors.grey),
         ),
-      ),
-    );
-  }
-}
-
-class _KakaoPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = const Color(0xFF3A1D1D);
-    // 카카오 말풍선 얼굴 형태
-    final path = Path();
-    path.addOval(Rect.fromCenter(
-      center: Offset(size.width / 2, size.height / 2 - 1),
-      width: size.width,
-      height: size.height * 0.82,
-    ));
-    canvas.drawPath(path, paint);
-
-    // 꼬리
-    final tail = Path();
-    final cx = size.width / 2;
-    final cy = size.height / 2 + size.height * 0.05;
-    tail.moveTo(cx - 4, cy + size.height * 0.28);
-    tail.lineTo(cx + 6, cy + size.height * 0.28);
-    tail.lineTo(cx - 1, cy + size.height * 0.52);
-    tail.close();
-    canvas.drawPath(tail, paint);
-
-    // 눈
-    final eyePaint = Paint()..color = const Color(0xFFFEE500);
-    canvas.drawCircle(Offset(size.width / 2 - 5, size.height / 2 - 3), 2.5, eyePaint);
-    canvas.drawCircle(Offset(size.width / 2 + 5, size.height / 2 - 3), 2.5, eyePaint);
-
-    // 입
-    final mouthPaint = Paint()
-      ..color = const Color(0xFFFEE500)
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    final mouthPath = Path();
-    mouthPath.moveTo(size.width / 2 - 5, size.height / 2 + 2);
-    mouthPath.quadraticBezierTo(size.width / 2, size.height / 2 + 6, size.width / 2 + 5, size.height / 2 + 2);
-    canvas.drawPath(mouthPath, mouthPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-// ─── 티맵 아이콘 ───
-class _TmapIcon extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 48, height: 48,
-      decoration: BoxDecoration(
-        color: const Color(0xFFE8003D),
-        borderRadius: BorderRadius.circular(12),
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFF3D5A), Color(0xFFCC0033)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: const Center(
-        child: Text('T', style: TextStyle(
-          color: Colors.white,
-          fontSize: 26,
-          fontWeight: FontWeight.w900,
-        )),
       ),
     );
   }

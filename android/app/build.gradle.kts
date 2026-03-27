@@ -62,10 +62,12 @@ flutter {
     source = "../.."
 }
 
+// workmanager_android는 work-runtime 2.10.2로 빌드됨. 더 낮은 버전으로 force 하면
+// FlutterEngine(백그라운드 FCM 아이솔레이트)에서 GeneratedPluginRegistrant 실패(NoSuchFieldError: WorkManager.Companion) 난다.
 configurations.all {
     resolutionStrategy {
-        force("androidx.work:work-runtime:2.9.1")
-        force("androidx.work:work-runtime-ktx:2.9.1")
+        force("androidx.work:work-runtime:2.10.2")
+        force("androidx.work:work-runtime-ktx:2.10.2")
     }
 }
 
