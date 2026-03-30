@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
@@ -41,11 +42,52 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   bool _isSearchMode = false;
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _searchResults = [];
+  List<Map<String, dynamic>> _searchHistory = [];
   bool _isSearchLoading = false;
+
+  // ── 검색 기록 helpers ──
+  List<Map<String, dynamic>> _loadHistory() {
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      final raw = box.get(AppConstants.keySearchHistory);
+      if (raw is List) {
+        return raw.whereType<String>().map((s) {
+          final m = jsonDecode(s);
+          return Map<String, dynamic>.from(m as Map);
+        }).toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  void _saveToHistory(Map<String, dynamic> place) {
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      final current = _loadHistory();
+      current.removeWhere((h) => h['name'] == place['name']);
+      current.insert(0, place);
+      final trimmed = current.take(15).toList();
+      box.put(AppConstants.keySearchHistory,
+          trimmed.map((m) => jsonEncode(m)).toList());
+      setState(() => _searchHistory = trimmed);
+    } catch (_) {}
+  }
+
+  void _removeFromHistory(String name) {
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      final current = _loadHistory();
+      current.removeWhere((h) => h['name'] == name);
+      box.put(AppConstants.keySearchHistory,
+          current.map((m) => jsonEncode(m)).toList());
+      setState(() => _searchHistory = current);
+    } catch (_) {}
+  }
 
   @override
   void initState() {
     super.initState();
+    _searchHistory = _loadHistory();
     final vehicleType = ref.read(settingsProvider).vehicleType;
     if (vehicleType == VehicleType.gas) {
       _showGas = true;
@@ -187,6 +229,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   void _moveToPlace(Map<String, dynamic> place) {
+    _saveToHistory(place);
     final lat = (place['lat'] as num).toDouble();
     final lng = (place['lng'] as num).toDouble();
     _mapController?.updateCamera(NCameraUpdate.withParams(
@@ -553,6 +596,88 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               padding: EdgeInsets.all(20),
               child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
             )
+          // 검색어 없음 → 최근 검색 기록
+          : _searchController.text.trim().isEmpty
+              ? _searchHistory.isEmpty
+                  ? SizedBox(
+                      width: double.infinity,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text('장소명, 주소를 입력하세요',
+                            style: TextStyle(fontSize: 13,
+                                color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                      ),
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
+                          child: Row(
+                            children: [
+                              Text('최근 검색',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
+                                      color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                              const Spacer(),
+                              GestureDetector(
+                                onTap: () {
+                                  Hive.box(AppConstants.settingsBox).delete(AppConstants.keySearchHistory);
+                                  setState(() => _searchHistory = []);
+                                },
+                                child: Text('전체 삭제',
+                                    style: TextStyle(fontSize: 11,
+                                        color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _searchHistory.length,
+                          separatorBuilder: (_, __) => Divider(
+                              height: 1,
+                              color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
+                          itemBuilder: (_, i) {
+                            final h = _searchHistory[i];
+                            return GestureDetector(
+                              onTap: () => _moveToPlace(h),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.history_rounded, size: 15,
+                                        color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(h['name'] ?? '',
+                                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500,
+                                                  color: isDark ? Colors.white : Colors.black87)),
+                                          if ((h['address'] ?? '').isNotEmpty)
+                                            Text(h['address'],
+                                                style: TextStyle(fontSize: 11,
+                                                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                                        ],
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: () => _removeFromHistory(h['name']?.toString() ?? ''),
+                                      child: Icon(Icons.close_rounded, size: 14,
+                                          color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    )
           : _searchResults.isEmpty
               ? SizedBox(
                   width: double.infinity,

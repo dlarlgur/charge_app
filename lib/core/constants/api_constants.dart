@@ -31,6 +31,8 @@ class ApiConstants {
   // ─── AI 추천 ───
   static const routeDriving = '/route/driving';
   static const refuelAnalyze = '/v1/refuel/analyze';
+  static const refuelRouteStations = '/v1/refuel/route-stations';
+  static const refuelCompare = '/v1/refuel/compare';
 
   // ─── 오피넷 유종 코드 ───
   static const fuelCodeGasoline = 'B027';
@@ -104,6 +106,9 @@ class AppConstants {
   // Map Toggle Keys (둘다 모드일 때만 저장)
   static const keyMapShowGas = 'map_show_gas';
   static const keyMapShowEv = 'map_show_ev';
+
+  // Search History Key (AI + 지도탭 공용, JSON 인코딩된 List<String>)
+  static const keySearchHistory = 'search_history';
 
   // AI Onboarding / Analyze Keys
   static const keyAiOnboardingDone = 'ai_onboarding_done';

@@ -201,6 +201,16 @@ class ApiService {
     return Map<String, dynamic>.from(res.data ?? {});
   }
 
+  Future<Map<String, dynamic>> postRefuelRouteStations(Map<String, dynamic> body) async {
+    final res = await _dio.post(ApiConstants.refuelRouteStations, data: body);
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> postRefuelCompare(Map<String, dynamic> body) async {
+    final res = await _dio.post(ApiConstants.refuelCompare, data: body);
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
   Future<String?> reverseGeocode(double lat, double lng) async {
     try {
       final res = await _dio.get(

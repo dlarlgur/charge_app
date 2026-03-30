@@ -21,7 +21,10 @@ Future<void> showViaWaypointNavigationSheet(
   BuildContext context, {
   required double originLat,
   required double originLng,
-  String originName = '출발지',
+  // originName은 네비 앱에 표시용으로 들어가는데,
+  // 값이 안 넘어올 때 '출발지' 같은 기본 문자열이 들어가면
+  // 사용자가 인지하기에 잘못된 정보로 보일 수 있어 빈 문자열로 처리한다.
+  String originName = '',
   required double waypointLat,
   required double waypointLng,
   required String waypointName,
