@@ -32,6 +32,13 @@ Future<void> showViaWaypointNavigationSheet(
   required double destinationLng,
   required String destinationName,
 }) async {
+  // 디버그: 경유 길안내 파라미터 추적
+  assert(() {
+    debugPrint('[NAV][via] origin=($originLat,$originLng,"$originName") '
+        'waypoint=($waypointLat,$waypointLng,"$waypointName") '
+        'dest=($destinationLat,$destinationLng,"$destinationName")');
+    return true;
+  }());
   await showModalBottomSheet(
     context: context,
     shape: const RoundedRectangleBorder(
@@ -157,6 +164,18 @@ class _ViaWaypointNavigationSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final originValid = originLat.isFinite && originLng.isFinite && !(originLat == 0 && originLng == 0);
+    final safeOriginName = originValid ? originName : '';
+    final naverUrl = originValid
+        ? 'nmap://route/car?slat=$originLat&slng=$originLng&sname=${Uri.encodeComponent(safeOriginName)}'
+            '&v1lat=$waypointLat&v1lng=$waypointLng&v1name=${Uri.encodeComponent(waypointName)}'
+            '&dlat=$destinationLat&dlng=$destinationLng&dname=${Uri.encodeComponent(destinationName)}'
+            '&appname=${AppConstants.packageName}'
+        : 'nmap://route/car?'
+            'v1lat=$waypointLat&v1lng=$waypointLng&v1name=${Uri.encodeComponent(waypointName)}'
+            '&dlat=$destinationLat&dlng=$destinationLng&dname=${Uri.encodeComponent(destinationName)}'
+            '&appname=${AppConstants.packageName}';
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -175,44 +194,43 @@ class _ViaWaypointNavigationSheet extends StatelessWidget {
               context,
               icon: const _NavAssetIcon('assets/nav/naver_logo.png'),
               label: '네이버 지도',
-              subtitle: '네이버',
+              subtitle: originValid ? '네이버' : '네이버 (현재 위치 기준)',
               onTap: () => _launch(
                 context,
-                'nmap://route/car?slat=$originLat&slng=$originLng&sname=${Uri.encodeComponent(originName)}'
-                '&v1lat=$waypointLat&v1lng=$waypointLng&v1name=${Uri.encodeComponent(waypointName)}'
-                '&dlat=$destinationLat&dlng=$destinationLng&dname=${Uri.encodeComponent(destinationName)}'
-                '&appname=${AppConstants.packageName}',
+                naverUrl,
                 fallback: 'https://map.naver.com',
               ),
             ),
-            _navItem(
-              context,
-              icon: const _NavAssetIcon('assets/nav/kakaomap_logo.png'),
-              label: '카카오내비',
-              subtitle: '카카오',
-              onTap: () => _launch(
+            if (originValid) ...[
+              _navItem(
                 context,
-                // kakaomap://route 사용 (lat,lng 순서, 쉼표 구분)
-                'kakaomap://route?sp=$originLat,$originLng&sname=${Uri.encodeComponent(originName)}'
-                '&ep=$destinationLat,$destinationLng&ename=${Uri.encodeComponent(destinationName)}'
-                '&via1=$waypointLat,$waypointLng&by=CAR',
-                fallback: 'https://map.kakao.com',
+                icon: const _NavAssetIcon('assets/nav/kakaomap_logo.png'),
+                label: '카카오내비',
+                subtitle: '카카오',
+                onTap: () => _launch(
+                  context,
+                  // kakaomap://route 사용 (lat,lng 순서, 쉼표 구분)
+                  'kakaomap://route?sp=$originLat,$originLng&sname=${Uri.encodeComponent(safeOriginName)}'
+                  '&ep=$destinationLat,$destinationLng&ename=${Uri.encodeComponent(destinationName)}'
+                  '&via1=$waypointLat,$waypointLng&by=CAR',
+                  fallback: 'https://map.kakao.com',
+                ),
               ),
-            ),
-            _navItem(
-              context,
-              icon: const _NavAssetIcon('assets/nav/tmap_logo.webp'),
-              label: '티맵',
-              subtitle: 'SK텔레콤',
-              onTap: () => _launch(
+              _navItem(
                 context,
-                // 경유지 파라미터: viaX1/viaY1/vianame1 (번호형 필수)
-                'tmap://route?startX=$originLng&startY=$originLat&startname=${Uri.encodeComponent(originName)}'
-                '&goalname=${Uri.encodeComponent(destinationName)}&goaly=$destinationLat&goalx=$destinationLng'
-                '&viaX1=$waypointLng&viaY1=$waypointLat&vianame1=${Uri.encodeComponent(waypointName)}',
-                fallback: 'https://www.tmap.co.kr',
+                icon: const _NavAssetIcon('assets/nav/tmap_logo.webp'),
+                label: '티맵',
+                subtitle: 'SK텔레콤',
+                onTap: () => _launch(
+                  context,
+                  // 경유지 파라미터: viaX1/viaY1/vianame1 (번호형 필수)
+                  'tmap://route?startX=$originLng&startY=$originLat&startname=${Uri.encodeComponent(safeOriginName)}'
+                  '&goalname=${Uri.encodeComponent(destinationName)}&goaly=$destinationLat&goalx=$destinationLng'
+                  '&viaX1=$waypointLng&viaY1=$waypointLat&vianame1=${Uri.encodeComponent(waypointName)}',
+                  fallback: 'https://www.tmap.co.kr',
+                ),
               ),
-            ),
+            ],
             const SizedBox(height: 8),
           ],
         ),

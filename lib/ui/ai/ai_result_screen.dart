@@ -12,8 +12,8 @@ const _kSelectedLight = Color(0xFFF5F2FF);
 const _kMarkerRecommend = Color(0xFFE8700A);  // 추천 (주황)
 const _kMarkerRecommendLight = Color(0xFFFFF3E0);  // 추천 배경 (연한 주황)
 
-/// 직행 대비 추가 시간이 1분 이하면 '우회 없음', 2분부터 '우회'.
-const int _kDetourStartMinutes = 2;
+/// 직행 대비 추가 시간이 0분이면 '우회 없음', 1분부터 '우회'.
+const int _kDetourStartMinutes = 1;
 
 int? _detourMinutesForUi(num? detourTimeMin) {
   if (detourTimeMin == null) return null;
@@ -21,21 +21,23 @@ int? _detourMinutesForUi(num? detourTimeMin) {
   return m < 0 ? 0 : m;
 }
 
-bool _detourIsNegligible({required int detourM, required num? detourTimeMin}) {
+bool _detourIsNegligible({required int detourM, required num? detourTimeMin, bool? serverDetourIsNone}) {
+  if (serverDetourIsNone != null) return serverDetourIsNone;
   final m = _detourMinutesForUi(detourTimeMin);
   if (m != null) return m < _kDetourStartMinutes;
   return detourM <= 500;
 }
 
-int? _meaningfulDetourMinutes(num? detourTimeMin) {
+int? _meaningfulDetourMinutes(num? detourTimeMin, {bool? serverDetourIsNone}) {
+  if (serverDetourIsNone == true) return null;
   final m = _detourMinutesForUi(detourTimeMin);
   if (m == null || m < _kDetourStartMinutes) return null;
   return m;
 }
 
-String _detourAltListSubtitle({required int detourM, required num? detourTimeMin}) {
-  if (_detourIsNegligible(detourM: detourM, detourTimeMin: detourTimeMin)) return '우회 없음';
-  final m = _meaningfulDetourMinutes(detourTimeMin);
+String _detourAltListSubtitle({required int detourM, required num? detourTimeMin, bool? serverDetourIsNone}) {
+  if (_detourIsNegligible(detourM: detourM, detourTimeMin: detourTimeMin, serverDetourIsNone: serverDetourIsNone)) return '우회 없음';
+  final m = _meaningfulDetourMinutes(detourTimeMin, serverDetourIsNone: serverDetourIsNone);
   if (m != null && m > 0) return '약 ${m}분 우회';
   if (detourM >= 1000) return '${(detourM / 1000).toStringAsFixed(1)}km 우회';
   if (detourM > 0) return '${detourM}m 우회';
@@ -168,13 +170,16 @@ class _AiResultBodyState extends State<AiResultBody> {
 
   String _buildAltMessage(Map altItem, String name, int price) {
     final detourM = _i(altItem['detour_distance_m']);
-    final savings = _i(altItem['savings_vs_on_route_won']);
+    final savings = altItem['savings_vs_primary_won'] != null
+        ? _i(altItem['savings_vs_primary_won'])
+        : _i(altItem['savings_vs_on_route_won']);
     final detourTimeMin = altItem['detour_time_min'] is num ? altItem['detour_time_min'] as num : null;
+    final detourIsNone = altItem['detour_is_none'] is bool ? altItem['detour_is_none'] as bool : null;
     final String detourText;
-    if (_detourIsNegligible(detourM: detourM, detourTimeMin: detourTimeMin)) {
+    if (_detourIsNegligible(detourM: detourM, detourTimeMin: detourTimeMin, serverDetourIsNone: detourIsNone)) {
       detourText = '우회 없음(직행과 비슷한 소요)';
     } else {
-      final m = _meaningfulDetourMinutes(detourTimeMin);
+      final m = _meaningfulDetourMinutes(detourTimeMin, serverDetourIsNone: detourIsNone);
       if (m != null && m > 0) {
         detourText = '약 ${m}분 우회';
       } else if (detourM >= 1000) {
@@ -224,7 +229,9 @@ class _AiResultBodyState extends State<AiResultBody> {
     final orCost = _i(onRoute?['expected_cost_won']);
     final orDetourM = _i(onRoute?['detour_distance_m']);
     final orDetourTimeMin =
-        onRoute?['detour_time_min'] is num ? onRoute!['detour_time_min'] as num : null;
+        (onRoute?['detour_is_none'] == true)
+            ? 0
+            : (onRoute?['detour_time_min'] is num ? onRoute!['detour_time_min'] as num : null);
 
     // best_detour 데이터
     final dtLat = _d(detourSt?['lat']);
@@ -233,7 +240,9 @@ class _AiResultBodyState extends State<AiResultBody> {
     final dtCost = _i(bestDetour?['expected_cost_won']);
     final dtDetourM = _i(bestDetour?['detour_distance_m']);
     final dtDetourTimeMin =
-        bestDetour?['detour_time_min'] is num ? bestDetour!['detour_time_min'] as num : null;
+        (bestDetour?['detour_is_none'] == true)
+            ? 0
+            : (bestDetour?['detour_time_min'] is num ? bestDetour!['detour_time_min'] as num : null);
     final dtTimeMinsBanner = _meaningfulDetourMinutes(dtDetourTimeMin);
     final dtSavings = _i(bestDetour?['savings_vs_on_route_won']);
 
@@ -242,7 +251,10 @@ class _AiResultBodyState extends State<AiResultBody> {
         (dtPrice == null || orPrice == null || dtPrice <= orPrice);
 
     final hasOverride = _selectedAltItem != null;
-    final aiRecIsDetour = choice == 'best_detour' && showDetour;
+    // 서버 choice가 누락/불일치여도 on_route가 비어 있고 detour가 있으면 detour를 메인으로 강제
+    final forceDetourAsPrimary = onRouteSt == null && detourSt != null;
+    final aiRecIsDetour = forceDetourAsPrimary || (choice == 'best_detour' && showDetour);
+    final noStationToRecommend = onRouteSt == null && detourSt == null;
 
     // ── Primary 카드 (상단) 계산
     _CardInfo primary;
@@ -259,7 +271,7 @@ class _AiResultBodyState extends State<AiResultBody> {
         cost: _i(_selectedAltItem!['expected_cost_won']),
         detourM: _i(_selectedAltItem!['detour_distance_m']),
         detourTimeMin: _selectedAltItem!['detour_time_min'] is num
-            ? _selectedAltItem!['detour_time_min'] as num
+            ? ((_selectedAltItem!['detour_is_none'] == true) ? 0 : _selectedAltItem!['detour_time_min'] as num)
             : null,
         savings: 0,
         tag: '선택됨',
@@ -433,7 +445,7 @@ class _AiResultBodyState extends State<AiResultBody> {
         ],
 
         // ── 비교 테이블 (AI 추천 원본) / 카드 (사용자 대안 선택 시) ──
-        if (!hasOverride) ...[
+        if (!hasOverride && !noStationToRecommend) ...[
           _StationComparisonSection(
             onRouteName: onRouteSt?['name']?.toString() ?? '',
             onRoutePrice: orPrice,
@@ -442,6 +454,7 @@ class _AiResultBodyState extends State<AiResultBody> {
             onRouteDetourTimeMin: orDetourTimeMin,
             onRouteLat: orLat,
             onRouteLng: orLng,
+            onRouteFuelType: onRouteSt?['fuel_type']?.toString(),
             showDetour: showDetour,
             detourName: showDetour ? (detourSt['name']?.toString() ?? '') : '',
             detourPrice: dtPrice,
@@ -450,6 +463,7 @@ class _AiResultBodyState extends State<AiResultBody> {
             dtDetourTimeMin: dtDetourTimeMin,
             dtLat: dtLat,
             dtLng: dtLng,
+            detourFuelType: detourSt?['fuel_type']?.toString(),
             aiRecIsDetour: aiRecIsDetour,
             dtSavings: dtSavings,
             dtDetourMins: dtTimeMinsBanner,
@@ -466,6 +480,29 @@ class _AiResultBodyState extends State<AiResultBody> {
             onViewOnMapDetour: bestDetour != null && widget.onAltRouteView != null
                 ? () => widget.onAltRouteView!(bestDetour)
                 : null,
+          ),
+          const SizedBox(height: 12),
+        ] else if (!hasOverride && noStationToRecommend) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF9E8),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFFFE6A6)),
+            ),
+            child: const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.info_outline_rounded, size: 18, color: Color(0xFF8A6D3B)),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '현재 연료로 목적지 도달이 가능해 지금은 추천 주유소를 표시하지 않습니다.',
+                    style: TextStyle(fontSize: 13, color: Color(0xFF8A6D3B), height: 1.4),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
         ] else ...[
@@ -580,6 +617,28 @@ class _ExtraInfo {
   final int savings;
   final int? timeMins;
   const _ExtraInfo({required this.savings, required this.timeMins});
+}
+
+String _fuelCodeToLabel(String? code) {
+  switch (code) {
+    case 'B027':
+      return '휘발유';
+    case 'B034':
+      return '고급휘발유';
+    case 'D047':
+      return '경유';
+    case 'K015':
+      return 'LPG';
+    default:
+      return '';
+  }
+}
+
+String _resolveFuelLabel(dynamic rawFuel, {String? fallback}) {
+  final value = rawFuel?.toString().trim();
+  if (value == null || value.isEmpty) return fallback ?? '—';
+  final mapped = _fuelCodeToLabel(value);
+  return mapped.isNotEmpty ? mapped : value;
 }
 
 // ─── 유종 칩 ──────────────────────────────────────────────────────────────────
@@ -711,6 +770,7 @@ class _StationComparisonSection extends StatelessWidget {
   final num? onRouteDetourTimeMin;
   final double? onRouteLat;
   final double? onRouteLng;
+  final String? onRouteFuelType;
 
   final bool showDetour;
   final String detourName;
@@ -720,6 +780,7 @@ class _StationComparisonSection extends StatelessWidget {
   final num? dtDetourTimeMin;
   final double? dtLat;
   final double? dtLng;
+  final String? detourFuelType;
 
   final bool aiRecIsDetour;
   final int dtSavings;
@@ -741,6 +802,7 @@ class _StationComparisonSection extends StatelessWidget {
     required this.onRouteDetourTimeMin,
     required this.onRouteLat,
     required this.onRouteLng,
+    required this.onRouteFuelType,
     required this.showDetour,
     required this.detourName,
     required this.detourPrice,
@@ -749,6 +811,7 @@ class _StationComparisonSection extends StatelessWidget {
     required this.dtDetourTimeMin,
     required this.dtLat,
     required this.dtLng,
+    required this.detourFuelType,
     required this.aiRecIsDetour,
     required this.dtSavings,
     required this.dtDetourMins,
@@ -774,10 +837,12 @@ class _StationComparisonSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool hasBoth = showDetour && detourName.isNotEmpty;
+    final bool hasOnRoute = onRouteName.trim().isNotEmpty;
+    final bool hasBoth = hasOnRoute && showDetour && detourName.isNotEmpty;
 
     // 추천 주유소 결정
-    final recIsDetour = aiRecIsDetour && hasBoth;
+    // on_route가 없으면 detour(우회 최저가)를 추천 카드로 강제
+    final recIsDetour = (!hasOnRoute && showDetour && detourName.isNotEmpty) || (aiRecIsDetour && hasBoth);
     final recName = recIsDetour ? detourName : onRouteName;
     final recPrice = recIsDetour ? detourPrice : onRoutePrice;
     final recCost = recIsDetour ? detourCost : onRouteCost;
@@ -817,10 +882,12 @@ class _StationComparisonSection extends StatelessWidget {
             onRoutePrice: onRoutePrice,
             onRouteCost: onRouteCost,
             onRouteDetourLabel: _detourLabel(onRouteDetourM, onRouteDetourTimeMin),
+            onRouteFuelLabel: _resolveFuelLabel(onRouteFuelType, fallback: fuelLabel),
             detourName: detourName,
             detourPrice: detourPrice,
             detourCost: detourCost,
             detourDetourLabel: _detourLabel(dtDetourM, dtDetourTimeMin),
+            detourFuelLabel: _resolveFuelLabel(detourFuelType, fallback: fuelLabel),
             savings: dtSavings,
             detourMins: dtDetourMins,
             aiRecIsDetour: aiRecIsDetour,
@@ -1076,10 +1143,12 @@ class _ComparisonTable extends StatelessWidget {
   final double? onRoutePrice;
   final int onRouteCost;
   final String onRouteDetourLabel;
+  final String onRouteFuelLabel;
   final String detourName;
   final double? detourPrice;
   final int detourCost;
   final String detourDetourLabel;
+  final String detourFuelLabel;
   final int savings;
   final int? detourMins;
   final bool aiRecIsDetour;
@@ -1103,10 +1172,12 @@ class _ComparisonTable extends StatelessWidget {
     required this.onRoutePrice,
     required this.onRouteCost,
     required this.onRouteDetourLabel,
+    required this.onRouteFuelLabel,
     required this.detourName,
     required this.detourPrice,
     required this.detourCost,
     required this.detourDetourLabel,
+    required this.detourFuelLabel,
     required this.savings,
     required this.detourMins,
     required this.aiRecIsDetour,
@@ -1127,6 +1198,7 @@ class _ComparisonTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasOnRoute = onRouteName.trim().isNotEmpty;
     // 테이블 하이라이트: AI 추천 기준 (주황 = 추천)
     final detourIsWinner = aiRecIsDetour;
     // 배너 텍스트: 실제 비용 기준 (savings > 0 이면 우회가 더 저렴)
@@ -1186,11 +1258,11 @@ class _ComparisonTable extends StatelessWidget {
           _TableRow(
             label: '주유소',
             left: null,
-            mid: onRouteName,
+            mid: hasOnRoute ? onRouteName : '없음',
             right: detourName,
             midHighlight: !detourIsWinner,
             rightHighlight: detourIsWinner,
-            midButton: onViewOnMapRoute != null
+            midButton: hasOnRoute && onViewOnMapRoute != null
                 ? GestureDetector(
                     onTap: onViewOnMapRoute,
                     child: Container(
@@ -1232,7 +1304,7 @@ class _ComparisonTable extends StatelessWidget {
                     ),
                   )
                 : null,
-            midNavButton: onRouteLat != null && onRouteLng != null && destLat != null && destLng != null
+            midNavButton: hasOnRoute && onRouteLat != null && onRouteLng != null && destLat != null && destLng != null
                 ? GestureDetector(
                     onTap: () => showViaWaypointNavigationSheet(
                           context,
@@ -1302,8 +1374,19 @@ class _ComparisonTable extends StatelessWidget {
           _TableRow(
             label: '리터당',
             left: null,
-            mid: onRoutePrice != null ? '${wonFmt.format(onRoutePrice!.round())}원' : '—',
+            mid: hasOnRoute && onRoutePrice != null ? '${wonFmt.format(onRoutePrice!.round())}원' : '—',
             right: detourPrice != null ? '${wonFmt.format(detourPrice!.round())}원' : '—',
+            midHighlight: !detourIsWinner,
+            rightHighlight: detourIsWinner,
+          ),
+
+          const Divider(height: 1, color: Color(0xFFF0F0F0)),
+
+          _TableRow(
+            label: '유종',
+            left: null,
+            mid: hasOnRoute ? onRouteFuelLabel : '—',
+            right: detourFuelLabel,
             midHighlight: !detourIsWinner,
             rightHighlight: detourIsWinner,
           ),
@@ -1314,7 +1397,7 @@ class _ComparisonTable extends StatelessWidget {
           _TableRow(
             label: '예상 주유비',
             left: null,
-            mid: onRouteCost > 0 ? '${wonFmt.format(onRouteCost)}원' : '—',
+            mid: hasOnRoute && onRouteCost > 0 ? '${wonFmt.format(onRouteCost)}원' : '—',
             right: detourCost > 0 ? '${wonFmt.format(detourCost)}원' : '—',
             midHighlight: !detourIsWinner,
             rightHighlight: detourIsWinner,
@@ -1326,7 +1409,7 @@ class _ComparisonTable extends StatelessWidget {
           _TableRow(
             label: '추가 시간',
             left: null,
-            mid: onRouteDetourLabel,
+            mid: hasOnRoute ? onRouteDetourLabel : '—',
             right: detourDetourLabel,
             midHighlight: !detourIsWinner,
             rightHighlight: detourIsWinner,
@@ -1887,12 +1970,20 @@ class _AltSection extends StatelessWidget {
               final itemId = st?['id']?.toString();
               final price = _d(st?['price_won_per_liter']);
               final detourM = _i(item['detour_distance_m']);
-              final savings = _i(item['savings_vs_on_route_won']);
-              final detourTimeMin = item['detour_time_min'] is num ? item['detour_time_min'] as num : null;
+              final savings = item['savings_vs_primary_won'] != null
+                  ? _i(item['savings_vs_primary_won'])
+                  : _i(item['savings_vs_on_route_won']);
+              final detourTimeMin = item['detour_is_none'] == true
+                  ? 0
+                  : (item['detour_time_min'] is num ? item['detour_time_min'] as num : null);
               final isLast = idx == valid.length - 1;
               final isSelected = selectedId != null && selectedId == itemId;
 
-              final detourText = _detourAltListSubtitle(detourM: detourM, detourTimeMin: detourTimeMin);
+              final detourText = _detourAltListSubtitle(
+                detourM: detourM,
+                detourTimeMin: detourTimeMin,
+                serverDetourIsNone: item['detour_is_none'] is bool ? item['detour_is_none'] as bool : null,
+              );
 
               return Column(
                 children: [
@@ -2386,8 +2477,11 @@ class _CompareCard extends StatelessWidget {
     final priceL = _d(st['price_won_per_liter'])?.round() ?? 0;
     final cost = stationData['expected_fuel_cost_won'] is num
         ? (stationData['expected_fuel_cost_won'] as num).round() : 0;
-    final detourMin = stationData['detour_time_min'] is num
-        ? (stationData['detour_time_min'] as num).round() : null;
+    final detourMin = stationData['detour_is_none'] == true
+        ? 0
+        : (stationData['detour_time_min'] is num
+            ? (stationData['detour_time_min'] as num).round()
+            : null);
     final totalMin = stationData['total_time_min'] is num
         ? (stationData['total_time_min'] as num).round() : null;
 
@@ -2476,7 +2570,7 @@ class _CompareCard extends StatelessWidget {
                 _StatItem(
                   label: '추가 시간',
                   value: detourMin != null
-                      ? (detourMin < 2 ? '거의 없음' : '약 ${detourMin}분')
+                      ? (detourMin < _kDetourStartMinutes ? '거의 없음' : '약 ${detourMin}분')
                       : (totalMin != null ? '전체 ${totalMin}분' : '-'),
                   color: accentColor,
                 ),
@@ -2587,7 +2681,7 @@ class _UserCompareTable extends StatelessWidget {
   }
 
   String _detourLabel(int? detourMin) {
-    if (detourMin == null || detourMin < 2) return '우회 없음';
+    if (detourMin == null || detourMin < _kDetourStartMinutes) return '우회 없음';
     return '+${detourMin}분';
   }
 
@@ -2598,14 +2692,22 @@ class _UserCompareTable extends StatelessWidget {
     
     final nameA = stA['name']?.toString() ?? '';
     final nameB = stB['name']?.toString() ?? '';
+    final fuelA = _resolveFuelLabel(stA['fuel_type'], fallback: fuelLabel);
+    final fuelB = _resolveFuelLabel(stB['fuel_type'], fallback: fuelLabel);
     final priceA = _d(stA['price_won_per_liter']);
     final priceB = _d(stB['price_won_per_liter']);
     final costA = _i(stationAData['expected_fuel_cost_won']);
     final costB = _i(stationBData['expected_fuel_cost_won']);
-    final detourMinA = stationAData['detour_time_min'] is num 
-        ? (stationAData['detour_time_min'] as num).round() : null;
-    final detourMinB = stationBData['detour_time_min'] is num 
-        ? (stationBData['detour_time_min'] as num).round() : null;
+    final detourMinA = stationAData['detour_is_none'] == true
+        ? 0
+        : (stationAData['detour_time_min'] is num
+            ? (stationAData['detour_time_min'] as num).round()
+            : null);
+    final detourMinB = stationBData['detour_is_none'] == true
+        ? 0
+        : (stationBData['detour_time_min'] is num
+            ? (stationBData['detour_time_min'] as num).round()
+            : null);
     
     final latA = _d(stA['lat']);
     final lngA = _d(stA['lng']);
@@ -2644,6 +2746,8 @@ class _UserCompareTable extends StatelessWidget {
           nameB: nameB,
           priceA: priceA,
           priceB: priceB,
+          fuelA: fuelA,
+          fuelB: fuelB,
           costA: costA,
           costB: costB,
           detourMinA: detourMinA,
@@ -2705,7 +2809,7 @@ class _CompareRecommendCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final canNav = stLat != null && stLng != null && destLat != null && destLng != null;
-    final isNegligible = detourMin == null || detourMin! < 2;
+    final isNegligible = detourMin == null || detourMin! < _kDetourStartMinutes;
 
     return Container(
       decoration: BoxDecoration(
@@ -2824,6 +2928,7 @@ class _CompareRecommendCard extends StatelessWidget {
 class _UserComparisonTable extends StatelessWidget {
   final String nameA, nameB;
   final double? priceA, priceB;
+  final String fuelA, fuelB;
   final int costA, costB;
   final int? detourMinA, detourMinB;
   final double? latA, lngA, latB, lngB;
@@ -2843,6 +2948,8 @@ class _UserComparisonTable extends StatelessWidget {
     required this.nameB,
     required this.priceA,
     required this.priceB,
+    required this.fuelA,
+    required this.fuelB,
     required this.costA,
     required this.costB,
     required this.detourMinA,
@@ -2867,7 +2974,7 @@ class _UserComparisonTable extends StatelessWidget {
   });
 
   String _detourLabel(int? detourMin) {
-    if (detourMin == null || detourMin < 2) return '우회 없음';
+    if (detourMin == null || detourMin < _kDetourStartMinutes) return '우회 없음';
     return '+${detourMin}분';
   }
 
@@ -3045,6 +3152,17 @@ class _UserComparisonTable extends StatelessWidget {
             left: null,
             mid: priceA != null ? '${wonFmt.format(priceA!.round())}원' : '—',
             right: priceB != null ? '${wonFmt.format(priceB!.round())}원' : '—',
+            midHighlight: aIsWinner,
+            rightHighlight: bIsWinner,
+          ),
+
+          const Divider(height: 1, color: Color(0xFFF0F0F0)),
+
+          _TableRow(
+            label: '유종',
+            left: null,
+            mid: fuelA,
+            right: fuelB,
             midHighlight: aIsWinner,
             rightHighlight: bIsWinner,
           ),
