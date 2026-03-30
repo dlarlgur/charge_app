@@ -45,7 +45,7 @@ class GasStation {
   factory GasStation.fromJson(Map<String, dynamic> json) {
     return GasStation(
       id: json['UNI_ID'] ?? json['id'] ?? '',
-      name: _normalizeName(json['OS_NM'] ?? json['name'] ?? ''),
+      name: _normalizeName(json['display_name'] ?? json['OS_NM'] ?? json['name'] ?? ''),
       brand: json['POLL_DIV_CD'] ?? json['brand'] ?? '',
       address: json['NEW_ADR'] ?? json['address'] ?? '',
       price: (json['PRICE'] ?? json['price'] ?? 0).toDouble(),

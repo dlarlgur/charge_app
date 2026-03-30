@@ -281,7 +281,7 @@ class _AiResultBodyState extends State<AiResultBody> {
       );
     } else if (aiRecIsDetour) {
       primary = _CardInfo(
-        name: detourSt['name']?.toString() ?? '',
+        name: _stationNameFrom(detourSt),
         addr: detourSt['address']?.toString(),
         lat: dtLat,
         lng: dtLng,
@@ -298,7 +298,7 @@ class _AiResultBodyState extends State<AiResultBody> {
       );
     } else {
       primary = _CardInfo(
-        name: onRouteSt?['name']?.toString() ?? '',
+        name: _stationNameFrom(onRouteSt),
         addr: onRouteSt?['address']?.toString(),
         lat: orLat,
         lng: orLng,
@@ -321,7 +321,7 @@ class _AiResultBodyState extends State<AiResultBody> {
       // 오버라이드 시: AI 추천을 참고용으로 표시
       if (aiRecIsDetour) {
         secondary = _CardInfo(
-          name: detourSt['name']?.toString() ?? '',
+          name: _stationNameFrom(detourSt),
           addr: detourSt['address']?.toString(),
           lat: dtLat,
           lng: dtLng,
@@ -337,7 +337,7 @@ class _AiResultBodyState extends State<AiResultBody> {
         );
       } else if (onRouteSt != null) {
         secondary = _CardInfo(
-          name: onRouteSt['name']?.toString() ?? '',
+          name: _stationNameFrom(onRouteSt),
           addr: onRouteSt['address']?.toString(),
           lat: orLat,
           lng: orLng,
@@ -355,7 +355,7 @@ class _AiResultBodyState extends State<AiResultBody> {
     } else if (aiRecIsDetour && onRouteSt != null) {
       // 우회 AI 추천 → 경로상 최저가를 하단 참고로
       secondary = _CardInfo(
-        name: onRouteSt['name']?.toString() ?? '',
+        name: _stationNameFrom(onRouteSt),
         addr: onRouteSt['address']?.toString(),
         lat: orLat,
         lng: orLng,
@@ -373,7 +373,7 @@ class _AiResultBodyState extends State<AiResultBody> {
     } else if (!aiRecIsDetour && showDetour) {
       // 경로 AI 추천 → 우회 최저가를 하단 참고로
       secondary = _CardInfo(
-        name: detourSt['name']?.toString() ?? '',
+        name: _stationNameFrom(detourSt),
         addr: detourSt['address']?.toString(),
         lat: dtLat,
         lng: dtLng,
@@ -447,7 +447,7 @@ class _AiResultBodyState extends State<AiResultBody> {
         // ── 비교 테이블 (AI 추천 원본) / 카드 (사용자 대안 선택 시) ──
         if (!hasOverride && !noStationToRecommend) ...[
           _StationComparisonSection(
-            onRouteName: onRouteSt?['name']?.toString() ?? '',
+            onRouteName: _stationNameFrom(onRouteSt),
             onRoutePrice: orPrice,
             onRouteCost: orCost,
             onRouteDetourM: orDetourM,
@@ -456,7 +456,7 @@ class _AiResultBodyState extends State<AiResultBody> {
             onRouteLng: orLng,
             onRouteFuelType: onRouteSt?['fuel_type']?.toString(),
             showDetour: showDetour,
-            detourName: showDetour ? (detourSt['name']?.toString() ?? '') : '',
+            detourName: showDetour ? _stationNameFrom(detourSt) : '',
             detourPrice: dtPrice,
             detourCost: dtCost,
             dtDetourM: dtDetourM,
@@ -639,6 +639,13 @@ String _resolveFuelLabel(dynamic rawFuel, {String? fallback}) {
   if (value == null || value.isEmpty) return fallback ?? '—';
   final mapped = _fuelCodeToLabel(value);
   return mapped.isNotEmpty ? mapped : value;
+}
+
+String _stationNameFrom(dynamic station) {
+  if (station is! Map) return '';
+  final dn = station['display_name']?.toString().trim();
+  if (dn != null && dn.isNotEmpty) return dn;
+  return station['name']?.toString() ?? '';
 }
 
 // ─── 유종 칩 ──────────────────────────────────────────────────────────────────

@@ -72,6 +72,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
   // ── 분석 상태 ──
   bool _aiAnalyzing = false;    // AI 분석 탭 로딩
   bool _userSelecting = false;  // 사용자 선택 탭 로딩
+  String _userSelectingMessage = '불러오는 중...';
   bool _isSelectSheetVisible = false;
   final DraggableScrollableController _selectSheetCtrl = DraggableScrollableController();
   String? _errorMessage;
@@ -88,6 +89,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
   String? _selectedStationAId;
   String? _selectedStationBId;
   bool _isCompareResultMode = false;
+  String _aiAnalysisType = 'gas'; // gas | ev
 
   // ── 검색 기록 ──
   List<String> _searchHistory = [];
@@ -1354,6 +1356,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
     // 사용자 선택 시작 시 기존 AI/비교 결과 패널이 남아있지 않게 강제 초기화
     setState(() {
       _userSelecting = true;
+      _userSelectingMessage = '경로상 주유소 목록 불러오는 중...';
       _errorMessage = null;
       _isResultMode = false;
       _isCompareResultMode = false;
@@ -1652,6 +1655,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
 
     setState(() {
       _userSelecting = true;
+      _userSelectingMessage = '선택한 2곳 비교 분석 중...';
       _isSelectSheetVisible = false; // 시트 닫기 (인라인)
     });
     
@@ -1840,6 +1844,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
+    final canGasAnalysis = settings.vehicleType != VehicleType.ev;
+    final canEvAnalysis = settings.vehicleType != VehicleType.gas;
+    if ((_aiAnalysisType == 'gas' && !canGasAnalysis) || (_aiAnalysisType == 'ev' && !canEvAnalysis)) {
+      _aiAnalysisType = canGasAnalysis ? 'gas' : 'ev';
+    }
 
     // AI 탭(index 2)에 진입할 때마다 지도를 내 위치로 이동 + 주소 재로드
     ref.listen(bottomNavIndexProvider, (prev, next) {
@@ -2131,13 +2140,80 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // 타이틀 바
+                      // 상단 분석 탭 + 설정
                       Row(
                         children: [
-                          const Spacer(),
-                          const Text('주유 분석',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1a1a1a))),
-                          const Spacer(),
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFEEEEEE)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: canGasAnalysis
+                                          ? () => setState(() => _aiAnalysisType = 'gas')
+                                          : null,
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 160),
+                                        padding: const EdgeInsets.symmetric(vertical: 9),
+                                        decoration: BoxDecoration(
+                                          color: _aiAnalysisType == 'gas'
+                                              ? _kPrimary.withOpacity(0.12)
+                                              : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(9),
+                                        ),
+                                        child: Text(
+                                          'AI 주유 분석',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                            color: canGasAnalysis
+                                                ? (_aiAnalysisType == 'gas' ? _kPrimary : const Color(0xFF666666))
+                                                : const Color(0xFFBDBDBD),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: canEvAnalysis
+                                          ? () => setState(() => _aiAnalysisType = 'ev')
+                                          : null,
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 160),
+                                        padding: const EdgeInsets.symmetric(vertical: 9),
+                                        decoration: BoxDecoration(
+                                          color: _aiAnalysisType == 'ev'
+                                              ? _kCompareBlue.withOpacity(0.12)
+                                              : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(9),
+                                        ),
+                                        child: Text(
+                                          'AI 충전 분석',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                            color: canEvAnalysis
+                                                ? (_aiAnalysisType == 'ev' ? _kCompareBlue : const Color(0xFF666666))
+                                                : const Color(0xFFBDBDBD),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
                           GestureDetector(
                             onTap: () => Navigator.push(context,
                                 MaterialPageRoute(builder: (_) => const AiVehicleSetupScreen(isEdit: true))),
@@ -2252,6 +2328,22 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
                         ],
                       ),
                       const SizedBox(height: 8),
+                      const SizedBox(height: 8),
+                      if (_aiAnalysisType == 'ev')
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF2F7FF),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFDCE9FF)),
+                          ),
+                          child: const Text(
+                            'AI 충전 분석은 준비 중입니다. 현재는 AI 주유 분석을 이용해 주세요.',
+                            style: TextStyle(fontSize: 12, color: Color(0xFF4A6FA5), height: 1.35),
+                          ),
+                        ),
+                      if (_aiAnalysisType == 'ev') const SizedBox(height: 8),
                       // AI 분석 / 사용자 선택 버튼
                       Row(
                         children: [
@@ -2259,7 +2351,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
                             child: SizedBox(
                               height: 52,
                               child: ElevatedButton(
-                                onPressed: (_aiAnalyzing || _userSelecting) ? null : _runAnalyze,
+                                onPressed: (_aiAnalyzing || _userSelecting || _aiAnalysisType == 'ev')
+                                    ? null
+                                    : _runAnalyze,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: _kPrimary,
                                   foregroundColor: Colors.white,
@@ -2287,7 +2381,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
                             child: SizedBox(
                               height: 52,
                               child: ElevatedButton(
-                                onPressed: (_aiAnalyzing || _userSelecting) ? null : _runUserSelect,
+                                onPressed: (_aiAnalyzing || _userSelecting || _aiAnalysisType == 'ev')
+                                    ? null
+                                    : _runUserSelect,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: _kCompareBlue,
                                   foregroundColor: Colors.white,
@@ -2554,10 +2650,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
                           ),
                         ],
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          SizedBox(
+                          const SizedBox(
                             width: 18,
                             height: 18,
                             child: CircularProgressIndicator(
@@ -2567,8 +2663,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
                           ),
                           SizedBox(width: 10),
                           Text(
-                            '선택한 2곳 비교 분석 중...',
-                            style: TextStyle(
+                            _userSelectingMessage,
+                            style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                               color: Color(0xFF1a1a1a),
@@ -2619,6 +2715,27 @@ class _StationSelectInlineSheet extends StatefulWidget {
 
 class _StationSelectInlineSheetState extends State<_StationSelectInlineSheet> {
   final ScrollController _listCtrl = ScrollController();
+  bool _highwayOnly = false;
+
+  bool _isHighwayStation(Map<String, dynamic> st) {
+    final naverName = st['display_name']?.toString().trim() ?? '';
+    final baseName = st['name']?.toString().trim() ?? '';
+    final addr = st['address']?.toString().trim() ?? '';
+    final text = '$naverName $baseName $addr';
+    final compact = text.toLowerCase().replaceAll(RegExp(r'[\s\-_]'), '');
+
+    // 네이버 표기명(display_name)을 우선으로 보고, 기존명/주소는 보조로 사용.
+    // EX-OIL/상행/하행 표기를 추가로 흡수해 고속도로 후보 누락을 줄인다.
+    final hasCoreKeyword =
+        RegExp(r'휴게소|고속도로|하이패스', caseSensitive: false).hasMatch(text);
+    final hasDirectionalPump =
+        RegExp(r'(상행|하행).{0,8}(주유소|충전소)|(주유소|충전소).{0,8}(상행|하행)',
+            caseSensitive: false)
+            .hasMatch(text);
+    final hasExOilLike = compact.contains('exoil') || compact.contains('알뜰');
+
+    return hasCoreKeyword || hasDirectionalPump || hasExOilLike;
+  }
 
   @override
   void dispose() {
@@ -2628,7 +2745,9 @@ class _StationSelectInlineSheetState extends State<_StationSelectInlineSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final stations = widget.stations;
+    final stations = _highwayOnly
+        ? widget.stations.where((s) => _isHighwayStation(s)).toList()
+        : widget.stations;
     final selectedAId = widget.selectedAId;
     final selectedBId = widget.selectedBId;
     final bothSelected = selectedAId != null && selectedBId != null;
@@ -2720,6 +2839,33 @@ class _StationSelectInlineSheetState extends State<_StationSelectInlineSheet> {
                         ],
                       ),
                     ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 0, 18, 8),
+                    child: Row(
+                      children: [
+                        FilterChip(
+                          selected: _highwayOnly,
+                          onSelected: (v) => setState(() => _highwayOnly = v),
+                          label: const Text('고속도로만', style: TextStyle(fontSize: 12)),
+                          showCheckmark: false,
+                          selectedColor: const Color(0xFFE7F0FF),
+                          backgroundColor: const Color(0xFFF5F5F5),
+                          side: BorderSide(
+                            color: _highwayOnly ? const Color(0xFF1D6FE0) : const Color(0xFFE0E0E0),
+                          ),
+                          labelStyle: TextStyle(
+                            color: _highwayOnly ? const Color(0xFF1D6FE0) : const Color(0xFF666666),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _highwayOnly ? '휴게소/고속도로 후보만 표시' : '전체 후보 표시',
+                          style: const TextStyle(fontSize: 11, color: Color(0xFF999999)),
+                        ),
+                      ],
+                    ),
+                  ),
                   const Divider(height: 1),
                 ],
               ),
@@ -2727,13 +2873,23 @@ class _StationSelectInlineSheetState extends State<_StationSelectInlineSheet> {
 
             // ─ 주유소 목록 ─
             Expanded(
-              child: ListView.builder(
+              child: stations.isEmpty
+                  ? const Center(
+                      child: Text(
+                        '고속도로 후보가 없습니다.\n필터를 해제해 전체 후보를 확인하세요.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 13, color: Color(0xFF999999), height: 1.4),
+                      ),
+                    )
+                  : ListView.builder(
                 controller: _listCtrl,
                 itemCount: stations.length,
                 itemBuilder: (ctx, index) {
                   final st = stations[index];
                   final stId = st['id']?.toString() ?? '$index';
-                  final name = st['name']?.toString() ?? '주유소 ${index + 1}';
+                  final name = (st['display_name']?.toString().trim().isNotEmpty == true)
+                      ? st['display_name'].toString()
+                      : (st['name']?.toString() ?? '주유소 ${index + 1}');
                   final addr = st['address']?.toString() ?? '';
                   final price = st['price_won_per_liter'] is num
                       ? (st['price_won_per_liter'] as num).round() : null;
