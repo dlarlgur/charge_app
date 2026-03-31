@@ -2776,7 +2776,7 @@ class _StationSelectInlineSheetState extends State<_StationSelectInlineSheet> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             // 시트를 최대로 내렸을 때는 고정 영역을 축약해서 overflow를 방지한다.
-            final compact = constraints.maxHeight < 260;
+            final compact = constraints.maxHeight < 300;
             return Column(
           children: [
             // ─ 드래그 핸들 영역 (SingleChildScrollView로 드래그 활성화) ─
@@ -2839,33 +2839,34 @@ class _StationSelectInlineSheetState extends State<_StationSelectInlineSheet> {
                         ],
                       ),
                     ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 0, 18, 8),
-                    child: Row(
-                      children: [
-                        FilterChip(
-                          selected: _highwayOnly,
-                          onSelected: (v) => setState(() => _highwayOnly = v),
-                          label: const Text('고속도로만', style: TextStyle(fontSize: 12)),
-                          showCheckmark: false,
-                          selectedColor: const Color(0xFFE7F0FF),
-                          backgroundColor: const Color(0xFFF5F5F5),
-                          side: BorderSide(
-                            color: _highwayOnly ? const Color(0xFF1D6FE0) : const Color(0xFFE0E0E0),
+                  if (!compact)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 0, 18, 8),
+                      child: Row(
+                        children: [
+                          FilterChip(
+                            selected: _highwayOnly,
+                            onSelected: (v) => setState(() => _highwayOnly = v),
+                            label: const Text('고속도로만', style: TextStyle(fontSize: 12)),
+                            showCheckmark: false,
+                            selectedColor: const Color(0xFFE7F0FF),
+                            backgroundColor: const Color(0xFFF5F5F5),
+                            side: BorderSide(
+                              color: _highwayOnly ? const Color(0xFF1D6FE0) : const Color(0xFFE0E0E0),
+                            ),
+                            labelStyle: TextStyle(
+                              color: _highwayOnly ? const Color(0xFF1D6FE0) : const Color(0xFF666666),
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                          labelStyle: TextStyle(
-                            color: _highwayOnly ? const Color(0xFF1D6FE0) : const Color(0xFF666666),
-                            fontWeight: FontWeight.w600,
+                          const SizedBox(width: 8),
+                          Text(
+                            _highwayOnly ? '휴게소/고속도로 후보만 표시' : '전체 후보 표시',
+                            style: const TextStyle(fontSize: 11, color: Color(0xFF999999)),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          _highwayOnly ? '휴게소/고속도로 후보만 표시' : '전체 후보 표시',
-                          style: const TextStyle(fontSize: 11, color: Color(0xFF999999)),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
                   const Divider(height: 1),
                 ],
               ),
