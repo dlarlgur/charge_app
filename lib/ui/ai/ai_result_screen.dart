@@ -846,6 +846,9 @@ class _StationComparisonSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool hasOnRoute = onRouteName.trim().isNotEmpty;
     final bool hasBoth = hasOnRoute && showDetour && detourName.isNotEmpty;
+    // 서버가 한쪽만 내려줘도 표는 그림(빈 열은 —)
+    final bool showComparisonTable =
+        hasOnRoute || (showDetour && detourName.trim().isNotEmpty);
 
     // 추천 주유소 결정
     // on_route가 없으면 detour(우회 최저가)를 추천 카드로 강제
@@ -881,8 +884,8 @@ class _StationComparisonSection extends StatelessWidget {
           onViewOnMap: onViewRec,
         ),
 
-        // ── 비교 테이블 (둘 다 있을 때만) ──
-        if (hasBoth) ...[
+        // ── 비교 테이블 (한쪽만 있어도 추천 정보 표 형태로 표시) ──
+        if (showComparisonTable) ...[
           const SizedBox(height: 12),
           _ComparisonTable(
             onRouteName: onRouteName,
@@ -1206,8 +1209,12 @@ class _ComparisonTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasOnRoute = onRouteName.trim().isNotEmpty;
-    // 테이블 하이라이트: AI 추천 기준 (주황 = 추천)
+    final hasDetourCol = detourName.trim().isNotEmpty;
+    final hasBothCols = hasOnRoute && hasDetourCol;
+    // 테이블 하이라이트: AI 추천 기준 (주황 = 추천), 빈 열은 비강조
     final detourIsWinner = aiRecIsDetour;
+    final midHi = hasOnRoute && !detourIsWinner;
+    final rightHi = hasDetourCol && detourIsWinner;
     // 배너 텍스트: 실제 비용 기준 (savings > 0 이면 우회가 더 저렴)
     final detourIsActuallyCheaper = savings > 0;
 
@@ -1255,8 +1262,8 @@ class _ComparisonTable extends StatelessWidget {
             left: '',
             mid: '경로상 최저가',
             right: '우회 최저가',
-            midHighlight: !detourIsWinner,
-            rightHighlight: detourIsWinner,
+            midHighlight: midHi,
+            rightHighlight: rightHi,
           ),
 
           const Divider(height: 1, color: Color(0xFFF0F0F0)),
@@ -1265,10 +1272,10 @@ class _ComparisonTable extends StatelessWidget {
           _TableRow(
             label: '주유소',
             left: null,
-            mid: hasOnRoute ? onRouteName : '없음',
-            right: detourName,
-            midHighlight: !detourIsWinner,
-            rightHighlight: detourIsWinner,
+            mid: hasOnRoute ? onRouteName : '—',
+            right: hasDetourCol ? detourName : '—',
+            midHighlight: midHi,
+            rightHighlight: rightHi,
             midButton: hasOnRoute && onViewOnMapRoute != null
                 ? GestureDetector(
                     onTap: onViewOnMapRoute,
@@ -1290,7 +1297,7 @@ class _ComparisonTable extends StatelessWidget {
                     ),
                   )
                 : null,
-            rightButton: onViewOnMapDetour != null
+            rightButton: hasDetourCol && onViewOnMapDetour != null
                 ? GestureDetector(
                     onTap: onViewOnMapDetour,
                     child: Container(
@@ -1342,7 +1349,7 @@ class _ComparisonTable extends StatelessWidget {
                     ),
                   )
                 : null,
-            rightNavButton: dtLat != null && dtLng != null && destLat != null && destLng != null
+            rightNavButton: hasDetourCol && dtLat != null && dtLng != null && destLat != null && destLng != null
                 ? GestureDetector(
                     onTap: () => showViaWaypointNavigationSheet(
                           context,
@@ -1382,9 +1389,9 @@ class _ComparisonTable extends StatelessWidget {
             label: '리터당',
             left: null,
             mid: hasOnRoute && onRoutePrice != null ? '${wonFmt.format(onRoutePrice!.round())}원' : '—',
-            right: detourPrice != null ? '${wonFmt.format(detourPrice!.round())}원' : '—',
-            midHighlight: !detourIsWinner,
-            rightHighlight: detourIsWinner,
+            right: hasDetourCol && detourPrice != null ? '${wonFmt.format(detourPrice!.round())}원' : '—',
+            midHighlight: midHi,
+            rightHighlight: rightHi,
           ),
 
           const Divider(height: 1, color: Color(0xFFF0F0F0)),
@@ -1393,9 +1400,9 @@ class _ComparisonTable extends StatelessWidget {
             label: '유종',
             left: null,
             mid: hasOnRoute ? onRouteFuelLabel : '—',
-            right: detourFuelLabel,
-            midHighlight: !detourIsWinner,
-            rightHighlight: detourIsWinner,
+            right: hasDetourCol ? (detourFuelLabel.trim().isEmpty ? '—' : detourFuelLabel) : '—',
+            midHighlight: midHi,
+            rightHighlight: rightHi,
           ),
 
           const Divider(height: 1, color: Color(0xFFF0F0F0)),
@@ -1405,9 +1412,9 @@ class _ComparisonTable extends StatelessWidget {
             label: '예상 주유비',
             left: null,
             mid: hasOnRoute && onRouteCost > 0 ? '${wonFmt.format(onRouteCost)}원' : '—',
-            right: detourCost > 0 ? '${wonFmt.format(detourCost)}원' : '—',
-            midHighlight: !detourIsWinner,
-            rightHighlight: detourIsWinner,
+            right: hasDetourCol && detourCost > 0 ? '${wonFmt.format(detourCost)}원' : '—',
+            midHighlight: midHi,
+            rightHighlight: rightHi,
           ),
 
           const Divider(height: 1, color: Color(0xFFF0F0F0)),
@@ -1417,9 +1424,9 @@ class _ComparisonTable extends StatelessWidget {
             label: '추가 시간',
             left: null,
             mid: hasOnRoute ? onRouteDetourLabel : '—',
-            right: detourDetourLabel,
-            midHighlight: !detourIsWinner,
-            rightHighlight: detourIsWinner,
+            right: hasDetourCol ? (detourDetourLabel.trim().isEmpty ? '—' : detourDetourLabel) : '—',
+            midHighlight: midHi,
+            rightHighlight: rightHi,
           ),
 
           const Divider(height: 1, color: Color(0xFFF0F0F0)),
@@ -1440,28 +1447,33 @@ class _ComparisonTable extends StatelessWidget {
                 const Icon(Icons.lightbulb_outline_rounded, size: 15, color: _kMarkerRecommend),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: savings > 0
-                      ? RichText(
-                          text: TextSpan(
-                            style: const TextStyle(fontSize: 12, color: Color(0xFF1a1a1a)),
-                            children: [
-                              TextSpan(
-                                text: detourIsActuallyCheaper ? '우회' : '경로상 주유소',
-                                style: const TextStyle(fontWeight: FontWeight.w700, color: _kMarkerRecommend),
-                              ),
-                              const TextSpan(text: '가 '),
-                              TextSpan(
-                                text: '${wonFmt.format(savings)}원',
-                                style: const TextStyle(fontWeight: FontWeight.w700, color: _kMarkerRecommend),
-                              ),
-                              const TextSpan(text: ' 더 저렴해요'),
-                              if (detourMins != null && detourMins! > 0 && detourIsActuallyCheaper)
-                                TextSpan(text: ' · 대신 ${detourMins}분 더 소요'),
-                            ],
-                          ),
+                  child: !hasBothCols
+                      ? const Text(
+                          '비교 후보가 한 곳이에요. 표에 표시된 주유소 정보를 참고해 주세요.',
+                          style: TextStyle(fontSize: 12, color: Color(0xFF666666)),
                         )
-                      : const Text('두 주유소 가격 차이가 거의 없어요',
-                          style: TextStyle(fontSize: 12, color: Color(0xFF666666))),
+                      : savings > 0
+                          ? RichText(
+                              text: TextSpan(
+                                style: const TextStyle(fontSize: 12, color: Color(0xFF1a1a1a)),
+                                children: [
+                                  TextSpan(
+                                    text: detourIsActuallyCheaper ? '우회' : '경로상 주유소',
+                                    style: const TextStyle(fontWeight: FontWeight.w700, color: _kMarkerRecommend),
+                                  ),
+                                  const TextSpan(text: '가 '),
+                                  TextSpan(
+                                    text: '${wonFmt.format(savings)}원',
+                                    style: const TextStyle(fontWeight: FontWeight.w700, color: _kMarkerRecommend),
+                                  ),
+                                  const TextSpan(text: ' 더 저렴해요'),
+                                  if (detourMins != null && detourMins! > 0 && detourIsActuallyCheaper)
+                                    TextSpan(text: ' · 대신 ${detourMins}분 더 소요'),
+                                ],
+                              ),
+                            )
+                          : const Text('두 주유소 가격 차이가 거의 없어요',
+                              style: TextStyle(fontSize: 12, color: Color(0xFF666666))),
                 ),
               ],
             ),
