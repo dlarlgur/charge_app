@@ -2718,23 +2718,8 @@ class _StationSelectInlineSheetState extends State<_StationSelectInlineSheet> {
   bool _highwayOnly = false;
 
   bool _isHighwayStation(Map<String, dynamic> st) {
-    final naverName = st['display_name']?.toString().trim() ?? '';
-    final baseName = st['name']?.toString().trim() ?? '';
-    final addr = st['address']?.toString().trim() ?? '';
-    final text = '$naverName $baseName $addr';
-    final compact = text.toLowerCase().replaceAll(RegExp(r'[\s\-_]'), '');
-
-    // 네이버 표기명(display_name)을 우선으로 보고, 기존명/주소는 보조로 사용.
-    // EX-OIL/상행/하행 표기를 추가로 흡수해 고속도로 후보 누락을 줄인다.
-    final hasCoreKeyword =
-        RegExp(r'휴게소|고속도로|하이패스', caseSensitive: false).hasMatch(text);
-    final hasDirectionalPump =
-        RegExp(r'(상행|하행).{0,8}(주유소|충전소)|(주유소|충전소).{0,8}(상행|하행)',
-            caseSensitive: false)
-            .hasMatch(text);
-    final hasExOilLike = compact.contains('exoil') || compact.contains('알뜰');
-
-    return hasCoreKeyword || hasDirectionalPump || hasExOilLike;
+    // 서버가 휴게소 여부·상하행 필터까지 반영한 목록만 내림 — 앱은 플래그만 사용
+    return st['is_highway_rest_area'] == true;
   }
 
   @override
