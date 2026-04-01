@@ -1190,7 +1190,18 @@ class SettingsScreenEmbed extends ConsumerWidget {
               snap.data ?? '...', null,
             ),
           ),
-          const SizedBox(height: 40),
+          const SizedBox(height: 24),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+            child: Text(
+              '유가 정보 출처: 한국석유공사 오피넷(www.opinet.co.kr)\n충전소 정보 출처: 환경부 전기차 충전소 공공데이터',
+              style: TextStyle(
+                fontSize: 11,
+                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                height: 1.6,
+              ),
+            ),
+          ),
         ],
       ),
     );

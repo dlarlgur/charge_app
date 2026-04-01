@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <View
+        android:id="@+id/adfit_placeholder"
+        android:layout_width="match_parent"
+        android:layout_height="84dp"
+        android:background="#FFFFFF" />
+
+    <com.kakao.adfit.ads.na.AdFitNativeAdView
+        android:id="@+id/containerView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:visibility="invisible">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="5dp"
+            android:paddingBottom="4dp">
+
+            <FrameLayout
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="@drawable/bg_ad_avatar_circle"
+                android:clipToOutline="true">
+
+                <ImageView
+                    android:id="@+id/profileIconView"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="광고주 아이콘"
+                    android:scaleType="centerCrop"
+                    tools:src="@mipmap/ic_launcher" />
+
+                <com.kakao.adfit.ads.na.AdFitMediaView
+                    android:id="@+id/mediaView"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="광고 미디어" />
+            </FrameLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/titleTextView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:textColor="#DE000000"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    tools:text="광고 제목" />
+
+                <TextView
+                    android:id="@+id/bodyTextView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:textColor="#757575"
+                    android:textSize="13sp"
+                    tools:text="광고 설명 문구" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_ad_tag_soft"
+                        android:includeFontPadding="false"
+                        android:paddingHorizontal="4dp"
+                        android:paddingVertical="1dp"
+                        android:text="AD"
+                        android:textColor="#757575"
+                        android:textSize="10sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/profileNameTextView"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
+                        android:textColor="#8E8E8E"
+                        android:textSize="12sp"
+                        tools:text="광고주명" />
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/callToActionButton"
+                    style="?android:attr/borderlessButtonStyle"
+                    android:layout_width="1dp"
+                    android:layout_height="1dp"
+                    android:minHeight="0dp"
+                    android:padding="0dp"
+                    android:textSize="1sp"
+                    android:visibility="invisible"
+                    tools:text="CTA" />
+            </LinearLayout>
+        </LinearLayout>
+    </com.kakao.adfit.ads.na.AdFitNativeAdView>
+</FrameLayout>

@@ -73,4 +73,6 @@ configurations.all {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // Kakao AdFit
+    implementation("com.kakao.adfit:ads-base:3.21.17")
 }

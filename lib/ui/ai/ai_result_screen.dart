@@ -390,22 +390,10 @@ class _AiResultBodyState extends State<AiResultBody> {
       );
     }
 
-    return ListView(
+    final listView = ListView(
       controller: widget.scrollController,
-      padding: EdgeInsets.fromLTRB(16, widget.scrollController != null ? 4 : 8, 16, 32),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
       children: [
-        // 드래그 핸들
-        if (widget.scrollController != null)
-          Center(
-            child: Container(
-              width: 36, height: 4,
-              margin: const EdgeInsets.only(bottom: 10),
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
 
         // ── 유종 칩 ──
         if (widget.fuelLabel != null) ...[
@@ -536,6 +524,27 @@ class _AiResultBodyState extends State<AiResultBody> {
           ),
       ],
     );
+
+    // 드래그 핸들을 ListView 밖 고정 헤더로 분리 → 스크롤해도 항상 보임
+    if (widget.scrollController != null) {
+      return Column(
+        children: [
+          // 고정 핸들바 (항상 노출)
+          Center(
+            child: Container(
+              width: 36, height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Expanded(child: listView),
+        ],
+      );
+    }
+    return listView;
   }
 
   Widget _buildCard(_CardInfo c, double? destLat, double? destLng) {
@@ -2272,19 +2281,10 @@ class CompareResultBody extends StatelessWidget {
     final stAData = data['station_a'] is Map ? data['station_a'] as Map<String, dynamic> : null;
     final stBData = data['station_b'] is Map ? data['station_b'] as Map<String, dynamic> : null;
 
-    return ListView(
+    final listView = ListView(
       controller: scrollController,
-      padding: EdgeInsets.fromLTRB(16, scrollController != null ? 4 : 8, 16, 32),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
       children: [
-        // 드래그 핸들
-        if (scrollController != null)
-          Center(
-            child: Container(
-              width: 36, height: 4,
-              margin: const EdgeInsets.only(bottom: 10),
-              decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
-            ),
-          ),
 
         // 헤더
         Padding(
@@ -2351,6 +2351,22 @@ class CompareResultBody extends StatelessWidget {
         ],
       ],
     );
+
+    if (scrollController != null) {
+      return Column(
+        children: [
+          Center(
+            child: Container(
+              width: 36, height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+            ),
+          ),
+          Expanded(child: listView),
+        ],
+      );
+    }
+    return listView;
   }
 }
 

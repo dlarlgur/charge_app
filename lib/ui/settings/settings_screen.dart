@@ -77,6 +77,19 @@ class SettingsScreen extends ConsumerWidget {
           _settingTile(context, isDark, icon: Icons.shield_outlined, title: '개인정보 처리방침', onTap: () {}),
 
           const SizedBox(height: 24),
+
+          // 데이터 출처
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+            child: Text(
+              '유가 정보 출처: 한국석유공사 오피넷(www.opinet.co.kr)\n충전소 정보 출처: 환경부 전기차 충전소 공공데이터',
+              style: TextStyle(
+                fontSize: 11,
+                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                height: 1.6,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -420,3 +433,4 @@ class _AlertSettingTileState extends State<_AlertSettingTile> {
     );
   }
 }
+
