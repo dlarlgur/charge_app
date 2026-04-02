@@ -367,6 +367,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 }
               });
               _mapReady = true;
+              _precacheBrandLogos();
               _updateMarkers();
             },
             onCameraChange: (_, __) {
@@ -754,11 +755,45 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     );
   }
 
-  // ─── 마커 배지 아이콘 ───
-  Future<NOverlayImage> _badgeIcon(String text, Color color, bool isSelected) {
-    final fontSize = isSelected ? 13.0 : 11.0;
-    final double w = text.length * (isSelected ? 9.0 : 7.5) + 20;
-    final double h = isSelected ? 30.0 : 26.0;
+  // ─── 브랜드 로고 이미지 프리캐시 ───
+  static const _kBrandLogos = {
+    'GSC': 'assets/logo/oil/gs_icon.png',
+    'SKE': 'assets/logo/oil/sk_icon.png',
+    'HDO': 'assets/logo/oil/hd_icon.png',
+    'SOL': 'assets/logo/oil/soil_icon.png',
+    'NHO': 'assets/logo/oil/nh_icon.png',
+  };
+
+  Future<void> _precacheBrandLogos() async {
+    for (final path in _kBrandLogos.values) {
+      await precacheImage(AssetImage(path), context);
+    }
+  }
+
+  // ─── 마커 배지 아이콘 (로고 + 가격/텍스트 카드 스타일) ───
+  Future<NOverlayImage> _stationBadgeIcon({
+    required String label,
+    String? brand,
+    bool isEv = false,
+    bool isHighlighted = false,
+    bool isCheapest = false,
+  }) {
+    final String? logoAsset = brand != null ? _kBrandLogos[brand] : null;
+    final bool showLogo = logoAsset != null;
+    const double logoSize = 20.0;
+    const double logoGap = 4.0;
+    final double fontSize = isHighlighted ? 12.0 : 11.0;
+    final double textW = label.length * (isHighlighted ? 8.5 : 7.5);
+    final double contentW = (showLogo ? logoSize + logoGap : (isEv ? 14.0 + logoGap : 0.0)) + textW;
+    final double w = contentW + 18.0;
+    final double h = isHighlighted ? 30.0 : 26.0;
+
+    final Color borderColor = isHighlighted
+        ? _kSelectedColor
+        : (isCheapest ? const Color(0xFFEF4444) : const Color(0xFFDDDDDD));
+    final Color textColor = isHighlighted
+        ? _kSelectedColor
+        : (isCheapest ? const Color(0xFFEF4444) : const Color(0xFF1a1a1a));
 
     return NOverlayImage.fromWidget(
       widget: Column(
@@ -768,22 +803,38 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             width: w,
             height: h,
             decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(h / 2),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 4, offset: const Offset(0, 2))],
-              border: Border.all(color: Colors.white, width: 1.5),
-            ),
-            alignment: Alignment.center,
-            child: Text(text, style: TextStyle(
               color: Colors.white,
-              fontSize: fontSize,
-              fontWeight: FontWeight.w800,
-              height: 1,
-            )),
+              borderRadius: BorderRadius.circular(h / 2),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.22), blurRadius: 5, offset: const Offset(0, 2))],
+              border: Border.all(color: borderColor, width: isHighlighted ? 2.0 : 1.0),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                if (showLogo) ...[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(2),
+                    child: Image.asset(logoAsset, width: logoSize, height: logoSize, fit: BoxFit.contain),
+                  ),
+                  const SizedBox(width: logoGap),
+                ] else if (isEv) ...[
+                  const Icon(Icons.bolt_rounded, size: 14, color: Color(0xFF22C55E)),
+                  const SizedBox(width: logoGap),
+                ],
+                Text(label, style: TextStyle(
+                  color: textColor,
+                  fontSize: fontSize,
+                  fontWeight: FontWeight.w800,
+                  height: 1,
+                )),
+              ],
+            ),
           ),
           CustomPaint(
             size: const Size(8, 5),
-            painter: _TrianglePainter(color),
+            painter: _TrianglePainter(borderColor),
           ),
         ],
       ),
@@ -837,27 +888,22 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         final isSelected = _selectedStation != null &&
             _selectedStation is GasStation &&
             (_selectedStation as GasStation).id == s.id;
-        Color color;
-        if (isSelected) {
-          color = _kSelectedColor;
-        } else if (isCheapest) {
-          color = const Color(0xFFEF4444);
-        } else {
-          color = AppColors.gasBlue;
-        }
         final label = s.priceText;
         final markerId = 'gas_${s.id}';
         final marker = NMarker(
           id: markerId,
           position: NLatLng(s.lat, s.lng),
-          icon: await _badgeIcon(label, color, isSelected || isCheapest),
+          icon: await _stationBadgeIcon(
+            label: label, brand: s.brand,
+            isHighlighted: isSelected, isCheapest: isCheapest,
+          ),
         );
         _markerRefs[markerId] = marker;
         marker.setOnTapListener((_) async {
           final prev = _selectedStation;
           setState(() { _selectedStation = s; _isEvSelected = false; });
           await _restoreMarkerIcon(prev, _lastMinGasPrice);
-          await _highlightMarker(markerId, _kSelectedColor, label, true);
+          await _highlightMarker(markerId, label, brand: s.brand);
         });
         await controller.addOverlay(marker);
       }
@@ -869,33 +915,32 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         final isSelected = _selectedStation != null &&
             _selectedStation is EvStation &&
             (_selectedStation as EvStation).statId == s.statId;
-        final color = isSelected
-            ? _kSelectedColor
-            : (s.isTesla ? AppColors.evGreen : (s.availableCount > 0 ? AppColors.evGreen : const Color(0xFF9CA3AF)));
         final markerLabel = s.isTesla ? 'Tesla' : '${s.availableCount}/${s.totalCount}';
         final markerId = 'ev_${s.statId}';
         final marker = NMarker(
           id: markerId,
           position: NLatLng(s.lat, s.lng),
-          icon: await _badgeIcon(markerLabel, color, isSelected),
+          icon: await _stationBadgeIcon(
+            label: markerLabel, isEv: true, isHighlighted: isSelected,
+          ),
         );
         _markerRefs[markerId] = marker;
         marker.setOnTapListener((_) async {
           final prev = _selectedStation;
           setState(() { _selectedStation = s; _isEvSelected = true; });
           await _restoreMarkerIcon(prev, _lastMinGasPrice);
-          await _highlightMarker(markerId, _kSelectedColor, '${s.availableCount}/${s.totalCount}', true);
+          await _highlightMarker(markerId, markerLabel, isEv: true);
         });
         await controller.addOverlay(marker);
       }
     }
   }
 
-  /// 특정 마커를 강조색으로 변경 (선택 시).
-  Future<void> _highlightMarker(String markerId, Color color, String label, bool isSelected) async {
+  /// 특정 마커를 강조(선택) 스타일로 변경.
+  Future<void> _highlightMarker(String markerId, String label, {String? brand, bool isEv = false}) async {
     final marker = _markerRefs[markerId];
     if (marker == null) return;
-    marker.setIcon(await _badgeIcon(label, color, isSelected));
+    marker.setIcon(await _stationBadgeIcon(label: label, brand: brand, isEv: isEv, isHighlighted: true));
   }
 
   /// 이전에 선택된 스테이션 마커를 원래 아이콘으로 복원 (전체 redraw 없이).
@@ -906,15 +951,17 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       final marker = _markerRefs[markerId];
       if (marker == null) return;
       final isCheapest = minGasPrice != null && prev.price == minGasPrice;
-      final color = isCheapest ? const Color(0xFFEF4444) : AppColors.gasBlue;
-      final label = prev.priceText;
-      marker.setIcon(await _badgeIcon(label, color, isCheapest));
+      marker.setIcon(await _stationBadgeIcon(
+        label: prev.priceText, brand: prev.brand, isCheapest: isCheapest,
+      ));
     } else if (prev is EvStation) {
       final markerId = 'ev_${prev.statId}';
       final marker = _markerRefs[markerId];
       if (marker == null) return;
-      final color = prev.isTesla ? AppColors.evGreen : (prev.availableCount > 0 ? AppColors.evGreen : const Color(0xFF9CA3AF));
-      marker.setIcon(await _badgeIcon(prev.isTesla ? 'Tesla' : '${prev.availableCount}/${prev.totalCount}', color, false));
+      marker.setIcon(await _stationBadgeIcon(
+        label: prev.isTesla ? 'Tesla' : '${prev.availableCount}/${prev.totalCount}',
+        isEv: true,
+      ));
     }
   }
 
