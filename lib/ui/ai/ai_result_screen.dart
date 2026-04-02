@@ -44,6 +44,38 @@ String _detourAltListSubtitle({required int detourM, required num? detourTimeMin
   return '조금 우회';
 }
 
+/// `DraggableScrollableSheet`용 스크롤 컨트롤러가 붙은 영역에 포함되어야 핸들 드래그로 시트가 움직인다.
+class _PinnedSheetHandleDelegate extends SliverPersistentHeaderDelegate {
+  static const double extent = 24; // margin 10 + bar 4 + margin 10
+
+  @override
+  double get minExtent => extent;
+
+  @override
+  double get maxExtent => extent;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return ColoredBox(
+      color: Colors.white,
+      child: Align(
+        alignment: Alignment.center,
+        child: Container(
+          width: 36,
+          height: 4,
+          decoration: BoxDecoration(
+            color: Colors.grey[300],
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) => false;
+}
+
 // ─── 결과 화면 (독립 페이지로 push 할 때) ─────────────────────────────────────
 
 class AiResultScreen extends StatelessWidget {
@@ -390,10 +422,7 @@ class _AiResultBodyState extends State<AiResultBody> {
       );
     }
 
-    final listView = ListView(
-      controller: widget.scrollController,
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
-      children: [
+    final sheetChildren = <Widget>[
 
         // ── 유종 칩 ──
         if (widget.fuelLabel != null) ...[
@@ -522,29 +551,27 @@ class _AiResultBodyState extends State<AiResultBody> {
               style: const TextStyle(fontSize: 11, color: Color(0xFF999999)),
             ),
           ),
-      ],
-    );
+      ];
 
-    // 드래그 핸들을 ListView 밖 고정 헤더로 분리 → 스크롤해도 항상 보임
     if (widget.scrollController != null) {
-      return Column(
-        children: [
-          // 고정 핸들바 (항상 노출)
-          Center(
-            child: Container(
-              width: 36, height: 4,
-              margin: const EdgeInsets.symmetric(vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
+      return CustomScrollView(
+        controller: widget.scrollController,
+        slivers: [
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _PinnedSheetHandleDelegate(),
           ),
-          Expanded(child: listView),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+            sliver: SliverList(delegate: SliverChildListDelegate(sheetChildren)),
+          ),
         ],
       );
     }
-    return listView;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+      children: sheetChildren,
+    );
   }
 
   Widget _buildCard(_CardInfo c, double? destLat, double? destLng) {
@@ -2281,10 +2308,7 @@ class CompareResultBody extends StatelessWidget {
     final stAData = data['station_a'] is Map ? data['station_a'] as Map<String, dynamic> : null;
     final stBData = data['station_b'] is Map ? data['station_b'] as Map<String, dynamic> : null;
 
-    final listView = ListView(
-      controller: scrollController,
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
-      children: [
+    final sheetChildren = <Widget>[
 
         // 헤더
         Padding(
@@ -2349,24 +2373,27 @@ class CompareResultBody extends StatelessWidget {
             ),
           ),
         ],
-      ],
-    );
+    ];
 
     if (scrollController != null) {
-      return Column(
-        children: [
-          Center(
-            child: Container(
-              width: 36, height: 4,
-              margin: const EdgeInsets.symmetric(vertical: 10),
-              decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
-            ),
+      return CustomScrollView(
+        controller: scrollController,
+        slivers: [
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _PinnedSheetHandleDelegate(),
           ),
-          Expanded(child: listView),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+            sliver: SliverList(delegate: SliverChildListDelegate(sheetChildren)),
+          ),
         ],
       );
     }
-    return listView;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+      children: sheetChildren,
+    );
   }
 }
 

@@ -15,6 +15,7 @@ import '../../data/services/location_service.dart';
 import '../../providers/providers.dart';
 import '../filter/ev_filter_sheet.dart';
 import '../filter/gas_filter_sheet.dart';
+import '../widgets/gas_station_map_badge.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
@@ -756,19 +757,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     );
   }
 
-  // ─── 브랜드 로고 이미지 프리캐시 ───
-  static const _kBrandLogos = {
-    'GSC': 'assets/logo/oil/gs_icon.png',
-    'SKE': 'assets/logo/oil/sk_icon.png',
-    'HDO': 'assets/logo/oil/hd_icon.png',
-    'SOL': 'assets/logo/oil/soil_icon.png',
-    'NHO': 'assets/logo/oil/nh_icon.png',
-  };
-
   Future<void> _precacheBrandLogos() async {
-    for (final path in _kBrandLogos.values) {
-      await precacheImage(AssetImage(path), context);
-    }
+    await GasStationMapBadge.precacheBrandImages(context);
   }
 
   // ─── 마커 배지 아이콘 (로고 + 가격/텍스트 카드 스타일) ───
@@ -779,68 +769,20 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     bool isHighlighted = false,
     bool isCheapest = false,
   }) {
-    final String? logoAsset = brand != null ? _kBrandLogos[brand] : null;
-    final bool showLogo = logoAsset != null;
-    const double logoSize = 20.0;
-    const double logoGap = 4.0;
-    final double fontSize = isHighlighted ? 12.0 : 11.0;
-    final double textW = label.length * (isHighlighted ? 8.5 : 7.5);
-    final double contentW = (showLogo ? logoSize + logoGap : (isEv ? 14.0 + logoGap : 0.0)) + textW;
-    final double w = contentW + 18.0;
-    final double h = isHighlighted ? 30.0 : 26.0;
-
     final Color borderColor = isHighlighted
         ? _kSelectedColor
         : (isCheapest ? const Color(0xFFEF4444) : const Color(0xFFDDDDDD));
     final Color textColor = isHighlighted
         ? _kSelectedColor
         : (isCheapest ? const Color(0xFFEF4444) : const Color(0xFF1a1a1a));
-
-    return NOverlayImage.fromWidget(
-      widget: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: w,
-            height: h,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(h / 2),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.22), blurRadius: 5, offset: const Offset(0, 2))],
-              border: Border.all(color: borderColor, width: isHighlighted ? 2.0 : 1.0),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                if (showLogo) ...[
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
-                    child: Image.asset(logoAsset, width: logoSize, height: logoSize, fit: BoxFit.contain),
-                  ),
-                  const SizedBox(width: logoGap),
-                ] else if (isEv) ...[
-                  const Icon(Icons.bolt_rounded, size: 14, color: Color(0xFF22C55E)),
-                  const SizedBox(width: logoGap),
-                ],
-                Text(label, style: TextStyle(
-                  color: textColor,
-                  fontSize: fontSize,
-                  fontWeight: FontWeight.w800,
-                  height: 1,
-                )),
-              ],
-            ),
-          ),
-          CustomPaint(
-            size: const Size(8, 5),
-            painter: _TrianglePainter(borderColor),
-          ),
-        ],
-      ),
-      size: Size(w, h + 5),
-      context: context,
+    return GasStationMapBadge.overlayImage(
+      context,
+      label: label,
+      brand: brand,
+      isEv: isEv,
+      borderColor: borderColor,
+      textColor: textColor,
+      emphasizeBorder: isHighlighted,
     );
   }
 
@@ -1167,20 +1109,3 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 }
 
-class _TrianglePainter extends CustomPainter {
-  final Color color;
-  _TrianglePainter(this.color);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final path = Path()
-      ..moveTo(size.width / 2, size.height)
-      ..lineTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..close();
-    canvas.drawPath(path, Paint()..color = color);
-  }
-
-  @override
-  bool shouldRepaint(covariant _TrianglePainter old) => old.color != color;
-}

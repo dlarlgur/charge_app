@@ -18,6 +18,7 @@ import '../../providers/providers.dart';
 import 'ai_onboarding_screen.dart';
 import 'ai_result_screen.dart';
 import 'ai_vehicle_setup_screen.dart';
+import '../widgets/gas_station_map_badge.dart';
 
 const _kPrimary = Color(0xFF1D9E75);
 const _kPrimaryLight = Color(0xFFE1F5EE);
@@ -125,6 +126,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
   double? _lastRecSt2Lat, _lastRecSt2Lng;
   String _lastRecSt2Name = '';
   int? _lastRecSt2Price;
+  String? _lastRecStBrand;
+  String? _lastRecSt2Brand;
   List<dynamic>? _lastRecAlternatives;
 
   static final _wonFmt = NumberFormat('#,###', 'ko_KR');
@@ -303,6 +306,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
   // ── 지도 준비 → GPS 위치로 이동 + location overlay 표시 (지도탭과 동일) ──
   void _onMapReady(NaverMapController controller) {
     _mapController = controller;
+    unawaited(GasStationMapBadge.precacheBrandImages(context));
     ref.read(locationProvider.future).then((loc) {
       if (loc == null || !mounted) return;
       _suppressCameraChange = true;
@@ -760,8 +764,22 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
         if (primaryVia != null) {
           final parsed = _pathPointsFromServerJson(primaryVia['path_points']);
           if (parsed != null) {
-            viaPathPoints = parsed;
-            viaSegments = _parsePathSegments(primaryVia['path_segments']);
+            if (stLat != null && stLng != null) {
+              await _maybeReplaceViaRouteFromClient(
+                serverPts: parsed,
+                serverSeg: _parsePathSegments(primaryVia['path_segments']),
+                stLat: stLat,
+                stLng: stLng,
+                serverViaRoute: primaryVia,
+                apply: (pts, seg) {
+                  viaPathPoints = pts;
+                  viaSegments = seg;
+                },
+              );
+            } else {
+              viaPathPoints = parsed;
+              viaSegments = _parsePathSegments(primaryVia['path_segments']);
+            }
             usedServerPrimaryRoute = true;
             _debugSegmentStats(
               label: 'primaryVia(on_route/best_detour)',
@@ -774,8 +792,22 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
         if (!usedServerPrimaryRoute && vpr != null) {
           final parsed = _pathPointsFromServerJson(vpr['path_points']);
           if (parsed != null) {
-            viaPathPoints = parsed;
-            viaSegments = _parsePathSegments(vpr['path_segments']);
+            if (stLat != null && stLng != null) {
+              await _maybeReplaceViaRouteFromClient(
+                serverPts: parsed,
+                serverSeg: _parsePathSegments(vpr['path_segments']),
+                stLat: stLat,
+                stLng: stLng,
+                serverViaRoute: vpr,
+                apply: (pts, seg) {
+                  viaPathPoints = pts;
+                  viaSegments = seg;
+                },
+              );
+            } else {
+              viaPathPoints = parsed;
+              viaSegments = _parsePathSegments(vpr['path_segments']);
+            }
             usedServerPrimaryRoute = true;
             _debugSegmentStats(
               label: 'navigation.via_primary_route',
@@ -816,6 +848,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
         _lastRecSt2Lng = st2Lng;
         _lastRecSt2Name = st2Name;
         _lastRecSt2Price = st2Price;
+        _lastRecStBrand = detourSt?['brand']?.toString();
+        _lastRecSt2Brand = onRouteSt?['brand']?.toString();
         _lastRecAlternatives = recAlts;
 
         _drawResultOnMap(
@@ -827,10 +861,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
           stLng: stLng,
           stName: stName,
           stPrice: stPrice,
+          stBrand: _lastRecStBrand,
           st2Lat: st2Lat,
           st2Lng: st2Lng,
           st2Name: st2Name,
           st2Price: st2Price,
+          st2Brand: _lastRecSt2Brand,
           destLat: _destLat!,
           destLng: _destLng!,
           alternatives: recAlts,
@@ -956,10 +992,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
     required double? stLng,
     required String stName,
     int? stPrice,
+    String? stBrand,
     double? st2Lat,
     double? st2Lng,
     String st2Name = '',
     int? st2Price,
+    String? st2Brand,
     required double destLat,
     required double destLng,
     List<dynamic>? alternatives, // 대안 후보 (회색 마커)
@@ -1037,15 +1075,23 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
     );
     await _mapController!.addOverlay(originMarker);
 
-    // 우회 최저가 마커 (주황 고정)
+    // 우회 최저가 마커 (주황 고정) — 지도 탭과 동일 흰 배경+로고 배지
     if (stLat != null && stLng != null) {
       final stLabel = stPrice != null && stPrice > 0
           ? '${_wonFmt.format(stPrice)}원'
           : stName;
+      const c = Color(0xFFE8700A);
       final stMarker = NMarker(
         id: 'result_station',
         position: NLatLng(stLat, stLng),
-        icon: await _resultMarkerIcon(stLabel, const Color(0xFFE8700A)),
+        icon: await GasStationMapBadge.overlayImage(
+          context,
+          label: stLabel,
+          brand: stBrand,
+          borderColor: c,
+          textColor: c,
+          emphasizeBorder: true,
+        ),
         anchor: const NPoint(0.5, 1.0),
       );
       await _mapController!.addOverlay(stMarker);
@@ -1056,10 +1102,18 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
       final st2Label = st2Price != null && st2Price > 0
           ? '${_wonFmt.format(st2Price)}원'
           : st2Name;
+      const c2 = Color(0xFF1D6FE0);
       final st2Marker = NMarker(
         id: 'result_station2',
         position: NLatLng(st2Lat, st2Lng),
-        icon: await _resultMarkerIcon(st2Label, const Color(0xFF1D6FE0)),
+        icon: await GasStationMapBadge.overlayImage(
+          context,
+          label: st2Label,
+          brand: st2Brand,
+          borderColor: c2,
+          textColor: c2,
+          emphasizeBorder: true,
+        ),
         anchor: const NPoint(0.5, 1.0),
       );
       await _mapController!.addOverlay(st2Marker);
@@ -1094,10 +1148,19 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
           final altPriceRaw = altSt['price_won_per_liter'];
           final altPriceVal = altPriceRaw is num ? altPriceRaw.round() : null;
           final altLabel = altPriceVal != null ? '${_wonFmt.format(altPriceVal)}원' : '후보${altIdx + 1}';
+          const altBorder = Color(0xFFDDDDDD);
+          const altText = Color(0xFF1a1a1a);
           final altMarker = NMarker(
             id: 'result_alt_$altIdx',
             position: NLatLng(altLat, altLng),
-            icon: await _resultMarkerIcon(altLabel, const Color(0xFF9E9E9E)),
+            icon: await GasStationMapBadge.overlayImage(
+              context,
+              label: altLabel,
+              brand: altSt['brand']?.toString(),
+              borderColor: altBorder,
+              textColor: altText,
+              emphasizeBorder: false,
+            ),
             anchor: const NPoint(0.5, 1.0),
           );
           await _mapController!.addOverlay(altMarker);
@@ -1168,6 +1231,144 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
     return result.isEmpty ? null : result;
   }
 
+  static double _haversineMeters(double lat1, double lng1, double lat2, double lng2) {
+    const earthM = 6371000.0;
+    final r1 = lat1 * pi / 180, r2 = lat2 * pi / 180;
+    final dLat = (lat2 - lat1) * pi / 180;
+    final dLng = (lng2 - lng1) * pi / 180;
+    final a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(r1) * cos(r2) * sin(dLng / 2) * sin(dLng / 2);
+    final c = 2 * asin(min(1.0, sqrt(a)));
+    return earthM * c;
+  }
+
+  static int _closestPathPointIndex(List<Map<String, dynamic>> pts, double lat, double lng) {
+    var bestI = 0;
+    var bestD = double.infinity;
+    for (var i = 0; i < pts.length; i++) {
+      final p = pts[i];
+      final d = _haversineMeters(
+        (p['lat'] as num).toDouble(),
+        (p['lng'] as num).toDouble(),
+        lat,
+        lng,
+      );
+      if (d < bestD) {
+        bestD = d;
+        bestI = i;
+      }
+    }
+    return bestI;
+  }
+
+  /// 폴리라인 순서상 목적지 구간이 경유 주유소보다 먼저 나오면(출발→목적→경유 형태) 의심한다.
+  static bool _viaPolylineOrderSuspicious(
+    List<Map<String, dynamic>> pts, {
+    required double waypointLat,
+    required double waypointLng,
+    required double destLat,
+    required double destLng,
+  }) {
+    if (pts.length < 4) return false;
+    final iw = _closestPathPointIndex(pts, waypointLat, waypointLng);
+    final id = _closestPathPointIndex(pts, destLat, destLng);
+    final dW = _haversineMeters(
+      (pts[iw]['lat'] as num).toDouble(),
+      (pts[iw]['lng'] as num).toDouble(),
+      waypointLat,
+      waypointLng,
+    );
+    final dD = _haversineMeters(
+      (pts[id]['lat'] as num).toDouble(),
+      (pts[id]['lng'] as num).toDouble(),
+      destLat,
+      destLng,
+    );
+    const maxSnapM = 2500.0;
+    if (dW > maxSnapM || dD > maxSnapM) return false;
+
+    int? firstWithin(double alat, double alng, double radiusM) {
+      for (var i = 0; i < pts.length; i++) {
+        final p = pts[i];
+        if (_haversineMeters(
+              (p['lat'] as num).toDouble(),
+              (p['lng'] as num).toDouble(),
+              alat,
+              alng,
+            ) <=
+            radiusM) {
+          return i;
+        }
+      }
+      return null;
+    }
+
+    const nearM = 400.0;
+    final fDest = firstWithin(destLat, destLng, nearM);
+    final fWay = firstWithin(waypointLat, waypointLng, nearM);
+    if (fDest != null && fWay != null && fDest < fWay) return true;
+    return id < iw;
+  }
+
+  /// charge_server `via_route.polyline_order.suspicious` (없으면 false)
+  static bool _serverPolylineOrderSuspicious(Map<String, dynamic>? viaRoute) {
+    if (viaRoute == null) return false;
+    final po = viaRoute['polyline_order'];
+    if (po is! Map) return false;
+    return po['suspicious'] == true;
+  }
+
+  Future<void> _maybeReplaceViaRouteFromClient({
+    required List<Map<String, dynamic>> serverPts,
+    required List<Map<String, dynamic>>? serverSeg,
+    required double stLat,
+    required double stLng,
+    /// 서버가 내려준 via_route 전체 (polyline_order 검사용)
+    Map<String, dynamic>? serverViaRoute,
+    required void Function(List<Map<String, dynamic>> pts, List<Map<String, dynamic>>? seg) apply,
+  }) async {
+    if (_destLat == null || _destLng == null) {
+      apply(serverPts, serverSeg);
+      return;
+    }
+    final serverSusp = _serverPolylineOrderSuspicious(serverViaRoute);
+    final clientSusp = _viaPolylineOrderSuspicious(
+      serverPts,
+      waypointLat: stLat,
+      waypointLng: stLng,
+      destLat: _destLat!,
+      destLng: _destLng!,
+    );
+    if (!serverSusp && !clientSusp) {
+      apply(serverPts, serverSeg);
+      return;
+    }
+    debugPrint(
+      serverSusp
+          ? '[AI_MAP_ROUTE] 서버 polyline_order.suspicious → 클라이언트 길찾기로 대체'
+          : '[AI_MAP_ROUTE] 경유 경로 좌표 순서 의심 → 클라이언트 길찾기로 대체',
+    );
+    try {
+      final vr = await ApiService().getDrivingRoute(
+        startLat: _lastStartLat,
+        startLng: _lastStartLng,
+        goalLat: _destLat!,
+        goalLng: _destLng!,
+        waypointLat: stLat,
+        waypointLng: stLng,
+      );
+      if (vr['success'] == true) {
+        final parsed = _pathPointsFromServerJson(vr['path_points']);
+        if (parsed != null) {
+          final segs = _parsePathSegments(vr['path_segments']);
+          apply(parsed, segs);
+          return;
+        }
+      }
+    } catch (_) {}
+    apply(serverPts, serverSeg);
+  }
+
   // ── 다른 후보 경로보기 ──
   Future<void> _showAltRouteOnMap(Map<String, dynamic> altItem) async {
     if (_destLat == null || _destLng == null) return;
@@ -1187,8 +1388,17 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
     if (vrMap != null) {
       final parsed = _pathPointsFromServerJson(vrMap['path_points']);
       if (parsed != null) {
-        pathPoints = parsed;
-        pathSegments = _parsePathSegments(vrMap['path_segments']);
+        await _maybeReplaceViaRouteFromClient(
+          serverPts: parsed,
+          serverSeg: _parsePathSegments(vrMap['path_segments']),
+          stLat: stLat,
+          stLng: stLng,
+          serverViaRoute: vrMap,
+          apply: (pts, seg) {
+            pathPoints = pts;
+            pathSegments = seg;
+          },
+        );
         usedServerAlt = true;
         _debugSegmentStats(
           label: 'alternative.via_route',
@@ -1226,10 +1436,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
       stLng: stLng,
       stName: stName,
       stPrice: priceL,
-      st2Lat: _lastRecStLat,
-      st2Lng: _lastRecStLng,
-      st2Name: _lastRecStName,
-      st2Price: _lastRecStPrice,
+      stBrand: st['brand']?.toString(),
+      st2Lat: _lastRecSt2Lat,
+      st2Lng: _lastRecSt2Lng,
+      st2Name: _lastRecSt2Name,
+      st2Price: _lastRecSt2Price,
+      st2Brand: _lastRecSt2Brand,
       destLat: _destLat!,
       destLng: _destLng!,
       alternatives: _lastRecAlternatives,
@@ -1254,8 +1466,17 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
     if (vrMap != null) {
       final parsed = _pathPointsFromServerJson(vrMap['path_points']);
       if (parsed != null) {
-        pathPoints = parsed;
-        pathSegments = _parsePathSegments(vrMap['path_segments']);
+        await _maybeReplaceViaRouteFromClient(
+          serverPts: parsed,
+          serverSeg: _parsePathSegments(vrMap['path_segments']),
+          stLat: stLat,
+          stLng: stLng,
+          serverViaRoute: vrMap,
+          apply: (pts, seg) {
+            pathPoints = pts;
+            pathSegments = seg;
+          },
+        );
       }
     } else {
       try {
@@ -1281,6 +1502,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
       stLng: stLng,
       stName: stName,
       stPrice: priceL,
+      stBrand: st['brand']?.toString(),
       destLat: _destLat!,
       destLng: _destLng!,
     );
@@ -1319,10 +1541,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
       stLng: _lastRecStLng,
       stName: _lastRecStName,
       stPrice: _lastRecStPrice,
+      stBrand: _lastRecStBrand,
       st2Lat: _lastRecSt2Lat,
       st2Lng: _lastRecSt2Lng,
       st2Name: _lastRecSt2Name,
       st2Price: _lastRecSt2Price,
+      st2Brand: _lastRecSt2Brand,
       destLat: _destLat!,
       destLng: _destLng!,
       alternatives: _lastRecAlternatives,
@@ -1563,19 +1787,30 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
         final isCheapest = cheapestId == stId && !isA && !isB;
 
         final String label;
-        final Color markerColor;
+        final Color borderColor;
+        final Color textColor;
+        final bool emphasize;
+        final String? brand = st['brand']?.toString();
         if (isA) {
-          label = 'A  ${price != null ? "${_wonFmt.format(price)}원" : ""}';
-          markerColor = const Color(0xFFE8700A); // 주황
+          label = price != null ? 'A ${_wonFmt.format(price)}원' : 'A';
+          borderColor = const Color(0xFFE8700A);
+          textColor = const Color(0xFFE8700A);
+          emphasize = true;
         } else if (isB) {
-          label = 'B  ${price != null ? "${_wonFmt.format(price)}원" : ""}';
-          markerColor = _kCompareBlue; // 파랑
+          label = price != null ? 'B ${_wonFmt.format(price)}원' : 'B';
+          borderColor = _kCompareBlue;
+          textColor = _kCompareBlue;
+          emphasize = true;
         } else if (isCheapest) {
-          label = '최저가  ${price != null ? "${_wonFmt.format(price)}원" : ""}';
-          markerColor = _kCompareBlue;
+          label = price != null ? '최저가 ${_wonFmt.format(price)}원' : '최저가';
+          borderColor = const Color(0xFFEF4444);
+          textColor = const Color(0xFFEF4444);
+          emphasize = false;
         } else {
           label = price != null ? '${_wonFmt.format(price)}원' : '${i + 1}';
-          markerColor = const Color(0xFF9E9E9E);
+          borderColor = const Color(0xFFDDDDDD);
+          textColor = const Color(0xFF1a1a1a);
+          emphasize = false;
         }
 
         final marker = NMarker(
@@ -1588,7 +1823,14 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
             haloColor: const Color(0x00000000),
             minZoom: 22,
           ),
-          icon: await _resultMarkerIcon(label, markerColor),
+          icon: await GasStationMapBadge.overlayImage(
+            context,
+            label: label,
+            brand: brand,
+            borderColor: borderColor,
+            textColor: textColor,
+            emphasizeBorder: emphasize,
+          ),
           anchor: const NPoint(0.5, 1.0),
         );
         marker.setOnTapListener((_) {
@@ -1774,26 +2016,50 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
       final lat = stAData['lat'] is num ? (stAData['lat'] as num).toDouble() : null;
       final lng = stAData['lng'] is num ? (stAData['lng'] as num).toDouble() : null;
       if (lat != null && lng != null) {
-        final color = winner == 'station_a' ? const Color(0xFFE8700A) : const Color(0xFF1D6FE0);
+        final isWin = winner == 'station_a';
+        final color = isWin ? const Color(0xFFE8700A) : const Color(0xFF1D6FE0);
+        final p = stAData['price_won_per_liter'] is num
+            ? (stAData['price_won_per_liter'] as num).round()
+            : null;
+        final label = p != null ? 'A ${_wonFmt.format(p)}원' : 'A';
         final marker = NMarker(
           id: 'compare_a',
           position: NLatLng(lat, lng),
-          icon: await _resultMarkerIcon('A', color),
+          icon: await GasStationMapBadge.overlayImage(
+            context,
+            label: label,
+            brand: stAData['brand']?.toString(),
+            borderColor: color,
+            textColor: color,
+            emphasizeBorder: isWin,
+          ),
           anchor: const NPoint(0.5, 1.0),
         );
         await _mapController!.addOverlay(marker);
       }
     }
-    
+
     if (stBData != null) {
       final lat = stBData['lat'] is num ? (stBData['lat'] as num).toDouble() : null;
       final lng = stBData['lng'] is num ? (stBData['lng'] as num).toDouble() : null;
       if (lat != null && lng != null) {
-        final color = winner == 'station_b' ? const Color(0xFFE8700A) : const Color(0xFF1D6FE0);
+        final isWin = winner == 'station_b';
+        final color = isWin ? const Color(0xFFE8700A) : const Color(0xFF1D6FE0);
+        final p = stBData['price_won_per_liter'] is num
+            ? (stBData['price_won_per_liter'] as num).round()
+            : null;
+        final label = p != null ? 'B ${_wonFmt.format(p)}원' : 'B';
         final marker = NMarker(
           id: 'compare_b',
           position: NLatLng(lat, lng),
-          icon: await _resultMarkerIcon('B', color),
+          icon: await GasStationMapBadge.overlayImage(
+            context,
+            label: label,
+            brand: stBData['brand']?.toString(),
+            borderColor: color,
+            textColor: color,
+            emphasizeBorder: isWin,
+          ),
           anchor: const NPoint(0.5, 1.0),
         );
         await _mapController!.addOverlay(marker);
