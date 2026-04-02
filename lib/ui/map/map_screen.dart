@@ -396,6 +396,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             left: 12, right: 12,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 // 검색창
                 _buildSearchBar(isDark),
@@ -851,7 +852,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     return List.generate(maxCount, (i) => sorted[(i * step).floor()]);
   }
 
-  static const _kSelectedColor = Color(0xFFF59E0B); // amber: 선택된 마커
+  static const _kSelectedColor = Color(0xFF60A5FA); // light blue: 선택된 마커
 
   // ─── 마커 업데이트 ───
   Future<void> _updateMarkers() async {
@@ -901,6 +902,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         _markerRefs[markerId] = marker;
         marker.setOnTapListener((_) async {
           final prev = _selectedStation;
+          // 같은 마커 재탭 → 선택 해제
+          if (prev is GasStation && prev.id == s.id) {
+            setState(() { _selectedStation = null; });
+            await _restoreMarkerIcon(prev, _lastMinGasPrice);
+            return;
+          }
           setState(() { _selectedStation = s; _isEvSelected = false; });
           await _restoreMarkerIcon(prev, _lastMinGasPrice);
           await _highlightMarker(markerId, label, brand: s.brand);
@@ -927,6 +934,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         _markerRefs[markerId] = marker;
         marker.setOnTapListener((_) async {
           final prev = _selectedStation;
+          // 같은 마커 재탭 → 선택 해제
+          if (prev is EvStation && prev.statId == s.statId) {
+            setState(() { _selectedStation = null; });
+            await _restoreMarkerIcon(prev, _lastMinGasPrice);
+            return;
+          }
           setState(() { _selectedStation = s; _isEvSelected = true; });
           await _restoreMarkerIcon(prev, _lastMinGasPrice);
           await _highlightMarker(markerId, markerLabel, isEv: true);
