@@ -223,10 +223,10 @@ class _ViaWaypointNavigationSheet extends StatelessWidget {
                 subtitle: 'SK텔레콤',
                 onTap: () => _launch(
                   context,
-                  // 경유지 파라미터: viaX1/viaY1/vianame1 (번호형 필수)
+                  // 경유지 파라미터: rPoiX1/rPoiY1/rPoiName1 (Tmap 공식)
                   'tmap://route?startX=$originLng&startY=$originLat&startname=${Uri.encodeComponent(safeOriginName)}'
                   '&goalname=${Uri.encodeComponent(destinationName)}&goaly=$destinationLat&goalx=$destinationLng'
-                  '&viaX1=$waypointLng&viaY1=$waypointLat&vianame1=${Uri.encodeComponent(waypointName)}',
+                  '&rPoiX1=$waypointLng&rPoiY1=$waypointLat&rPoiName1=${Uri.encodeComponent(waypointName)}',
                   fallback: 'https://www.tmap.co.kr',
                 ),
               ),

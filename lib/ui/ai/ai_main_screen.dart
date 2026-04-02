@@ -86,6 +86,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
   // ── 사용자 선택 모드 ──
   bool _isSelectMode = false;
   List<Map<String, dynamic>>? _selectableStations;
+  bool _highwayFilterActive = false;
   String? _selectedStationAId;
   String? _selectedStationBId;
   bool _isCompareResultMode = false;
@@ -1532,10 +1533,15 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
     );
     await _mapController!.addOverlay(destMarker);
 
+    // 고속도로 필터 적용
+    final visibleStations = _highwayFilterActive
+        ? _selectableStations!.where((s) => s['is_highway_rest_area'] == true).toList()
+        : _selectableStations!;
+
     // 최저가 ID 찾기
     String? cheapestId;
     int? cheapestPrice;
-    for (final st in _selectableStations!) {
+    for (final st in visibleStations) {
       final p = st['price_won_per_liter'] is num ? (st['price_won_per_liter'] as num).round() : null;
       if (p != null && (cheapestPrice == null || p < cheapestPrice)) {
         cheapestPrice = p;
@@ -1544,8 +1550,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
     }
 
     // 주유소 마커들: A=주황, B=파랑, 최저가=회색+"최저가", 기타=회색+가격
-    for (int i = 0; i < _selectableStations!.length; i++) {
-      final st = _selectableStations![i];
+    for (int i = 0; i < visibleStations.length; i++) {
+      final st = visibleStations[i];
       final stId = st['id']?.toString() ?? '$i';
       final lat = st['lat'] is num ? (st['lat'] as num).toDouble() : null;
       final lng = st['lng'] is num ? (st['lng'] as num).toDouble() : null;
@@ -1611,12 +1617,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
       }
     }
 
-    // 카메라 이동
-    final allLats = [_lastStartLat, _destLat!, ..._selectableStations!.map((s) {
+    // 카메라 이동 (필터된 목록 기준)
+    final allLats = [_lastStartLat, _destLat!, ...visibleStations.map((s) {
       final lat = s['lat'];
       return lat is num ? lat.toDouble() : _lastStartLat;
     })];
-    final allLngs = [_lastStartLng, _destLng!, ..._selectableStations!.map((s) {
+    final allLngs = [_lastStartLng, _destLng!, ...visibleStations.map((s) {
       final lng = s['lng'];
       return lng is num ? lng.toDouble() : _lastStartLng;
     })];
@@ -1641,6 +1647,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
       _isSelectMode = false;
       _isSelectSheetVisible = false;
       _selectableStations = null;
+      _highwayFilterActive = false;
       _selectedStationAId = null;
       _selectedStationBId = null;
     });
@@ -2590,6 +2597,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
                 },
                 onCompare: _runCompare,
                 onClose: _closeSelectSheet,
+                onHighwayFilterChanged: (v) {
+                  setState(() => _highwayFilterActive = v);
+                  unawaited(_drawSelectModeMap());
+                },
               ),
             ),
 
@@ -2696,6 +2707,7 @@ class _StationSelectInlineSheet extends StatefulWidget {
   final void Function(String stId) onStationTap;
   final VoidCallback onCompare;
   final VoidCallback onClose;
+  final void Function(bool highwayOnly)? onHighwayFilterChanged;
 
   const _StationSelectInlineSheet({
     required this.sheetScrollCtrl,
@@ -2707,6 +2719,7 @@ class _StationSelectInlineSheet extends StatefulWidget {
     required this.onStationTap,
     required this.onCompare,
     required this.onClose,
+    this.onHighwayFilterChanged,
   });
 
   @override
@@ -2831,7 +2844,10 @@ class _StationSelectInlineSheetState extends State<_StationSelectInlineSheet> {
                         children: [
                           FilterChip(
                             selected: _highwayOnly,
-                            onSelected: (v) => setState(() => _highwayOnly = v),
+                            onSelected: (v) {
+                              setState(() => _highwayOnly = v);
+                              widget.onHighwayFilterChanged?.call(v);
+                            },
                             label: const Text('고속도로만', style: TextStyle(fontSize: 12)),
                             showCheckmark: false,
                             selectedColor: const Color(0xFFE7F0FF),
