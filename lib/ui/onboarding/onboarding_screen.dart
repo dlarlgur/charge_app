@@ -18,7 +18,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   int _step = 0;
   VehicleType _vehicleType = VehicleType.gas;
   FuelType _fuelType = FuelType.gasoline;
-  List<String> _chargerTypes = ['01'];
+  List<String> _chargerTypes = ['02', '04'];
   int _radius = 5000;
 
   // 차종에 따라 스텝 수가 달라짐 (마지막은 항상 알림 권한)
