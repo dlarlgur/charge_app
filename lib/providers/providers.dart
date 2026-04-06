@@ -135,6 +135,12 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 // ─── Active Tab Provider ───
 final activeTabProvider = StateProvider<int>((ref) {
   final settings = ref.read(settingsProvider);
+  // 홈탭 순서 바꾼 경우: 첫 번째 위치에 표시되는 탭을 기본 활성으로
+  final tabOrder = Hive.box(AppConstants.settingsBox).get(AppConstants.keyHomeTabOrder, defaultValue: 0) as int;
+  // tabOrder == 0: [주유, 충전] → defaultTab 그대로
+  // tabOrder == 1: [충전, 주유] → 충전(1)이 앞에 오므로 활성 = 1
+  if (tabOrder == 1 && settings.defaultTab == 0) return 1;
+  if (tabOrder == 0 && settings.defaultTab == 1) return 0;
   return settings.defaultTab;
 });
 
