@@ -115,6 +115,8 @@ class EvStation {
   final String? kindDetail;
   final bool isTesla;
   final String? stationType; // 'SC': 슈퍼차저, 'DT': 데스티네이션
+  final bool limitYn;
+  final String? limitDetail;
 
   EvStation({
     required this.statId,
@@ -136,6 +138,8 @@ class EvStation {
     this.kindDetail,
     this.isTesla = false,
     this.stationType,
+    this.limitYn = false,
+    this.limitDetail,
   });
 
   factory EvStation.fromJson(Map<String, dynamic> json) {
@@ -163,6 +167,8 @@ class EvStation {
       kindDetail: json['kindDetail'],
       isTesla: json['isTesla'] == true,
       stationType: json['stationType'],
+      limitYn: json['limitYn'] == 'Y' || json['limitYn'] == true,
+      limitDetail: json['limitDetail']?.toString().isNotEmpty == true ? json['limitDetail'] : null,
     );
   }
 
