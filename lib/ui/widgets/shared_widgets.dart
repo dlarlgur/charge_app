@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import '../../core/constants/api_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/helpers.dart';
 import '../../data/models/models.dart';
@@ -714,7 +716,17 @@ class _GasEvTabBarState extends State<GasEvTabBar> {
   // _order[i] = 위치 i에 표시할 탭 인덱스 (0=주유, 1=충전)
   List<int> _order = [0, 1];
 
-  void _swap() => setState(() => _order = [_order[1], _order[0]]);
+  @override
+  void initState() {
+    super.initState();
+    final saved = Hive.box(AppConstants.settingsBox).get(AppConstants.keyHomeTabOrder, defaultValue: 0) as int;
+    if (saved == 1) _order = [1, 0];
+  }
+
+  void _swap() {
+    setState(() => _order = [_order[1], _order[0]]);
+    Hive.box(AppConstants.settingsBox).put(AppConstants.keyHomeTabOrder, _order[0]);
+  }
 
   @override
   Widget build(BuildContext context) {

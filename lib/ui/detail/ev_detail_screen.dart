@@ -211,11 +211,12 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
           _infoRow('이용시간', s.useTime),
           _infoRow('주차요금', s.parkingFree ? '무료' : '유료',
               valueColor: s.parkingFree ? AppColors.success : null),
-          if (s.limitYn) _infoRow(
+          if (s.limitYn || (s.limitDetail?.isNotEmpty == true)) _infoRow(
             '이용제한',
             s.limitDetail?.isNotEmpty == true ? s.limitDetail! : '외부인 이용 제한',
             valueColor: const Color(0xFFE24B4A),
           ),
+          if (s.note?.isNotEmpty == true) _infoRow('충전소 안내', s.note!),
           if (s.distanceText.isNotEmpty) _infoRow('거리', s.distanceText),
           const SizedBox(height: 20),
 

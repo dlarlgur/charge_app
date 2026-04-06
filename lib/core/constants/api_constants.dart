@@ -119,4 +119,6 @@ class AppConstants {
   static const keyAiTargetMode = 'ai_target_mode'; // FULL | PRICE | LITER
   static const keyAiTargetValue = 'ai_target_value';
   static const keyAiLiterTarget = 'ai_liter_target';
+
+  static const keyHomeTabOrder = 'home_tab_order'; // 0=주유 먼저, 1=충전 먼저
 }
