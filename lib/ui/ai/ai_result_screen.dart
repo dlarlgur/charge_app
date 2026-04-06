@@ -3,6 +3,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/utils/navigation_util.dart';
+import '../widgets/shared_widgets.dart';
 
 const _kPrimary = Color(0xFF1D9E75);
 const _kPrimaryLight = Color(0xFFE1F5EE);
@@ -323,7 +324,7 @@ class _AiResultBodyState extends State<AiResultBody> {
         detourTimeMin: dtDetourTimeMin,
         savings: dtSavings,
         tag: '우회 최저가',
-        tagColor: const Color(0xFF1D6FE0),
+        tagColor: const Color(0xFF1D6FE0),  // 파랑
         isAiRec: true,
         isUserSelected: false,
         rawData: bestDetour,
@@ -340,7 +341,7 @@ class _AiResultBodyState extends State<AiResultBody> {
         detourTimeMin: orDetourTimeMin,
         savings: 0,
         tag: '경로상 최저가',
-        tagColor: const Color(0xFF555555),
+        tagColor: const Color(0xFFE8700A),  // 주황
         isAiRec: true,
         isUserSelected: false,
         rawData: onRoute,
@@ -397,7 +398,7 @@ class _AiResultBodyState extends State<AiResultBody> {
         detourTimeMin: orDetourTimeMin,
         savings: 0,
         tag: '경로상 최저가',
-        tagColor: const Color(0xFF555555),
+        tagColor: const Color(0xFFE8700A),  // 주황
         isAiRec: false,
         isUserSelected: false,
         rawData: onRoute,
@@ -415,7 +416,7 @@ class _AiResultBodyState extends State<AiResultBody> {
         detourTimeMin: dtDetourTimeMin,
         savings: dtSavings,
         tag: '우회 최저가',
-        tagColor: const Color(0xFF1D6FE0),
+        tagColor: const Color(0xFF1D6FE0),  // 파랑
         isAiRec: false,
         isUserSelected: false,
         rawData: bestDetour,
@@ -472,8 +473,10 @@ class _AiResultBodyState extends State<AiResultBody> {
             onRouteLat: orLat,
             onRouteLng: orLng,
             onRouteFuelType: onRouteSt?['fuel_type']?.toString(),
+            onRouteBrand: onRouteSt?['brand']?.toString(),
             showDetour: showDetour,
             detourName: showDetour ? _stationNameFrom(detourSt) : '',
+            detourBrand: detourSt?['brand']?.toString(),
             detourPrice: dtPrice,
             detourCost: dtCost,
             dtDetourM: dtDetourM,
@@ -815,8 +818,10 @@ class _StationComparisonSection extends StatelessWidget {
   final double? onRouteLng;
   final String? onRouteFuelType;
 
+  final String? onRouteBrand;
   final bool showDetour;
   final String detourName;
+  final String? detourBrand;
   final double? detourPrice;
   final int detourCost;
   final int dtDetourM;
@@ -846,8 +851,10 @@ class _StationComparisonSection extends StatelessWidget {
     required this.onRouteLat,
     required this.onRouteLng,
     required this.onRouteFuelType,
+    this.onRouteBrand,
     required this.showDetour,
     required this.detourName,
+    this.detourBrand,
     required this.detourPrice,
     required this.detourCost,
     required this.dtDetourM,
@@ -890,6 +897,7 @@ class _StationComparisonSection extends StatelessWidget {
     // on_route가 없으면 detour(우회 최저가)를 추천 카드로 강제
     final recIsDetour = (!hasOnRoute && showDetour && detourName.isNotEmpty) || (aiRecIsDetour && hasBoth);
     final recName = recIsDetour ? detourName : onRouteName;
+    final recBrand = recIsDetour ? detourBrand : onRouteBrand;
     final recPrice = recIsDetour ? detourPrice : onRoutePrice;
     final recCost = recIsDetour ? detourCost : onRouteCost;
     final recDetourM = recIsDetour ? dtDetourM : onRouteDetourM;
@@ -904,6 +912,7 @@ class _StationComparisonSection extends StatelessWidget {
         // ── 추천 카드 ──
         _RecommendedCard(
           name: recName,
+          brand: recBrand,
           price: recPrice,
           cost: recCost,
           detourM: recDetourM,
@@ -961,6 +970,7 @@ class _StationComparisonSection extends StatelessWidget {
 
 class _RecommendedCard extends StatelessWidget {
   final String name;
+  final String? brand;
   final double? price;
   final int cost;
   final int detourM;
@@ -974,6 +984,7 @@ class _RecommendedCard extends StatelessWidget {
 
   const _RecommendedCard({
     required this.name,
+    this.brand,
     required this.price,
     required this.cost,
     required this.detourM,
@@ -1061,11 +1072,21 @@ class _RecommendedCard extends StatelessWidget {
             ),
           ),
 
-          // 주유소명
+          // 브랜드 로고 + 주유소명
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-            child: Text(name,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF1a1a1a))),
+            child: Row(
+              children: [
+                if (brand != null && brand!.isNotEmpty) ...[
+                  BrandLogo(brand: brand!),
+                  const SizedBox(width: 10),
+                ],
+                Expanded(
+                  child: Text(name,
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF1a1a1a))),
+                ),
+              ],
+            ),
           ),
 
           const SizedBox(height: 12),

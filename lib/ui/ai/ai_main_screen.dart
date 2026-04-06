@@ -11,6 +11,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/constants/api_constants.dart';
+import '../../core/navigation/app_route_observer.dart';
 import '../../data/models/models.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/location_service.dart';
@@ -34,7 +35,7 @@ class AiMainScreen extends ConsumerStatefulWidget {
   ConsumerState<AiMainScreen> createState() => _AiMainScreenState();
 }
 
-class _AiMainScreenState extends ConsumerState<AiMainScreen> {
+class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   // ── 지도 ──
   NaverMapController? _mapController;
   StreamSubscription<({double lat, double lng})>? _locationSub;
@@ -101,8 +102,21 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
   final DraggableScrollableController _sheetController = DraggableScrollableController();
   double _sheetSize = 0.45;
   DateTime? _lastInScreenBackHandledAt;
+  /// `DraggableScrollableSheet` 빌더가 넘기는 스크롤 컨트롤러 (결과·비교 본문)
+  ScrollController? _resultSheetScrollController;
+  PageRoute<void>? _routeAwarePageRoute;
+
+  /// 시트 확대 드래그가 먹히려면 본문 스크롤이 맨 위(0)여야 한다.
+  void _resetResultSheetScrollToTop() {
+    final c = _resultSheetScrollController;
+    if (c == null || !c.hasClients) return;
+    if (c.positions.length != 1) return;
+    if (c.offset <= 0) return;
+    c.jumpTo(0);
+  }
 
   void _collapseResultSheetForMapFocus() {
+    _resetResultSheetScrollToTop();
     if (!_sheetController.isAttached) return;
     const targetSize = 0.12;
     if ((_sheetController.size - targetSize).abs() < 0.01) return;
@@ -113,6 +127,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOutCubic,
         );
+        if (mounted) _resetResultSheetScrollToTop();
       } catch (_) {}
     }());
   }
@@ -140,9 +155,15 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
   }
 
   void _onSheetChanged() {
-    if (mounted && _sheetController.isAttached) {
-      setState(() => _sheetSize = _sheetController.size);
+    if (!mounted || !_sheetController.isAttached) return;
+    final s = _sheetController.size;
+    // 최소 높이에 붙어 있을 때 스크롤이 남아 있으면, 위로 드래그해도 시트만 안 커지고 본문만 스크롤된다.
+    if (s <= 0.125) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _resetResultSheetScrollToTop();
+      });
     }
+    setState(() => _sheetSize = s);
   }
 
   @override
@@ -152,10 +173,30 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
       _addressLoaded = true;
       _loadCurrentAddress();
     }
+    final route = ModalRoute.of(context);
+    if (route is PageRoute<void> && route != _routeAwarePageRoute) {
+      if (_routeAwarePageRoute != null) {
+        appRouteObserver.unsubscribe(this);
+      }
+      _routeAwarePageRoute = route;
+      appRouteObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void didPopNext() {
+    if (!mounted) return;
+    // 상세 등에서 pop 후 시트가 접힌 상태면 스크롤이 남아 확대 드래그가 안 먹을 수 있음
+    if (_sheetController.isAttached && _sheetController.size <= 0.125) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _resetResultSheetScrollToTop();
+      });
+    }
   }
 
   @override
   void dispose() {
+    appRouteObserver.unsubscribe(this);
     _sheetController.removeListener(_onSheetChanged);
     _sheetController.dispose();
     _selectSheetCtrl.dispose();
@@ -725,7 +766,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
         String stName = '우회 최저가', st2Name = '경로상 최저가';
         int? stPrice, st2Price;
 
-        // st(주황) = 우회 최저가
+        // st = 우회 최저가 (분석 UI·지도 모두 파랑 #1D6FE0)
         if (detourSt != null) {
           stLat = detourSt['lat'] is num ? (detourSt['lat'] as num).toDouble() : null;
           stLng = detourSt['lng'] is num ? (detourSt['lng'] as num).toDouble() : null;
@@ -735,7 +776,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
           stPrice = p is num ? p.round() : null;
         }
 
-        // st2(파랑) = 경로상 최저가
+        // st2 = 경로상 최저가 (분석 UI·지도 모두 주황 #E8700A)
         if (onRouteSt != null) {
           st2Lat = onRouteSt['lat'] is num ? (onRouteSt['lat'] as num).toDouble() : null;
           st2Lng = onRouteSt['lng'] is num ? (onRouteSt['lng'] as num).toDouble() : null;
@@ -1075,12 +1116,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
     );
     await _mapController!.addOverlay(originMarker);
 
-    // 우회 최저가 마커 (주황 고정) — 지도 탭과 동일 흰 배경+로고 배지
+    // 우회 최저가 마커 (파랑) — ai_result_screen 태그·비교 테이블과 동일
     if (stLat != null && stLng != null) {
       final stLabel = stPrice != null && stPrice > 0
           ? '${_wonFmt.format(stPrice)}원'
           : stName;
-      const c = Color(0xFFE8700A);
+      const c = Color(0xFF1D6FE0);
       final stMarker = NMarker(
         id: 'result_station',
         position: NLatLng(stLat, stLng),
@@ -1097,12 +1138,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
       await _mapController!.addOverlay(stMarker);
     }
 
-    // 경로상 최저가 마커 (파랑 고정)
+    // 경로상 최저가 마커 (주황) — AI 추천 강조색(_kMarkerRecommend)과 동일
     if (st2Lat != null && st2Lng != null && st2Name.isNotEmpty) {
       final st2Label = st2Price != null && st2Price > 0
           ? '${_wonFmt.format(st2Price)}원'
           : st2Name;
-      const c2 = Color(0xFF1D6FE0);
+      const c2 = Color(0xFFE8700A);
       final st2Marker = NMarker(
         id: 'result_station2',
         position: NLatLng(st2Lat, st2Lng),
@@ -2752,7 +2793,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
               maxChildSize: 0.9,
               snap: true,
               snapSizes: const [0.12, 0.45, 0.9],
-              builder: (_, sc) => Container(
+              builder: (_, sc) {
+                _resultSheetScrollController = sc;
+                return Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius:
@@ -2787,7 +2830,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> {
                         onAltRouteView: _showAltRouteOnMap,
                         onResetToAiRec: _resetToAiRec,
                       ),
-              ),
+                );
+              },
             ),
 
           // ── 현재위치 버튼 (결과 모드: 시트 위에 붙어 이동) ──
