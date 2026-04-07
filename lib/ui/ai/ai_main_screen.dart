@@ -18,7 +18,7 @@ import '../../data/services/location_service.dart';
 import '../../providers/providers.dart';
 import 'ai_onboarding_screen.dart';
 import 'ai_result_screen.dart';
-import 'ai_vehicle_setup_screen.dart';
+import 'ai_vehicle_list_screen.dart';
 import '../widgets/gas_station_map_badge.dart';
 
 const _kPrimary = Color(0xFF1D9E75);
@@ -2167,6 +2167,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     // AI 탭(index 2)에 진입할 때마다 지도를 내 위치로 이동 + 주소 재로드
     ref.listen(bottomNavIndexProvider, (prev, next) {
       if (next == 2 && prev != 2) {
+        // AI 탭 재진입 시 온보딩 플래그 리셋 — 차량 등록 없이 뒤로가기 후 재진입할 때 다시 온보딩 표시
+        _onboardingPushed = false;
         if (_mapController != null) _moveToMyLocation();
         if (_currentLocationAddress == null) _loadCurrentAddress();
       }
@@ -2192,6 +2194,30 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final tankCapacity = (box.get(AppConstants.keyAiTankCapacity, defaultValue: 55.0) as num).toDouble();
     final efficiency = (box.get(AppConstants.keyAiEfficiency, defaultValue: 12.5) as num).toDouble();
     final fuelLabel = FuelType.fromCode(fuelCode).label;
+
+    // 멀티 차량 — 선택된 차량 프로필
+    VehicleProfile? selectedVehicle;
+    {
+      final selectedId = box.get(AppConstants.keyAiSelectedVehicleId) as String?;
+      final rawVehicles = box.get(AppConstants.keyAiVehicles);
+      if (rawVehicles != null && selectedId != null) {
+        try {
+          final List decoded = jsonDecode(rawVehicles as String);
+          final all = decoded.map((e) => VehicleProfile.fromJson(e as Map<String, dynamic>)).toList();
+          selectedVehicle = all.cast<VehicleProfile?>().firstWhere(
+            (v) => v?.id == selectedId, orElse: () => all.isNotEmpty ? all.first : null);
+        } catch (_) {}
+      }
+    }
+    final isEvVehicle = selectedVehicle?.isEV ?? false;
+
+    // 선택 차량에 따라 분석 타입 자동 동기화
+    final expectedType = isEvVehicle ? 'ev' : 'gas';
+    if (_aiAnalysisType != expectedType) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _aiAnalysisType = expectedType);
+      });
+    }
 
     return PopScope(
       canPop: false,
@@ -2455,73 +2481,32 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // 상단 분석 탭 + 설정
+                      // 상단 분석 레이블 + 차량 버튼
                       Row(
                         children: [
                           Expanded(
                             child: Container(
-                              padding: const EdgeInsets.all(4),
+                              padding: const EdgeInsets.symmetric(vertical: 11),
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: const Color(0xFFEEEEEE)),
                               ),
                               child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Expanded(
-                                    child: GestureDetector(
-                                      onTap: canGasAnalysis
-                                          ? () => setState(() => _aiAnalysisType = 'gas')
-                                          : null,
-                                      child: AnimatedContainer(
-                                        duration: const Duration(milliseconds: 160),
-                                        padding: const EdgeInsets.symmetric(vertical: 9),
-                                        decoration: BoxDecoration(
-                                          color: _aiAnalysisType == 'gas'
-                                              ? _kPrimary.withOpacity(0.12)
-                                              : Colors.transparent,
-                                          borderRadius: BorderRadius.circular(9),
-                                        ),
-                                        child: Text(
-                                          'AI 주유 분석',
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w700,
-                                            color: canGasAnalysis
-                                                ? (_aiAnalysisType == 'gas' ? _kPrimary : const Color(0xFF666666))
-                                                : const Color(0xFFBDBDBD),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
+                                  Icon(
+                                    isEvVehicle ? Icons.bolt_rounded : Icons.local_gas_station_rounded,
+                                    size: 15,
+                                    color: isEvVehicle ? _kCompareBlue : _kPrimary,
                                   ),
-                                  Expanded(
-                                    child: GestureDetector(
-                                      onTap: canEvAnalysis
-                                          ? () => setState(() => _aiAnalysisType = 'ev')
-                                          : null,
-                                      child: AnimatedContainer(
-                                        duration: const Duration(milliseconds: 160),
-                                        padding: const EdgeInsets.symmetric(vertical: 9),
-                                        decoration: BoxDecoration(
-                                          color: _aiAnalysisType == 'ev'
-                                              ? _kCompareBlue.withOpacity(0.12)
-                                              : Colors.transparent,
-                                          borderRadius: BorderRadius.circular(9),
-                                        ),
-                                        child: Text(
-                                          'AI 충전 분석',
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w700,
-                                            color: canEvAnalysis
-                                                ? (_aiAnalysisType == 'ev' ? _kCompareBlue : const Color(0xFF666666))
-                                                : const Color(0xFFBDBDBD),
-                                          ),
-                                        ),
-                                      ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    isEvVehicle ? 'AI 충전 분석' : 'AI 주유 분석',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: isEvVehicle ? _kCompareBlue : _kPrimary,
                                     ),
                                   ),
                                 ],
@@ -2530,8 +2515,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           ),
                           const SizedBox(width: 8),
                           GestureDetector(
-                            onTap: () => Navigator.push(context,
-                                MaterialPageRoute(builder: (_) => const AiVehicleSetupScreen(isEdit: true))),
+                            onTap: () async {
+                              await Navigator.push(context,
+                                  MaterialPageRoute(builder: (_) => const AiVehicleListScreen()));
+                              setState(() {});
+                            },
                             child: Container(
                               width: 36, height: 36,
                               decoration: BoxDecoration(
@@ -2539,7 +2527,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                 borderRadius: BorderRadius.circular(10),
                                 boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8)],
                               ),
-                              child: const Icon(Icons.tune_rounded, color: Color(0xFF666666), size: 18),
+                              child: const Icon(Icons.directions_car_rounded, color: Color(0xFF666666), size: 18),
                             ),
                           ),
                         ],
@@ -2616,26 +2604,84 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           ),
                           const SizedBox(width: 8),
                           GestureDetector(
-                            onTap: () => Navigator.push(context,
-                                MaterialPageRoute(builder: (_) => const AiVehicleSetupScreen(isEdit: true))),
+                            onTap: () async {
+                              await Navigator.push(context,
+                                  MaterialPageRoute(builder: (_) => const AiVehicleListScreen()));
+                              setState(() {});
+                            },
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0xFFEEEEEE)),
+                                border: Border.all(
+                                  color: isEvVehicle
+                                      ? const Color(0xFF1D6FE0).withOpacity(0.4)
+                                      : const Color(0xFFEEEEEE),
+                                ),
                               ),
-                              child: Column(
+                              child: Row(
                                 mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(fuelLabel,
-                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _kPrimary)),
-                                  const SizedBox(height: 2),
-                                  Text('${efficiency.toStringAsFixed(1)}km/L',
-                                      style: const TextStyle(fontSize: 11, color: Color(0xFF666666))),
-                                  Text('${tankCapacity.toStringAsFixed(0)}L',
-                                      style: const TextStyle(fontSize: 11, color: Color(0xFF999999))),
+                                  Icon(
+                                    isEvVehicle
+                                        ? Icons.bolt_rounded
+                                        : Icons.local_gas_station_rounded,
+                                    size: 14,
+                                    color: isEvVehicle
+                                        ? const Color(0xFF1D6FE0)
+                                        : _kPrimary,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: isEvVehicle
+                                        ? [
+                                            Text(
+                                              '전기차',
+                                              style: const TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Color(0xFF1D6FE0)),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              '${(selectedVehicle?.evEfficiency ?? efficiency).toStringAsFixed(1)}km/kWh',
+                                              style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color: Color(0xFF666666)),
+                                            ),
+                                            Text(
+                                              '${(selectedVehicle?.batteryCapacity ?? tankCapacity).toStringAsFixed(0)}kWh',
+                                              style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color: Color(0xFF999999)),
+                                            ),
+                                          ]
+                                        : [
+                                            Text(
+                                              fuelLabel,
+                                              style: const TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: _kPrimary),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              '${efficiency.toStringAsFixed(1)}km/L',
+                                              style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color: Color(0xFF666666)),
+                                            ),
+                                            Text(
+                                              '${tankCapacity.toStringAsFixed(0)}L',
+                                              style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color: Color(0xFF999999)),
+                                            ),
+                                          ],
+                                  ),
                                 ],
                               ),
                             ),

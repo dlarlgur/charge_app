@@ -120,5 +120,9 @@ class AppConstants {
   static const keyAiTargetValue = 'ai_target_value';
   static const keyAiLiterTarget = 'ai_liter_target';
 
+  // 멀티 차량 프로필
+  static const keyAiVehicles = 'ai_vehicles';           // JSON List<VehicleProfile>
+  static const keyAiSelectedVehicleId = 'ai_selected_vehicle_id'; // String
+
   static const keyHomeTabOrder = 'home_tab_order'; // 0=주유 먼저, 1=충전 먼저
 }

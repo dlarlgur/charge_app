@@ -351,6 +351,108 @@ enum VehicleType {
   }
 }
 
+// ─── 차량 프로필 (멀티 차량 지원) ───
+class VehicleProfile {
+  final String id;
+  final String vehicleType; // 'gas' | 'ev'
+
+  // 내연기관 전용
+  final String fuelType;      // FuelType code
+  final double tankCapacity;  // L
+  final double efficiency;    // km/L
+
+  // 전기차 전용
+  final double batteryCapacity; // kWh
+  final double evEfficiency;    // km/kWh (전비)
+
+  // 공통
+  final double currentLevelPercent;
+
+  // 내연기관 목표
+  final String targetMode;   // FULL | PRICE | LITER
+  final double targetValue;  // 금액(원) or 리터
+
+  // 전기차 목표
+  final double targetChargePercent; // 목표 충전 %
+
+  const VehicleProfile({
+    required this.id,
+    required this.vehicleType,
+    this.fuelType = 'B027',
+    this.tankCapacity = 55.0,
+    this.efficiency = 12.5,
+    this.batteryCapacity = 64.0,
+    this.evEfficiency = 5.0,
+    this.currentLevelPercent = 25.0,
+    this.targetMode = 'FULL',
+    this.targetValue = 50000.0,
+    this.targetChargePercent = 80.0,
+  });
+
+  bool get isEV => vehicleType == 'ev';
+  bool get isGas => vehicleType == 'gas';
+
+  String get displayLabel {
+    if (isEV) return '전기차';
+    return FuelType.fromCode(fuelType).label;
+  }
+
+  String get typeLabel => isEV ? '전기차' : '내연기관차';
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'vehicleType': vehicleType,
+    'fuelType': fuelType,
+    'tankCapacity': tankCapacity,
+    'efficiency': efficiency,
+    'batteryCapacity': batteryCapacity,
+    'evEfficiency': evEfficiency,
+    'currentLevelPercent': currentLevelPercent,
+    'targetMode': targetMode,
+    'targetValue': targetValue,
+    'targetChargePercent': targetChargePercent,
+  };
+
+  factory VehicleProfile.fromJson(Map<String, dynamic> json) => VehicleProfile(
+    id: json['id']?.toString() ?? '',
+    vehicleType: json['vehicleType']?.toString() ?? 'gas',
+    fuelType: json['fuelType']?.toString() ?? 'B027',
+    tankCapacity: (json['tankCapacity'] as num? ?? 55.0).toDouble(),
+    efficiency: (json['efficiency'] as num? ?? 12.5).toDouble(),
+    batteryCapacity: (json['batteryCapacity'] as num? ?? 64.0).toDouble(),
+    evEfficiency: (json['evEfficiency'] as num? ?? 5.0).toDouble(),
+    currentLevelPercent: (json['currentLevelPercent'] as num? ?? 25.0).toDouble(),
+    targetMode: json['targetMode']?.toString() ?? 'FULL',
+    targetValue: (json['targetValue'] as num? ?? 50000.0).toDouble(),
+    targetChargePercent: (json['targetChargePercent'] as num? ?? 80.0).toDouble(),
+  );
+
+  VehicleProfile copyWith({
+    String? vehicleType,
+    String? fuelType,
+    double? tankCapacity,
+    double? efficiency,
+    double? batteryCapacity,
+    double? evEfficiency,
+    double? currentLevelPercent,
+    String? targetMode,
+    double? targetValue,
+    double? targetChargePercent,
+  }) => VehicleProfile(
+    id: id,
+    vehicleType: vehicleType ?? this.vehicleType,
+    fuelType: fuelType ?? this.fuelType,
+    tankCapacity: tankCapacity ?? this.tankCapacity,
+    efficiency: efficiency ?? this.efficiency,
+    batteryCapacity: batteryCapacity ?? this.batteryCapacity,
+    evEfficiency: evEfficiency ?? this.evEfficiency,
+    currentLevelPercent: currentLevelPercent ?? this.currentLevelPercent,
+    targetMode: targetMode ?? this.targetMode,
+    targetValue: targetValue ?? this.targetValue,
+    targetChargePercent: targetChargePercent ?? this.targetChargePercent,
+  );
+}
+
 // ─── 필터 옵션 ───
 class GasFilterOptions {
   final int sort; // 1: 가격순, 2: 거리순

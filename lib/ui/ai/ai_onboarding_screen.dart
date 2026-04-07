@@ -1,22 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 
-import '../../core/constants/api_constants.dart';
-import '../../data/models/models.dart';
-import '../../providers/providers.dart';
+import 'ai_vehicle_list_screen.dart';
 import 'ai_vehicle_setup_screen.dart';
 
 const _kPrimary = Color(0xFF1D9E75);
 
-class AiOnboardingScreen extends ConsumerStatefulWidget {
+class AiOnboardingScreen extends StatefulWidget {
   const AiOnboardingScreen({super.key});
 
   @override
-  ConsumerState<AiOnboardingScreen> createState() => _AiOnboardingScreenState();
+  State<AiOnboardingScreen> createState() => _AiOnboardingScreenState();
 }
 
-class _AiOnboardingScreenState extends ConsumerState<AiOnboardingScreen> {
+class _AiOnboardingScreenState extends State<AiOnboardingScreen> {
   final _ctrl = PageController();
   int _page = 0;
 
@@ -37,22 +33,21 @@ class _AiOnboardingScreenState extends ConsumerState<AiOnboardingScreen> {
     }
   }
 
-  void _goToSetup() {
-    Navigator.push(
+  void _goToSetup() async {
+    final saved = await Navigator.push<bool>(
       context,
       MaterialPageRoute(builder: (_) => const AiVehicleSetupScreen()),
     );
-  }
-
-  void _skip() {
-    final box = Hive.box(AppConstants.settingsBox);
-    box.put(AppConstants.keyAiFuelType, FuelType.gasoline.code);
-    box.put(AppConstants.keyAiTankCapacity, 55.0);
-    box.put(AppConstants.keyAiEfficiency, 12.5);
-    box.put(AppConstants.keyAiCurrentLevelPercent, 25.0);
-    box.put(AppConstants.keyAiTargetMode, 'FULL');
-    ref.read(settingsProvider.notifier).completeAiOnboarding();
-    Navigator.of(context).popUntil((r) => r.isFirst);
+    if (!mounted) return;
+    // 저장 완료한 경우에만 차량 목록으로 이동 (뒤로가기면 온보딩으로 복귀)
+    if (saved == true) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const AiVehicleListScreen(isFromOnboarding: true),
+        ),
+      );
+    }
   }
 
   @override
@@ -67,7 +62,7 @@ class _AiOnboardingScreenState extends ConsumerState<AiOnboardingScreen> {
                 controller: _ctrl,
                 onPageChanged: (i) => setState(() => _page = i),
                 children: const [
-                  // 1. 시계 아이콘 — 진짜 이득인 주유소
+                  // 1. 진짜 이득인 주유소
                   _HeroPage(
                     iconBg: Color(0xFFE1F5EE),
                     icon: Icons.schedule_rounded,
@@ -75,7 +70,7 @@ class _AiOnboardingScreenState extends ConsumerState<AiOnboardingScreen> {
                     title: '그냥 싼 주유소 말고,\n진짜 이득인 주유소',
                     desc: '경로에서 조금 벗어나도 훨씬 싼 주유소가 있다면?\n우회 비용까지 계산해서 진짜 절약을 알려드려요.',
                   ),
-                  // 2. 대시보드 아이콘 — 비교는 AI가
+                  // 2. 비교는 AI가
                   _HeroPage(
                     iconBg: Color(0xFFFAEEDA),
                     icon: Icons.space_dashboard_rounded,
@@ -83,13 +78,13 @@ class _AiOnboardingScreenState extends ConsumerState<AiOnboardingScreen> {
                     title: '비교는 AI가,\n선택은 내가',
                     desc: '경로상 최저가 주유소와 우회 추천 주유소를\n우회 거리·연료비·시간까지 비교 분석합니다.',
                   ),
-                  // 3. 트로피 아이콘 — 차량 정보만 입력
+                  // 3. 내연기관 + 전기차 모두 지원
                   _HeroPage(
                     iconBg: Color(0xFFE6F1FB),
-                    icon: Icons.emoji_events_rounded,
+                    icon: Icons.directions_car_rounded,
                     iconColor: Color(0xFF378ADD),
-                    title: '차량 정보만 입력하면\n바로 시작!',
-                    desc: '유종, 탱크 용량, 연비를 한 번만 입력하세요.\n이후엔 목적지만 입력하면 자동으로 분석합니다.',
+                    title: '내연기관차도, 전기차도\n바로 시작!',
+                    desc: '차량 타입을 선택하고 기본 정보를 입력하세요.\n주유·충전 최적 경로를 자동으로 분석합니다.',
                   ),
                 ],
               ),
@@ -98,49 +93,25 @@ class _AiOnboardingScreenState extends ConsumerState<AiOnboardingScreen> {
             const SizedBox(height: 24),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                children: [
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: _next,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _kPrimary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: Text(
-                        _page < 2 ? '다음' : '차량 정보 입력하기',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                      ),
+              child: SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _next,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _kPrimary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
                     ),
+                    elevation: 0,
                   ),
-                  if (_page == 2) ...[
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: OutlinedButton(
-                        onPressed: _skip,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: _kPrimary,
-                          side: const BorderSide(color: _kPrimary, width: 1.5),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        child: const Text(
-                          '건너뛰기',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
+                  child: Text(
+                    _page < 2 ? '다음' : '차량 정보 입력하기',
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 48),
@@ -151,7 +122,7 @@ class _AiOnboardingScreenState extends ConsumerState<AiOnboardingScreen> {
   }
 }
 
-// ─── 히어로 페이지 ───────────────────────────────────────────────────────────
+// ─── 히어로 페이지 ────────────────────────────────────────────────────────────
 
 class _HeroPage extends StatelessWidget {
   final Color iconBg;
@@ -211,7 +182,7 @@ class _HeroPage extends StatelessWidget {
   }
 }
 
-// ─── 점 인디케이터 ────────────────────────────────────────────────────────────
+// ─── 점 인디케이터 ─────────────────────────────────────────────────────────────
 
 class _DotsIndicator extends StatelessWidget {
   final int count;

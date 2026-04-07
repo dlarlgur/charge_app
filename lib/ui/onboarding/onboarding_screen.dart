@@ -55,6 +55,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
   }
 
+  void _back() {
+    if (_step > 0) setState(() => _step--);
+  }
+
   void _finish() async {
     // 알림 권한 요청
     await FirebaseMessaging.instance.requestPermission(alert: true, badge: true, sound: true);
@@ -116,28 +120,45 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isLast = _step == _totalSteps - 1;
 
-    return Scaffold(
+    return PopScope(
+      canPop: _step == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _back();
+      },
+      child: Scaffold(
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 24),
-              // 프로그레스 바
+              const SizedBox(height: 16),
+              // 뒤로가기 + 프로그레스 바
               Row(
-                children: List.generate(_totalSteps, (i) => Expanded(
-                  child: Container(
-                    height: 3,
-                    margin: EdgeInsets.only(right: i < _totalSteps - 1 ? 4 : 0),
-                    decoration: BoxDecoration(
-                      color: i <= _step
-                          ? _accentColor
-                          : (isDark ? const Color(0x14FFFFFF) : const Color(0xFFE2E8F0)),
-                      borderRadius: BorderRadius.circular(2),
+                children: [
+                  if (_step > 0)
+                    GestureDetector(
+                      onTap: _back,
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 10),
+                        child: Icon(Icons.arrow_back_rounded,
+                            size: 22,
+                            color: isDark ? Colors.white70 : const Color(0xFF444444)),
+                      ),
                     ),
-                  ),
-                )),
+                  ...List.generate(_totalSteps, (i) => Expanded(
+                    child: Container(
+                      height: 3,
+                      margin: EdgeInsets.only(right: i < _totalSteps - 1 ? 4 : 0),
+                      decoration: BoxDecoration(
+                        color: i <= _step
+                            ? _accentColor
+                            : (isDark ? const Color(0x14FFFFFF) : const Color(0xFFE2E8F0)),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  )),
+                ],
               ),
               const SizedBox(height: 24),
               Text(
@@ -165,7 +186,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ),
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildStepContent() {
