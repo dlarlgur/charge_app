@@ -130,6 +130,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
+        // AI 탭(index 2)은 AiMainScreen 자체 PopScope가 뒤로가기와 종료 팝업을 모두 처리.
+        // HomeScreen의 PopScope가 동시에 트리거되면 종료 다이얼로그가 2개 뜨거나
+        // 결과 화면에서 종료 팝업이 잘못 표시되므로 AI 탭일 때는 여기서 처리하지 않는다.
+        final currentTab = ref.read(bottomNavIndexProvider);
+        if (currentTab == 2) return;
         final shouldExit = await _onWillPop(context);
         if (shouldExit) {
           SystemNavigator.pop();
