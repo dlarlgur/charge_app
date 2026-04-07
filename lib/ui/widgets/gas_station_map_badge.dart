@@ -40,9 +40,14 @@ class GasStationMapBadge {
     final double w = contentW + 18.0;
     final double h = highlighted ? 30.0 : 26.0;
 
+    const double tailW = 12.0;
+    const double tailH = 10.0;
+    final double borderWidth = emphasizeBorder ? 2.0 : 1.0;
+
     return NOverlayImage.fromWidget(
       widget: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
             width: w,
@@ -59,7 +64,7 @@ class GasStationMapBadge {
               ],
               border: Border.all(
                 color: borderColor,
-                width: emphasizeBorder ? 2.0 : 1.0,
+                width: borderWidth,
               ),
             ),
             child: Row(
@@ -95,31 +100,48 @@ class GasStationMapBadge {
             ),
           ),
           CustomPaint(
-            size: const Size(8, 5),
-            painter: _GasBadgeTailPainter(borderColor),
+            size: const Size(tailW, tailH),
+            painter: _GasBadgeTailPainter(borderColor, borderWidth),
           ),
         ],
       ),
-      size: Size(w, h + 5),
+      size: Size(w, h + tailH),
       context: context,
     );
   }
 }
 
 class _GasBadgeTailPainter extends CustomPainter {
-  _GasBadgeTailPainter(this.color);
-  final Color color;
+  _GasBadgeTailPainter(this.borderColor, this.borderWidth);
+  final Color borderColor;
+  final double borderWidth;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final path = Path()
-      ..moveTo(size.width / 2, size.height)
+    final cx = size.width / 2;
+
+    // 흰 배경 삼각형 (뱃지와 동일한 흰 배경)
+    final fillPath = Path()
+      ..moveTo(cx, size.height)
       ..lineTo(0, 0)
       ..lineTo(size.width, 0)
       ..close();
-    canvas.drawPath(path, Paint()..color = color);
+    canvas.drawPath(fillPath, Paint()..color = Colors.white);
+
+    // 테두리: 좌·우 두 사선만 (상단 edge는 뱃지 하단 border와 겹치므로 생략)
+    final borderPaint = Paint()
+      ..color = borderColor
+      ..strokeWidth = borderWidth
+      ..style = PaintingStyle.stroke
+      ..strokeJoin = StrokeJoin.miter;
+    final borderPath = Path()
+      ..moveTo(0, 0)
+      ..lineTo(cx, size.height)
+      ..lineTo(size.width, 0);
+    canvas.drawPath(borderPath, borderPaint);
   }
 
   @override
-  bool shouldRepaint(covariant _GasBadgeTailPainter old) => old.color != color;
+  bool shouldRepaint(covariant _GasBadgeTailPainter old) =>
+      old.borderColor != borderColor || old.borderWidth != borderWidth;
 }
