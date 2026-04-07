@@ -2260,25 +2260,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           });
           return;
         }
-        // 같은 뒤로가기 입력에서 콜백이 중복 트리거되는 경우 종료 다이얼로그를 막는다.
+        // 내부 상태가 없으면 HomeScreen PopScope가 종료 다이얼로그를 처리하도록 그냥 반환
         if (recentlyHandled) return;
-        // AI 탭의 완전 초기 화면에서만 종료 확인을 띄운다.
-        final isAiFirstScreen = !_isPickerMode &&
-            !_isSelectMode &&
-            !_isResultMode &&
-            !_isCompareResultMode &&
-            !_aiAnalyzing &&
-            !_userSelecting &&
-            _errorMessage == null &&
-            _originLat == null &&
-            _originLng == null &&
-            _originName == null &&
-            _destLat == null &&
-            _destLng == null &&
-            _destName == null;
-        if (!isAiFirstScreen) return;
-        // 7. 앱 종료 확인
-        _showExitDialog();
       },
       child: Scaffold(
       body: Stack(
@@ -2445,7 +2428,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             ),
 
           // ── 일반 모드: 상단 오버레이 ──
-          if (!_isPickerMode && !_isResultMode)
+          if (!_isPickerMode && !_isResultMode && !_isCompareResultMode)
             Positioned(
               top: 0, left: 0, right: 0,
               child: SafeArea(
@@ -2565,7 +2548,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             ),
 
           // ── 일반 모드: 하단 패널 ──
-          if (!_isPickerMode && !_isResultMode && !_isSelectMode)
+          if (!_isPickerMode && !_isResultMode && !_isSelectMode && !_isCompareResultMode)
             Positioned(
               bottom: 0, left: 0, right: 0,
               child: SafeArea(
@@ -2598,48 +2581,54 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                         ),
                       ],
                       // 잔량 + 차량 미니 카드
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: _showLevelEditSheet,
-                              child: _LevelSummaryCard(
-                                currentLevel: _currentLevelPercent,
-                                targetMode: _targetMode,
-                                priceController: _priceController,
-                                literController: _literController,
-                                wonFmt: _wonFmt,
+                      IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: GestureDetector(
+                                onTap: _showLevelEditSheet,
+                                child: _LevelSummaryCard(
+                                  currentLevel: _currentLevelPercent,
+                                  targetMode: _targetMode,
+                                  priceController: _priceController,
+                                  literController: _literController,
+                                  wonFmt: _wonFmt,
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          GestureDetector(
-                            onTap: () => Navigator.push(context,
-                                MaterialPageRoute(builder: (_) => const AiVehicleSetupScreen(isEdit: true))),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0xFFEEEEEE)),
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(fuelLabel,
-                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _kPrimary)),
-                                  const SizedBox(height: 2),
-                                  Text('${efficiency.toStringAsFixed(1)}km/L',
-                                      style: const TextStyle(fontSize: 11, color: Color(0xFF666666))),
-                                  Text('${tankCapacity.toStringAsFixed(0)}L',
-                                      style: const TextStyle(fontSize: 11, color: Color(0xFF999999))),
-                                ],
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 2,
+                              child: GestureDetector(
+                                onTap: () => Navigator.push(context,
+                                    MaterialPageRoute(builder: (_) => const AiVehicleSetupScreen(isEdit: true))),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: const Color(0xFFEEEEEE)),
+                                  ),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(fuelLabel,
+                                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _kPrimary)),
+                                      const SizedBox(height: 2),
+                                      Text('${efficiency.toStringAsFixed(1)}km/L',
+                                          style: const TextStyle(fontSize: 11, color: Color(0xFF666666))),
+                                      Text('${tankCapacity.toStringAsFixed(0)}L',
+                                          style: const TextStyle(fontSize: 11, color: Color(0xFF999999))),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 8),
                       const SizedBox(height: 8),
@@ -2729,7 +2718,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             ),
 
           // ── 결과 모드: 상단 뒤로가기 + 경로 요약 ──
-          if (_isResultMode)
+          if (_isResultMode || _isCompareResultMode)
             Positioned(
               top: 0, left: 0, right: 0,
               child: SafeArea(
@@ -2835,7 +2824,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             ),
 
           // ── 현재위치 버튼 (결과 모드: 시트 위에 붙어 이동) ──
-          if (_isResultMode)
+          if (_isResultMode || _isCompareResultMode)
             Positioned(
               right: 16,
               bottom: MediaQuery.of(context).padding.bottom +
