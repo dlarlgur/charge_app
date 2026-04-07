@@ -2277,7 +2277,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             _destLng == null &&
             _destName == null;
         if (!isAiFirstScreen) return;
-        // 7. 앱 종료 확인
+        // 7. 앱 종료 확인 (중복 트리거 방지용 markHandled 선호출)
+        markHandled();
         _showExitDialog();
       },
       child: Scaffold(
