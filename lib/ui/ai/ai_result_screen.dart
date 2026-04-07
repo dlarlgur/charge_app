@@ -246,6 +246,8 @@ class _AiResultBodyState extends State<AiResultBody> {
     final dest = nav?['destination'] is Map ? nav!['destination'] as Map<String, dynamic> : null;
 
     final choice = rec?['choice']?.toString() ?? 'on_route';
+    final cardMode = rec?['card_mode']?.toString() ?? 'normal';
+    final isDualDetour = cardMode == 'dual_detour';
     final uiMessage = _altAiMessage ?? rec?['ui_message']?.toString() ?? '';
 
     final onRouteSt = onRoute?['station'] is Map ? onRoute!['station'] as Map<String, dynamic> : null;
@@ -279,14 +281,14 @@ class _AiResultBodyState extends State<AiResultBody> {
     final dtTimeMinsBanner = _meaningfulDetourMinutes(dtDetourTimeMin);
     final dtSavings = _i(bestDetour?['savings_vs_on_route_won']);
 
-    // 우회가 경로상보다 비싸면 숨김
+    // 우회가 경로상보다 비싸면 숨김 (dual_detour 모드에서는 항상 표시)
     final showDetour = detourSt != null &&
-        (dtPrice == null || orPrice == null || dtPrice <= orPrice);
+        (isDualDetour || dtPrice == null || orPrice == null || dtPrice <= orPrice);
 
     final hasOverride = _selectedAltItem != null;
     // 서버 choice가 누락/불일치여도 on_route가 비어 있고 detour가 있으면 detour를 메인으로 강제
-    final forceDetourAsPrimary = onRouteSt == null && detourSt != null;
-    final aiRecIsDetour = forceDetourAsPrimary || (choice == 'best_detour' && showDetour);
+    final forceDetourAsPrimary = !isDualDetour && onRouteSt == null && detourSt != null;
+    final aiRecIsDetour = isDualDetour || forceDetourAsPrimary || (choice == 'best_detour' && showDetour);
     final noStationToRecommend = onRouteSt == null && detourSt == null;
 
     // ── Primary 카드 (상단) 계산
@@ -323,8 +325,8 @@ class _AiResultBodyState extends State<AiResultBody> {
         detourM: dtDetourM,
         detourTimeMin: dtDetourTimeMin,
         savings: dtSavings,
-        tag: '우회 최저가',
-        tagColor: const Color(0xFF1D6FE0),  // 파랑
+        tag: isDualDetour ? '추천' : '우회 최저가',
+        tagColor: isDualDetour ? const Color(0xFF1D9E75) : const Color(0xFF1D6FE0),
         isAiRec: true,
         isUserSelected: false,
         rawData: bestDetour,
@@ -386,7 +388,7 @@ class _AiResultBodyState extends State<AiResultBody> {
         );
       }
     } else if (aiRecIsDetour && onRouteSt != null) {
-      // 우회 AI 추천 → 경로상 최저가를 하단 참고로
+      // 우회 AI 추천 → 경로상 최저가(또는 dual_detour 모드의 2순위)를 하단 참고로
       secondary = _CardInfo(
         name: _stationNameFrom(onRouteSt),
         addr: onRouteSt['address']?.toString(),
@@ -397,8 +399,8 @@ class _AiResultBodyState extends State<AiResultBody> {
         detourM: orDetourM,
         detourTimeMin: orDetourTimeMin,
         savings: 0,
-        tag: '경로상 최저가',
-        tagColor: const Color(0xFFE8700A),  // 주황
+        tag: isDualDetour ? '차선' : '경로상 최저가',
+        tagColor: isDualDetour ? const Color(0xFF888888) : const Color(0xFFE8700A),
         isAiRec: false,
         isUserSelected: false,
         rawData: onRoute,
@@ -946,6 +948,7 @@ class _StationComparisonSection extends StatelessWidget {
             savings: dtSavings,
             detourMins: dtDetourMins,
             aiRecIsDetour: aiRecIsDetour,
+            isDualDetour: isDualDetour,
             fuelLabel: fuelLabel,
             wonFmt: wonFmt,
             onViewOnMapRoute: onViewOnMapRoute,
@@ -1219,6 +1222,7 @@ class _ComparisonTable extends StatelessWidget {
   final int savings;
   final int? detourMins;
   final bool aiRecIsDetour;
+  final bool isDualDetour;
   final String? fuelLabel;
   final NumberFormat wonFmt;
   final VoidCallback? onViewOnMapRoute;
@@ -1248,6 +1252,7 @@ class _ComparisonTable extends StatelessWidget {
     required this.savings,
     required this.detourMins,
     required this.aiRecIsDetour,
+    this.isDualDetour = false,
     required this.fuelLabel,
     required this.wonFmt,
     this.onViewOnMapRoute,
@@ -1317,8 +1322,8 @@ class _ComparisonTable extends StatelessWidget {
           _TableRow(
             isHeader: true,
             left: '',
-            mid: '경로상 최저가',
-            right: '우회 최저가',
+            mid: isDualDetour ? '차선' : '경로상 최저가',
+            right: isDualDetour ? '추천' : '우회 최저가',
             midHighlight: midHi,
             rightHighlight: rightHi,
           ),
