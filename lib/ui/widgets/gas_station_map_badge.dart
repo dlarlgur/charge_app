@@ -28,7 +28,7 @@ class GasStationMapBadge {
     required Color textColor,
     bool emphasizeBorder = false,
   }) {
-    final String? logoAsset = brand != null ? brandLogos[brand] : null;
+    final String? logoAsset = (brand != null && brand.isNotEmpty) ? brandLogos[brand] : null;
     final bool showLogo = logoAsset != null;
     const double logoSize = 20.0;
     const double logoGap = 4.0;
