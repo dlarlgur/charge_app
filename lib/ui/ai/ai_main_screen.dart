@@ -38,6 +38,7 @@ class AiMainScreen extends ConsumerStatefulWidget {
 class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   // ── 지도 ──
   NaverMapController? _mapController;
+  bool _brandImagesCached = false;
   StreamSubscription<({double lat, double lng})>? _locationSub;
   bool _isLocating = false;
   bool _isAtMyLocation = false;
@@ -347,7 +348,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   // ── 지도 준비 → GPS 위치로 이동 + location overlay 표시 (지도탭과 동일) ──
   void _onMapReady(NaverMapController controller) {
     _mapController = controller;
-    unawaited(GasStationMapBadge.precacheBrandImages(context));
+    GasStationMapBadge.precacheBrandImages(context).then((_) {
+      _brandImagesCached = true;
+    });
     ref.read(locationProvider.future).then((loc) {
       if (loc == null || !mounted) return;
       _suppressCameraChange = true;
@@ -1044,6 +1047,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     List<dynamic>? alternatives, // 대안 후보 (회색 마커)
   }) async {
     if (_mapController == null) return;
+
+    // 브랜드 로고 캐시 완료 대기 (최대 2초)
+    if (!_brandImagesCached) {
+      await GasStationMapBadge.precacheBrandImages(context);
+      _brandImagesCached = true;
+    }
 
     await _mapController!.clearOverlays(type: NOverlayType.pathOverlay);
     await _mapController!.clearOverlays(type: NOverlayType.multipartPathOverlay);
