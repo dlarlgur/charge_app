@@ -2722,15 +2722,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                                   elevation: 0,
                                 ),
-                                child: _aiAnalyzing
-                                    ? const SizedBox(height: 22, width: 22,
-                                        child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
-                                    : const Row(
+                                child: const Row(
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
                                           Icon(Icons.auto_awesome_rounded, size: 18),
                                           SizedBox(width: 6),
-                                          Text('AI 분석',
+                                          Text('AI 경로 추천',
                                               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                                         ],
                                       ),
@@ -2994,6 +2991,54 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           color: _isAtMyLocation
                               ? Colors.white
                               : const Color(0xFF666666)),
+                ),
+              ),
+            ),
+
+          // ── AI 경로 추천 로딩 오버레이 ──
+          if (_aiAnalyzing)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Container(
+                  color: Colors.black.withOpacity(0.18),
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.12),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.2,
+                              color: _kPrimary,
+                            ),
+                          ),
+                          SizedBox(width: 10),
+                          Text(
+                            'AI 경로 추천 중...',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF1a1a1a),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),

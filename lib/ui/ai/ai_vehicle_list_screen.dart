@@ -91,7 +91,7 @@ class _AiVehicleListScreenState extends State<AiVehicleListScreen> {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('차량 삭제'),
-        content: Text('${v.typeLabel}를 삭제할까요?'),
+        content: Text('${v.name.isNotEmpty ? v.name : v.typeLabel}를 삭제할까요?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -350,7 +350,7 @@ class _VehicleCard extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        vehicle.typeLabel,
+                        vehicle.name.isNotEmpty ? vehicle.name : vehicle.typeLabel,
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,

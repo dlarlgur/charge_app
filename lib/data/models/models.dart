@@ -354,6 +354,7 @@ enum VehicleType {
 // ─── 차량 프로필 (멀티 차량 지원) ───
 class VehicleProfile {
   final String id;
+  final String name;        // 차량 별명 (필수)
   final String vehicleType; // 'gas' | 'ev'
 
   // 내연기관 전용
@@ -378,6 +379,7 @@ class VehicleProfile {
   const VehicleProfile({
     required this.id,
     required this.vehicleType,
+    this.name = '',
     this.fuelType = 'B027',
     this.tankCapacity = 55.0,
     this.efficiency = 12.5,
@@ -401,6 +403,7 @@ class VehicleProfile {
 
   Map<String, dynamic> toJson() => {
     'id': id,
+    'name': name,
     'vehicleType': vehicleType,
     'fuelType': fuelType,
     'tankCapacity': tankCapacity,
@@ -415,6 +418,7 @@ class VehicleProfile {
 
   factory VehicleProfile.fromJson(Map<String, dynamic> json) => VehicleProfile(
     id: json['id']?.toString() ?? '',
+    name: json['name']?.toString() ?? '',
     vehicleType: json['vehicleType']?.toString() ?? 'gas',
     fuelType: json['fuelType']?.toString() ?? 'B027',
     tankCapacity: (json['tankCapacity'] as num? ?? 55.0).toDouble(),
@@ -428,6 +432,7 @@ class VehicleProfile {
   );
 
   VehicleProfile copyWith({
+    String? name,
     String? vehicleType,
     String? fuelType,
     double? tankCapacity,
@@ -440,6 +445,7 @@ class VehicleProfile {
     double? targetChargePercent,
   }) => VehicleProfile(
     id: id,
+    name: name ?? this.name,
     vehicleType: vehicleType ?? this.vehicleType,
     fuelType: fuelType ?? this.fuelType,
     tankCapacity: tankCapacity ?? this.tankCapacity,

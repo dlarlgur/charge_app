@@ -46,6 +46,7 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
   double _targetChargePercent = 80.0;
 
   // 공통
+  final _nameController = TextEditingController();
   double _currentLevelPercent = 25.0;
 
   late AnimationController _animCtrl;
@@ -83,6 +84,7 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
   }
 
   void _applyVehicle(VehicleProfile v) {
+    _nameController.text = v.name;
     _vehicleType = v.vehicleType;
     _currentLevelPercent = v.currentLevelPercent;
 
@@ -124,6 +126,7 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
   @override
   void dispose() {
     _animCtrl.dispose();
+    _nameController.dispose();
     _tankController.dispose();
     _effController.dispose();
     _priceController.dispose();
@@ -140,6 +143,19 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
       return double.tryParse(_literController.text.replaceAll(',', '.')) ?? 0;
     }
     return 0;
+  }
+
+  // 이름 미입력 시 자동생성 — 예: 내연기관차1, 전기차2
+  String _resolvedName(String vehicleType) {
+    final input = _nameController.text.trim();
+    if (input.isNotEmpty) return input;
+    final box = Hive.box(AppConstants.settingsBox);
+    final vehicles = _parseVehicles(box);
+    final prefix = vehicleType == 'ev' ? '전기차' : '내연기관차';
+    final existing = vehicles
+        .where((v) => v.vehicleType == vehicleType && v.name.startsWith(prefix))
+        .length;
+    return '$prefix${existing + 1}';
   }
 
   void _save() {
@@ -184,6 +200,7 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
 
     final v = VehicleProfile(
       id: widget.editVehicleId ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      name: _resolvedName('gas'),
       vehicleType: 'gas',
       fuelType: _fuelType.code,
       tankCapacity: tank,
@@ -213,6 +230,7 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
 
     final v = VehicleProfile(
       id: widget.editVehicleId ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      name: _resolvedName('ev'),
       vehicleType: 'ev',
       batteryCapacity: bat,
       evEfficiency: eff,
@@ -312,6 +330,26 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
                       const SizedBox(height: 20),
                     ] else
                       const SizedBox(height: 8),
+
+                    // ── 차량 이름 ──
+                    _sectionLabel('차량 이름'),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _nameController,
+                      decoration: InputDecoration(
+                        hintText: '예: 내 차, 아반떼, 테슬라 등 (비워두면 자동 생성)',
+                        hintStyle: const TextStyle(color: Color(0xFFBBBBBB)),
+                        filled: true,
+                        fillColor: const Color(0xFFF8F8F8),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
 
                     // ── 차량 타입 선택 ──
                     _sectionLabel('차량 타입'),

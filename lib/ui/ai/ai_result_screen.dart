@@ -317,7 +317,7 @@ class _AiResultBodyState extends State<AiResultBody> {
     } else if (aiRecIsDetour) {
       primary = _CardInfo(
         name: _stationNameFrom(detourSt),
-        addr: detourSt['address']?.toString(),
+        addr: detourSt?['address']?.toString(),
         lat: dtLat,
         lng: dtLng,
         price: dtPrice,
@@ -357,7 +357,7 @@ class _AiResultBodyState extends State<AiResultBody> {
       if (aiRecIsDetour) {
         secondary = _CardInfo(
           name: _stationNameFrom(detourSt),
-          addr: detourSt['address']?.toString(),
+          addr: detourSt?['address']?.toString(),
           lat: dtLat,
           lng: dtLng,
           price: dtPrice,
@@ -487,6 +487,7 @@ class _AiResultBodyState extends State<AiResultBody> {
             dtLng: dtLng,
             detourFuelType: detourSt?['fuel_type']?.toString(),
             aiRecIsDetour: aiRecIsDetour,
+            isDualDetour: isDualDetour,
             dtSavings: dtSavings,
             dtDetourMins: dtTimeMinsBanner,
             fuelLabel: widget.fuelLabel,
@@ -783,7 +784,7 @@ class _AiMessageBanner extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('AI 분석',
+                const Text('AI 경로 추천',
                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _kPrimary)),
                 const SizedBox(height: 6),
                 MarkdownBody(
@@ -833,6 +834,7 @@ class _StationComparisonSection extends StatelessWidget {
   final String? detourFuelType;
 
   final bool aiRecIsDetour;
+  final bool isDualDetour;
   final int dtSavings;
   final int? dtDetourMins;
   final String? fuelLabel;
@@ -865,6 +867,7 @@ class _StationComparisonSection extends StatelessWidget {
     required this.dtLng,
     required this.detourFuelType,
     required this.aiRecIsDetour,
+    required this.isDualDetour,
     required this.dtSavings,
     required this.dtDetourMins,
     required this.fuelLabel,
@@ -2455,7 +2458,7 @@ class _CompareMessageBanner extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('AI 분석', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _kCompareWinner)),
+                const Text('AI 경로 추천', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _kCompareWinner)),
                 const SizedBox(height: 6),
                 MarkdownBody(
                   data: normalized,
