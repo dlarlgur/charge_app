@@ -3087,10 +3087,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           ),
                         ),
                       ],
-                      // 잔량 + 차량 미니 카드
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                      // 잔량 + 차량 미니 카드 (고정 높이로 두 카드 높이 일치)
+                      SizedBox(
+                        height: 70,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
                             Expanded(
                               child: GestureDetector(
                                 onTap: () => _showLevelEditSheet(isEv: isEvVehicle),
@@ -3124,7 +3126,6 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Row(
                                       mainAxisSize: MainAxisSize.min,
@@ -3164,6 +3165,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             ),
                           ],
                         ),
+                      ),
                       const SizedBox(height: 8),
                       if (_aiAnalysisType == 'ev') ...[
                         // ── EV 옵션 + 액션 통합 카드 ──
@@ -4564,6 +4566,7 @@ class _LevelSummaryCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Row(
             children: [
