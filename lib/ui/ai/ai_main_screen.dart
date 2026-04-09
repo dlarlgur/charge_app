@@ -19,6 +19,7 @@ import '../../providers/providers.dart';
 import 'ai_onboarding_screen.dart';
 import 'ai_result_screen.dart';
 import 'ai_vehicle_list_screen.dart';
+import 'ev_result_screen.dart';
 import '../widgets/gas_station_map_badge.dart';
 
 const _kPrimary = Color(0xFF1D9E75);
@@ -93,11 +94,19 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   String? _selectedStationAId;
   String? _selectedStationBId;
   bool _isCompareResultMode = false;
+  bool _isEvResultMode = false;
+  bool _isEvSelectMode = false;
+  List<Map<String, dynamic>> _evSelectCandidates = [];
   String _aiAnalysisType = 'gas'; // gas | ev
+  String _evChargerType = 'FAST'; // FAST | SLOW
+  bool _evHighwayOnly = false;   // 고속도로 충전소만
 
   // ── 검색 기록 ──
   List<String> _searchHistory = [];
   List<Map<String, dynamic>> _searchHistoryItems = [];
+
+  // ── 마지막으로 동기화된 차량 ID (차량 전환 감지용) ──
+  String? _lastSyncedVehicleId;
 
   // ── 결과 패널 시트 크기 추적 ──
   final DraggableScrollableController _sheetController = DraggableScrollableController();
@@ -208,17 +217,63 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     super.dispose();
   }
 
+  // 선택된 차량 프로필 읽기
+  VehicleProfile? _readSelectedVehicle(Box box) {
+    final selectedId = box.get(AppConstants.keyAiSelectedVehicleId) as String?;
+    final rawVehicles = box.get(AppConstants.keyAiVehicles);
+    if (rawVehicles == null) return null;
+    try {
+      final List decoded = jsonDecode(rawVehicles as String);
+      final all = decoded.map((e) => VehicleProfile.fromJson(e as Map<String, dynamic>)).toList();
+      return all.cast<VehicleProfile?>().firstWhere(
+        (v) => v?.id == selectedId, orElse: () => all.isNotEmpty ? all.first : null);
+    } catch (_) { return null; }
+  }
+
+  // 차량 프로필 currentLevelPercent / targetMode / targetValue 저장
+  void _saveVehicleLevel(Box box, {required double level, required String mode, double? price}) {
+    final rawVehicles = box.get(AppConstants.keyAiVehicles);
+    final selectedId = box.get(AppConstants.keyAiSelectedVehicleId) as String?;
+    if (rawVehicles == null || selectedId == null) return;
+    try {
+      final List decoded = jsonDecode(rawVehicles as String);
+      final all = decoded.map((e) => VehicleProfile.fromJson(e as Map<String, dynamic>)).toList();
+      final idx = all.indexWhere((v) => v.id == selectedId);
+      if (idx < 0) return;
+      all[idx] = all[idx].copyWith(
+        currentLevelPercent: level,
+        targetMode: mode,
+        targetValue: price ?? all[idx].targetValue,
+      );
+      box.put(AppConstants.keyAiVehicles, jsonEncode(all.map((v) => v.toJson()).toList()));
+    } catch (_) {}
+  }
+
   void _loadSaved() {
     final box = Hive.box(AppConstants.settingsBox);
-    _currentLevelPercent =
-        (box.get(AppConstants.keyAiCurrentLevelPercent, defaultValue: 25.0) as num).toDouble();
-    _targetMode = box.get(AppConstants.keyAiTargetMode, defaultValue: 'FULL') as String;
-    final price = (box.get(AppConstants.keyAiTargetValue, defaultValue: 50000.0) as num).toDouble();
-    _priceController.text = price.toStringAsFixed(0);
-    final liter = (box.get(AppConstants.keyAiLiterTarget, defaultValue: 20.0) as num).toDouble();
-    _literController.text = liter == liter.roundToDouble()
-        ? liter.toStringAsFixed(0)
-        : liter.toStringAsFixed(1);
+
+    // 선택된 차량 프로필 기준으로 로드
+    final vehicle = _readSelectedVehicle(box);
+    if (vehicle != null) {
+      _currentLevelPercent = vehicle.currentLevelPercent;
+      _targetMode = vehicle.targetMode;
+      _priceController.text = vehicle.targetValue.toStringAsFixed(0);
+      final liter = vehicle.targetValue; // 리터 모드일 때도 targetValue 사용
+      _literController.text = liter == liter.roundToDouble()
+          ? liter.toStringAsFixed(0)
+          : liter.toStringAsFixed(1);
+    } else {
+      // 차량 없을 때 글로벌 fallback
+      _currentLevelPercent =
+          (box.get(AppConstants.keyAiCurrentLevelPercent, defaultValue: 25.0) as num).toDouble();
+      _targetMode = box.get(AppConstants.keyAiTargetMode, defaultValue: 'FULL') as String;
+      final price = (box.get(AppConstants.keyAiTargetValue, defaultValue: 50000.0) as num).toDouble();
+      _priceController.text = price.toStringAsFixed(0);
+      final liter = (box.get(AppConstants.keyAiLiterTarget, defaultValue: 20.0) as num).toDouble();
+      _literController.text = liter == liter.roundToDouble()
+          ? liter.toStringAsFixed(0)
+          : liter.toStringAsFixed(1);
+    }
     
     // 검색 기록: 지도 탭과 동일 키 — Hive에는 List<String> (각 요소는 jsonEncode(장소 Map)) 로 저장됨
     _searchHistoryItems = _readSearchHistoryItems(box);
@@ -664,6 +719,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final apiTargetValue = _targetMode == 'PRICE' ? priceTarget
         : (_targetMode == 'LITER' ? literTarget : 0.0);
 
+    _saveVehicleLevel(box, level: _currentLevelPercent, mode: _targetMode,
+        price: _targetMode == 'PRICE' ? priceTarget : (_targetMode == 'LITER' ? literTarget : null));
+    // 글로벌 fallback
     box.put(AppConstants.keyAiCurrentLevelPercent, _currentLevelPercent);
     box.put(AppConstants.keyAiTargetMode, _targetMode);
     if (_targetMode == 'PRICE') box.put(AppConstants.keyAiTargetValue, priceTarget);
@@ -1558,10 +1616,406 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     );
   }
 
+  Future<void> _runEvAnalyze() async {
+    if (_destLat == null || _destLng == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('목적지를 선택해 주세요.'), behavior: SnackBarBehavior.floating),
+      );
+      return;
+    }
+
+    final box = Hive.box(AppConstants.settingsBox);
+    VehicleProfile? selectedVehicle;
+    {
+      final selectedId = box.get(AppConstants.keyAiSelectedVehicleId) as String?;
+      final rawVehicles = box.get(AppConstants.keyAiVehicles);
+      if (rawVehicles != null) {
+        try {
+          final List decoded = jsonDecode(rawVehicles as String);
+          final all = decoded.map((e) => VehicleProfile.fromJson(e as Map<String, dynamic>)).toList();
+          selectedVehicle = all.cast<VehicleProfile?>().firstWhere(
+            (v) => v?.id == selectedId, orElse: () => all.isNotEmpty ? all.first : null);
+        } catch (_) {}
+      }
+    }
+    if (selectedVehicle == null || !selectedVehicle.isEV) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('전기차 프로필을 선택해 주세요.'), behavior: SnackBarBehavior.floating),
+      );
+      return;
+    }
+
+    double startLat, startLng;
+    if (_originLat != null && _originLng != null) {
+      startLat = _originLat!;
+      startLng = _originLng!;
+    } else {
+      final loc = await _resolveCurrentLocationForStart();
+      if (loc == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('현재 위치를 가져올 수 없습니다.'), behavior: SnackBarBehavior.floating),
+        );
+        return;
+      }
+      startLat = loc.lat;
+      startLng = loc.lng;
+    }
+
+    setState(() { _aiAnalyzing = true; _errorMessage = null; });
+
+    var pathPoints = <Map<String, dynamic>>[
+      {'lat': startLat, 'lng': startLng},
+      {'lat': _destLat!, 'lng': _destLng!},
+    ];
+    int? directDurationMs;
+
+    try {
+      final dr = await ApiService().getDrivingRoute(
+        startLat: startLat, startLng: startLng,
+        goalLat: _destLat!, goalLng: _destLng!,
+      );
+      if (dr['success'] == true) {
+        if (dr['duration_ms'] is num) directDurationMs = (dr['duration_ms'] as num).round();
+        final raw = dr['path_points'];
+        if (raw is List && raw.length >= 2) {
+          final parsed = <Map<String, dynamic>>[];
+          for (final e in raw) {
+            if (e is Map) {
+              final lat = e['lat']; final lng = e['lng'];
+              if (lat is num && lng is num) {
+                parsed.add({'lat': lat.toDouble(), 'lng': lng.toDouble()});
+              }
+            }
+          }
+          if (parsed.length >= 2) pathPoints = parsed;
+        }
+      }
+    } catch (_) {}
+
+    _lastStartLat = startLat;
+    _lastStartLng = startLng;
+    _lastPathPoints = pathPoints;
+
+    try {
+      final data = await ApiService().postEvAiRecommend({
+        'batteryPercent': selectedVehicle.currentLevelPercent,
+        'batteryCapacityKwh': selectedVehicle.batteryCapacity,
+        'efficiencyKmPerKwh': selectedVehicle.evEfficiency,
+        'chargerType': _evChargerType,
+        'originLat': startLat,
+        'originLng': startLng,
+        'destLat': _destLat,
+        'destLng': _destLng,
+        'pathPoints': pathPoints,
+        if (directDurationMs != null) 'directDurationMs': directDurationMs,
+        'highwayOnly': _evHighwayOnly,
+      });
+
+      if (!mounted) return;
+
+      final originLabel = _originName ?? _currentLocationAddress ?? '현재 위치';
+
+      setState(() {
+        _isEvResultMode = true;
+        _lastResultData = data;
+        _lastRouteSummary = '$originLabel → ${_destName ?? '목적지'}';
+      });
+
+      // 지도에 경로 + 마커 그리기 (추천=파랑, 대안=주황, 목적지)
+      final recommended = data['recommended'] is Map ? data['recommended'] as Map<String, dynamic> : null;
+      final alternatives = data['alternatives'] is List
+          ? (data['alternatives'] as List).whereType<Map<String, dynamic>>().toList()
+          : <Map<String, dynamic>>[];
+
+      final recLat = (recommended?['lat'] as num?)?.toDouble();
+      final recLng = (recommended?['lng'] as num?)?.toDouble();
+      final alt0 = alternatives.isNotEmpty ? alternatives[0] : null;
+      final alt0Lat = (alt0?['lat'] as num?)?.toDouble();
+      final alt0Lng = (alt0?['lng'] as num?)?.toDouble();
+
+      // EV 대안들을 refuel alternatives 포맷으로 변환 (lat/lng만 사용)
+      final evAltsForMap = alternatives.length > 1
+          ? alternatives.sublist(1).map((a) => <String, dynamic>{
+              'lat': a['lat'],
+              'lng': a['lng'],
+              'price_won_per_liter': null,
+              'brand': null,
+            }).toList()
+          : null;
+
+      _drawResultOnMap(
+        pathPoints: pathPoints,
+        originLat: startLat,
+        originLng: startLng,
+        stLat: recLat,
+        stLng: recLng,
+        stName: recommended?['name']?.toString() ?? '',
+        st2Lat: alt0Lat,
+        st2Lng: alt0Lng,
+        st2Name: alt0?['name']?.toString() ?? '',
+        destLat: _destLat!,
+        destLng: _destLng!,
+        alternatives: evAltsForMap,
+      );
+
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _errorMessage = '충전소 추천에 실패했습니다. 다시 시도해 주세요.');
+    } finally {
+      if (mounted) setState(() => _aiAnalyzing = false);
+    }
+  }
+
+  // EV 카드 "지도에서 경로 보기" 탭
+  Future<void> _showEvStationRouteOnMap(Map<String, dynamic> station) async {
+    if (_destLat == null || _destLng == null) return;
+    _collapseResultSheetForMapFocus();
+
+    final stLat = (station['lat'] as num?)?.toDouble();
+    final stLng = (station['lng'] as num?)?.toDouble();
+    if (stLat == null || stLng == null) return;
+    final stName = station['name']?.toString() ?? '';
+
+    var pathPoints = _lastPathPoints;
+    List<Map<String, dynamic>>? pathSegments;
+    try {
+      final vr = await ApiService().getDrivingRoute(
+        startLat: _lastStartLat, startLng: _lastStartLng,
+        goalLat: _destLat!, goalLng: _destLng!,
+        waypointLat: stLat, waypointLng: stLng,
+      );
+      if (vr['success'] == true) {
+        final parsed = _pathPointsFromServerJson(vr['path_points']);
+        if (parsed != null) pathPoints = parsed;
+        pathSegments = _parsePathSegments(vr['path_segments']);
+      }
+    } catch (_) {}
+
+    _drawResultOnMap(
+      pathPoints: pathPoints,
+      pathSegments: pathSegments,
+      originLat: _lastStartLat,
+      originLng: _lastStartLng,
+      stLat: stLat,
+      stLng: stLng,
+      stName: stName,
+      destLat: _destLat!,
+      destLng: _destLng!,
+    );
+  }
+
+  // EV 사용자 선택 모드 — 경로상 충전소 목록 불러오기
+  Future<void> _runEvUserSelect() async {
+    if (_destLat == null || _destLng == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('목적지를 선택해 주세요.'), behavior: SnackBarBehavior.floating),
+      );
+      return;
+    }
+
+    final box = Hive.box(AppConstants.settingsBox);
+    VehicleProfile? selectedVehicle;
+    {
+      final selectedId = box.get(AppConstants.keyAiSelectedVehicleId) as String?;
+      final rawVehicles = box.get(AppConstants.keyAiVehicles);
+      if (rawVehicles != null) {
+        try {
+          final List decoded = jsonDecode(rawVehicles as String);
+          final all = decoded.map((e) => VehicleProfile.fromJson(e as Map<String, dynamic>)).toList();
+          selectedVehicle = all.cast<VehicleProfile?>().firstWhere(
+            (v) => v?.id == selectedId, orElse: () => all.isNotEmpty ? all.first : null);
+        } catch (_) {}
+      }
+    }
+    if (selectedVehicle == null || !selectedVehicle.isEV) return;
+
+    double startLat, startLng;
+    if (_originLat != null && _originLng != null) {
+      startLat = _originLat!; startLng = _originLng!;
+    } else {
+      final loc = await _resolveCurrentLocationForStart();
+      if (loc == null) return;
+      startLat = loc.lat; startLng = loc.lng;
+    }
+
+    setState(() { _userSelecting = true; _errorMessage = null; });
+
+    var pathPoints = <Map<String, dynamic>>[
+      {'lat': startLat, 'lng': startLng},
+      {'lat': _destLat!, 'lng': _destLng!},
+    ];
+    try {
+      final dr = await ApiService().getDrivingRoute(
+        startLat: startLat, startLng: startLng,
+        goalLat: _destLat!, goalLng: _destLng!,
+      );
+      if (dr['success'] == true) {
+        final raw = dr['path_points'];
+        if (raw is List && raw.length >= 2) {
+          final parsed = <Map<String, dynamic>>[];
+          for (final e in raw) {
+            if (e is Map) {
+              final lat = e['lat']; final lng = e['lng'];
+              if (lat is num && lng is num) parsed.add({'lat': lat.toDouble(), 'lng': lng.toDouble()});
+            }
+          }
+          if (parsed.length >= 2) pathPoints = parsed;
+        }
+      }
+    } catch (_) {}
+
+    _lastStartLat = startLat;
+    _lastStartLng = startLng;
+    _lastPathPoints = pathPoints;
+
+    try {
+      final data = await ApiService().postEvAiRecommend({
+        'batteryPercent': selectedVehicle.currentLevelPercent,
+        'batteryCapacityKwh': selectedVehicle.batteryCapacity,
+        'efficiencyKmPerKwh': selectedVehicle.evEfficiency,
+        'chargerType': _evChargerType,
+        'originLat': startLat,
+        'originLng': startLng,
+        'destLat': _destLat,
+        'destLng': _destLng,
+        'pathPoints': pathPoints,
+        'userSelect': true,
+        'highwayOnly': _evHighwayOnly,
+      });
+      if (!mounted) return;
+
+      final candidates = data['candidates'] is List
+          ? (data['candidates'] as List).whereType<Map<String, dynamic>>().toList()
+          : <Map<String, dynamic>>[];
+
+      if (candidates.isEmpty) {
+        setState(() => _errorMessage = '경로 내 이용 가능한 충전소가 없어요.');
+        return;
+      }
+
+      // 지도에 전체 후보 마커 표시
+      final originLabel = _originName ?? _currentLocationAddress ?? '현재 위치';
+      setState(() {
+        _isEvSelectMode = true;
+        _evSelectCandidates = candidates;
+        _lastRouteSummary = '$originLabel → ${_destName ?? '목적지'}';
+      });
+
+      _drawResultOnMap(
+        pathPoints: pathPoints,
+        originLat: startLat, originLng: startLng,
+        stLat: null, stLng: null, stName: '',
+        destLat: _destLat!, destLng: _destLng!,
+        alternatives: candidates.map((c) => <String, dynamic>{
+          'lat': c['lat'], 'lng': c['lng'],
+          'price_won_per_liter': null, 'brand': null,
+        }).toList(),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _errorMessage = '충전소 목록을 불러오는데 실패했습니다.');
+    } finally {
+      if (mounted) setState(() => _userSelecting = false);
+    }
+  }
+
+  // EV 사용자 선택 모드 — 충전소 선택 후 경유 경로 보기
+  Future<void> _selectEvStation(Map<String, dynamic> station) async {
+    if (_destLat == null || _destLng == null) return;
+
+    final stLat = (station['lat'] as num?)?.toDouble();
+    final stLng = (station['lng'] as num?)?.toDouble();
+    if (stLat == null || stLng == null) return;
+
+    setState(() { _isEvSelectMode = false; _isEvResultMode = true; _lastResultData = {
+      'recommended': station,
+      'alternatives': [],
+      'charger_type': _evChargerType,
+      'reachable_distance_km': 0,
+    }; });
+
+    _showEvStationRouteOnMap(station);
+  }
+
+  // ── EV UI 헬퍼 위젯 ──────────────────────────────────────────────────────
+  Widget _evSegTab(String type, String label, IconData icon, Color activeColor) {
+    final active = _evChargerType == type;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _evChargerType = type),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          decoration: BoxDecoration(
+            color: active ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
+            boxShadow: active
+                ? [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 6, offset: const Offset(0, 1))]
+                : [],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: active ? activeColor : const Color(0xFF9EA7B2)),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: active ? activeColor : const Color(0xFF9EA7B2),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _evActionBtn({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required bool loading,
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: enabled ? color : color.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(11),
+        ),
+        child: loading
+            ? SizedBox(
+                width: 18, height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white.withOpacity(0.9)),
+              )
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 15, color: Colors.white),
+                  const SizedBox(width: 5),
+                  Text(label,
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
+                ],
+              ),
+      ),
+    );
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   Future<void> _clearResult() async {
     // 모드 플래그를 먼저 동기적으로 리셋 → 뒤로가기 중복 호출 방지
     setState(() {
       _isResultMode = false;
+      _isEvResultMode = false;
+      _isEvSelectMode = false;
+      _evSelectCandidates = [];
       _isCompareResultMode = false;
       _isSelectMode = false;
       _isSelectSheetVisible = false;
@@ -2140,7 +2594,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     );
   }
 
-  void _showLevelEditSheet() {
+  void _showLevelEditSheet({bool isEv = false}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -2153,9 +2607,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         initialMode: _targetMode,
         priceController: _priceController,
         literController: _literController,
+        isEv: isEv,
         onSave: (level, mode) {
           setState(() { _currentLevelPercent = level; _targetMode = mode; });
           final box = Hive.box(AppConstants.settingsBox);
+          _saveVehicleLevel(box, level: level, mode: mode);
+          // 글로벌 fallback도 유지
           box.put(AppConstants.keyAiCurrentLevelPercent, level);
           box.put(AppConstants.keyAiTargetMode, mode);
           Navigator.pop(ctx);
@@ -2228,10 +2685,27 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       });
     }
 
+    // 차량 전환 감지 → 슬라이더/목표 값을 해당 차량 프로필 기준으로 갱신
+    if (selectedVehicle != null && selectedVehicle.id != _lastSyncedVehicleId) {
+      final sv = selectedVehicle!;
+      _lastSyncedVehicleId = sv.id;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() {
+          _currentLevelPercent = sv.currentLevelPercent;
+          _targetMode = sv.targetMode;
+          _priceController.text = sv.targetValue.toStringAsFixed(0);
+        });
+      });
+    }
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
+        // AI 탭이 현재 선택된 탭이 아니면 처리하지 않음
+        // (IndexedStack에서 숨겨진 상태에도 PopScope가 살아있어 HomeScreen과 중복 트리거 방지)
+        if (ref.read(bottomNavIndexProvider) != 2) return;
         void markHandled() => _lastInScreenBackHandledAt = DateTime.now();
 
         final recentlyHandled = _lastInScreenBackHandledAt != null &&
@@ -2262,8 +2736,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           _clearResult();
           return;
         }
-        // 4. AI 결과 모드
-        if (_isResultMode) {
+        // 4. AI 결과 모드 / EV 선택 모드
+        if (_isResultMode || _isEvResultMode || _isEvSelectMode) {
           markHandled();
           _clearResult();
           return;
@@ -2301,6 +2775,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         final isAiFirstScreen = !_isPickerMode &&
             !_isSelectMode &&
             !_isResultMode &&
+            !_isEvResultMode &&
+            !_isEvSelectMode &&
             !_isCompareResultMode &&
             !_aiAnalyzing &&
             !_userSelecting &&
@@ -2481,7 +2957,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             ),
 
           // ── 일반 모드: 상단 오버레이 ──
-          if (!_isPickerMode && !_isResultMode)
+          if (!_isPickerMode && !_isResultMode && !_isEvResultMode && !_isEvSelectMode)
             Positioned(
               top: 0, left: 0, right: 0,
               child: SafeArea(
@@ -2563,7 +3039,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             ),
 
           // ── 일반 모드: 하단 패널 ──
-          if (!_isPickerMode && !_isResultMode && !_isSelectMode)
+          if (!_isPickerMode && !_isResultMode && !_isEvResultMode && !_isEvSelectMode && !_isSelectMode)
             Positioned(
               bottom: 0, left: 0, right: 0,
               child: SafeArea(
@@ -2595,133 +3071,195 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           ),
                         ),
                       ],
-                      // 잔량 + 차량 미니 카드
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: _showLevelEditSheet,
-                              child: _LevelSummaryCard(
-                                currentLevel: _currentLevelPercent,
-                                targetMode: _targetMode,
-                                priceController: _priceController,
-                                literController: _literController,
-                                wonFmt: _wonFmt,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          GestureDetector(
-                            onTap: () async {
-                              await Navigator.push(context,
-                                  MaterialPageRoute(builder: (_) => const AiVehicleListScreen()));
-                              setState(() {});
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: isEvVehicle
-                                      ? const Color(0xFF1D6FE0).withOpacity(0.4)
-                                      : const Color(0xFFEEEEEE),
+                      // 잔량 + 차량 미니 카드 (같은 높이)
+                      IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => _showLevelEditSheet(isEv: isEvVehicle),
+                                child: _LevelSummaryCard(
+                                  currentLevel: _currentLevelPercent,
+                                  targetMode: _targetMode,
+                                  priceController: _priceController,
+                                  literController: _literController,
+                                  wonFmt: _wonFmt,
                                 ),
                               ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    isEvVehicle
-                                        ? Icons.bolt_rounded
-                                        : Icons.local_gas_station_rounded,
-                                    size: 14,
+                            ),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () async {
+                                await Navigator.push(context,
+                                    MaterialPageRoute(builder: (_) => const AiVehicleListScreen()));
+                                setState(() {});
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
                                     color: isEvVehicle
-                                        ? const Color(0xFF1D6FE0)
-                                        : _kPrimary,
+                                        ? const Color(0xFF1D6FE0).withOpacity(0.4)
+                                        : const Color(0xFFEEEEEE),
                                   ),
-                                  const SizedBox(width: 6),
-                                  Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: isEvVehicle
-                                        ? [
-                                            Text(
-                                              '전기차',
-                                              style: const TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: Color(0xFF1D6FE0)),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              '${(selectedVehicle?.evEfficiency ?? efficiency).toStringAsFixed(1)}km/kWh',
-                                              style: const TextStyle(
-                                                  fontSize: 11,
-                                                  color: Color(0xFF666666)),
-                                            ),
-                                            Text(
-                                              '${(selectedVehicle?.batteryCapacity ?? tankCapacity).toStringAsFixed(0)}kWh',
-                                              style: const TextStyle(
-                                                  fontSize: 11,
-                                                  color: Color(0xFF999999)),
-                                            ),
-                                          ]
-                                        : [
-                                            Text(
-                                              fuelLabel,
-                                              style: const TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: _kPrimary),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              '${efficiency.toStringAsFixed(1)}km/L',
-                                              style: const TextStyle(
-                                                  fontSize: 11,
-                                                  color: Color(0xFF666666)),
-                                            ),
-                                            Text(
-                                              '${tankCapacity.toStringAsFixed(0)}L',
-                                              style: const TextStyle(
-                                                  fontSize: 11,
-                                                  color: Color(0xFF999999)),
-                                            ),
-                                          ],
-                                  ),
-                                ],
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          isEvVehicle ? Icons.bolt_rounded : Icons.local_gas_station_rounded,
+                                          size: 13,
+                                          color: isEvVehicle ? const Color(0xFF1D6FE0) : _kPrimary,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          isEvVehicle ? '전기차' : fuelLabel,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: isEvVehicle ? const Color(0xFF1D6FE0) : _kPrimary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      isEvVehicle
+                                          ? '· ${(selectedVehicle?.evEfficiency ?? efficiency).toStringAsFixed(1)}km/kWh'
+                                          : '· ${efficiency.toStringAsFixed(1)}km/L',
+                                      style: const TextStyle(fontSize: 11, color: Color(0xFF666666)),
+                                    ),
+                                    Text(
+                                      isEvVehicle
+                                          ? '· ${(selectedVehicle?.batteryCapacity ?? tankCapacity).toStringAsFixed(0)}kWh'
+                                          : '· ${tankCapacity.toStringAsFixed(0)}L',
+                                      style: const TextStyle(fontSize: 11, color: Color(0xFF999999)),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 8),
                       const SizedBox(height: 8),
-                      if (_aiAnalysisType == 'ev')
+                      if (_aiAnalysisType == 'ev') ...[
+                        // ── EV 옵션 + 액션 통합 카드 ──
                         Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF2F7FF),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: const Color(0xFFDCE9FF)),
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFE4ECF7)),
                           ),
-                          child: const Text(
-                            'AI 충전 분석은 준비 중입니다. 현재는 AI 주유 분석을 이용해 주세요.',
-                            style: TextStyle(fontSize: 12, color: Color(0xFF4A6FA5), height: 1.35),
+                          child: Column(
+                            children: [
+                              // 급속 / 완속 세그먼트
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
+                                child: Container(
+                                  height: 44,
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF1F5FB),
+                                    borderRadius: BorderRadius.circular(11),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      _evSegTab('FAST', '급속', Icons.bolt_rounded, _kCompareBlue),
+                                      _evSegTab('SLOW', '완속', Icons.electrical_services_rounded, _kPrimary),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              // 구분선
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                child: Divider(height: 1, color: Color(0xFFF0F0F0)),
+                              ),
+                              // 고속도로만 칩 + 버튼들
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                                child: Row(
+                                  children: [
+                                    // 고속도로만 토글칩
+                                    GestureDetector(
+                                      onTap: () => setState(() => _evHighwayOnly = !_evHighwayOnly),
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 180),
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                                        decoration: BoxDecoration(
+                                          color: _evHighwayOnly
+                                              ? _kCompareBlue.withOpacity(0.08)
+                                              : const Color(0xFFF5F7FA),
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(
+                                            color: _evHighwayOnly
+                                                ? _kCompareBlue.withOpacity(0.6)
+                                                : const Color(0xFFE0E0E0),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.add_road_rounded, size: 13,
+                                              color: _evHighwayOnly ? _kCompareBlue : const Color(0xFFAAAAAA)),
+                                            const SizedBox(width: 4),
+                                            Text('고속도로만',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: _evHighwayOnly ? _kCompareBlue : const Color(0xFF999999),
+                                              )),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    // AI 추천
+                                    _evActionBtn(
+                                      label: 'AI 추천',
+                                      icon: Icons.auto_awesome_rounded,
+                                      color: _kCompareBlue,
+                                      loading: _aiAnalyzing,
+                                      enabled: !_aiAnalyzing && !_userSelecting,
+                                      onTap: _runEvAnalyze,
+                                    ),
+                                    const SizedBox(width: 7),
+                                    // 직접 선택
+                                    _evActionBtn(
+                                      label: '직접 선택',
+                                      icon: Icons.format_list_bulleted_rounded,
+                                      color: const Color(0xFF3D8B6E),
+                                      loading: _userSelecting,
+                                      enabled: !_aiAnalyzing && !_userSelecting,
+                                      onTap: _runEvUserSelect,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      if (_aiAnalysisType == 'ev') const SizedBox(height: 8),
-                      // AI 분석 / 사용자 선택 버튼
-                      Row(
+                        const SizedBox(height: 8),
+                      ],
+                      // AI 분석 / 사용자 선택 버튼 (주유 전용)
+                      if (_aiAnalysisType != 'ev') Row(
                         children: [
                           Expanded(
                             child: SizedBox(
                               height: 52,
                               child: ElevatedButton(
-                                onPressed: (_aiAnalyzing || _userSelecting || _aiAnalysisType == 'ev')
+                                onPressed: (_aiAnalyzing || _userSelecting)
                                     ? null
                                     : _runAnalyze,
                                 style: ElevatedButton.styleFrom(
@@ -2748,7 +3286,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             child: SizedBox(
                               height: 52,
                               child: ElevatedButton(
-                                onPressed: (_aiAnalyzing || _userSelecting || _aiAnalysisType == 'ev')
+                                onPressed: (_aiAnalyzing || _userSelecting)
                                     ? null
                                     : _runUserSelect,
                                 style: ElevatedButton.styleFrom(
@@ -2782,7 +3320,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             ),
 
           // ── 결과 모드: 상단 뒤로가기 + 경로 요약 ──
-          if (_isResultMode)
+          if (_isResultMode || _isEvResultMode || _isEvSelectMode)
             Positioned(
               top: 0, left: 0, right: 0,
               child: SafeArea(
@@ -2838,7 +3376,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             ),
 
           // ── 결과 모드: 드래그 가능한 분석 결과 패널 ──
-          if ((_isResultMode || _isCompareResultMode) && _lastResultData != null)
+          if ((_isResultMode || _isCompareResultMode || _isEvResultMode) && _lastResultData != null)
             DraggableScrollableSheet(
               controller: _sheetController,
               initialChildSize: 0.45,
@@ -2861,34 +3399,72 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                     ),
                   ],
                 ),
-                child: _isCompareResultMode
-                    ? CompareResultBody(
+                child: _isEvResultMode
+                    ? EvResultBody(
                         data: _lastResultData!,
-                        destinationName: _destName ?? '목적지',
                         scrollController: sc,
-                        wonFmt: _wonFmt,
-                        fuelLabel: fuelLabel,
+                        onStationMapTap: _showEvStationRouteOnMap,
                         originLat: _lastStartLat,
                         originLng: _lastStartLng,
                         destLat: _destLat,
                         destLng: _destLng,
-                        onCardTap: _showCompareCardRouteOnMap,
+                        destName: _destName ?? '목적지',
                       )
-                    : AiResultBody(
-                        data: _lastResultData!,
-                        destinationName: _destName ?? '목적지',
-                        originLat: _lastStartLat,
-                        originLng: _lastStartLng,
-                        scrollController: sc,
-                        onAltRouteView: _showAltRouteOnMap,
-                        onResetToAiRec: _resetToAiRec,
-                      ),
+                    : _isCompareResultMode
+                        ? CompareResultBody(
+                            data: _lastResultData!,
+                            destinationName: _destName ?? '목적지',
+                            scrollController: sc,
+                            wonFmt: _wonFmt,
+                            fuelLabel: fuelLabel,
+                            originLat: _lastStartLat,
+                            originLng: _lastStartLng,
+                            destLat: _destLat,
+                            destLng: _destLng,
+                            onCardTap: _showCompareCardRouteOnMap,
+                          )
+                        : AiResultBody(
+                            data: _lastResultData!,
+                            destinationName: _destName ?? '목적지',
+                            originLat: _lastStartLat,
+                            originLng: _lastStartLng,
+                            scrollController: sc,
+                            onAltRouteView: _showAltRouteOnMap,
+                            onResetToAiRec: _resetToAiRec,
+                          ),
+                );
+              },
+            ),
+
+          // ── EV 충전소 선택 모드: 하단 리스트 시트 ──
+          if (_isEvSelectMode && _evSelectCandidates.isNotEmpty)
+            DraggableScrollableSheet(
+              controller: _sheetController,
+              initialChildSize: 0.45,
+              minChildSize: 0.12,
+              maxChildSize: 0.9,
+              snap: true,
+              snapSizes: const [0.12, 0.45, 0.9],
+              builder: (_, sc) {
+                _resultSheetScrollController = sc;
+                return Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 20, offset: const Offset(0, -2))],
+                  ),
+                  child: EvSelectList(
+                    candidates: _evSelectCandidates,
+                    chargerType: _evChargerType,
+                    scrollController: sc,
+                    onSelect: _selectEvStation,
+                  ),
                 );
               },
             ),
 
           // ── 현재위치 버튼 (결과 모드: 시트 위에 붙어 이동) ──
-          if (_isResultMode)
+          if (_isResultMode || _isEvResultMode || _isEvSelectMode)
             Positioned(
               right: 16,
               bottom: MediaQuery.of(context).padding.bottom +
@@ -2968,7 +3544,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             ),
 
           // ── 일반 모드: 현재위치 버튼 (우하단) ──
-          if (!_isPickerMode && !_isResultMode && !_isSelectMode)
+          if (!_isPickerMode && !_isResultMode && !_isEvResultMode && !_isEvSelectMode && !_isSelectMode)
             Positioned(
               right: 16,
               bottom: MediaQuery.of(context).padding.bottom + 180,
@@ -4028,6 +4604,7 @@ class _LevelEditSheet extends StatefulWidget {
   final TextEditingController priceController;
   final TextEditingController literController;
   final void Function(double level, String mode) onSave;
+  final bool isEv;
 
   const _LevelEditSheet({
     required this.initialLevel,
@@ -4035,6 +4612,7 @@ class _LevelEditSheet extends StatefulWidget {
     required this.priceController,
     required this.literController,
     required this.onSave,
+    this.isEv = false,
   });
 
   @override
@@ -4188,6 +4766,7 @@ class _LevelEditSheetState extends State<_LevelEditSheet> {
                   ],
                 ),
               ],
+              if (!widget.isEv) ...[
               const SizedBox(height: 16),
               const Text('목표 주유',
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF999999))),
@@ -4239,6 +4818,7 @@ class _LevelEditSheetState extends State<_LevelEditSheet> {
                   ),
                 ),
               ],
+              ], // if (!widget.isEv)
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,

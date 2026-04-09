@@ -1,0 +1,669 @@
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import '../../core/utils/navigation_util.dart';
+
+const _kBlue = Color(0xFF1D6FE0);
+const _kBlueLight = Color(0xFFEEF4FF);
+const _kGreen = Color(0xFF1D9E75);
+const _kGreenLight = Color(0xFFE1F5EE);
+const _kOrange = Color(0xFFE8700A);
+const _kOrangeLight = Color(0xFFFFF3E0);
+const _kGrey = Color(0xFF888888);
+
+final _wonFmt = NumberFormat('#,###', 'ko_KR');
+
+class EvResultBody extends StatelessWidget {
+  final Map<String, dynamic> data;
+  final ScrollController scrollController;
+  final void Function(Map<String, dynamic> station)? onStationMapTap;
+  final double? originLat;
+  final double? originLng;
+  final double? destLat;
+  final double? destLng;
+  final String? destName;
+
+  const EvResultBody({
+    super.key,
+    required this.data,
+    required this.scrollController,
+    this.onStationMapTap,
+    this.originLat,
+    this.originLng,
+    this.destLat,
+    this.destLng,
+    this.destName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final recommended = data['recommended'] is Map
+        ? data['recommended'] as Map<String, dynamic>
+        : null;
+    final alternatives = data['alternatives'] is List
+        ? (data['alternatives'] as List).whereType<Map<String, dynamic>>().toList()
+        : <Map<String, dynamic>>[];
+    final reachableKm = (data['reachable_distance_km'] as num?)?.toDouble() ?? 0.0;
+    final chargerType = data['charger_type']?.toString() ?? 'FAST';
+    final totalCandidates = (data['total_candidates'] as num?)?.toInt();
+    final filteredOut = (data['filtered_out_count'] as num?)?.toInt() ?? 0;
+
+    return CustomScrollView(
+      controller: scrollController,
+      slivers: [
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _HandleDelegate(),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── 헤더 ──
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: chargerType == 'FAST' ? _kBlueLight : _kGreenLight,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            chargerType == 'FAST' ? Icons.bolt_rounded : Icons.electrical_services_rounded,
+                            size: 13,
+                            color: chargerType == 'FAST' ? _kBlue : _kGreen,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            chargerType == 'FAST' ? '급속' : '완속',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: chargerType == 'FAST' ? _kBlue : _kGreen,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '주행 가능 ${reachableKm.toStringAsFixed(0)}km',
+                      style: const TextStyle(fontSize: 13, color: _kGrey),
+                    ),
+                    if (totalCandidates != null) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        '· 후보 $totalCandidates개',
+                        style: const TextStyle(fontSize: 12, color: _kGrey),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                // ── 추천 충전소 ──
+                if (recommended == null)
+                  _NoStationCard(filteredOut: filteredOut)
+                else ...[
+                  const Text(
+                    'AI 추천 충전소',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kGrey),
+                  ),
+                  const SizedBox(height: 8),
+                  _StationCard(
+                    station: recommended,
+                    isRecommended: true,
+                    chargerType: chargerType,
+                    accentColor: chargerType == 'FAST' ? _kBlue : _kGreen,
+                    accentLight: chargerType == 'FAST' ? _kBlueLight : _kGreenLight,
+                    onMapTap: onStationMapTap != null ? () => onStationMapTap!(recommended) : null,
+                    originLat: originLat,
+                    originLng: originLng,
+                    destLat: destLat,
+                    destLng: destLng,
+                    destName: destName,
+                  ),
+                  if (alternatives.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    const Text(
+                      '다른 후보',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kGrey),
+                    ),
+                    const SizedBox(height: 8),
+                    ...alternatives.map((alt) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _StationCard(
+                        station: alt,
+                        isRecommended: false,
+                        chargerType: chargerType,
+                        accentColor: _kOrange,
+                        accentLight: _kOrangeLight,
+                        onMapTap: onStationMapTap != null ? () => onStationMapTap!(alt) : null,
+                        originLat: originLat,
+                        originLng: originLng,
+                        destLat: destLat,
+                        destLng: destLng,
+                        destName: destName,
+                      ),
+                    )),
+                  ],
+                  if (filteredOut > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        '* 이용제한 $filteredOut개소 제외됨',
+                        style: const TextStyle(fontSize: 11, color: _kGrey),
+                      ),
+                    ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _NoStationCard extends StatelessWidget {
+  final int filteredOut;
+  const _NoStationCard({required this.filteredOut});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F8F8),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE0E0E0)),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.ev_station_rounded, size: 36, color: _kGrey),
+          const SizedBox(height: 10),
+          const Text(
+            '주행 가능 거리 내에\n이용 가능한 충전소가 없어요',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: Color(0xFF444444), height: 1.4),
+          ),
+          if (filteredOut > 0) ...[
+            const SizedBox(height: 6),
+            Text(
+              '(이용제한 $filteredOut개소 제외)',
+              style: const TextStyle(fontSize: 12, color: _kGrey),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _StationCard extends StatelessWidget {
+  final Map<String, dynamic> station;
+  final bool isRecommended;
+  final String chargerType;
+  final Color accentColor;
+  final Color accentLight;
+  final VoidCallback? onMapTap;
+  final double? originLat;
+  final double? originLng;
+  final double? destLat;
+  final double? destLng;
+  final String? destName;
+
+  const _StationCard({
+    required this.station,
+    required this.isRecommended,
+    required this.chargerType,
+    required this.accentColor,
+    required this.accentLight,
+    this.onMapTap,
+    this.originLat,
+    this.originLng,
+    this.destLat,
+    this.destLng,
+    this.destName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final name = station['name']?.toString() ?? '-';
+    final address = station['address']?.toString() ?? '';
+    final operator = station['operator']?.toString() ?? '';
+    final availCount = (station['available_count'] as num?)?.toInt() ?? 0;
+    final totalCount = (station['total_count'] as num?)?.toInt() ?? 0;
+    final unitPrice = (station['unit_price'] as num?)?.toInt();
+    final detourMin = (station['detour_time_min'] as num?)?.toInt();
+    final oldestMin = (station['oldest_charging_min'] as num?)?.toInt();
+    final routeDistM = (station['route_distance_m'] as num?)?.toInt() ?? 0;
+    final statusMessage = station['status_message']?.toString() ?? '';
+
+    final distLabel = routeDistM >= 1000
+        ? '${(routeDistM / 1000).toStringAsFixed(1)}km'
+        : '${routeDistM}m';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isRecommended ? accentColor : const Color(0xFFE5E5E5),
+          width: isRecommended ? 1.5 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── 상단 배너 (추천 배지 + 상태) ──
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: accentLight,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(13)),
+            ),
+            child: Row(
+              children: [
+                if (isRecommended) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: accentColor,
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: const Text(
+                      'AI 추천',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                Expanded(
+                  child: Text(
+                    statusMessage,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: accentColor,
+                    ),
+                  ),
+                ),
+                // 충전기 현황
+                _ChargerDot(avail: availCount, total: totalCount, accentColor: accentColor),
+              ],
+            ),
+          ),
+
+          // ── 본문 ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A)),
+                ),
+                if (operator.isNotEmpty || address.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    [if (operator.isNotEmpty) operator, if (address.isNotEmpty) address].join(' · '),
+                    style: const TextStyle(fontSize: 12, color: _kGrey),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    // 단가
+                    _InfoChip(
+                      icon: Icons.bolt_rounded,
+                      label: unitPrice != null ? '${_wonFmt.format(unitPrice)}원/kWh' : '가격 미공개',
+                      color: const Color(0xFF444444),
+                    ),
+                    const SizedBox(width: 8),
+                    // 경로 거리
+                    _InfoChip(
+                      icon: Icons.near_me_rounded,
+                      label: '경로에서 $distLabel',
+                      color: _kGrey,
+                    ),
+                    if (detourMin != null && detourMin > 0) ...[
+                      const SizedBox(width: 8),
+                      _InfoChip(
+                        icon: Icons.u_turn_right_rounded,
+                        label: '+${detourMin}분 우회',
+                        color: _kOrange,
+                      ),
+                    ],
+                  ],
+                ),
+                if (detourMin != null && detourMin == 0)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.check_circle_rounded, size: 14, color: _kGreen),
+                        const SizedBox(width: 4),
+                        Text(
+                          '경로 이탈 없음',
+                          style: const TextStyle(fontSize: 12, color: _kGreen, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (availCount == 0 && oldestMin != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      '가장 오래된 충전 ${oldestMin}분 경과',
+                      style: const TextStyle(fontSize: 12, color: _kGrey),
+                    ),
+                  ),
+                if (onMapTap != null || (originLat != null && destLat != null)) ...[
+                  const SizedBox(height: 10),
+                  const Divider(height: 1, color: Color(0xFFEEEEEE)),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      if (onMapTap != null) ...[
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: onMapTap,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.map_rounded, size: 14, color: accentColor),
+                                const SizedBox(width: 5),
+                                Text(
+                                  '지도에서 경로 보기',
+                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: accentColor),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                      if (onMapTap != null && originLat != null && destLat != null)
+                        Container(width: 1, height: 16, color: const Color(0xFFEEEEEE)),
+                      if (originLat != null && destLat != null) ...[
+                        Expanded(
+                          child: Builder(builder: (ctx) => GestureDetector(
+                            onTap: () {
+                              final stLat = (station['lat'] as num?)?.toDouble();
+                              final stLng = (station['lng'] as num?)?.toDouble();
+                              final stName = station['name']?.toString() ?? '충전소';
+                              if (stLat == null || stLng == null) return;
+                              showViaWaypointNavigationSheet(
+                                ctx,
+                                originLat: originLat!,
+                                originLng: originLng!,
+                                waypointLat: stLat,
+                                waypointLng: stLng,
+                                waypointName: stName,
+                                destinationLat: destLat!,
+                                destinationLng: destLng!,
+                                destinationName: destName ?? '목적지',
+                              );
+                            },
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.navigation_rounded, size: 14, color: accentColor),
+                                const SizedBox(width: 5),
+                                Text(
+                                  '길안내',
+                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: accentColor),
+                                ),
+                              ],
+                            ),
+                          )),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChargerDot extends StatelessWidget {
+  final int avail;
+  final int total;
+  final Color accentColor;
+
+  const _ChargerDot({required this.avail, required this.total, required this.accentColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8, height: 8,
+          decoration: BoxDecoration(
+            color: avail > 0 ? _kGreen : _kOrange,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          '$avail/$total',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: avail > 0 ? _kGreen : _kOrange,
+          ),
+        ),
+        const Text(' 가용', style: TextStyle(fontSize: 11, color: _kGrey)),
+      ],
+    );
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  const _InfoChip({required this.icon, required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 13, color: color),
+        const SizedBox(width: 3),
+        Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w500)),
+      ],
+    );
+  }
+}
+
+class _HandleDelegate extends SliverPersistentHeaderDelegate {
+  @override double get minExtent => 24;
+  @override double get maxExtent => 24;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return ColoredBox(
+      color: Colors.white,
+      child: Center(
+        child: Container(
+          width: 36, height: 4,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade300,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) => false;
+}
+
+// ── EV 사용자 선택 모드 리스트 ──
+class EvSelectList extends StatelessWidget {
+  final List<Map<String, dynamic>> candidates;
+  final String chargerType;
+  final ScrollController scrollController;
+  final void Function(Map<String, dynamic>) onSelect;
+
+  const EvSelectList({
+    required this.candidates,
+    required this.chargerType,
+    required this.scrollController,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final accentColor = chargerType == 'FAST' ? _kBlue : _kGreen;
+
+    return CustomScrollView(
+      controller: scrollController,
+      slivers: [
+        SliverPersistentHeader(pinned: true, delegate: _HandleDelegate()),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: Row(
+              children: [
+                Icon(chargerType == 'FAST' ? Icons.bolt_rounded : Icons.electrical_services_rounded,
+                    size: 15, color: accentColor),
+                const SizedBox(width: 5),
+                Text(
+                  '${chargerType == 'FAST' ? '급속' : '완속'} 충전소 ${candidates.length}개',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: accentColor),
+                ),
+                const SizedBox(width: 6),
+                const Text('· 경로 가까운 순', style: TextStyle(fontSize: 12, color: _kGrey)),
+              ],
+            ),
+          ),
+        ),
+        SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, i) {
+              final s = candidates[i];
+              final name = s['name']?.toString() ?? '-';
+              final operator = s['operator']?.toString() ?? '';
+              final avail = (s['available_count'] as num?)?.toInt() ?? 0;
+              final total = (s['total_count'] as num?)?.toInt() ?? 0;
+              final unitPrice = (s['unit_price'] as num?)?.toInt();
+              final routeDistM = (s['route_distance_m'] as num?)?.toInt() ?? 0;
+              final statusMsg = s['status_message']?.toString() ?? '';
+              final isOnRoute = routeDistM <= 500;
+
+              final distLabel = routeDistM >= 1000
+                  ? '${(routeDistM / 1000).toStringAsFixed(1)}km'
+                  : '${routeDistM}m';
+
+              return GestureDetector(
+                onTap: () => onSelect(s),
+                child: Container(
+                  margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isOnRoute ? accentColor.withOpacity(0.4) : const Color(0xFFE5E5E5),
+                    ),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                if (isOnRoute) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: accentColor,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text('경로상', style: TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w700)),
+                                  ),
+                                  const SizedBox(width: 5),
+                                ],
+                                Expanded(
+                                  child: Text(name,
+                                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A)),
+                                    overflow: TextOverflow.ellipsis),
+                                ),
+                              ],
+                            ),
+                            if (operator.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text(operator, style: const TextStyle(fontSize: 11, color: _kGrey), overflow: TextOverflow.ellipsis),
+                            ],
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Container(
+                                  width: 7, height: 7,
+                                  decoration: BoxDecoration(
+                                    color: avail > 0 ? _kGreen : _kOrange,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Text('$avail/$total 가용',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
+                                    color: avail > 0 ? _kGreen : _kOrange)),
+                                const SizedBox(width: 8),
+                                Text('경로에서 $distLabel',
+                                  style: const TextStyle(fontSize: 11, color: _kGrey)),
+                                if (unitPrice != null) ...[
+                                  const SizedBox(width: 8),
+                                  Text('${_wonFmt.format(unitPrice)}원/kWh',
+                                    style: const TextStyle(fontSize: 11, color: Color(0xFF444444))),
+                                ],
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400, size: 20),
+                    ],
+                  ),
+                ),
+              );
+            },
+            childCount: candidates.length,
+          ),
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 24)),
+      ],
+    );
+  }
+}

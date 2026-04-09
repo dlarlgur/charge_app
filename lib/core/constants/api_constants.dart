@@ -33,6 +33,7 @@ class ApiConstants {
   static const refuelAnalyze = '/v1/refuel/analyze';
   static const refuelRouteStations = '/v1/refuel/route-stations';
   static const refuelCompare = '/v1/refuel/compare';
+  static const evAiRecommend = '/stations/ev/ai-recommend';
 
   // ─── 오피넷 유종 코드 ───
   static const fuelCodeGasoline = 'B027';

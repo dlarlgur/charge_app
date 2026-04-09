@@ -1497,52 +1497,56 @@ class _ComparisonTable extends StatelessWidget {
           const Divider(height: 1, color: Color(0xFFF0F0F0)),
 
           // 결론 배너
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: const BoxDecoration(
-              color: Color(0xFFF5FBF8),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(14),
-                bottomRight: Radius.circular(14),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.lightbulb_outline_rounded, size: 15, color: _kMarkerRecommend),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: !hasBothCols
-                      ? const Text(
-                          '비교 후보가 한 곳이에요. 표에 표시된 주유소 정보를 참고해 주세요.',
-                          style: TextStyle(fontSize: 12, color: Color(0xFF666666)),
-                        )
-                      : savings > 0
-                          ? RichText(
-                              text: TextSpan(
-                                style: const TextStyle(fontSize: 12, color: Color(0xFF1a1a1a)),
-                                children: [
-                                  TextSpan(
-                                    text: detourIsActuallyCheaper ? '우회' : '경로상 주유소',
-                                    style: const TextStyle(fontWeight: FontWeight.w700, color: _kMarkerRecommend),
-                                  ),
-                                  const TextSpan(text: '가 '),
-                                  TextSpan(
-                                    text: '${wonFmt.format(savings)}원',
-                                    style: const TextStyle(fontWeight: FontWeight.w700, color: _kMarkerRecommend),
-                                  ),
-                                  const TextSpan(text: ' 더 저렴해요'),
-                                  if (detourMins != null && detourMins! > 0 && detourIsActuallyCheaper)
-                                    TextSpan(text: ' · 대신 ${detourMins}분 더 소요'),
-                                ],
-                              ),
-                            )
-                          : const Text('두 주유소 가격 차이가 거의 없어요',
-                              style: TextStyle(fontSize: 12, color: Color(0xFF666666))),
+          Builder(builder: (context) {
+            // 추천 측 색상: 우회 추천이면 파랑, 경로상 추천이면 주황
+            final bannerColor = detourIsWinner ? const Color(0xFF1D6FE0) : _kMarkerRecommend;
+            return Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF5FBF8),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(14),
+                  bottomRight: Radius.circular(14),
                 ),
-              ],
-            ),
-          ),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.lightbulb_outline_rounded, size: 15, color: bannerColor),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: !hasBothCols
+                        ? const Text(
+                            '비교 후보가 한 곳이에요. 표에 표시된 주유소 정보를 참고해 주세요.',
+                            style: TextStyle(fontSize: 12, color: Color(0xFF666666)),
+                          )
+                        : savings > 0
+                            ? RichText(
+                                text: TextSpan(
+                                  style: const TextStyle(fontSize: 12, color: Color(0xFF1a1a1a)),
+                                  children: [
+                                    TextSpan(
+                                      text: detourIsActuallyCheaper ? '우회' : '경로상 주유소',
+                                      style: TextStyle(fontWeight: FontWeight.w700, color: bannerColor),
+                                    ),
+                                    const TextSpan(text: '가 '),
+                                    TextSpan(
+                                      text: '${wonFmt.format(savings)}원',
+                                      style: TextStyle(fontWeight: FontWeight.w700, color: bannerColor),
+                                    ),
+                                    const TextSpan(text: ' 더 저렴해요'),
+                                    if (detourMins != null && detourMins! > 0 && detourIsActuallyCheaper)
+                                      TextSpan(text: ' · 대신 ${detourMins}분 더 소요'),
+                                  ],
+                                ),
+                              )
+                            : const Text('두 주유소 가격 차이가 거의 없어요',
+                                style: TextStyle(fontSize: 12, color: Color(0xFF666666))),
+                  ),
+                ],
+              ),
+            );
+          }),
         ],
       ),
     );

@@ -196,6 +196,11 @@ class ApiService {
     return out;
   }
 
+  Future<Map<String, dynamic>> postEvAiRecommend(Map<String, dynamic> body) async {
+    final res = await _dio.post(ApiConstants.evAiRecommend, data: body);
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
   Future<Map<String, dynamic>> postRefuelAnalyze(Map<String, dynamic> body) async {
     final res = await _dio.post(ApiConstants.refuelAnalyze, data: body);
     return Map<String, dynamic>.from(res.data ?? {});
