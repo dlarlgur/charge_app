@@ -2681,7 +2681,23 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final expectedType = isEvVehicle ? 'ev' : 'gas';
     if (_aiAnalysisType != expectedType) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() => _aiAnalysisType = expectedType);
+        if (mounted) setState(() {
+          _aiAnalysisType = expectedType;
+          // 차량 타입이 바뀌면 이전 모드 플래그 전체 초기화
+          _isResultMode = false;
+          _isEvResultMode = false;
+          _isEvSelectMode = false;
+          _evSelectCandidates = [];
+          _isCompareResultMode = false;
+          _isSelectMode = false;
+          _isSelectSheetVisible = false;
+          _lastResultData = null;
+          _lastRouteSummary = null;
+          _selectableStations = null;
+          _selectedStationAId = null;
+          _selectedStationBId = null;
+        });
+        _mapController?.clearOverlays();
       });
     }
 
@@ -3072,8 +3088,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                         ),
                       ],
                       // 잔량 + 차량 미니 카드
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      IntrinsicHeight(
+                        child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                             Expanded(
                               child: GestureDetector(
@@ -3108,7 +3125,6 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Row(
                                       mainAxisSize: MainAxisSize.min,
@@ -3148,7 +3164,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             ),
                           ],
                         ),
-                      const SizedBox(height: 8),
+                      ), // IntrinsicHeight
                       const SizedBox(height: 8),
                       if (_aiAnalysisType == 'ev') ...[
                         // ── EV 옵션 + 액션 통합 카드 ──
