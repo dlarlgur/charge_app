@@ -3088,9 +3088,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                         ),
                       ],
                       // 잔량 + 차량 미니 카드
-                      IntrinsicHeight(
-                        child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                             Expanded(
                               child: GestureDetector(
@@ -3125,6 +3124,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Row(
                                       mainAxisSize: MainAxisSize.min,
@@ -3164,7 +3164,6 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             ),
                           ],
                         ),
-                      ), // IntrinsicHeight
                       const SizedBox(height: 8),
                       if (_aiAnalysisType == 'ev') ...[
                         // ── EV 옵션 + 액션 통합 카드 ──
