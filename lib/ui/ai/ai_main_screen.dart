@@ -3091,87 +3091,86 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           ),
                         ),
                       ],
-                      // 잔량 + 차량 미니 카드 (고정 높이로 두 카드 높이 일치)
-                      SizedBox(
-                        height: 70,
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () => _showLevelEditSheet(isEv: isEvVehicle),
-                                child: _LevelSummaryCard(
-                                  currentLevel: _currentLevelPercent,
-                                  targetMode: _targetMode,
-                                  priceController: _priceController,
-                                  literController: _literController,
-                                  wonFmt: _wonFmt,
-                                ),
+                      // 잔량 + 차량 미니 카드
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => _showLevelEditSheet(isEv: isEvVehicle),
+                              child: _LevelSummaryCard(
+                                currentLevel: _currentLevelPercent,
+                                targetMode: _targetMode,
+                                priceController: _priceController,
+                                literController: _literController,
+                                wonFmt: _wonFmt,
+                                isEv: isEvVehicle,
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            GestureDetector(
-                              onTap: () async {
-                                await Navigator.push(context,
-                                    MaterialPageRoute(builder: (_) => const AiVehicleListScreen()));
-                                setState(() {});
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: isEvVehicle
-                                        ? const Color(0xFF1D6FE0).withOpacity(0.4)
-                                        : const Color(0xFFEEEEEE),
-                                  ),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () async {
+                              await Navigator.push(context,
+                                  MaterialPageRoute(builder: (_) => const AiVehicleListScreen()));
+                              setState(() {});
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isEvVehicle
+                                      ? const Color(0xFF1D6FE0).withOpacity(0.4)
+                                      : const Color(0xFFEEEEEE),
                                 ),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          isEvVehicle ? Icons.bolt_rounded : Icons.local_gas_station_rounded,
-                                          size: 13,
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        isEvVehicle ? Icons.bolt_rounded : Icons.local_gas_station_rounded,
+                                        size: 13,
+                                        color: isEvVehicle ? const Color(0xFF1D6FE0) : _kPrimary,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        selectedVehicle?.name ?? (isEvVehicle ? '전기차' : fuelLabel),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
                                           color: isEvVehicle ? const Color(0xFF1D6FE0) : _kPrimary,
                                         ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          isEvVehicle ? '전기차' : fuelLabel,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
-                                            color: isEvVehicle ? const Color(0xFF1D6FE0) : _kPrimary,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      isEvVehicle
-                                          ? '· ${(selectedVehicle?.evEfficiency ?? efficiency).toStringAsFixed(1)}km/kWh'
-                                          : '· ${efficiency.toStringAsFixed(1)}km/L',
-                                      style: const TextStyle(fontSize: 11, color: Color(0xFF666666)),
-                                    ),
-                                    Text(
-                                      isEvVehicle
-                                          ? '· ${(selectedVehicle?.batteryCapacity ?? tankCapacity).toStringAsFixed(0)}kWh'
-                                          : '· ${tankCapacity.toStringAsFixed(0)}L',
-                                      style: const TextStyle(fontSize: 11, color: Color(0xFF999999)),
-                                    ),
-                                  ],
-                                ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    isEvVehicle
+                                        ? '· ${(selectedVehicle?.evEfficiency ?? efficiency).toStringAsFixed(1)}km/kWh'
+                                        : '· ${efficiency.toStringAsFixed(1)}km/L',
+                                    style: const TextStyle(fontSize: 11, color: Color(0xFF666666)),
+                                  ),
+                                  Text(
+                                    isEvVehicle
+                                        ? '· ${(selectedVehicle?.batteryCapacity ?? tankCapacity).toStringAsFixed(0)}kWh'
+                                        : '· ${tankCapacity.toStringAsFixed(0)}L',
+                                    style: const TextStyle(fontSize: 11, color: Color(0xFF999999)),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 8),
-                      if (_aiAnalysisType == 'ev') ...[
+                      if (isEvVehicle) ...[
                         // ── EV 옵션 + 액션 통합 카드 ──
                         Container(
                           width: double.infinity,
@@ -3272,7 +3271,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                         const SizedBox(height: 8),
                       ],
                       // AI 분석 / 사용자 선택 버튼 (주유 전용)
-                      if (_aiAnalysisType != 'ev') Row(
+                      if (!isEvVehicle) Row(
                         children: [
                           Expanded(
                             child: SizedBox(
@@ -4534,6 +4533,7 @@ class _LevelSummaryCard extends StatelessWidget {
   final TextEditingController priceController;
   final TextEditingController literController;
   final NumberFormat wonFmt;
+  final bool isEv;
 
   const _LevelSummaryCard({
     required this.currentLevel,
@@ -4541,9 +4541,11 @@ class _LevelSummaryCard extends StatelessWidget {
     required this.priceController,
     required this.literController,
     required this.wonFmt,
+    this.isEv = false,
   });
 
   String get _targetLabel {
+    if (isEv) return '잔량 편집';
     if (targetMode == 'FULL') return '가득 채우기';
     if (targetMode == 'PRICE') {
       final p = double.tryParse(priceController.text.replaceAll(',', '.')) ?? 0;
@@ -4556,7 +4558,7 @@ class _LevelSummaryCard extends StatelessWidget {
   Color get _levelColor {
     if (currentLevel <= 20) return const Color(0xFFE24B4A);
     if (currentLevel <= 50) return const Color(0xFFEF9F27);
-    return _kPrimary;
+    return isEv ? const Color(0xFF1D6FE0) : _kPrimary;
   }
 
   @override
@@ -4566,11 +4568,13 @@ class _LevelSummaryCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFEEEEEE)),
+        border: Border.all(
+          color: isEv ? const Color(0xFF1D6FE0).withOpacity(0.3) : const Color(0xFFEEEEEE),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
@@ -4591,11 +4595,13 @@ class _LevelSummaryCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(4),
                       child: Container(
                         height: 7, width: fillW,
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [Color(0xFFE24B4A), Color(0xFFEF9F27),
-                              Color(0xFFFFD60A), Color(0xFF34C759)],
-                            stops: [0.0, 0.35, 0.65, 1.0],
+                            colors: isEv
+                                ? [const Color(0xFF1D6FE0), const Color(0xFF34C8F5)]
+                                : [const Color(0xFFE24B4A), const Color(0xFFEF9F27),
+                                   const Color(0xFFFFD60A), const Color(0xFF34C759)],
+                            stops: isEv ? [0.0, 1.0] : [0.0, 0.35, 0.65, 1.0],
                           ),
                         ),
                       ),
