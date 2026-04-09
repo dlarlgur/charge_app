@@ -3071,11 +3071,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           ),
                         ),
                       ],
-                      // 잔량 + 차량 미니 카드 (같은 높이)
-                      IntrinsicHeight(
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
+                      // 잔량 + 차량 미니 카드
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                             Expanded(
                               child: GestureDetector(
                                 onTap: () => _showLevelEditSheet(isEv: isEvVehicle),
@@ -3149,7 +3148,6 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             ),
                           ],
                         ),
-                      ),
                       const SizedBox(height: 8),
                       const SizedBox(height: 8),
                       if (_aiAnalysisType == 'ev') ...[
