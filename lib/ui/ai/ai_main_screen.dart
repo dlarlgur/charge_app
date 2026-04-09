@@ -1839,7 +1839,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       startLat = loc.lat; startLng = loc.lng;
     }
 
-    setState(() { _userSelecting = true; _errorMessage = null; });
+    setState(() {
+      _userSelecting = true;
+      _userSelectingMessage = '경로상 충전소 목록 불러오는 중...';
+      _errorMessage = null;
+    });
 
     var pathPoints = <Map<String, dynamic>>[
       {'lat': startLat, 'lng': startLng},
@@ -3289,7 +3293,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                         children: [
                                           Icon(Icons.auto_awesome_rounded, size: 18),
                                           SizedBox(width: 6),
-                                          Text('AI 경로 추천',
+                                          Text('AI 주유소 추천',
                                               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                                         ],
                                       ),
@@ -3615,7 +3619,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           ),
                         ],
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           SizedBox(
@@ -3623,13 +3627,13 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             height: 18,
                             child: CircularProgressIndicator(
                               strokeWidth: 2.2,
-                              color: _kPrimary,
+                              color: _aiAnalysisType == 'ev' ? _kCompareBlue : _kPrimary,
                             ),
                           ),
-                          SizedBox(width: 10),
+                          const SizedBox(width: 10),
                           Text(
-                            'AI 경로 추천 중...',
-                            style: TextStyle(
+                            _aiAnalysisType == 'ev' ? 'AI 충전소 추천 중...' : 'AI 주유소 추천 중...',
+                            style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                               color: Color(0xFF1a1a1a),
