@@ -66,6 +66,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   // ── 분석에 사용된 마지막 경로 (결과화면 지도용) ──
   double _lastStartLat = 0, _lastStartLng = 0;
   List<Map<String, dynamic>> _lastPathPoints = [];
+  List<Map<String, dynamic>>? _lastPathSegments; // 교통 색상용
 
   // ── 잔량/목표 ──
   double _currentLevelPercent = 25.0;
@@ -655,6 +656,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     _lastStartLat = startLat;
     _lastStartLng = startLng;
     _lastPathPoints = pathPoints;
+    _lastPathSegments = pathSegments;
 
     _drawResultOnMap(
       pathPoints: pathPoints,
@@ -1664,38 +1666,33 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
     setState(() { _aiAnalyzing = true; _errorMessage = null; });
 
-    var pathPoints = <Map<String, dynamic>>[
-      {'lat': startLat, 'lng': startLng},
-      {'lat': _destLat!, 'lng': _destLng!},
-    ];
+    // 미리보기에서 이미 경로를 받아놨으면 재사용, 아니면 새로 fetch
+    var pathPoints = _lastPathPoints.length >= 2 ? _lastPathPoints
+        : <Map<String, dynamic>>[
+            {'lat': startLat, 'lng': startLng},
+            {'lat': _destLat!, 'lng': _destLng!},
+          ];
+    List<Map<String, dynamic>>? pathSegments = _lastPathSegments;
     int? directDurationMs;
 
-    try {
-      final dr = await ApiService().getDrivingRoute(
-        startLat: startLat, startLng: startLng,
-        goalLat: _destLat!, goalLng: _destLng!,
-      );
-      if (dr['success'] == true) {
-        if (dr['duration_ms'] is num) directDurationMs = (dr['duration_ms'] as num).round();
-        final raw = dr['path_points'];
-        if (raw is List && raw.length >= 2) {
-          final parsed = <Map<String, dynamic>>[];
-          for (final e in raw) {
-            if (e is Map) {
-              final lat = e['lat']; final lng = e['lng'];
-              if (lat is num && lng is num) {
-                parsed.add({'lat': lat.toDouble(), 'lng': lng.toDouble()});
-              }
-            }
-          }
-          if (parsed.length >= 2) pathPoints = parsed;
+    if (pathPoints.length < 2 || _lastStartLat != startLat || _lastStartLng != startLng) {
+      try {
+        final dr = await ApiService().getDrivingRoute(
+          startLat: startLat, startLng: startLng,
+          goalLat: _destLat!, goalLng: _destLng!,
+        );
+        if (dr['success'] == true) {
+          if (dr['duration_ms'] is num) directDurationMs = (dr['duration_ms'] as num).round();
+          final parsed = _pathPointsFromServerJson(dr['path_points']);
+          if (parsed != null) pathPoints = parsed;
+          pathSegments = _parsePathSegments(dr['path_segments']);
+          _lastStartLat = startLat;
+          _lastStartLng = startLng;
+          _lastPathPoints = pathPoints;
+          _lastPathSegments = pathSegments;
         }
-      }
-    } catch (_) {}
-
-    _lastStartLat = startLat;
-    _lastStartLng = startLng;
-    _lastPathPoints = pathPoints;
+      } catch (_) {}
+    }
 
     try {
       final data = await ApiService().postEvAiRecommend({
@@ -1746,6 +1743,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
       _drawResultOnMap(
         pathPoints: pathPoints,
+        pathSegments: pathSegments,
         originLat: startLat,
         originLng: startLng,
         stLat: recLat,
@@ -1845,33 +1843,29 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       _errorMessage = null;
     });
 
-    var pathPoints = <Map<String, dynamic>>[
-      {'lat': startLat, 'lng': startLng},
-      {'lat': _destLat!, 'lng': _destLng!},
-    ];
-    try {
-      final dr = await ApiService().getDrivingRoute(
-        startLat: startLat, startLng: startLng,
-        goalLat: _destLat!, goalLng: _destLng!,
-      );
-      if (dr['success'] == true) {
-        final raw = dr['path_points'];
-        if (raw is List && raw.length >= 2) {
-          final parsed = <Map<String, dynamic>>[];
-          for (final e in raw) {
-            if (e is Map) {
-              final lat = e['lat']; final lng = e['lng'];
-              if (lat is num && lng is num) parsed.add({'lat': lat.toDouble(), 'lng': lng.toDouble()});
-            }
-          }
-          if (parsed.length >= 2) pathPoints = parsed;
-        }
-      }
-    } catch (_) {}
+    // 미리보기에서 이미 경로를 받아놨으면 재사용
+    var pathPoints = _lastPathPoints.length >= 2 ? _lastPathPoints
+        : <Map<String, dynamic>>[
+            {'lat': startLat, 'lng': startLng},
+            {'lat': _destLat!, 'lng': _destLng!},
+          ];
 
-    _lastStartLat = startLat;
-    _lastStartLng = startLng;
-    _lastPathPoints = pathPoints;
+    if (pathPoints.length < 2 || _lastStartLat != startLat || _lastStartLng != startLng) {
+      try {
+        final dr = await ApiService().getDrivingRoute(
+          startLat: startLat, startLng: startLng,
+          goalLat: _destLat!, goalLng: _destLng!,
+        );
+        if (dr['success'] == true) {
+          final parsed = _pathPointsFromServerJson(dr['path_points']);
+          if (parsed != null) pathPoints = parsed;
+          _lastPathSegments = _parsePathSegments(dr['path_segments']);
+          _lastStartLat = startLat;
+          _lastStartLng = startLng;
+          _lastPathPoints = pathPoints;
+        }
+      } catch (_) {}
+    }
 
     try {
       final data = await ApiService().postEvAiRecommend({
@@ -1908,6 +1902,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
       _drawResultOnMap(
         pathPoints: pathPoints,
+        pathSegments: _lastPathSegments,
         originLat: startLat, originLng: startLng,
         stLat: null, stLng: null, stName: '',
         destLat: _destLat!, destLng: _destLng!,
