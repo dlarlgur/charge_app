@@ -616,7 +616,15 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   }
 
   Future<void> _showQuickRoutePreview() async {
-    if (_mapController == null || _destLat == null || _destLng == null) return;
+    if (_destLat == null || _destLng == null) return;
+    // 맵 컨트롤러 준비 대기 (최대 3초)
+    if (_mapController == null) {
+      for (int i = 0; i < 30; i++) {
+        await Future.delayed(const Duration(milliseconds: 100));
+        if (_mapController != null || !mounted) break;
+      }
+      if (_mapController == null || !mounted) return;
+    }
 
     double startLat;
     double startLng;
