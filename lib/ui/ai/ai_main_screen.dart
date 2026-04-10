@@ -1106,7 +1106,14 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     required double destLng,
     List<dynamic>? alternatives, // 대안 후보 (회색 마커)
   }) async {
-    if (_mapController == null) return;
+    // 맵 컨트롤러가 아직 준비 안됐으면 최대 3초 대기
+    if (_mapController == null) {
+      for (int i = 0; i < 30; i++) {
+        await Future.delayed(const Duration(milliseconds: 100));
+        if (_mapController != null || !mounted) break;
+      }
+      if (_mapController == null || !mounted) return;
+    }
 
     // 브랜드 로고 캐시 완료 대기 (최대 2초)
     if (!_brandImagesCached) {
@@ -2697,6 +2704,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           _selectedStationBId = null;
         });
         _mapController?.clearOverlays();
+        // 목적지 있으면 경로 미리보기 다시 그리기
+        if (_destLat != null && _destLng != null) {
+          unawaited(_showQuickRoutePreview());
+        }
       });
     }
 
