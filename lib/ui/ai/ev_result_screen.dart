@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/utils/navigation_util.dart';
+import '../../data/services/alert_service.dart';
 
 const _kBlue = Color(0xFF1D6FE0);
 const _kBlueLight = Color(0xFFEEF4FF);
@@ -205,7 +206,7 @@ class _NoStationCard extends StatelessWidget {
   }
 }
 
-class _StationCard extends StatelessWidget {
+class _StationCard extends StatefulWidget {
   final Map<String, dynamic> station;
   final bool isRecommended;
   final String chargerType;
@@ -233,7 +234,63 @@ class _StationCard extends StatelessWidget {
   });
 
   @override
+  State<_StationCard> createState() => _StationCardState();
+}
+
+class _StationCardState extends State<_StationCard> {
+  bool _alarmEnabled = false;
+  bool _alarmLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final statId = widget.station['statId']?.toString();
+    if (statId != null) {
+      _alarmEnabled = AlertService().isEvAlarmSubscribed(statId);
+    }
+  }
+
+  String _buildStatusText(int availCount, int? detourMin, int? oldestMin) {
+    String detourText = '';
+    if (detourMin != null) {
+      if (detourMin == 0) {
+        detourText = '경로 이탈 없이 들를 수 있고, ';
+      } else if (detourMin < 60) {
+        detourText = '${detourMin}분 우회 후, ';
+      } else {
+        final h = detourMin ~/ 60;
+        final m = detourMin % 60;
+        detourText = m > 0 ? '${h}시간 ${m}분 우회 후, ' : '${h}시간 우회 후, ';
+      }
+    }
+    if (availCount > 1) return '${detourText}${availCount}자리의 여유가 있어요';
+    if (availCount == 1) return '${detourText}자리 1개 남았어요. 서두르세요!';
+    if (oldestMin != null) return '만석이지만 ${oldestMin}분째 충전 중인 차량이 있어요';
+    return '현재 만석이에요';
+  }
+
+  Future<void> _toggleAlarm() async {
+    final statId = widget.station['statId']?.toString();
+    final stName = widget.station['name']?.toString() ?? '';
+    if (statId == null || _alarmLoading) return;
+    setState(() => _alarmLoading = true);
+    try {
+      if (_alarmEnabled) {
+        await AlertService().unsubscribeEvAlarm(statId);
+        if (mounted) setState(() => _alarmEnabled = false);
+      } else {
+        final ok = await AlertService().subscribeEvAlarm(
+          stationId: statId, stationName: stName);
+        if (mounted) setState(() => _alarmEnabled = ok);
+      }
+    } finally {
+      if (mounted) setState(() => _alarmLoading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final station = widget.station;
     final name = station['name']?.toString() ?? '-';
     final address = station['address']?.toString() ?? '';
     final operator = station['operator']?.toString() ?? '';
@@ -243,19 +300,22 @@ class _StationCard extends StatelessWidget {
     final detourMin = (station['detour_time_min'] as num?)?.toInt();
     final oldestMin = (station['oldest_charging_min'] as num?)?.toInt();
     final routeDistM = (station['route_distance_m'] as num?)?.toInt() ?? 0;
-    final statusMessage = station['status_message']?.toString() ?? '';
+    final statId = station['statId']?.toString();
 
     final distLabel = routeDistM >= 1000
         ? '${(routeDistM / 1000).toStringAsFixed(1)}km'
         : '${routeDistM}m';
+
+    final accentColor = widget.accentColor;
+    final accentLight = widget.accentLight;
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isRecommended ? accentColor : const Color(0xFFE5E5E5),
-          width: isRecommended ? 1.5 : 1,
+          color: widget.isRecommended ? accentColor : const Color(0xFFE5E5E5),
+          width: widget.isRecommended ? 1.5 : 1,
         ),
         boxShadow: [
           BoxShadow(
@@ -278,7 +338,7 @@ class _StationCard extends StatelessWidget {
             ),
             child: Row(
               children: [
-                if (isRecommended) ...[
+                if (widget.isRecommended) ...[
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                     decoration: BoxDecoration(
@@ -294,7 +354,7 @@ class _StationCard extends StatelessWidget {
                 ],
                 Expanded(
                   child: Text(
-                    statusMessage,
+                    _buildStatusText(availCount, detourMin, oldestMin),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -330,14 +390,12 @@ class _StationCard extends StatelessWidget {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    // 단가
                     _InfoChip(
                       icon: Icons.bolt_rounded,
                       label: unitPrice != null ? '${_wonFmt.format(unitPrice)}원/kWh' : '가격 미공개',
                       color: const Color(0xFF444444),
                     ),
                     const SizedBox(width: 8),
-                    // 경로 거리
                     _InfoChip(
                       icon: Icons.near_me_rounded,
                       label: '경로에서 $distLabel',
@@ -360,31 +418,67 @@ class _StationCard extends StatelessWidget {
                       children: [
                         const Icon(Icons.check_circle_rounded, size: 14, color: _kGreen),
                         const SizedBox(width: 4),
-                        Text(
+                        const Text(
                           '경로 이탈 없음',
-                          style: const TextStyle(fontSize: 12, color: _kGreen, fontWeight: FontWeight.w600),
+                          style: TextStyle(fontSize: 12, color: _kGreen, fontWeight: FontWeight.w600),
                         ),
                       ],
                     ),
                   ),
-                if (availCount == 0 && oldestMin != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(
-                      '가장 오래된 충전 ${oldestMin}분 경과',
-                      style: const TextStyle(fontSize: 12, color: _kGrey),
+                // ── 알림 설정 행 ──
+                if (statId != null) ...[
+                  const SizedBox(height: 8),
+                  const Divider(height: 1, color: Color(0xFFEEEEEE)),
+                  GestureDetector(
+                    onTap: _alarmLoading ? null : _toggleAlarm,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Row(
+                        children: [
+                          Icon(
+                            _alarmEnabled ? Icons.notifications_active_rounded : Icons.notifications_none_rounded,
+                            size: 16,
+                            color: _alarmEnabled ? accentColor : _kGrey,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              _alarmEnabled
+                                  ? '충전 자리 상태 변경 시 알림 받는 중'
+                                  : '충전 자리 상태가 변경되면 알려드릴게요',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: _alarmEnabled ? accentColor : _kGrey,
+                                fontWeight: _alarmEnabled ? FontWeight.w600 : FontWeight.w400,
+                              ),
+                            ),
+                          ),
+                          if (_alarmLoading)
+                            SizedBox(
+                              width: 16, height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: accentColor),
+                            )
+                          else
+                            Switch(
+                              value: _alarmEnabled,
+                              onChanged: (_) => _toggleAlarm(),
+                              activeColor: accentColor,
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                        ],
+                      ),
                     ),
                   ),
-                if (onMapTap != null || (originLat != null && destLat != null)) ...[
-                  const SizedBox(height: 10),
+                ],
+                if (widget.onMapTap != null || (widget.originLat != null && widget.destLat != null)) ...[
                   const Divider(height: 1, color: Color(0xFFEEEEEE)),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      if (onMapTap != null) ...[
+                      if (widget.onMapTap != null) ...[
                         Expanded(
                           child: GestureDetector(
-                            onTap: onMapTap,
+                            onTap: widget.onMapTap,
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -399,9 +493,9 @@ class _StationCard extends StatelessWidget {
                           ),
                         ),
                       ],
-                      if (onMapTap != null && originLat != null && destLat != null)
+                      if (widget.onMapTap != null && widget.originLat != null && widget.destLat != null)
                         Container(width: 1, height: 16, color: const Color(0xFFEEEEEE)),
-                      if (originLat != null && destLat != null) ...[
+                      if (widget.originLat != null && widget.destLat != null) ...[
                         Expanded(
                           child: Builder(builder: (ctx) => GestureDetector(
                             onTap: () {
@@ -411,14 +505,14 @@ class _StationCard extends StatelessWidget {
                               if (stLat == null || stLng == null) return;
                               showViaWaypointNavigationSheet(
                                 ctx,
-                                originLat: originLat!,
-                                originLng: originLng!,
+                                originLat: widget.originLat!,
+                                originLng: widget.originLng!,
                                 waypointLat: stLat,
                                 waypointLng: stLng,
                                 waypointName: stName,
-                                destinationLat: destLat!,
-                                destinationLng: destLng!,
-                                destinationName: destName ?? '목적지',
+                                destinationLat: widget.destLat!,
+                                destinationLng: widget.destLng!,
+                                destinationName: widget.destName ?? '목적지',
                               );
                             },
                             child: Row(

@@ -44,6 +44,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         showGasPriceNotification(message.data, soundMode: AlertService().alertSoundMode);
         AlertService().addGasPriceMessage(message.data);
         _messageBadgeKey.currentState?.refreshCount();
+      } else if (message.data['type'] == 'ev_alarm') {
+        showEvAlarmNotification(message.data, soundMode: AlertService().evAlarmSoundMode);
       }
     });
 
@@ -1177,6 +1179,7 @@ class SettingsScreenEmbed extends ConsumerWidget {
           const SizedBox(height: 16),
           _sectionHeader(context, '알림'),
           _AlertSettingTileEmbed(isDark: isDark),
+          _EvAlarmSettingTileEmbed(isDark: isDark),
           const SizedBox(height: 16),
           _sectionHeader(context, '앱 설정'),
           _tile(context, isDark, Icons.dark_mode_rounded, '테마',
@@ -1337,7 +1340,7 @@ class _AlertSettingTileEmbedState extends State<_AlertSettingTileEmbed> {
             size: 22,
             color: _enabled ? AppColors.gasBlue : secondaryColor,
           ),
-          title: Text('가격 알림', style: Theme.of(context).textTheme.titleSmall),
+          title: Text('주유 가격 알림', style: Theme.of(context).textTheme.titleSmall),
           subtitle: Text(
             _enabled
                 ? '${_ids.isEmpty ? '알림 주유소 없음' : '${_ids.length}곳 설정됨'} · 매일 $_alertTimeText 발송'
@@ -1491,6 +1494,161 @@ class _AlertSettingTileEmbedState extends State<_AlertSettingTileEmbed> {
                           context,
                           stationId: id,
                           stationName: name,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── EV 충전소 현황 알림 설정 타일 (홈 설정 탭용) ───
+class _EvAlarmSettingTileEmbed extends StatefulWidget {
+  final bool isDark;
+  const _EvAlarmSettingTileEmbed({required this.isDark});
+  @override
+  State<_EvAlarmSettingTileEmbed> createState() => _EvAlarmSettingTileEmbedState();
+}
+
+class _EvAlarmSettingTileEmbedState extends State<_EvAlarmSettingTileEmbed> {
+  late List<String> _ids;
+  late int _soundMode;
+  bool _expanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+    AlertService().subsChanged.addListener(_refresh);
+  }
+
+  @override
+  void dispose() {
+    AlertService().subsChanged.removeListener(_refresh);
+    super.dispose();
+  }
+
+  void _refresh() {
+    if (!mounted) return;
+    setState(() {
+      _ids = AlertService().evAlarmStationIds;
+      _soundMode = AlertService().evAlarmSoundMode;
+      if (_ids.isEmpty) _expanded = false;
+    });
+  }
+
+  Future<void> _unsubscribe(String id) async {
+    await AlertService().unsubscribeEvAlarm(id);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = widget.isDark;
+    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final secondaryColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    return Column(
+      children: [
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+          leading: Icon(
+            Icons.ev_station_rounded,
+            size: 22,
+            color: _ids.isEmpty ? secondaryColor : AppColors.evGreen,
+          ),
+          title: Text('충전소 현황 알림', style: Theme.of(context).textTheme.titleSmall),
+          subtitle: Text(
+            _ids.isEmpty ? '알림 설정된 충전소 없음' : '${_ids.length}/${AlertService.evAlarmMaxCount}곳 설정됨',
+            style: TextStyle(fontSize: 12, color: mutedColor),
+          ),
+          trailing: _ids.isNotEmpty
+              ? GestureDetector(
+                  onTap: () => setState(() => _expanded = !_expanded),
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: AnimatedRotation(
+                      turns: _expanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 200),
+                      child: Icon(Icons.keyboard_arrow_down_rounded, size: 22, color: mutedColor),
+                    ),
+                  ),
+                )
+              : null,
+          onTap: _ids.isNotEmpty ? () => setState(() => _expanded = !_expanded) : null,
+        ),
+        if (_ids.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: Row(
+              children: [
+                Text('알림 방식', style: TextStyle(fontSize: 12, color: mutedColor)),
+                const SizedBox(width: 12),
+                ...['소리', '진동', '무음'].asMap().entries.map((e) {
+                  final idx = e.key;
+                  final label = e.value;
+                  final selected = _soundMode == idx;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: GestureDetector(
+                      onTap: () {
+                        AlertService().setEvAlarmSoundMode(idx);
+                        setState(() => _soundMode = idx);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? AppColors.evGreen.withOpacity(0.15)
+                              : (isDark ? const Color(0x0AFFFFFF) : const Color(0xFFF1F5F9)),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: selected ? AppColors.evGreen : Colors.transparent,
+                          ),
+                        ),
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                            color: selected ? AppColors.evGreen : secondaryColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeInOut,
+          child: _expanded
+              ? Container(
+                  margin: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0x0AFFFFFF) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDark ? const Color(0x14FFFFFF) : const Color(0xFFE2E8F0),
+                      width: 0.5,
+                    ),
+                  ),
+                  child: Column(
+                    children: _ids.map((id) {
+                      final name = AlertService().evAlarmStationName(id);
+                      return ListTile(
+                        dense: true,
+                        contentPadding: const EdgeInsets.fromLTRB(14, 0, 4, 0),
+                        leading: const Icon(Icons.ev_station_rounded, size: 18, color: AppColors.evGreen),
+                        title: Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                          onPressed: () => _unsubscribe(id),
                         ),
                       );
                     }).toList(),

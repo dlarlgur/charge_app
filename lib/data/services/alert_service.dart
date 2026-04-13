@@ -381,6 +381,85 @@ class AlertService {
     _notifySubsChanged();
   }
 
+  // ── EV 충전소 현황 알림 ──
+
+  static const _evAlarmSubsKey = 'ev_alarm_subscriptions';   // List<String> of stationIds
+  static const _evAlarmNamesKey = 'ev_alarm_names';          // Map<String, String> stationId → name
+  static const _evAlarmEnabledKey = 'ev_alarm_enabled';      // bool
+  static const _evAlarmSoundModeKey = 'ev_alarm_sound_mode'; // 0=소리, 1=진동, 2=무음
+
+  static const int evAlarmMaxCount = 3;
+
+  bool get evAlarmEnabled =>
+      Hive.box(_boxKey).get(_evAlarmEnabledKey, defaultValue: true) as bool;
+
+  Future<void> setEvAlarmEnabled(bool value) =>
+      Hive.box(_boxKey).put(_evAlarmEnabledKey, value);
+
+  int get evAlarmSoundMode =>
+      (Hive.box(_boxKey).get(_evAlarmSoundModeKey, defaultValue: 0) as int?) ?? 0;
+
+  void setEvAlarmSoundMode(int mode) =>
+      Hive.box(_boxKey).put(_evAlarmSoundModeKey, mode);
+
+  Set<String> get _evAlarmSet {
+    final raw = Hive.box(_boxKey).get(_evAlarmSubsKey, defaultValue: <dynamic>[]);
+    return Set<String>.from((raw as List).map((e) => e.toString()));
+  }
+
+  Map<String, String> get evAlarmNames {
+    final raw = Hive.box(_boxKey).get(_evAlarmNamesKey, defaultValue: <dynamic, dynamic>{});
+    return Map<String, String>.from(raw as Map);
+  }
+
+  List<String> get evAlarmStationIds => _evAlarmSet.toList();
+
+  String evAlarmStationName(String id) => evAlarmNames[id] ?? id;
+
+  bool isEvAlarmSubscribed(String stationId) => _evAlarmSet.contains(stationId);
+
+  Future<bool> subscribeEvAlarm({
+    required String stationId,
+    required String stationName,
+  }) async {
+    final subs = _evAlarmSet;
+    // 3개 초과 방지
+    if (!subs.contains(stationId) && subs.length >= evAlarmMaxCount) return false;
+    try {
+      final res = await _dio.post('/stations/ev/alarm/subscribe', data: {
+        'deviceId': deviceId,
+        'stationId': stationId,
+        'stationName': stationName,
+      });
+      if (res.statusCode == 200) {
+        subs.add(stationId);
+        Hive.box(_boxKey).put(_evAlarmSubsKey, subs.toList());
+        final names = evAlarmNames..[stationId] = stationName;
+        Hive.box(_boxKey).put(_evAlarmNamesKey, names);
+        _notifySubsChanged();
+        return true;
+      }
+    } catch (e) {
+      final data = (e as dynamic).response?.data;
+      if (data?['code'] == 'LIMIT_EXCEEDED') return false;
+    }
+    return false;
+  }
+
+  Future<void> unsubscribeEvAlarm(String stationId) async {
+    try {
+      await _dio.delete('/stations/ev/alarm/unsubscribe', data: {
+        'deviceId': deviceId,
+        'stationId': stationId,
+      });
+    } catch (_) {}
+    final subs = _evAlarmSet..remove(stationId);
+    Hive.box(_boxKey).put(_evAlarmSubsKey, subs.toList());
+    final names = evAlarmNames..remove(stationId);
+    Hive.box(_boxKey).put(_evAlarmNamesKey, names);
+    _notifySubsChanged();
+  }
+
   /// 주유소 전체 해제 (모든 유종)
   Future<void> unsubscribe(String stationId) async {
     final box = Hive.box(_boxKey);

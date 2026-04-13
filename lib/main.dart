@@ -92,18 +92,24 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await androidPlugin?.createNotificationChannel(gasPriceChannel);
   await androidPlugin?.createNotificationChannel(gasPriceChannelVibrate);
   await androidPlugin?.createNotificationChannel(gasPriceChannelSilent);
+  await androidPlugin?.createNotificationChannel(evAlarmChannel);
+  await androidPlugin?.createNotificationChannel(evAlarmChannelVibrate);
+  await androidPlugin?.createNotificationChannel(evAlarmChannelSilent);
   await notificationPlugin.initialize(
     const InitializationSettings(
       android: AndroidInitializationSettings('@mipmap/ic_launcher'),
     ),
     onDidReceiveBackgroundNotificationResponse: _onBackgroundNotificationResponse,
   );
+  await Hive.initFlutter();
+  final box = await Hive.openBox('settings');
   if (message.data['type'] == 'gas_price_alert') {
-    await Hive.initFlutter();
-    final box = await Hive.openBox('settings');
     final soundMode = (box.get('alert_sound_mode', defaultValue: 0) as int?) ?? 0;
     showGasPriceNotification(message.data, soundMode: soundMode);
     await _saveGasPriceToHive(message.data);
+  } else if (message.data['type'] == 'ev_alarm') {
+    final soundMode = (box.get('ev_alarm_sound_mode', defaultValue: 0) as int?) ?? 0;
+    showEvAlarmNotification(message.data, soundMode: soundMode);
   }
 }
 
@@ -131,6 +137,9 @@ void main() async {
   await androidPlugin?.createNotificationChannel(gasPriceChannel);
   await androidPlugin?.createNotificationChannel(gasPriceChannelVibrate);
   await androidPlugin?.createNotificationChannel(gasPriceChannelSilent);
+  await androidPlugin?.createNotificationChannel(evAlarmChannel);
+  await androidPlugin?.createNotificationChannel(evAlarmChannelVibrate);
+  await androidPlugin?.createNotificationChannel(evAlarmChannelSilent);
   await notificationPlugin.initialize(
     const InitializationSettings(
       android: AndroidInitializationSettings('@mipmap/ic_launcher'),

@@ -31,6 +31,30 @@ const gasPriceChannelSilent = AndroidNotificationChannel(
   enableVibration: false,
 );
 
+const evAlarmChannel = AndroidNotificationChannel(
+  'ev_alarm',
+  '충전소 현황 알림 (소리)',
+  description: '충전 가능 자리가 생기면 알려드립니다',
+  importance: Importance.high,
+);
+
+const evAlarmChannelVibrate = AndroidNotificationChannel(
+  'ev_alarm_vibrate',
+  '충전소 현황 알림 (진동)',
+  description: '충전 가능 자리가 생기면 알려드립니다',
+  importance: Importance.high,
+  playSound: false,
+);
+
+const evAlarmChannelSilent = AndroidNotificationChannel(
+  'ev_alarm_silent',
+  '충전소 현황 알림 (무음)',
+  description: '충전 가능 자리가 생기면 알려드립니다',
+  importance: Importance.low,
+  playSound: false,
+  enableVibration: false,
+);
+
 /// 서버에서 보낸 data payload 파싱 후 스타일 알림 표시
 /// soundMode: 0=소리, 1=진동, 2=무음
 void showGasPriceNotification(Map<String, dynamic> data, {int soundMode = 0}) {
@@ -115,5 +139,36 @@ void showGasPriceNotification(Map<String, dynamic> data, {int soundMode = 0}) {
       ),
     ),
     payload: 'gas_price_alert',
+  );
+}
+
+/// EV 충전소 자리 알림 표시
+/// soundMode: 0=소리, 1=진동, 2=무음
+void showEvAlarmNotification(Map<String, dynamic> data, {int soundMode = 0}) {
+  final title = data['title'] as String? ?? '⚡ 충전소 자리 생겼어요!';
+  final body = data['body'] as String? ?? '충전 가능 자리가 생겼어요';
+
+  final channel = soundMode == 1
+      ? evAlarmChannelVibrate
+      : soundMode == 2
+          ? evAlarmChannelSilent
+          : evAlarmChannel;
+
+  notificationPlugin.show(
+    1002,
+    title,
+    body,
+    NotificationDetails(
+      android: AndroidNotificationDetails(
+        channel.id,
+        channel.name,
+        channelDescription: channel.description,
+        importance: channel.importance,
+        priority: soundMode == 2 ? Priority.low : Priority.high,
+        playSound: soundMode == 0,
+        enableVibration: soundMode != 2,
+      ),
+    ),
+    payload: 'ev_alarm',
   );
 }

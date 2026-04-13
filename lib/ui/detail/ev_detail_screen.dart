@@ -5,13 +5,15 @@ import '../../core/utils/navigation_util.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/models.dart';
 import '../../data/services/api_service.dart';
+import '../../data/services/alert_service.dart';
 import '../widgets/shared_widgets.dart';
 import '../favorites/favorites_screen.dart';
 
 class EvDetailScreen extends ConsumerStatefulWidget {
   final String stationId;
   final EvStation? station;
-  const EvDetailScreen({super.key, required this.stationId, this.station});
+  final VoidCallback? onSelectRoute;
+  const EvDetailScreen({super.key, required this.stationId, this.station, this.onSelectRoute});
   @override
   ConsumerState<EvDetailScreen> createState() => _EvDetailScreenState();
 }
@@ -20,17 +22,31 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
   EvStation? _station;
   bool _loading = true;
   bool _isFavorite = false;
+  bool _isAlarm = false;
+  bool _alarmLoading = false;
 
   @override
   void initState() {
     super.initState();
     _isFavorite = FavoriteService.isFavorite(widget.stationId, 'ev');
+    _isAlarm = AlertService().isEvAlarmSubscribed(widget.stationId);
+    AlertService().subsChanged.addListener(_onSubsChanged);
     if (widget.station != null) {
       _station = widget.station;
       _loading = false;
     } else {
       _loadDetail();
     }
+  }
+
+  @override
+  void dispose() {
+    AlertService().subsChanged.removeListener(_onSubsChanged);
+    super.dispose();
+  }
+
+  void _onSubsChanged() {
+    if (mounted) setState(() => _isAlarm = AlertService().isEvAlarmSubscribed(widget.stationId));
   }
 
   Future<void> _loadDetail() async {
@@ -42,6 +58,33 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
     }
   }
 
+  Future<void> _toggleAlarm() async {
+    if (_alarmLoading) return;
+    final name = _station?.name ?? widget.stationId;
+    setState(() => _alarmLoading = true);
+    try {
+      if (_isAlarm) {
+        await AlertService().unsubscribeEvAlarm(widget.stationId);
+        if (mounted) setState(() => _isAlarm = false);
+      } else {
+        final ids = AlertService().evAlarmStationIds;
+        if (!ids.contains(widget.stationId) && ids.length >= AlertService.evAlarmMaxCount) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('충전소 현황 알림은 최대 3개까지 설정할 수 있어요')),
+            );
+          }
+          return;
+        }
+        final ok = await AlertService().subscribeEvAlarm(
+          stationId: widget.stationId, stationName: name);
+        if (mounted) setState(() => _isAlarm = ok);
+      }
+    } finally {
+      if (mounted) setState(() => _alarmLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -50,6 +93,21 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
       appBar: AppBar(
         title: const Text('충전소 상세'),
         actions: [
+          if (_alarmLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 14),
+              child: SizedBox(width: 20, height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.evGreen)),
+            )
+          else
+            IconButton(
+              icon: Icon(
+                _isAlarm ? Icons.notifications_active_rounded : Icons.notifications_none_rounded,
+                color: _isAlarm ? AppColors.evGreen : null,
+              ),
+              tooltip: _isAlarm ? '알림 해제' : '자리 생기면 알림',
+              onPressed: _toggleAlarm,
+            ),
           IconButton(
             icon: Icon(_isFavorite ? Icons.favorite : Icons.favorite_border,
                 color: _isFavorite ? AppColors.evGreen : null),
@@ -249,6 +307,22 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
               ),
             ],
           ),
+          if (widget.onSelectRoute != null) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: widget.onSelectRoute,
+                icon: const Icon(Icons.route_rounded, size: 18),
+                label: const Text('이 충전소로 경로에 포함'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.evGreen,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
