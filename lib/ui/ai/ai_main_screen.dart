@@ -23,6 +23,7 @@ import 'ai_result_screen.dart';
 import 'ai_vehicle_list_screen.dart';
 import 'ev_result_screen.dart';
 import '../widgets/gas_station_map_badge.dart';
+import '../detail/ev_detail_screen.dart';
 
 const _kPrimary = Color(0xFF1D9E75);
 const _kPrimaryLight = Color(0xFFE1F5EE);
@@ -1317,6 +1318,41 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     });
   }
 
+  /// EV 직접선택 모드 — 후보 충전소 마커를 지도에 표시
+  Future<void> _drawEvCandidateMarkers(List<Map<String, dynamic>> candidates) async {
+    if (_mapController == null || candidates.isEmpty) return;
+    for (int i = 0; i < candidates.length; i++) {
+      final c = candidates[i];
+      final lat = (c['lat'] as num?)?.toDouble();
+      final lng = (c['lng'] as num?)?.toDouble();
+      if (lat == null || lng == null) continue;
+      final avail = (c['available_count'] as num?)?.toInt() ?? 0;
+      final total = (c['total_count'] as num?)?.toInt() ?? 0;
+      final name = c['name']?.toString() ?? '충전소';
+      final label = '$avail/$total';
+      final borderColor = avail > 0 ? const Color(0xFF1D9E75) : const Color(0xFFE8700A);
+      final textColor   = avail > 0 ? const Color(0xFF1D9E75) : const Color(0xFFE8700A);
+      final marker = NMarker(
+        id: 'ev_candidate_$i',
+        position: NLatLng(lat, lng),
+        icon: await GasStationMapBadge.overlayImage(
+          context,
+          label: label,
+          isEv: true,
+          borderColor: borderColor,
+          textColor: textColor,
+          emphasizeBorder: false,
+        ),
+        anchor: const NPoint(0.5, 1.0),
+      );
+      marker.setOnTapListener((_) {
+        // 탭하면 해당 충전소 상세 바텀시트 열기
+        _openEvStationDetail(c);
+      });
+      await _mapController!.addOverlay(marker);
+    }
+  }
+
   /// 서버 `path_points` JSON → 지도용 좌표열
   static List<Map<String, dynamic>>? _pathPointsFromServerJson(dynamic raw) {
     if (raw is! List || raw.length < 2) return null;
@@ -1902,17 +1938,17 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         _lastRouteSummary = '$originLabel → ${_destName ?? '목적지'}';
       });
 
+      // 경로 + 출발/도착 마커 그리기 (후보 마커는 _drawEvCandidateMarkers에서 별도 처리)
       _drawResultOnMap(
         pathPoints: pathPoints,
         pathSegments: _lastPathSegments,
         originLat: startLat, originLng: startLng,
         stLat: null, stLng: null, stName: '',
         destLat: _destLat!, destLng: _destLng!,
-        alternatives: candidates.map((c) => <String, dynamic>{
-          'lat': c['lat'], 'lng': c['lng'],
-          'price_won_per_liter': null, 'brand': null,
-        }).toList(),
+        alternatives: null,
       );
+      // EV 후보 마커 표시
+      await _drawEvCandidateMarkers(candidates);
     } catch (_) {
       if (!mounted) return;
       setState(() => _errorMessage = '충전소 목록을 불러오는데 실패했습니다.');
@@ -4950,8 +4986,6 @@ class _EvStationDetailSheet extends StatefulWidget {
 }
 
 class _EvStationDetailSheetState extends State<_EvStationDetailSheet> {
-  EvStation? _detail;
-  bool _loading = true;
   bool _alarmEnabled = false;
   bool _alarmLoading = false;
 
@@ -4964,16 +4998,6 @@ class _EvStationDetailSheetState extends State<_EvStationDetailSheet> {
   void initState() {
     super.initState();
     _alarmEnabled = AlertService().isEvAlarmSubscribed(widget.stationId);
-    _loadDetail();
-  }
-
-  Future<void> _loadDetail() async {
-    try {
-      final data = await ApiService().getEvStationDetail(widget.stationId);
-      if (mounted) setState(() { _detail = EvStation.fromJson(data); _loading = false; });
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
-    }
   }
 
   Future<void> _toggleAlarm() async {
@@ -5146,44 +5170,31 @@ class _EvStationDetailSheetState extends State<_EvStationDetailSheet> {
                   ),
                 ),
                 const Divider(height: 1),
-                const SizedBox(height: 12),
-
-                // ── 충전기 목록 ──
-                if (_loading)
-                  const Center(child: Padding(
-                    padding: EdgeInsets.all(20),
-                    child: CircularProgressIndicator(color: Color(0xFF1D9E75), strokeWidth: 2),
-                  ))
-                else if (_detail != null && _detail!.chargers.isNotEmpty) ...[
-                  Row(
-                    children: [
-                      Text(
-                        '충전기 목록',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: accentColor),
-                      ),
-                      const SizedBox(width: 6),
-                      Text('총 ${_detail!.totalCount}대',
-                        style: const TextStyle(fontSize: 12, color: _kGrey)),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  ...(_detail!.chargers.toList()
-                    ..sort((a, b) {
-                      int order(ChargerStatus s) => switch (s) {
-                        ChargerStatus.available => 0,
-                        ChargerStatus.charging  => 1,
-                        _                       => 2,
-                      };
-                      return order(a.status).compareTo(order(b.status));
-                    })
-                  ).map((c) => _ChargerRow(charger: c)),
-                ],
-
                 const SizedBox(height: 16),
 
                 // ── 액션 버튼 ──
                 Row(
                   children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          Navigator.of(context, rootNavigator: true).push(
+                            MaterialPageRoute(
+                              builder: (_) => EvDetailScreen(stationId: widget.stationId),
+                            ),
+                          );
+                        },
+                        icon: Icon(Icons.info_outline_rounded, size: 16, color: accentColor),
+                        label: Text('충전소 상세보기', style: TextStyle(color: accentColor, fontWeight: FontWeight.w600)),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: accentColor),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: widget.destLat != null ? () {
@@ -5204,24 +5215,25 @@ class _EvStationDetailSheetState extends State<_EvStationDetailSheet> {
                         style: OutlinedButton.styleFrom(
                           side: BorderSide(color: accentColor),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      flex: 2,
-                      child: ElevatedButton.icon(
-                        onPressed: widget.onSelect,
-                        icon: const Icon(Icons.check_circle_rounded, size: 16),
-                        label: const Text('이 충전소로 경로 설정', style: TextStyle(fontWeight: FontWeight.w700)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: accentColor,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: widget.onSelect,
+                    icon: const Icon(Icons.check_circle_rounded, size: 16),
+                    label: const Text('이 충전소로 경로 설정', style: TextStyle(fontWeight: FontWeight.w700)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accentColor,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                    ),
+                  ),
                 ),
               ],
             ),
