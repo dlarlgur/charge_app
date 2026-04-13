@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
 import '../../core/utils/navigation_util.dart';
 import '../../data/services/alert_service.dart';
@@ -105,6 +106,12 @@ class EvResultBody extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 14),
+
+                // ── AI 추천 메시지 ──
+                if (recommended != null) ...[
+                  _EvAiMessageBanner(message: recommended['ui_message']?.toString() ?? ''),
+                  const SizedBox(height: 14),
+                ],
 
                 // ── 추천 충전소 ──
                 if (recommended == null)
@@ -758,6 +765,63 @@ class EvSelectList extends StatelessWidget {
         ),
         const SliverToBoxAdapter(child: SizedBox(height: 24)),
       ],
+    );
+  }
+}
+
+// ── EV AI 추천 메시지 배너 ──────────────────────────────────────────────────────
+class _EvAiMessageBanner extends StatelessWidget {
+  final String message;
+  const _EvAiMessageBanner({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    if (message.isEmpty) return const SizedBox.shrink();
+    final normalized = message.replaceAll(r'\n', '\n');
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEF4FF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFB8D0FF)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 20, height: 20,
+            margin: const EdgeInsets.only(top: 1),
+            decoration: BoxDecoration(
+              color: const Color(0xFFD0E3FF),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Icon(Icons.auto_awesome_rounded, size: 12, color: _kBlue),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('AI 충전 분석',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _kBlue)),
+                const SizedBox(height: 6),
+                MarkdownBody(
+                  data: normalized,
+                  shrinkWrap: true,
+                  styleSheet: MarkdownStyleSheet(
+                    p: const TextStyle(fontSize: 13, height: 1.5, color: Color(0xFF1a1a1a)),
+                    strong: const TextStyle(
+                      fontSize: 13, height: 1.5,
+                      fontWeight: FontWeight.w700,
+                      color: _kBlue,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
