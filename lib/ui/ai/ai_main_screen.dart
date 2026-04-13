@@ -3170,7 +3170,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
-                                        selectedVehicle?.name ?? (isEvVehicle ? '전기차' : fuelLabel),
+                                        selectedVehicle?.name.isNotEmpty == true
+                                            ? selectedVehicle!.name
+                                            : (isEvVehicle ? '차량 선택' : fuelLabel),
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w700,
@@ -3594,7 +3596,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           if (!_isPickerMode && !_isResultMode && !_isEvResultMode && !_isEvSelectMode && !_isSelectMode)
             Positioned(
               right: 16,
-              bottom: MediaQuery.of(context).padding.bottom + 180,
+              bottom: MediaQuery.of(context).padding.bottom + (isEvVehicle ? 290 : 210),
               child: GestureDetector(
                 onTap: _moveToMyLocation,
                 child: AnimatedContainer(
