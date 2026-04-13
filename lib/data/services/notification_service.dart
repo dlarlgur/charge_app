@@ -7,6 +7,9 @@ final notificationPlugin = FlutterLocalNotificationsPlugin();
 /// 알림 "상세보기" 액션 탭 시 increment → HomeScreen에서 알림 페이지로 이동
 final navigateToAlertsNotifier = ValueNotifier<int>(0);
 
+/// EV 알람 탭 시 stationId 전달 → HomeScreen에서 충전소 상세로 이동
+final navigateToEvStationNotifier = ValueNotifier<String>('');
+
 const gasPriceChannel = AndroidNotificationChannel(
   'gas_price_alert',
   '주유 가격 알림 (소리)',
@@ -145,8 +148,10 @@ void showGasPriceNotification(Map<String, dynamic> data, {int soundMode = 0}) {
 /// EV 충전소 자리 알림 표시
 /// soundMode: 0=소리, 1=진동, 2=무음
 void showEvAlarmNotification(Map<String, dynamic> data, {int soundMode = 0}) {
-  final title = data['title'] as String? ?? '⚡ 충전소 자리 생겼어요!';
-  final body = data['body'] as String? ?? '충전 가능 자리가 생겼어요';
+  final title = data['title'] as String? ?? '⚡ 충전소 자리 변동';
+  final body = data['body'] as String? ?? '충전 가능 자리가 변경됐어요';
+  final stationId = data['stationId'] as String? ?? '';
+  final stationName = data['stationName'] as String? ?? '';
 
   final channel = soundMode == 1
       ? evAlarmChannelVibrate
@@ -167,8 +172,13 @@ void showEvAlarmNotification(Map<String, dynamic> data, {int soundMode = 0}) {
         priority: soundMode == 2 ? Priority.low : Priority.high,
         playSound: soundMode == 0,
         enableVibration: soundMode != 2,
+        styleInformation: BigTextStyleInformation(
+          body,
+          contentTitle: title,
+          summaryText: stationName.isNotEmpty ? stationName : null,
+        ),
       ),
     ),
-    payload: 'ev_alarm',
+    payload: 'ev_alarm:$stationId',
   );
 }

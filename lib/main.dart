@@ -110,7 +110,30 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   } else if (message.data['type'] == 'ev_alarm') {
     final soundMode = (box.get('ev_alarm_sound_mode', defaultValue: 0) as int?) ?? 0;
     showEvAlarmNotification(message.data, soundMode: soundMode);
+    await _saveEvAlarmToHive(box, message.data);
   }
+}
+
+Future<void> _saveEvAlarmToHive(dynamic box, Map<String, dynamic> data) async {
+  try {
+    final title = data['title'] as String? ?? '⚡ 충전소 자리 변동';
+    final body = data['body'] as String? ?? '';
+    if (body.isEmpty) return;
+    final msgs = List<Map<String, dynamic>>.from(
+      ((box.get('push_messages', defaultValue: <dynamic>[]) as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))),
+    );
+    msgs.insert(0, {
+      'id': DateTime.now().millisecondsSinceEpoch.toString(),
+      'title': title,
+      'body': body,
+      'timestamp': DateTime.now().toIso8601String(),
+    });
+    if (msgs.length > 50) msgs.removeLast();
+    await box.put('push_messages', msgs);
+    final unread = ((box.get('push_unread_count', defaultValue: 0) as int?) ?? 0) + 1;
+    await box.put('push_unread_count', unread);
+  } catch (_) {}
 }
 
 void main() async {
@@ -145,8 +168,14 @@ void main() async {
       android: AndroidInitializationSettings('@mipmap/ic_launcher'),
     ),
     onDidReceiveNotificationResponse: (details) {
+      final payload = details.payload ?? '';
       if (details.actionId == 'mark_read') {
         AlertService().markAllRead();
+      } else if (payload.startsWith('ev_alarm:')) {
+        final stationId = payload.substring('ev_alarm:'.length);
+        if (stationId.isNotEmpty) {
+          navigateToEvStationNotifier.value = stationId;
+        }
       } else {
         // 알림 본문 탭 또는 "상세보기" 버튼 → 알림 페이지로 이동
         navigateToAlertsNotifier.value++;

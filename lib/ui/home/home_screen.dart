@@ -19,6 +19,7 @@ import '../widgets/update_dialog.dart';
 import '../filter/gas_filter_sheet.dart';
 import '../filter/ev_filter_sheet.dart';
 import '../favorites/favorites_screen.dart';
+import '../detail/ev_detail_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -46,8 +47,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         _messageBadgeKey.currentState?.refreshCount();
       } else if (message.data['type'] == 'ev_alarm') {
         showEvAlarmNotification(message.data, soundMode: AlertService().evAlarmSoundMode);
+        AlertService().addEvAlarmMessage(message.data);
+        _messageBadgeKey.currentState?.refreshCount();
       }
     });
+
+    // 로컬 알림(ev_alarm) 탭 → 충전소 상세로 이동
+    navigateToEvStationNotifier.addListener(_onNavigateToEvStation);
 
     // 백그라운드 알림 탭해서 앱 열린 경우 (앱이 이미 실행 중)
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
@@ -55,6 +61,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         AlertService().addGasPriceMessage(message.data);
         _messageBadgeKey.currentState?.refreshCount();
         if (mounted) _openAlertsPage();
+      } else if (message.data['type'] == 'ev_alarm') {
+        AlertService().addEvAlarmMessage(message.data);
+        _messageBadgeKey.currentState?.refreshCount();
+        final stationId = message.data['stationId'] as String? ?? '';
+        if (stationId.isNotEmpty && mounted) {
+          Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
+            builder: (_) => EvDetailScreen(stationId: stationId),
+          ));
+        }
       }
     });
 
@@ -63,10 +78,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (message == null) return;
       if (message.data['type'] == 'gas_price_alert') {
         AlertService().addGasPriceMessage(message.data);
-        // 앱 초기화가 완전히 끝난 후 이동
         Future.delayed(const Duration(milliseconds: 600), () {
           if (mounted) _openAlertsPage();
         });
+      } else if (message.data['type'] == 'ev_alarm') {
+        AlertService().addEvAlarmMessage(message.data);
+        final stationId = message.data['stationId'] as String? ?? '';
+        if (stationId.isNotEmpty) {
+          Future.delayed(const Duration(milliseconds: 600), () {
+            if (mounted) {
+              Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
+                builder: (_) => EvDetailScreen(stationId: stationId),
+              ));
+            }
+          });
+        }
       }
     });
 
@@ -87,10 +113,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void dispose() {
     navigateToAlertsNotifier.removeListener(_onNavigateToAlerts);
+    navigateToEvStationNotifier.removeListener(_onNavigateToEvStation);
     super.dispose();
   }
 
   void _onNavigateToAlerts() => _openAlertsPage();
+
+  void _onNavigateToEvStation() {
+    final stationId = navigateToEvStationNotifier.value;
+    if (stationId.isEmpty || !mounted) return;
+    Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
+      builder: (_) => EvDetailScreen(stationId: stationId),
+    ));
+  }
 
   void _openAlertsPage() {
     if (!mounted) return;

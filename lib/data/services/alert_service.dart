@@ -446,6 +446,16 @@ class AlertService {
     return false;
   }
 
+  /// ev_alarm 데이터 메시지를 파싱해서 알림 내역에 저장
+  void addEvAlarmMessage(Map<String, dynamic> data) {
+    try {
+      final title = data['title'] as String? ?? '⚡ 충전소 자리 변동';
+      final body = data['body'] as String? ?? '';
+      if (body.isEmpty) return;
+      addMessage(title: title, body: body);
+    } catch (_) {}
+  }
+
   Future<void> unsubscribeEvAlarm(String stationId) async {
     try {
       await _dio.delete('/stations/ev/alarm/unsubscribe', data: {
