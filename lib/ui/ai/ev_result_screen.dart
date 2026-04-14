@@ -402,53 +402,41 @@ class _StationCardState extends State<_StationCard> {
                   ),
                 ],
                 const SizedBox(height: 10),
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
                   children: [
                     _InfoChip(
                       icon: Icons.bolt_rounded,
                       label: unitPrice != null ? '${_wonFmt.format(unitPrice)}원/kWh' : '가격 미공개',
                       color: const Color(0xFF444444),
                     ),
-                    if (originDistLabel != null) ...[
-                      const SizedBox(width: 8),
+                    if (originDistLabel != null)
                       _InfoChip(
                         icon: Icons.near_me_rounded,
                         label: originDistLabel,
                         color: _kGrey,
                       ),
-                    ],
-                    if (originEtaMin != null && originEtaMin > 0) ...[
-                      const SizedBox(width: 8),
+                    if (originEtaMin != null && originEtaMin > 0)
                       _InfoChip(
                         icon: Icons.schedule_rounded,
                         label: '약 ${originEtaMin}분 소요',
                         color: _kGrey,
                       ),
-                    ],
-                    if (detourMin != null && detourMin > 0) ...[
-                      const SizedBox(width: 8),
+                    if (detourMin != null && detourMin > 0)
                       _InfoChip(
                         icon: Icons.u_turn_right_rounded,
                         label: '+${detourMin}분 우회',
                         color: _kOrange,
                       ),
-                    ],
+                    if (detourMin != null && detourMin == 0)
+                      const _InfoChip(
+                        icon: Icons.check_circle_rounded,
+                        label: '경로 이탈 없음',
+                        color: _kGreen,
+                      ),
                   ],
                 ),
-                if (detourMin != null && detourMin == 0)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.check_circle_rounded, size: 14, color: _kGreen),
-                        const SizedBox(width: 4),
-                        const Text(
-                          '경로 이탈 없음',
-                          style: TextStyle(fontSize: 12, color: _kGreen, fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                  ),
                 // ── 알림 설정 행 ──
                 if (statId != null) ...[
                   const SizedBox(height: 8),
@@ -793,29 +781,33 @@ class EvSelectList extends StatelessWidget {
                               Text(operator, style: const TextStyle(fontSize: 11, color: _kGrey), overflow: TextOverflow.ellipsis),
                             ],
                             const SizedBox(height: 6),
-                            Row(
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 4,
+                              crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
-                                Container(
-                                  width: 7, height: 7,
-                                  decoration: BoxDecoration(
-                                    color: avail > 0 ? _kGreen : _kOrange,
-                                    shape: BoxShape.circle,
-                                  ),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 7, height: 7,
+                                      decoration: BoxDecoration(
+                                        color: avail > 0 ? _kGreen : _kOrange,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text('$avail/$total 가용',
+                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
+                                        color: avail > 0 ? _kGreen : _kOrange)),
+                                  ],
                                 ),
-                                const SizedBox(width: 4),
-                                Text('$avail/$total 가용',
-                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
-                                    color: avail > 0 ? _kGreen : _kOrange)),
-                                if (originLabel != null) ...[
-                                  const SizedBox(width: 8),
+                                if (originLabel != null)
                                   Text(originLabel,
                                     style: const TextStyle(fontSize: 11, color: _kGrey)),
-                                ],
-                                if (unitPrice != null) ...[
-                                  const SizedBox(width: 8),
+                                if (unitPrice != null)
                                   Text('${_wonFmt.format(unitPrice)}원/kWh',
                                     style: const TextStyle(fontSize: 11, color: Color(0xFF444444))),
-                                ],
                               ],
                             ),
                           ],
