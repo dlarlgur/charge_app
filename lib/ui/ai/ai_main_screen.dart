@@ -5068,13 +5068,17 @@ class _EvStationDetailSheetState extends State<_EvStationDetailSheet> {
     final totalCount = (s['total_count'] as num?)?.toInt() ?? 0;
     final chargingCount = (s['charging_count'] as num?)?.toInt() ?? 0;
     final unitPrice = (s['unit_price'] as num?)?.toInt();
-    final routeDistM = (s['route_distance_m'] as num?)?.toInt() ?? 0;
     final detourMin = (s['detour_time_min'] as num?)?.toInt();
+    final originDistM = (s['origin_distance_m'] as num?)?.toInt();
+    final originEtaMin = (s['origin_eta_min'] as num?)?.toInt();
     final accentColor = _accentColor;
 
-    final distLabel = routeDistM >= 1000
-        ? '${(routeDistM / 1000).toStringAsFixed(1)}km'
-        : '${routeDistM}m';
+    String? originDistLabel;
+    if (originDistM != null && originDistM > 0) {
+      originDistLabel = originDistM >= 1000
+          ? '출발지에서 ${(originDistM / 1000).toStringAsFixed(0)}km'
+          : '출발지에서 ${originDistM}m';
+    }
 
     return DraggableScrollableSheet(
       initialChildSize: 0.6,
@@ -5191,7 +5195,10 @@ class _EvStationDetailSheetState extends State<_EvStationDetailSheet> {
                     spacing: 8,
                     runSpacing: 6,
                     children: [
-                      _InfoTag(icon: Icons.near_me_rounded, label: '경로에서 $distLabel', color: _kGrey),
+                      if (originDistLabel != null)
+                        _InfoTag(icon: Icons.near_me_rounded, label: originDistLabel, color: _kGrey),
+                      if (originEtaMin != null && originEtaMin > 0)
+                        _InfoTag(icon: Icons.schedule_rounded, label: '약 ${originEtaMin}분 소요', color: _kGrey),
                       if (detourMin != null && detourMin == 0)
                         _InfoTag(icon: Icons.check_circle_rounded, label: '경로 이탈 없음', color: _kGreen)
                       else if (detourMin != null && detourMin > 0)

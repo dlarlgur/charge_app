@@ -728,6 +728,7 @@ class EvSelectList extends StatelessWidget {
               final unitPrice = (s['unit_price'] as num?)?.toInt();
               final routeDistM = (s['route_distance_m'] as num?)?.toInt() ?? 0;
               final originDistM = (s['origin_distance_m'] as num?)?.toInt();
+              final originEtaMin = (s['origin_eta_min'] as num?)?.toInt();
               final statusMsg = s['status_message']?.toString() ?? '';
               final isOnRoute = routeDistM <= 500;
 
@@ -804,6 +805,9 @@ class EvSelectList extends StatelessWidget {
                                 ),
                                 if (originLabel != null)
                                   Text(originLabel,
+                                    style: const TextStyle(fontSize: 11, color: _kGrey)),
+                                if (originEtaMin != null && originEtaMin > 0)
+                                  Text('약 ${originEtaMin}분 소요',
                                     style: const TextStyle(fontSize: 11, color: _kGrey)),
                                 if (unitPrice != null)
                                   Text('${_wonFmt.format(unitPrice)}원/kWh',
