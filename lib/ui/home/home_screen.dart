@@ -54,6 +54,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     // 로컬 알림(ev_alarm) 탭 → 충전소 상세로 이동
     navigateToEvStationNotifier.addListener(_onNavigateToEvStation);
+    // 앱 종료 상태에서 알림 탭 시: 리스너 등록 전에 이미 값이 세팅됐을 수 있으므로 초기값 체크
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (navigateToEvStationNotifier.value.isNotEmpty) {
+        _onNavigateToEvStation();
+      }
+    });
 
     // 백그라운드 알림 탭해서 앱 열린 경우 (앱이 이미 실행 중)
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
@@ -122,6 +128,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void _onNavigateToEvStation() {
     final stationId = navigateToEvStationNotifier.value;
     if (stationId.isEmpty || !mounted) return;
+    navigateToEvStationNotifier.value = ''; // 중복 이동 방지
     Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
       builder: (_) => EvDetailScreen(stationId: stationId),
     ));

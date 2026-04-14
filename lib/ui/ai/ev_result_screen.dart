@@ -808,7 +808,7 @@ class _EvAiMessageBanner extends StatelessWidget {
                 MarkdownBody(
                   data: normalized,
                   shrinkWrap: true,
-                  styleSheet: MarkdownStyleSheet(
+                  styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
                     p: const TextStyle(fontSize: 13, height: 1.5, color: Color(0xFF1a1a1a)),
                     strong: const TextStyle(
                       fontSize: 13, height: 1.5,
@@ -825,3 +825,4 @@ class _EvAiMessageBanner extends StatelessWidget {
     );
   }
 }
+
