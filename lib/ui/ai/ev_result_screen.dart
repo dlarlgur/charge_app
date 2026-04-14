@@ -309,12 +309,16 @@ class _StationCardState extends State<_StationCard> {
     final unitPrice = (station['unit_price'] as num?)?.toInt();
     final detourMin = (station['detour_time_min'] as num?)?.toInt();
     final oldestMin = (station['oldest_charging_min'] as num?)?.toInt();
-    final routeDistM = (station['route_distance_m'] as num?)?.toInt() ?? 0;
+    final originDistM = (station['origin_distance_m'] as num?)?.toInt();
+    final originEtaMin = (station['origin_eta_min'] as num?)?.toInt();
     final statId = station['statId']?.toString();
 
-    final distLabel = routeDistM >= 1000
-        ? '${(routeDistM / 1000).toStringAsFixed(1)}km'
-        : '${routeDistM}m';
+    String? originDistLabel;
+    if (originDistM != null && originDistM > 0) {
+      originDistLabel = originDistM >= 1000
+          ? '출발지에서 ${(originDistM / 1000).toStringAsFixed(0)}km'
+          : '출발지에서 ${originDistM}m';
+    }
 
     final accentColor = widget.accentColor;
     final accentLight = widget.accentLight;
@@ -405,12 +409,22 @@ class _StationCardState extends State<_StationCard> {
                       label: unitPrice != null ? '${_wonFmt.format(unitPrice)}원/kWh' : '가격 미공개',
                       color: const Color(0xFF444444),
                     ),
-                    const SizedBox(width: 8),
-                    _InfoChip(
-                      icon: Icons.near_me_rounded,
-                      label: '경로에서 $distLabel',
-                      color: _kGrey,
-                    ),
+                    if (originDistLabel != null) ...[
+                      const SizedBox(width: 8),
+                      _InfoChip(
+                        icon: Icons.near_me_rounded,
+                        label: originDistLabel,
+                        color: _kGrey,
+                      ),
+                    ],
+                    if (originEtaMin != null && originEtaMin > 0) ...[
+                      const SizedBox(width: 8),
+                      _InfoChip(
+                        icon: Icons.schedule_rounded,
+                        label: '약 ${originEtaMin}분 소요',
+                        color: _kGrey,
+                      ),
+                    ],
                     if (detourMin != null && detourMin > 0) ...[
                       const SizedBox(width: 8),
                       _InfoChip(
@@ -725,12 +739,15 @@ class EvSelectList extends StatelessWidget {
               final total = (s['total_count'] as num?)?.toInt() ?? 0;
               final unitPrice = (s['unit_price'] as num?)?.toInt();
               final routeDistM = (s['route_distance_m'] as num?)?.toInt() ?? 0;
+              final originDistM = (s['origin_distance_m'] as num?)?.toInt();
               final statusMsg = s['status_message']?.toString() ?? '';
               final isOnRoute = routeDistM <= 500;
 
-              final distLabel = routeDistM >= 1000
-                  ? '${(routeDistM / 1000).toStringAsFixed(1)}km'
-                  : '${routeDistM}m';
+              final originLabel = originDistM != null && originDistM > 0
+                  ? (originDistM >= 1000
+                      ? '출발지에서 ${(originDistM / 1000).toStringAsFixed(0)}km'
+                      : '출발지에서 ${originDistM}m')
+                  : null;
 
               return GestureDetector(
                 onTap: () => onSelect(s),
@@ -789,9 +806,11 @@ class EvSelectList extends StatelessWidget {
                                 Text('$avail/$total 가용',
                                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
                                     color: avail > 0 ? _kGreen : _kOrange)),
-                                const SizedBox(width: 8),
-                                Text('경로에서 $distLabel',
-                                  style: const TextStyle(fontSize: 11, color: _kGrey)),
+                                if (originLabel != null) ...[
+                                  const SizedBox(width: 8),
+                                  Text(originLabel,
+                                    style: const TextStyle(fontSize: 11, color: _kGrey)),
+                                ],
                                 if (unitPrice != null) ...[
                                   const SizedBox(width: 8),
                                   Text('${_wonFmt.format(unitPrice)}원/kWh',
