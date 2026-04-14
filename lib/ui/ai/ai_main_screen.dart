@@ -1093,7 +1093,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   }
 
   // ── 분석 결과 지도에 그리기 ──
-  void _drawResultOnMap({
+  Future<void> _drawResultOnMap({
     required List<Map<String, dynamic>> pathPoints,
     List<Map<String, dynamic>>? pathSegments, // 교통 구간 데이터
     required double originLat,
@@ -1831,7 +1831,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       }
     } catch (_) {}
 
-    _drawResultOnMap(
+    await _drawResultOnMap(
       pathPoints: pathPoints,
       pathSegments: pathSegments,
       originLat: _lastStartLat,
@@ -1842,6 +1842,31 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       destLat: _destLat!,
       destLng: _destLng!,
     );
+    // 지도 그리기 완료 후 → EV 결과 모드로 전환 (선택된 충전소 카드만 표시)
+    if (!mounted) return;
+    setState(() {
+      _isEvSelectMode = false;
+      _evSelectCandidates = [];
+      _isEvResultMode = true;
+      _lastResultData = {
+        'charger_type': _evChargerType,
+        'reachable_distance_km': 0.0,
+        'recommended': station,
+        'alternatives': <dynamic>[],
+        'total_candidates': null,
+        'filtered_out_count': 0,
+      };
+    });
+    // 시트를 살짝 올려 충전소 카드를 보여줌
+    try {
+      if (_sheetController.isAttached) {
+        await _sheetController.animateTo(
+          0.45,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    } catch (_) {}
   }
 
   // EV 사용자 선택 모드 — 경로상 충전소 목록 불러오기
@@ -1982,8 +2007,6 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         destName: _destName,
         onMapTap: () {
           Navigator.pop(ctx);
-          // 리스트 시트 숨기고 지도 포커스
-          if (mounted) setState(() => _isEvSelectMode = false);
           _showEvStationRouteOnMap(station);
         },
       ),

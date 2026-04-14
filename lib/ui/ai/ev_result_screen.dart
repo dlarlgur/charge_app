@@ -92,11 +92,13 @@ class EvResultBody extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '주행 가능 ${reachableKm.toStringAsFixed(0)}km',
-                      style: const TextStyle(fontSize: 13, color: _kGrey),
-                    ),
+                    if (reachableKm > 0) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        '주행 가능 ${reachableKm.toStringAsFixed(0)}km',
+                        style: const TextStyle(fontSize: 13, color: _kGrey),
+                      ),
+                    ],
                     if (totalCandidates != null) ...[
                       const SizedBox(width: 6),
                       Text(
