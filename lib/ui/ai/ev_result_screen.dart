@@ -3,6 +3,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
 import '../../core/utils/navigation_util.dart';
 import '../../data/services/alert_service.dart';
+import '../detail/ev_detail_screen.dart';
 
 const _kBlue = Color(0xFF1D6FE0);
 const _kBlueLight = Color(0xFFEEF4FF);
@@ -477,67 +478,113 @@ class _StationCardState extends State<_StationCard> {
                     ),
                   ),
                 ],
-                if (widget.onMapTap != null || (widget.originLat != null && widget.destLat != null)) ...[
+                if (widget.onMapTap != null ||
+                    (widget.originLat != null && widget.destLat != null) ||
+                    statId != null) ...[
                   const Divider(height: 1, color: Color(0xFFEEEEEE)),
                   const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      if (widget.onMapTap != null) ...[
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: widget.onMapTap,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.map_rounded, size: 14, color: accentColor),
-                                const SizedBox(width: 5),
-                                Text(
-                                  '지도에서 경로 보기',
-                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: accentColor),
+                  // ── 지도/길안내 버튼 행 ──
+                  if (widget.onMapTap != null || (widget.originLat != null && widget.destLat != null))
+                    Row(
+                      children: [
+                        if (widget.onMapTap != null) ...[
+                          Expanded(
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: widget.onMapTap,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 2),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.map_rounded, size: 13, color: accentColor),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      '지도에서 경로 보기',
+                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: accentColor),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                      if (widget.onMapTap != null && widget.originLat != null && widget.destLat != null)
-                        Container(width: 1, height: 16, color: const Color(0xFFEEEEEE)),
-                      if (widget.originLat != null && widget.destLat != null) ...[
-                        Expanded(
-                          child: Builder(builder: (ctx) => GestureDetector(
-                            onTap: () {
-                              final stLat = (station['lat'] as num?)?.toDouble();
-                              final stLng = (station['lng'] as num?)?.toDouble();
-                              final stName = station['name']?.toString() ?? '충전소';
-                              if (stLat == null || stLng == null) return;
-                              showViaWaypointNavigationSheet(
-                                ctx,
-                                originLat: widget.originLat!,
-                                originLng: widget.originLng!,
-                                waypointLat: stLat,
-                                waypointLng: stLng,
-                                waypointName: stName,
-                                destinationLat: widget.destLat!,
-                                destinationLng: widget.destLng!,
-                                destinationName: widget.destName ?? '목적지',
-                              );
-                            },
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.navigation_rounded, size: 14, color: accentColor),
-                                const SizedBox(width: 5),
-                                Text(
-                                  '길안내',
-                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: accentColor),
+                        ],
+                        if (widget.onMapTap != null && widget.originLat != null && widget.destLat != null)
+                          Container(width: 1, height: 16, color: const Color(0xFFEEEEEE)),
+                        if (widget.originLat != null && widget.destLat != null) ...[
+                          Expanded(
+                            child: Builder(builder: (ctx) => GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () {
+                                final stLat = (station['lat'] as num?)?.toDouble();
+                                final stLng = (station['lng'] as num?)?.toDouble();
+                                final stName = station['name']?.toString() ?? '충전소';
+                                if (stLat == null || stLng == null) return;
+                                showViaWaypointNavigationSheet(
+                                  ctx,
+                                  originLat: widget.originLat!,
+                                  originLng: widget.originLng!,
+                                  waypointLat: stLat,
+                                  waypointLng: stLng,
+                                  waypointName: stName,
+                                  destinationLat: widget.destLat!,
+                                  destinationLng: widget.destLng!,
+                                  destinationName: widget.destName ?? '목적지',
+                                );
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 2),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.navigation_rounded, size: 13, color: accentColor),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      '길안내',
+                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: accentColor),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          )),
-                        ),
+                              ),
+                            )),
+                          ),
+                        ],
                       ],
-                    ],
-                  ),
+                    ),
+                  // ── 상세보기 버튼 (전체 너비) ──
+                  if (statId != null) ...[
+                    if (widget.onMapTap != null || (widget.originLat != null && widget.destLat != null))
+                      const SizedBox(height: 8),
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        Navigator.of(context, rootNavigator: true).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => EvDetailScreen(stationId: statId),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 9),
+                        decoration: BoxDecoration(
+                          color: accentColor.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.info_outline_rounded, size: 14, color: accentColor),
+                            const SizedBox(width: 5),
+                            Text(
+                              '충전소 상세보기',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: accentColor),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ],
             ),
@@ -661,7 +708,7 @@ class EvSelectList extends StatelessWidget {
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: accentColor),
                 ),
                 const SizedBox(width: 6),
-                const Text('· 경로 가까운 순', style: TextStyle(fontSize: 12, color: _kGrey)),
+                const Text('· 경로 가까운 순 · 가용 우선', style: TextStyle(fontSize: 12, color: _kGrey)),
               ],
             ),
           ),
@@ -813,7 +860,7 @@ class _EvAiMessageBanner extends StatelessWidget {
                     strong: const TextStyle(
                       fontSize: 13, height: 1.5,
                       fontWeight: FontWeight.w700,
-                      color: _kBlue,
+                      color: _kGreen,
                     ),
                   ),
                 ),

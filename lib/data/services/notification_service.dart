@@ -179,6 +179,6 @@ void showEvAlarmNotification(Map<String, dynamic> data, {int soundMode = 0}) {
         ),
       ),
     ),
-    payload: 'ev_alarm:$stationId',
+    payload: 'ev_alarm:$stationId:${Uri.encodeComponent(title)}:${Uri.encodeComponent(body)}',
   );
 }

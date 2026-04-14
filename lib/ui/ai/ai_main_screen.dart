@@ -129,21 +129,24 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     c.jumpTo(0);
   }
 
-  void _collapseResultSheetForMapFocus() {
-    _resetResultSheetScrollToTop();
+  /// 지도 포커스용으로 시트를 최소 높이까지 내린다.
+  /// 맨 위로 스크롤을 점프시키는 건 시트가 내려간 **뒤**에만 한다. (먼저 점프하면 DraggableScrollableSheet와
+  /// 본문 스크롤이 꼬여, '지도에서 경로 보기' 후 살짝 올리면 리스트만 보이는 것처럼 느껴질 수 있음)
+  Future<void> _collapseResultSheetForMapFocus() async {
     if (!_sheetController.isAttached) return;
     const targetSize = 0.12;
-    if ((_sheetController.size - targetSize).abs() < 0.01) return;
-    unawaited(() async {
-      try {
-        await _sheetController.animateTo(
-          targetSize,
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
-        );
-        if (mounted) _resetResultSheetScrollToTop();
-      } catch (_) {}
-    }());
+    if ((_sheetController.size - targetSize).abs() < 0.01) {
+      if (mounted) _resetResultSheetScrollToTop();
+      return;
+    }
+    try {
+      await _sheetController.animateTo(
+        targetSize,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+      );
+    } catch (_) {}
+    if (mounted) _resetResultSheetScrollToTop();
   }
 
   // ── AI 추천 복원용 원본 파라미터 ──
@@ -1520,7 +1523,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   // ── 다른 후보 경로보기 ──
   Future<void> _showAltRouteOnMap(Map<String, dynamic> altItem) async {
     if (_destLat == null || _destLng == null) return;
-    _collapseResultSheetForMapFocus();
+    await _collapseResultSheetForMapFocus();
     final st = altItem['station'] is Map ? altItem['station'] as Map : null;
     if (st == null) return;
     final stLat = _asDouble(st['lat']);
@@ -1599,7 +1602,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   // ── 비교 카드 탭 시 해당 경유 경로 지도에 그리기 ──
   Future<void> _showCompareCardRouteOnMap(Map<String, dynamic> stationData) async {
     if (_destLat == null || _destLng == null) return;
-    _collapseResultSheetForMapFocus();
+    await _collapseResultSheetForMapFocus();
     final st = stationData['station'] is Map ? stationData['station'] as Map : null;
     if (st == null) return;
     final stLat = _asDouble(st['lat']);
@@ -1806,7 +1809,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   // EV 카드 "지도에서 경로 보기" 탭
   Future<void> _showEvStationRouteOnMap(Map<String, dynamic> station) async {
     if (_destLat == null || _destLng == null) return;
-    _collapseResultSheetForMapFocus();
+    await _collapseResultSheetForMapFocus();
 
     final stLat = (station['lat'] as num?)?.toDouble();
     final stLng = (station['lng'] as num?)?.toDouble();
@@ -1979,32 +1982,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         destName: _destName,
         onMapTap: () {
           Navigator.pop(ctx);
+          // 리스트 시트 숨기고 지도 포커스
+          if (mounted) setState(() => _isEvSelectMode = false);
           _showEvStationRouteOnMap(station);
-        },
-        onSelect: () {
-          Navigator.pop(ctx);
-          _selectEvStation(station);
         },
       ),
     );
-  }
-
-  // EV 사용자 선택 모드 — 충전소 선택 후 경유 경로 보기
-  Future<void> _selectEvStation(Map<String, dynamic> station) async {
-    if (_destLat == null || _destLng == null) return;
-
-    final stLat = (station['lat'] as num?)?.toDouble();
-    final stLng = (station['lng'] as num?)?.toDouble();
-    if (stLat == null || stLng == null) return;
-
-    setState(() { _isEvSelectMode = false; _isEvResultMode = true; _lastResultData = {
-      'recommended': station,
-      'alternatives': [],
-      'charger_type': _evChargerType,
-      'reachable_distance_km': 0,
-    }; });
-
-    _showEvStationRouteOnMap(station);
   }
 
   // ── EV UI 헬퍼 위젯 ──────────────────────────────────────────────────────
@@ -4966,7 +4949,6 @@ class _EvStationDetailSheet extends StatefulWidget {
   final double? destLng;
   final String? destName;
   final VoidCallback onMapTap;
-  final VoidCallback onSelect;
 
   const _EvStationDetailSheet({
     required this.station,
@@ -4978,7 +4960,6 @@ class _EvStationDetailSheet extends StatefulWidget {
     required this.destLng,
     required this.destName,
     required this.onMapTap,
-    required this.onSelect,
   });
 
   @override
@@ -5172,32 +5153,28 @@ class _EvStationDetailSheetState extends State<_EvStationDetailSheet> {
                 const Divider(height: 1),
                 const SizedBox(height: 16),
 
-                // ── 액션 버튼 ──
+                // ── 액션 버튼 (사용자 선택: 경유만 지도에 표시. AI 결과 모드로 전환하지 않음) ──
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: widget.onMapTap,
+                    icon: const Icon(Icons.route_rounded, size: 18),
+                    label: const Text('지도에서 경로 보기', style: TextStyle(fontWeight: FontWeight.w700)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accentColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 Row(
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          Navigator.of(context, rootNavigator: true).push(
-                            MaterialPageRoute(
-                              builder: (_) => EvDetailScreen(stationId: widget.stationId),
-                            ),
-                          );
-                        },
-                        icon: Icon(Icons.info_outline_rounded, size: 16, color: accentColor),
-                        label: Text('충전소 상세보기', style: TextStyle(color: accentColor, fontWeight: FontWeight.w600)),
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: accentColor),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
                         onPressed: widget.destLat != null ? () {
+                          Navigator.pop(context);
                           showViaWaypointNavigationSheet(
                             context,
                             originLat: widget.originLat,
@@ -5219,21 +5196,27 @@ class _EvStationDetailSheetState extends State<_EvStationDetailSheet> {
                         ),
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: widget.onSelect,
-                    icon: const Icon(Icons.check_circle_rounded, size: 16),
-                    label: const Text('이 충전소로 경로 설정', style: TextStyle(fontWeight: FontWeight.w700)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: accentColor,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      padding: const EdgeInsets.symmetric(vertical: 13),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          Navigator.of(context, rootNavigator: true).push(
+                            MaterialPageRoute(
+                              builder: (_) => EvDetailScreen(stationId: widget.stationId),
+                            ),
+                          );
+                        },
+                        icon: Icon(Icons.info_outline_rounded, size: 16, color: accentColor),
+                        label: Text('충전소 상세보기', style: TextStyle(color: accentColor, fontWeight: FontWeight.w600)),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: accentColor),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ],
             ),

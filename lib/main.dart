@@ -172,9 +172,20 @@ void main() async {
       if (details.actionId == 'mark_read') {
         AlertService().markAllRead();
       } else if (payload.startsWith('ev_alarm:')) {
-        final stationId = payload.substring('ev_alarm:'.length);
+        // payload 형식: ev_alarm:stationId:encodedTitle:encodedBody
+        final rest = payload.substring('ev_alarm:'.length);
+        final parts = rest.split(':');
+        final stationId = parts.isNotEmpty ? parts[0] : '';
         if (stationId.isNotEmpty) {
           navigateToEvStationNotifier.value = stationId;
+        }
+        // main isolate에서 히스토리 저장 (백그라운드 isolate Hive 캐시 불일치 방지)
+        if (parts.length >= 3) {
+          try {
+            final title = Uri.decodeComponent(parts[1]);
+            final body = Uri.decodeComponent(parts.sublist(2).join(':'));
+            AlertService().addEvAlarmMessage({'title': title, 'body': body});
+          } catch (_) {}
         }
       } else {
         // 알림 본문 탭 또는 "상세보기" 버튼 → 알림 페이지로 이동

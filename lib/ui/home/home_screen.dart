@@ -496,7 +496,7 @@ class _GasListViewState extends ConsumerState<_GasListView> {
               )),
             ),
             data: (stations) {
-              final filtered = _searchQuery.isEmpty ? stations
+              var filtered = _searchQuery.isEmpty ? stations
                   : stations.where((s) =>
                       s.name.contains(_searchQuery) ||
                       s.address.contains(_searchQuery)).toList();
@@ -509,11 +509,18 @@ class _GasListViewState extends ConsumerState<_GasListView> {
                   )),
                 );
               }
+              // 즐겨찾기 상위 정렬
+              final favIds = FavoriteService.getByType('gas').map((f) => f['id'] as String).toSet();
+              if (favIds.isNotEmpty) {
+                final favs = filtered.where((s) => favIds.contains(s.id)).toList();
+                final rest = filtered.where((s) => !favIds.contains(s.id)).toList();
+                filtered = [...favs, ...rest];
+              }
               final shown = filtered.take(_displayCount).toList();
               return SliverList(delegate: SliverChildBuilderDelegate(
                 (_, i) => GasStationCard(
                   station: shown[i],
-                  isTop: i == 0,
+                  isTop: i == 0 && favIds.isEmpty,
                   topBadgeLabel: filter.sort == 1 ? '최저가' : '최단거리',
                   onTap: () => context.push('/gas/${shown[i].id}', extra: shown[i]),
                 ),
@@ -680,7 +687,7 @@ class _EvListViewState extends ConsumerState<_EvListView> {
               )),
             ),
             data: (stations) {
-              final filtered = _searchQuery.isEmpty ? stations
+              var filtered = _searchQuery.isEmpty ? stations
                   : stations.where((s) =>
                       s.name.contains(_searchQuery) ||
                       s.address.contains(_searchQuery) ||
@@ -694,11 +701,18 @@ class _EvListViewState extends ConsumerState<_EvListView> {
                   )),
                 );
               }
+              // 즐겨찾기 상위 정렬
+              final favIds = FavoriteService.getByType('ev').map((f) => f['id'] as String).toSet();
+              if (favIds.isNotEmpty) {
+                final favs = filtered.where((s) => favIds.contains(s.statId)).toList();
+                final rest = filtered.where((s) => !favIds.contains(s.statId)).toList();
+                filtered = [...favs, ...rest];
+              }
               final shown = filtered.take(_displayCount).toList();
               return SliverList(delegate: SliverChildBuilderDelegate(
                 (_, i) => EvStationCard(
                   station: shown[i],
-                  isTop: i == 0,
+                  isTop: i == 0 && favIds.isEmpty,
                   onTap: () => context.push('/ev/${shown[i].statId}', extra: shown[i]),
                 ),
                 childCount: shown.length,

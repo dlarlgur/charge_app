@@ -452,6 +452,15 @@ class AlertService {
       final title = data['title'] as String? ?? '⚡ 충전소 자리 변동';
       final body = data['body'] as String? ?? '';
       if (body.isEmpty) return;
+      // 중복 저장 방지: 최근 1분 내 동일 body가 있으면 skip
+      final msgs = receivedMessages;
+      if (msgs.isNotEmpty) {
+        final last = msgs.first;
+        final lastBody = last['body'] as String? ?? '';
+        final lastTs = DateTime.tryParse(last['timestamp'] as String? ?? '');
+        if (lastBody == body && lastTs != null &&
+            DateTime.now().difference(lastTs).inSeconds < 60) return;
+      }
       addMessage(title: title, body: body);
     } catch (_) {}
   }
