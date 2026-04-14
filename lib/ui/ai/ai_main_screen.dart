@@ -101,6 +101,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   bool _isEvResultMode = false;
   bool _isEvSelectMode = false;
   List<Map<String, dynamic>> _evSelectCandidates = [];
+  // 직접선택 경로 보기 후 백버튼 복원용
+  List<Map<String, dynamic>> _prevEvSelectCandidates = [];
   String _aiAnalysisType = 'gas'; // gas | ev
   String _evChargerType = 'FAST'; // FAST | SLOW
   bool _evHighwayOnly = false;   // 고속도로 충전소만
@@ -1845,6 +1847,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     // 지도 그리기 완료 후 → EV 결과 모드로 전환 (선택된 충전소 카드만 표시)
     if (!mounted) return;
     setState(() {
+      _prevEvSelectCandidates = List.of(_evSelectCandidates); // 백버튼 복원용
       _isEvSelectMode = false;
       _evSelectCandidates = [];
       _isEvResultMode = true;
@@ -2091,6 +2094,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       _isEvResultMode = false;
       _isEvSelectMode = false;
       _evSelectCandidates = [];
+      _prevEvSelectCandidates = [];
       _isCompareResultMode = false;
       _isSelectMode = false;
       _isSelectSheetVisible = false;
@@ -2830,6 +2834,28 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         // 4. AI 결과 모드 / EV 선택 모드
         if (_isResultMode || _isEvResultMode || _isEvSelectMode) {
           markHandled();
+          // 직접선택 경로 보기에서 EV 결과 모드로 전환된 경우 → 리스트로 복원
+          if (_isEvResultMode && _prevEvSelectCandidates.isNotEmpty) {
+            setState(() {
+              _isEvResultMode = false;
+              _isEvSelectMode = true;
+              _evSelectCandidates = _prevEvSelectCandidates;
+              _prevEvSelectCandidates = [];
+            });
+            // 후보 마커 + 기존 경로 다시 그리기
+            _mapController?.clearOverlays(type: NOverlayType.pathOverlay);
+            _mapController?.clearOverlays(type: NOverlayType.multipartPathOverlay);
+            _mapController?.clearOverlays(type: NOverlayType.marker);
+            _drawResultOnMap(
+              pathPoints: _lastPathPoints,
+              pathSegments: _lastPathSegments,
+              originLat: _lastStartLat, originLng: _lastStartLng,
+              stLat: null, stLng: null, stName: '',
+              destLat: _destLat!, destLng: _destLng!,
+            );
+            _drawEvCandidateMarkers(_evSelectCandidates);
+            return;
+          }
           _clearResult();
           return;
         }
