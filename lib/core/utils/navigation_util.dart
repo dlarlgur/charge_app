@@ -58,6 +58,8 @@ Future<void> showViaWaypointNavigationSheet(
   );
 }
 
+bool _isRestArea(String name) => name.contains('휴게소');
+
 class _NavigationSheet extends StatelessWidget {
   final double lat, lng;
   final String name;
@@ -65,6 +67,7 @@ class _NavigationSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final restArea = _isRestArea(name);
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -80,13 +83,13 @@ class _NavigationSheet extends StatelessWidget {
             const SizedBox(height: 8),
             _navItem(
               context,
-              icon: const _NavAssetIcon('assets/nav/naver_logo.png'),
-              label: '네이버 지도',
-              subtitle: '네이버',
+              icon: const _NavAssetIcon('assets/nav/tmap_logo.webp'),
+              label: '티맵',
+              subtitle: 'SK텔레콤',
               onTap: () => _launch(
                 context,
-                'nmap://navigation?dlat=$lat&dlng=$lng&dname=${Uri.encodeComponent(name)}&appname=${AppConstants.packageName}',
-                fallback: 'https://map.naver.com',
+                'tmap://route?goalname=${Uri.encodeComponent(name)}&goaly=$lat&goalx=$lng',
+                fallback: 'https://www.tmap.co.kr',
               ),
             ),
             _navItem(
@@ -102,13 +105,14 @@ class _NavigationSheet extends StatelessWidget {
             ),
             _navItem(
               context,
-              icon: const _NavAssetIcon('assets/nav/tmap_logo.webp'),
-              label: '티맵',
-              subtitle: 'SK텔레콤',
+              icon: const _NavAssetIcon('assets/nav/naver_logo.png'),
+              label: '네이버 지도',
+              subtitle: restArea ? '고속도로 휴게소는 티맵 안내를 권장해요' : '네이버',
+              subtitleColor: restArea ? const Color(0xFFE07000) : Colors.grey,
               onTap: () => _launch(
                 context,
-                'tmap://route?goalname=${Uri.encodeComponent(name)}&goaly=$lat&goalx=$lng',
-                fallback: 'https://www.tmap.co.kr',
+                'nmap://navigation?dlat=$lat&dlng=$lng&dname=${Uri.encodeComponent(name)}&appname=${AppConstants.packageName}',
+                fallback: 'https://map.naver.com',
               ),
             ),
             const SizedBox(height: 8),
@@ -118,12 +122,19 @@ class _NavigationSheet extends StatelessWidget {
     );
   }
 
-  Widget _navItem(BuildContext context, {required Widget icon, required String label, required String subtitle, required VoidCallback onTap}) {
+  Widget _navItem(
+    BuildContext context, {
+    required Widget icon,
+    required String label,
+    required String subtitle,
+    Color subtitleColor = Colors.grey,
+    required VoidCallback onTap,
+  }) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       leading: icon,
       title: Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+      subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: subtitleColor)),
       trailing: const Icon(Icons.chevron_right_rounded, color: Colors.grey),
       onTap: () {
         Navigator.pop(context);
@@ -166,6 +177,8 @@ class _ViaWaypointNavigationSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final originValid = originLat.isFinite && originLng.isFinite && !(originLat == 0 && originLng == 0);
     final safeOriginName = originValid ? originName : '';
+    final restArea = _isRestArea(waypointName) || _isRestArea(destinationName);
+
     final naverUrl = originValid
         ? 'nmap://route/car?slat=$originLat&slng=$originLng&sname=${Uri.encodeComponent(safeOriginName)}'
             '&v1lat=$waypointLat&v1lng=$waypointLng&v1name=${Uri.encodeComponent(waypointName)}'
@@ -190,32 +203,7 @@ class _ViaWaypointNavigationSheet extends StatelessWidget {
             const SizedBox(height: 16),
             const Text('경유 길찾기 앱 선택', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
-            _navItem(
-              context,
-              icon: const _NavAssetIcon('assets/nav/naver_logo.png'),
-              label: '네이버 지도',
-              subtitle: originValid ? '네이버' : '네이버 (현재 위치 기준)',
-              onTap: () => _launch(
-                context,
-                naverUrl,
-                fallback: 'https://map.naver.com',
-              ),
-            ),
-            if (originValid) ...[
-              _navItem(
-                context,
-                icon: const _NavAssetIcon('assets/nav/kakaomap_logo.png'),
-                label: '카카오내비',
-                subtitle: '카카오',
-                onTap: () => _launch(
-                  context,
-                  // kakaomap://route 사용 (lat,lng 순서, 쉼표 구분)
-                  'kakaomap://route?sp=$originLat,$originLng&sname=${Uri.encodeComponent(safeOriginName)}'
-                  '&ep=$destinationLat,$destinationLng&ename=${Uri.encodeComponent(destinationName)}'
-                  '&via1=$waypointLat,$waypointLng&by=CAR',
-                  fallback: 'https://map.kakao.com',
-                ),
-              ),
+            if (originValid)
               _navItem(
                 context,
                 icon: const _NavAssetIcon('assets/nav/tmap_logo.webp'),
@@ -223,14 +211,40 @@ class _ViaWaypointNavigationSheet extends StatelessWidget {
                 subtitle: 'SK텔레콤',
                 onTap: () => _launch(
                   context,
-                  // 경유지 파라미터: rPoiX1/rPoiY1/rPoiName1 (Tmap 공식)
                   'tmap://route?startX=$originLng&startY=$originLat&startname=${Uri.encodeComponent(safeOriginName)}'
                   '&goalname=${Uri.encodeComponent(destinationName)}&goaly=$destinationLat&goalx=$destinationLng'
                   '&rPoiX1=$waypointLng&rPoiY1=$waypointLat&rPoiName1=${Uri.encodeComponent(waypointName)}',
                   fallback: 'https://www.tmap.co.kr',
                 ),
               ),
-            ],
+            if (originValid)
+              _navItem(
+                context,
+                icon: const _NavAssetIcon('assets/nav/kakaomap_logo.png'),
+                label: '카카오내비',
+                subtitle: '카카오',
+                onTap: () => _launch(
+                  context,
+                  'kakaomap://route?sp=$originLat,$originLng&sname=${Uri.encodeComponent(safeOriginName)}'
+                  '&ep=$destinationLat,$destinationLng&ename=${Uri.encodeComponent(destinationName)}'
+                  '&via1=$waypointLat,$waypointLng&by=CAR',
+                  fallback: 'https://map.kakao.com',
+                ),
+              ),
+            _navItem(
+              context,
+              icon: const _NavAssetIcon('assets/nav/naver_logo.png'),
+              label: '네이버 지도',
+              subtitle: restArea
+                  ? (originValid ? '네이버' : '네이버 (현재 위치 기준)') + ' · 고속도로 휴게소는 티맵 권장'
+                  : (originValid ? '네이버' : '네이버 (현재 위치 기준)'),
+              subtitleColor: restArea ? const Color(0xFFE07000) : Colors.grey,
+              onTap: () => _launch(
+                context,
+                naverUrl,
+                fallback: 'https://map.naver.com',
+              ),
+            ),
             const SizedBox(height: 8),
           ],
         ),
@@ -238,12 +252,19 @@ class _ViaWaypointNavigationSheet extends StatelessWidget {
     );
   }
 
-  Widget _navItem(BuildContext context, {required Widget icon, required String label, required String subtitle, required VoidCallback onTap}) {
+  Widget _navItem(
+    BuildContext context, {
+    required Widget icon,
+    required String label,
+    required String subtitle,
+    Color subtitleColor = Colors.grey,
+    required VoidCallback onTap,
+  }) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       leading: icon,
       title: Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+      subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: subtitleColor)),
       trailing: const Icon(Icons.chevron_right_rounded, color: Colors.grey),
       onTap: () {
         Navigator.pop(context);
