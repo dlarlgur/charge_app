@@ -12,10 +12,12 @@ import 'package:intl/intl.dart';
 
 import '../../core/constants/api_constants.dart';
 import '../../core/navigation/app_route_observer.dart';
+import '../../core/utils/helpers.dart';
 import '../../core/utils/navigation_util.dart';
 import '../../data/models/models.dart';
 import '../../data/services/alert_service.dart';
 import '../../data/services/api_service.dart';
+import '../../data/services/watch_service.dart';
 import '../../data/services/location_service.dart';
 import '../../providers/providers.dart';
 import 'ai_onboarding_screen.dart';
@@ -5198,11 +5200,11 @@ class _EvStationDetailSheetState extends State<_EvStationDetailSheet> {
                       if (originDistLabel != null)
                         _InfoTag(icon: Icons.near_me_rounded, label: originDistLabel, color: _kGrey),
                       if (originEtaMin != null && originEtaMin > 0)
-                        _InfoTag(icon: Icons.schedule_rounded, label: '약 ${originEtaMin}분 소요', color: _kGrey),
+                        _InfoTag(icon: Icons.schedule_rounded, label: '약 ${fmtMin(originEtaMin)} 소요', color: _kGrey),
                       if (detourMin != null && detourMin == 0)
                         _InfoTag(icon: Icons.check_circle_rounded, label: '경로 이탈 없음', color: _kGreen)
                       else if (detourMin != null && detourMin > 0)
-                        _InfoTag(icon: Icons.u_turn_right_rounded, label: '+${detourMin}분 우회', color: _kOrange),
+                        _InfoTag(icon: Icons.u_turn_right_rounded, label: '+${fmtMin(detourMin)} 우회', color: _kOrange),
                     ],
                   ),
                 ),
@@ -5229,8 +5231,26 @@ class _EvStationDetailSheetState extends State<_EvStationDetailSheet> {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: widget.destLat != null ? () {
+                        onPressed: widget.destLat != null ? () async {
+                          // 워치 제안 다이얼로그 (시트 팝 전에 표시)
+                          final accepted = await showDialog<bool>(
+                            context: context,
+                            builder: (dCtx) => _WatchProposalDialog(
+                              etaMin: originEtaMin,
+                              accentColor: accentColor,
+                            ),
+                          );
+                          if (accepted == true) {
+                            WatchService().start(
+                              statId: widget.stationId,
+                              stationName: name,
+                              etaMin: originEtaMin ?? 0,
+                              currentAvail: availCount,
+                            );
+                          }
+                          if (!context.mounted) return;
                           Navigator.pop(context);
+                          if (!context.mounted) return;
                           showViaWaypointNavigationSheet(
                             context,
                             originLat: widget.originLat,
@@ -5381,6 +5401,86 @@ class _ChargerRow extends StatelessWidget {
           Text(statusLabel,
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
         ],
+      ),
+    );
+  }
+}
+
+// ── 워치 제안 다이얼로그 ──────────────────────────────────────────────────────────
+class _WatchProposalDialog extends StatelessWidget {
+  final int? etaMin;
+  final Color accentColor;
+
+  const _WatchProposalDialog({required this.etaMin, required this.accentColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      elevation: 0,
+      backgroundColor: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: accentColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.radar_rounded, size: 32, color: accentColor),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              '실시간 현황 알림',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A)),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              etaMin != null && etaMin! > 0
+                  ? '약 ${fmtMin(etaMin!)} 소요 예정이에요.\n이동하는 동안 자리 변동 시\n알림을 드릴게요.'
+                  : '이동하는 동안 자리 변동 시\n알림을 드릴게요.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, color: Color(0xFF666666), height: 1.65),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: Colors.grey.shade300),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                    ),
+                    child: const Text(
+                      '나중에',
+                      style: TextStyle(color: Color(0xFF888888), fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accentColor,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                    ),
+                    child: const Text('받기', style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

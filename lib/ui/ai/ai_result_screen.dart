@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/utils/helpers.dart';
 import '../../core/utils/navigation_util.dart';
 import '../widgets/shared_widgets.dart';
 
@@ -39,7 +40,7 @@ int? _meaningfulDetourMinutes(num? detourTimeMin, {bool? serverDetourIsNone}) {
 String _detourAltListSubtitle({required int detourM, required num? detourTimeMin, bool? serverDetourIsNone}) {
   if (_detourIsNegligible(detourM: detourM, detourTimeMin: detourTimeMin, serverDetourIsNone: serverDetourIsNone)) return '우회 없음';
   final m = _meaningfulDetourMinutes(detourTimeMin, serverDetourIsNone: serverDetourIsNone);
-  if (m != null && m > 0) return '약 ${m}분 우회';
+  if (m != null && m > 0) return '약 ${fmtMin(m)} 우회';
   if (detourM >= 1000) return '${(detourM / 1000).toStringAsFixed(1)}km 우회';
   if (detourM > 0) return '${detourM}m 우회';
   return '조금 우회';
@@ -214,7 +215,7 @@ class _AiResultBodyState extends State<AiResultBody> {
     } else {
       final m = _meaningfulDetourMinutes(detourTimeMin, serverDetourIsNone: detourIsNone);
       if (m != null && m > 0) {
-        detourText = '약 ${m}분 우회';
+        detourText = '약 ${fmtMin(m)} 우회';
       } else if (detourM >= 1000) {
         detourText = '${(detourM / 1000).toStringAsFixed(1)}km 우회 필요';
       } else {

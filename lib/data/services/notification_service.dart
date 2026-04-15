@@ -145,6 +145,44 @@ void showGasPriceNotification(Map<String, dynamic> data, {int soundMode = 0}) {
   );
 }
 
+/// EV 워치 세션 알림 표시 (ev_watch 타입)
+/// soundMode: 0=소리, 1=진동, 2=무음
+void showEvWatchNotification(Map<String, dynamic> data, {int soundMode = 0}) {
+  final title = data['title'] as String? ?? '⚡ 충전 현황 변동';
+  final body = data['body'] as String? ?? '충전 자리 변동이 감지됐어요';
+  final stationId = data['stationId'] as String? ?? '';
+  final stationName = data['stationName'] as String? ?? '';
+
+  final channel = soundMode == 1
+      ? evAlarmChannelVibrate
+      : soundMode == 2
+          ? evAlarmChannelSilent
+          : evAlarmChannel;
+
+  notificationPlugin.show(
+    1003,
+    title,
+    body,
+    NotificationDetails(
+      android: AndroidNotificationDetails(
+        channel.id,
+        channel.name,
+        channelDescription: channel.description,
+        importance: channel.importance,
+        priority: soundMode == 2 ? Priority.low : Priority.high,
+        playSound: soundMode == 0,
+        enableVibration: soundMode != 2,
+        styleInformation: BigTextStyleInformation(
+          body,
+          contentTitle: title,
+          summaryText: stationName.isNotEmpty ? stationName : null,
+        ),
+      ),
+    ),
+    payload: 'ev_watch:$stationId',
+  );
+}
+
 /// EV 충전소 자리 알림 표시
 /// soundMode: 0=소리, 1=진동, 2=무음
 void showEvAlarmNotification(Map<String, dynamic> data, {int soundMode = 0}) {

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
+import '../../core/utils/helpers.dart';
 import '../../core/utils/navigation_util.dart';
-import '../../data/services/alert_service.dart';
+import '../../data/services/watch_service.dart';
 import '../detail/ev_detail_screen.dart';
 
 const _kBlue = Color(0xFF1D6FE0);
@@ -248,54 +249,22 @@ class _StationCard extends StatefulWidget {
 }
 
 class _StationCardState extends State<_StationCard> {
-  bool _alarmEnabled = false;
-  bool _alarmLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    final statId = widget.station['statId']?.toString();
-    if (statId != null) {
-      _alarmEnabled = AlertService().isEvAlarmSubscribed(statId);
-    }
-  }
+  // null=미결정, true=받기, false=나중에
+  bool? _watchDecision;
 
   String _buildStatusText(int availCount, int? detourMin, int? oldestMin) {
     String detourText = '';
     if (detourMin != null) {
       if (detourMin == 0) {
         detourText = '경로 이탈 없이 들를 수 있고, ';
-      } else if (detourMin < 60) {
-        detourText = '${detourMin}분 우회 후, ';
       } else {
-        final h = detourMin ~/ 60;
-        final m = detourMin % 60;
-        detourText = m > 0 ? '${h}시간 ${m}분 우회 후, ' : '${h}시간 우회 후, ';
+        detourText = '${fmtMin(detourMin)} 우회 후, ';
       }
     }
     if (availCount > 1) return '${detourText}${availCount}자리의 여유가 있어요';
     if (availCount == 1) return '${detourText}자리 1개 남았어요. 서두르세요!';
     if (oldestMin != null) return '만석이지만 ${oldestMin}분째 충전 중인 차량이 있어요';
     return '현재 만석이에요';
-  }
-
-  Future<void> _toggleAlarm() async {
-    final statId = widget.station['statId']?.toString();
-    final stName = widget.station['name']?.toString() ?? '';
-    if (statId == null || _alarmLoading) return;
-    setState(() => _alarmLoading = true);
-    try {
-      if (_alarmEnabled) {
-        await AlertService().unsubscribeEvAlarm(statId);
-        if (mounted) setState(() => _alarmEnabled = false);
-      } else {
-        final ok = await AlertService().subscribeEvAlarm(
-          stationId: statId, stationName: stName);
-        if (mounted) setState(() => _alarmEnabled = ok);
-      }
-    } finally {
-      if (mounted) setState(() => _alarmLoading = false);
-    }
   }
 
   @override
@@ -376,6 +345,15 @@ class _StationCardState extends State<_StationCard> {
                     ),
                   ),
                 ),
+                // 워치 벨 아이콘
+                if (_watchDecision != null) ...[
+                  Icon(
+                    _watchDecision! ? Icons.notifications_active_rounded : Icons.notifications_off_rounded,
+                    size: 15,
+                    color: _watchDecision! ? accentColor : _kGrey,
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 // 충전기 현황
                 _ChargerDot(avail: availCount, total: totalCount, accentColor: accentColor),
               ],
@@ -420,13 +398,13 @@ class _StationCardState extends State<_StationCard> {
                     if (originEtaMin != null && originEtaMin > 0)
                       _InfoChip(
                         icon: Icons.schedule_rounded,
-                        label: '약 ${originEtaMin}분 소요',
+                        label: '약 ${fmtMin(originEtaMin)} 소요',
                         color: _kGrey,
                       ),
                     if (detourMin != null && detourMin > 0)
                       _InfoChip(
                         icon: Icons.u_turn_right_rounded,
-                        label: '+${detourMin}분 우회',
+                        label: '+${fmtMin(detourMin)} 우회',
                         color: _kOrange,
                       ),
                     if (detourMin != null && detourMin == 0)
@@ -437,51 +415,6 @@ class _StationCardState extends State<_StationCard> {
                       ),
                   ],
                 ),
-                // ── 알림 설정 행 ──
-                if (statId != null) ...[
-                  const SizedBox(height: 8),
-                  const Divider(height: 1, color: Color(0xFFEEEEEE)),
-                  GestureDetector(
-                    onTap: _alarmLoading ? null : _toggleAlarm,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Row(
-                        children: [
-                          Icon(
-                            _alarmEnabled ? Icons.notifications_active_rounded : Icons.notifications_none_rounded,
-                            size: 16,
-                            color: _alarmEnabled ? accentColor : _kGrey,
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              _alarmEnabled
-                                  ? '충전 자리 상태 변경 시 알림 받는 중'
-                                  : '충전 자리 상태가 변경되면 알려드릴게요',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: _alarmEnabled ? accentColor : _kGrey,
-                                fontWeight: _alarmEnabled ? FontWeight.w600 : FontWeight.w400,
-                              ),
-                            ),
-                          ),
-                          if (_alarmLoading)
-                            SizedBox(
-                              width: 16, height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: accentColor),
-                            )
-                          else
-                            Switch(
-                              value: _alarmEnabled,
-                              onChanged: (_) => _toggleAlarm(),
-                              activeColor: accentColor,
-                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
                 if (widget.onMapTap != null ||
                     (widget.originLat != null && widget.destLat != null) ||
                     statId != null) ...[
@@ -519,11 +452,33 @@ class _StationCardState extends State<_StationCard> {
                           Expanded(
                             child: Builder(builder: (ctx) => GestureDetector(
                               behavior: HitTestBehavior.opaque,
-                              onTap: () {
+                              onTap: () async {
                                 final stLat = (station['lat'] as num?)?.toDouble();
                                 final stLng = (station['lng'] as num?)?.toDouble();
                                 final stName = station['name']?.toString() ?? '충전소';
                                 if (stLat == null || stLng == null) return;
+                                // 워치 제안 다이얼로그
+                                if (statId != null && ctx.mounted) {
+                                  final accepted = await showDialog<bool>(
+                                    context: ctx,
+                                    builder: (dCtx) => _WatchDialog(
+                                      etaMin: originEtaMin,
+                                      accentColor: accentColor,
+                                    ),
+                                  );
+                                  if (accepted == true) {
+                                    WatchService().start(
+                                      statId: statId,
+                                      stationName: stName,
+                                      etaMin: originEtaMin ?? 0,
+                                      currentAvail: availCount,
+                                    );
+                                  }
+                                  if (accepted != null && mounted) {
+                                    setState(() => _watchDecision = accepted);
+                                  }
+                                }
+                                if (!ctx.mounted) return;
                                 showViaWaypointNavigationSheet(
                                   ctx,
                                   originLat: widget.originLat!,
@@ -807,7 +762,7 @@ class EvSelectList extends StatelessWidget {
                                   Text(originLabel,
                                     style: const TextStyle(fontSize: 11, color: _kGrey)),
                                 if (originEtaMin != null && originEtaMin > 0)
-                                  Text('약 ${originEtaMin}분 소요',
+                                  Text('약 ${fmtMin(originEtaMin)} 소요',
                                     style: const TextStyle(fontSize: 11, color: _kGrey)),
                                 if (unitPrice != null)
                                   Text('${_wonFmt.format(unitPrice)}원/kWh',
@@ -885,6 +840,86 @@ class _EvAiMessageBanner extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── 워치 제안 다이얼로그 ──────────────────────────────────────────────────────────
+class _WatchDialog extends StatelessWidget {
+  final int? etaMin;
+  final Color accentColor;
+
+  const _WatchDialog({required this.etaMin, required this.accentColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      elevation: 0,
+      backgroundColor: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: accentColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.radar_rounded, size: 32, color: accentColor),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              '실시간 현황 알림',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A)),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              etaMin != null && etaMin! > 0
+                  ? '약 ${fmtMin(etaMin!)} 소요 예정이에요.\n이동하는 동안 자리 변동 시\n알림을 드릴게요.'
+                  : '이동하는 동안 자리 변동 시\n알림을 드릴게요.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, color: Color(0xFF666666), height: 1.65),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: Colors.grey.shade300),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                    ),
+                    child: const Text(
+                      '나중에',
+                      style: TextStyle(color: Color(0xFF888888), fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accentColor,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                    ),
+                    child: const Text('받기', style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

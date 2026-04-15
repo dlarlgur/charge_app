@@ -15,6 +15,8 @@ import '../../providers/providers.dart';
 import '../ai/ai_main_screen.dart';
 import '../map/map_screen.dart';
 import '../widgets/shared_widgets.dart';
+import '../widgets/watch_session_bar.dart';
+import '../../data/services/watch_service.dart';
 import '../widgets/update_dialog.dart';
 import '../filter/gas_filter_sheet.dart';
 import '../filter/ev_filter_sheet.dart';
@@ -35,6 +37,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
     AlertService().refreshToken();
+    WatchService().restore();
 
     // 로컬 알림 "상세보기" 액션 탭 → 알림 페이지로 이동
     navigateToAlertsNotifier.addListener(_onNavigateToAlerts);
@@ -49,6 +52,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         showEvAlarmNotification(message.data, soundMode: AlertService().evAlarmSoundMode);
         AlertService().addEvAlarmMessage(message.data);
         _messageBadgeKey.currentState?.refreshCount();
+      } else if (message.data['type'] == 'ev_watch') {
+        final stationId = message.data['stationId'] as String? ?? '';
+        final newAvail = int.tryParse(message.data['newAvail'] as String? ?? '') ?? 0;
+        if (stationId.isNotEmpty) WatchService().updateCurrentAvail(stationId, newAvail);
       }
     });
 
@@ -76,6 +83,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             builder: (_) => EvDetailScreen(stationId: stationId),
           ));
         }
+      } else if (message.data['type'] == 'ev_watch') {
+        final stationId = message.data['stationId'] as String? ?? '';
+        final newAvail = int.tryParse(message.data['newAvail'] as String? ?? '') ?? 0;
+        if (stationId.isNotEmpty) {
+          WatchService().updateCurrentAvail(stationId, newAvail);
+          if (mounted) {
+            Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
+              builder: (_) => EvDetailScreen(stationId: stationId),
+            ));
+          }
+        }
       }
     });
 
@@ -89,6 +107,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         });
       } else if (message.data['type'] == 'ev_alarm') {
         AlertService().addEvAlarmMessage(message.data);
+        final stationId = message.data['stationId'] as String? ?? '';
+        if (stationId.isNotEmpty) {
+          Future.delayed(const Duration(milliseconds: 600), () {
+            if (mounted) {
+              Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
+                builder: (_) => EvDetailScreen(stationId: stationId),
+              ));
+            }
+          });
+        }
+      } else if (message.data['type'] == 'ev_watch') {
         final stationId = message.data['stationId'] as String? ?? '';
         if (stationId.isNotEmpty) {
           Future.delayed(const Duration(milliseconds: 600), () {
@@ -185,14 +214,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         }
       },
       child: Scaffold(
-      body: IndexedStack(
-        index: bottomIndex,
+      body: Column(
         children: [
-          _HomeTab(key: _messageBadgeKey),
-          const _MapTab(),
-          const AiMainScreen(),
-          const _FavoritesTab(),
-          const _SettingsTab(),
+          const WatchSessionBar(),
+          Expanded(
+            child: IndexedStack(
+              index: bottomIndex,
+              children: [
+                _HomeTab(key: _messageBadgeKey),
+                const _MapTab(),
+                const AiMainScreen(),
+                const _FavoritesTab(),
+                const _SettingsTab(),
+              ],
+            ),
+          ),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(

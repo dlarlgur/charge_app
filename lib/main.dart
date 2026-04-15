@@ -111,6 +111,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     final soundMode = (box.get('ev_alarm_sound_mode', defaultValue: 0) as int?) ?? 0;
     showEvAlarmNotification(message.data, soundMode: soundMode);
     await _saveEvAlarmToHive(box, message.data);
+  } else if (message.data['type'] == 'ev_watch') {
+    final soundMode = (box.get('ev_alarm_sound_mode', defaultValue: 0) as int?) ?? 0;
+    showEvWatchNotification(message.data, soundMode: soundMode);
   }
 }
 
@@ -187,6 +190,9 @@ void main() async {
             AlertService().addEvAlarmMessage({'title': title, 'body': body});
           } catch (_) {}
         }
+      } else if (payload.startsWith('ev_watch:')) {
+        final stationId = payload.substring('ev_watch:'.length);
+        if (stationId.isNotEmpty) navigateToEvStationNotifier.value = stationId;
       } else {
         // 알림 본문 탭 또는 "상세보기" 버튼 → 알림 페이지로 이동
         navigateToAlertsNotifier.value++;

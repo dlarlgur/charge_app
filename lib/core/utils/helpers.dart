@@ -53,6 +53,14 @@ double calculateDistance(double lat1, double lng1, double lat2, double lng2) {
 double _toRad(double deg) => deg * pi / 180;
 
 /// 시간 전 텍스트 (방금, 3분 전, 2시간 전)
+/// 분 → "N분" 또는 "N시간 M분" 포맷
+String fmtMin(int min) {
+  if (min < 60) return '${min}분';
+  final h = min ~/ 60;
+  final m = min % 60;
+  return m > 0 ? '${h}시간 ${m}분' : '${h}시간';
+}
+
 String timeAgo(DateTime dateTime) {
   final diff = DateTime.now().difference(dateTime);
   if (diff.inSeconds < 60) return '방금';
