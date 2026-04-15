@@ -93,16 +93,6 @@ class _NavigationSheet extends StatelessWidget {
             ),
             _navItem(
               context,
-              icon: const _NavAssetIcon('assets/nav/kakaomap_logo.png'),
-              label: '카카오내비',
-              subtitle: '카카오',
-              onTap: () => _launch(
-                'kakaonavi://navigate?ep=${lng}_${lat}&by=CAR',
-                fallback: 'https://kakaonavi.kakao.com',
-              ),
-            ),
-            _navItem(
-              context,
               icon: const _NavAssetIcon('assets/nav/naver_logo.png'),
               label: '네이버 지도',
               subtitle: restArea ? '고속도로 휴게소는 티맵 안내를 권장해요' : '네이버',
@@ -110,6 +100,16 @@ class _NavigationSheet extends StatelessWidget {
               onTap: () => _launch(
                 'nmap://navigation?dlat=$lat&dlng=$lng&dname=${Uri.encodeComponent(name)}&appname=${AppConstants.packageName}',
                 fallback: 'https://map.naver.com',
+              ),
+            ),
+            _navItem(
+              context,
+              icon: const _NavAssetIcon('assets/nav/kakaomap_logo.png'),
+              label: '카카오내비',
+              subtitle: '카카오',
+              onTap: () => _launch(
+                'kakaonavi://navigate?ep=${lng}_${lat}&by=CAR',
+                fallback: 'https://kakaonavi.kakao.com',
               ),
             ),
             const SizedBox(height: 8),
