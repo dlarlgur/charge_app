@@ -41,6 +41,9 @@ dependencies:
   # Map
   flutter_naver_map: ^1.2.0
 
+  # Kakao Navi SDK
+  kakao_flutter_sdk_navi: ^1.9.0
+
   # Splash
   flutter_native_splash: ^2.3.10
   package_info_plus: ^9.0.0
