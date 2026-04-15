@@ -460,9 +460,18 @@ class _StationCardState extends State<_StationCard> {
                                 if (stLat == null || stLng == null) return;
                                 // 워치 제안 다이얼로그
                                 if (statId != null && ctx.mounted) {
-                                  // 이미 활성 워치 세션이 있으면 전환 확인
+                                  // 이미 활성 워치 세션이 있으면 분기
                                   final existingSession = WatchService().session;
-                                  if (existingSession != null && existingSession.statId != statId) {
+                                  if (existingSession != null && existingSession.statId == statId) {
+                                    // 같은 충전소 → 이미 알림 중
+                                    ScaffoldMessenger.of(ctx).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('이미 이 충전소의 자리 변동 알림을 받고 있어요.'),
+                                        duration: Duration(seconds: 2),
+                                      ),
+                                    );
+                                  } else {
+                                  if (existingSession != null && ctx.mounted) {
                                     final switchOk = await showWatchSwitchDialog(
                                       ctx,
                                       currentStationName: existingSession.stationName,
@@ -488,6 +497,7 @@ class _StationCardState extends State<_StationCard> {
                                   if (accepted != null && mounted) {
                                     setState(() => _watchDecision = accepted);
                                   }
+                                  } // else
                                 }
                                 if (!ctx.mounted) return;
                                 showViaWaypointNavigationSheet(

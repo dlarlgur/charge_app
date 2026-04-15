@@ -5368,31 +5368,41 @@ class _EvStationDetailSheetState extends State<_EvStationDetailSheet> {
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: widget.destLat != null ? () async {
-                          // 이미 활성 워치 세션이 있으면 전환 확인
+                          // 이미 활성 워치 세션이 있으면 분기
                           final existingSession = WatchService().session;
-                          if (existingSession != null && existingSession.statId != widget.stationId && context.mounted) {
-                            final switchOk = await showWatchSwitchDialog(
-                              context,
-                              currentStationName: existingSession.stationName,
+                          if (existingSession != null && existingSession.statId == widget.stationId) {
+                            // 같은 충전소 → 이미 알림 중
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('이미 이 충전소의 자리 변동 알림을 받고 있어요.'),
+                                duration: Duration(seconds: 2),
+                              ),
                             );
-                            if (!switchOk || !context.mounted) return;
-                            await WatchService().stop();
-                          }
-                          // 워치 제안 다이얼로그 (시트 팝 전에 표시)
-                          final accepted = await showDialog<bool>(
-                            context: context,
-                            builder: (dCtx) => _WatchProposalDialog(
-                              etaMin: originEtaMin,
-                              accentColor: accentColor,
-                            ),
-                          );
-                          if (accepted == true) {
-                            WatchService().start(
-                              statId: widget.stationId,
-                              stationName: name,
-                              etaMin: originEtaMin ?? 0,
-                              currentAvail: availCount,
+                          } else {
+                            if (existingSession != null && context.mounted) {
+                              final switchOk = await showWatchSwitchDialog(
+                                context,
+                                currentStationName: existingSession.stationName,
+                              );
+                              if (!switchOk || !context.mounted) return;
+                              await WatchService().stop();
+                            }
+                            // 워치 제안 다이얼로그 (시트 팝 전에 표시)
+                            final accepted = await showDialog<bool>(
+                              context: context,
+                              builder: (dCtx) => _WatchProposalDialog(
+                                etaMin: originEtaMin,
+                                accentColor: accentColor,
+                              ),
                             );
+                            if (accepted == true) {
+                              WatchService().start(
+                                statId: widget.stationId,
+                                stationName: name,
+                                etaMin: originEtaMin ?? 0,
+                                currentAvail: availCount,
+                              );
+                            }
                           }
                           if (!context.mounted) return;
                           Navigator.pop(context);
