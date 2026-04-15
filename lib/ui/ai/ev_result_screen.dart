@@ -463,12 +463,10 @@ class _StationCardState extends State<_StationCard> {
                                   // 이미 활성 워치 세션이 있으면 분기
                                   final existingSession = WatchService().session;
                                   if (existingSession != null && existingSession.statId == statId) {
-                                    // 같은 충전소 → 이미 알림 중
-                                    ScaffoldMessenger.of(ctx).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('이미 이 충전소의 자리 변동 알림을 받고 있어요.'),
-                                        duration: Duration(seconds: 2),
-                                      ),
+                                    // 같은 충전소 → 이미 알림 중 다이얼로그, 확인 후 계속 진행
+                                    await showWatchAlreadyActiveDialog(
+                                      ctx,
+                                      stationName: existingSession.stationName,
                                     );
                                   } else {
                                   if (existingSession != null && ctx.mounted) {
