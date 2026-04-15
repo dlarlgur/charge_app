@@ -4649,20 +4649,57 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
                               );
                             }
                             final r = _results[i - (_myLocationSelected ? 1 : 0)];
+                            final category = r['category']?.toString();
+                            final dist = r['distance'];
+                            final distStr = dist != null
+                                ? formatDistance((dist as num).toDouble())
+                                : null;
                             return Column(
                               children: [
-                                ListTile(
-                                  leading: const Icon(Icons.place_outlined,
-                                      color: _kPrimary, size: 20),
-                                  title: Text(r['name']?.toString() ?? '',
-                                      style: const TextStyle(
-                                          fontSize: 14, fontWeight: FontWeight.w500)),
-                                  subtitle: (r['address']?.toString() ?? '').isNotEmpty
-                                      ? Text(r['address'].toString(),
-                                          style: const TextStyle(
-                                              fontSize: 12, color: Color(0xFF999999)))
-                                      : null,
+                                InkWell(
                                   onTap: () => widget.onSearchResult(r),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
+                                        const Icon(Icons.place_outlined, color: _kPrimary, size: 20),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(r['name']?.toString() ?? '',
+                                                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow.ellipsis),
+                                                  ),
+                                                  if (category != null && category.isNotEmpty) ...[
+                                                    const SizedBox(width: 6),
+                                                    Text(category,
+                                                        style: const TextStyle(fontSize: 11, color: Color(0xFF888888))),
+                                                  ],
+                                                  if (distStr != null) ...[
+                                                    const SizedBox(width: 6),
+                                                    Text(distStr,
+                                                        style: const TextStyle(fontSize: 11, color: Color(0xFF1D6FE0))),
+                                                  ],
+                                                ],
+                                              ),
+                                              if ((r['address']?.toString() ?? '').isNotEmpty)
+                                                Text(r['address'].toString(),
+                                                    style: const TextStyle(fontSize: 12, color: Color(0xFF999999)),
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                                 if (i < _results.length - 1 + (_myLocationSelected ? 1 : 0))
                                   const Divider(height: 1, indent: 56),

@@ -700,11 +700,17 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
                   itemBuilder: (_, i) {
                     final place = _searchResults[i];
+                    final category = place['category']?.toString();
+                    final dist = place['distance'];
+                    final distStr = dist != null
+                        ? formatDistance((dist as num).toDouble())
+                        : null;
                     return GestureDetector(
                       onTap: () => _moveToPlace(place),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Icon(Icons.location_on_rounded, size: 16,
                                 color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
@@ -713,13 +719,34 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(place['name'] ?? '',
-                                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500,
-                                          color: isDark ? Colors.white : Colors.black87)),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(place['name'] ?? '',
+                                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500,
+                                                color: isDark ? Colors.white : Colors.black87),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis),
+                                      ),
+                                      if (category != null && category.isNotEmpty) ...[
+                                        const SizedBox(width: 6),
+                                        Text(category,
+                                            style: TextStyle(fontSize: 11,
+                                                color: isDark ? AppColors.darkTextMuted : const Color(0xFF888888))),
+                                      ],
+                                      if (distStr != null) ...[
+                                        const SizedBox(width: 6),
+                                        Text(distStr,
+                                            style: const TextStyle(fontSize: 11, color: Color(0xFF1D6FE0))),
+                                      ],
+                                    ],
+                                  ),
                                   if ((place['address'] ?? '').isNotEmpty)
                                     Text(place['address'],
                                         style: TextStyle(fontSize: 11,
-                                            color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                                            color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis),
                                 ],
                               ),
                             ),
