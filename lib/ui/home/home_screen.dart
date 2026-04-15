@@ -216,7 +216,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       child: Scaffold(
       body: Column(
         children: [
-          const WatchSessionBar(),
+          if (bottomIndex == 0) const WatchSessionBar(),
           Expanded(
             child: IndexedStack(
               index: bottomIndex,

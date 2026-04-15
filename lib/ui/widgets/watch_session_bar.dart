@@ -40,8 +40,10 @@ class _WatchSessionBarState extends State<WatchSessionBar> {
   void _startTimer() {
     _timer?.cancel();
     if (WatchService().session == null) return;
+    // 진입 즉시 최신 자리 수 조회
+    WatchService().refreshAvail();
     _timer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted) setState(() {});
+      WatchService().refreshAvail();
     });
   }
 

@@ -459,6 +459,33 @@ class _StationCardState extends State<_StationCard> {
                                 if (stLat == null || stLng == null) return;
                                 // 워치 제안 다이얼로그
                                 if (statId != null && ctx.mounted) {
+                                  // 이미 활성 워치 세션이 있으면 전환 확인
+                                  final existingSession = WatchService().session;
+                                  if (existingSession != null && existingSession.statId != statId) {
+                                    final switchOk = await showDialog<bool>(
+                                      context: ctx,
+                                      builder: (dCtx) => AlertDialog(
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                        title: const Text('자리 변동 알림 전환', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                                        content: Text(
+                                          '\'${existingSession.stationName}\'의 알림이 진행 중이에요.\n현재 알림을 끄고 이 충전소로 전환할까요?',
+                                          style: const TextStyle(fontSize: 13, height: 1.5),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(dCtx, false),
+                                            child: const Text('아니요', style: TextStyle(color: Color(0xFF888888))),
+                                          ),
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(dCtx, true),
+                                            child: Text('전환하기', style: TextStyle(color: accentColor, fontWeight: FontWeight.w700)),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (switchOk != true || !ctx.mounted) return;
+                                    await WatchService().stop();
+                                  }
                                   final accepted = await showDialog<bool>(
                                     context: ctx,
                                     builder: (dCtx) => _WatchDialog(

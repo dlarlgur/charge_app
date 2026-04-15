@@ -105,6 +105,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   List<Map<String, dynamic>> _evSelectCandidates = [];
   // 직접선택 경로 보기 후 백버튼 복원용
   List<Map<String, dynamic>> _prevEvSelectCandidates = [];
+  // EV 결과 화면에서 "지도에서 경로 보기" 중인지 (백버튼으로 결과 복원용)
+  bool _isEvResultMapView = false;
   String _aiAnalysisType = 'gas'; // gas | ev
   String _evChargerType = 'FAST'; // FAST | SLOW
   bool _evHighwayOnly = false;   // 고속도로 충전소만
@@ -1360,6 +1362,85 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     }
   }
 
+  /// EV AI 추천 결과 지도 마커 — 번개+avail/total 형태로 통일
+  Future<void> _drawEvResultOnMap({
+    required List<Map<String, dynamic>>? pathPoints,
+    required List<Map<String, dynamic>>? pathSegments,
+    required double originLat,
+    required double originLng,
+    required double destLat,
+    required double destLng,
+    required Map<String, dynamic>? recommended,
+    required List<Map<String, dynamic>> alternatives,
+  }) async {
+    if (_mapController == null) return;
+    await _mapController!.clearOverlays();
+
+    // 경로선 + 출발/도착 마커는 _drawResultOnMap 재사용 (stLat=null로 충전소 마커 생략)
+    await _drawResultOnMap(
+      pathPoints: pathPoints ?? [],
+      pathSegments: pathSegments,
+      originLat: originLat,
+      originLng: originLng,
+      stLat: null,
+      stLng: null,
+      stName: '',
+      destLat: destLat,
+      destLng: destLng,
+    );
+
+    // 출발 마커 (이미 _drawResultOnMap에서 그림 — EV 충전소 마커만 추가)
+    // 추천 충전소 마커 (파랑 강조)
+    if (recommended != null) {
+      final lat = (recommended['lat'] as num?)?.toDouble();
+      final lng = (recommended['lng'] as num?)?.toDouble();
+      if (lat != null && lng != null) {
+        final avail = (recommended['available_count'] as num?)?.toInt() ?? 0;
+        final total = (recommended['total_count'] as num?)?.toInt() ?? 0;
+        const color = Color(0xFF1D6FE0);
+        final marker = NMarker(
+          id: 'ev_res_rec',
+          position: NLatLng(lat, lng),
+          icon: await GasStationMapBadge.overlayImage(
+            context,
+            label: '$avail/$total',
+            isEv: true,
+            borderColor: color,
+            textColor: color,
+            emphasizeBorder: true,
+          ),
+          anchor: const NPoint(0.5, 1.0),
+        );
+        await _mapController!.addOverlay(marker);
+      }
+    }
+
+    // 대안 충전소 마커 (주황)
+    for (int i = 0; i < alternatives.length; i++) {
+      final alt = alternatives[i];
+      final lat = (alt['lat'] as num?)?.toDouble();
+      final lng = (alt['lng'] as num?)?.toDouble();
+      if (lat == null || lng == null) continue;
+      final avail = (alt['available_count'] as num?)?.toInt() ?? 0;
+      final total = (alt['total_count'] as num?)?.toInt() ?? 0;
+      const color = Color(0xFFE8700A);
+      final marker = NMarker(
+        id: 'ev_res_alt_$i',
+        position: NLatLng(lat, lng),
+        icon: await GasStationMapBadge.overlayImage(
+          context,
+          label: '$avail/$total',
+          isEv: true,
+          borderColor: color,
+          textColor: color,
+          emphasizeBorder: false,
+        ),
+        anchor: const NPoint(0.5, 1.0),
+      );
+      await _mapController!.addOverlay(marker);
+    }
+  }
+
   /// 서버 `path_points` JSON → 지도용 좌표열
   static List<Map<String, dynamic>>? _pathPointsFromServerJson(dynamic raw) {
     if (raw is! List || raw.length < 2) return null;
@@ -1764,42 +1845,21 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         _lastRouteSummary = '$originLabel → ${_destName ?? '목적지'}';
       });
 
-      // 지도에 경로 + 마커 그리기 (추천=파랑, 대안=주황, 목적지)
+      // 지도에 경로 + 마커 그리기
       final recommended = data['recommended'] is Map ? data['recommended'] as Map<String, dynamic> : null;
       final alternatives = data['alternatives'] is List
           ? (data['alternatives'] as List).whereType<Map<String, dynamic>>().toList()
           : <Map<String, dynamic>>[];
 
-      final recLat = (recommended?['lat'] as num?)?.toDouble();
-      final recLng = (recommended?['lng'] as num?)?.toDouble();
-      final alt0 = alternatives.isNotEmpty ? alternatives[0] : null;
-      final alt0Lat = (alt0?['lat'] as num?)?.toDouble();
-      final alt0Lng = (alt0?['lng'] as num?)?.toDouble();
-
-      // EV 대안들을 refuel alternatives 포맷으로 변환 (lat/lng만 사용)
-      final evAltsForMap = alternatives.length > 1
-          ? alternatives.sublist(1).map((a) => <String, dynamic>{
-              'lat': a['lat'],
-              'lng': a['lng'],
-              'price_won_per_liter': null,
-              'brand': null,
-            }).toList()
-          : null;
-
-      _drawResultOnMap(
+      await _drawEvResultOnMap(
         pathPoints: pathPoints,
         pathSegments: pathSegments,
         originLat: startLat,
         originLng: startLng,
-        stLat: recLat,
-        stLng: recLng,
-        stName: recommended?['name']?.toString() ?? '',
-        st2Lat: alt0Lat,
-        st2Lng: alt0Lng,
-        st2Name: alt0?['name']?.toString() ?? '',
         destLat: _destLat!,
         destLng: _destLng!,
-        alternatives: evAltsForMap,
+        recommended: recommended,
+        alternatives: alternatives,
       );
 
     } catch (e) {
@@ -1835,43 +1895,47 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       }
     } catch (_) {}
 
-    await _drawResultOnMap(
+    await _drawEvResultOnMap(
       pathPoints: pathPoints,
       pathSegments: pathSegments,
       originLat: _lastStartLat,
       originLng: _lastStartLng,
-      stLat: stLat,
-      stLng: stLng,
-      stName: stName,
       destLat: _destLat!,
       destLng: _destLng!,
+      recommended: station,
+      alternatives: const [],
     );
-    // 지도 그리기 완료 후 → EV 결과 모드로 전환 (선택된 충전소 카드만 표시)
     if (!mounted) return;
-    setState(() {
-      _prevEvSelectCandidates = List.of(_evSelectCandidates); // 백버튼 복원용
-      _isEvSelectMode = false;
-      _evSelectCandidates = [];
-      _isEvResultMode = true;
-      _lastResultData = {
-        'charger_type': _evChargerType,
-        'reachable_distance_km': 0.0,
-        'recommended': station,
-        'alternatives': <dynamic>[],
-        'total_candidates': null,
-        'filtered_out_count': 0,
-      };
-    });
-    // 시트를 살짝 올려 충전소 카드를 보여줌
-    try {
-      if (_sheetController.isAttached) {
-        await _sheetController.animateTo(
-          0.45,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOutCubic,
-        );
-      }
-    } catch (_) {}
+
+    if (_isEvSelectMode) {
+      // 직접선택 리스트에서 호출 → 선택된 충전소 카드만 표시하고 시트 올리기
+      setState(() {
+        _prevEvSelectCandidates = List.of(_evSelectCandidates);
+        _isEvSelectMode = false;
+        _evSelectCandidates = [];
+        _isEvResultMode = true;
+        _lastResultData = {
+          'charger_type': _evChargerType,
+          'reachable_distance_km': 0.0,
+          'recommended': station,
+          'alternatives': <dynamic>[],
+          'total_candidates': null,
+          'filtered_out_count': 0,
+        };
+      });
+      try {
+        if (_sheetController.isAttached) {
+          await _sheetController.animateTo(
+            0.45,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+          );
+        }
+      } catch (_) {}
+    } else {
+      // EV 결과 화면에서 호출 → 지도만 보이도록 시트 유지 (0.12), 데이터 유지
+      if (mounted) setState(() => _isEvResultMapView = true);
+    }
   }
 
   // EV 사용자 선택 모드 — 경로상 충전소 목록 불러오기
@@ -2097,6 +2161,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       _isEvSelectMode = false;
       _evSelectCandidates = [];
       _prevEvSelectCandidates = [];
+      _isEvResultMapView = false;
       _isCompareResultMode = false;
       _isSelectMode = false;
       _isSelectSheetVisible = false;
@@ -2856,6 +2921,39 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
               destLat: _destLat!, destLng: _destLng!,
             );
             _drawEvCandidateMarkers(_evSelectCandidates);
+            return;
+          }
+          // EV 결과 화면에서 지도보기 중이면 → 결과 시트 복원
+          if (_isEvResultMode && _isEvResultMapView) {
+            setState(() => _isEvResultMapView = false);
+            // 원본 추천 결과로 지도 다시 그리기
+            final rec = _lastResultData?['recommended'] is Map
+                ? _lastResultData!['recommended'] as Map<String, dynamic>
+                : null;
+            final alts = _lastResultData?['alternatives'] is List
+                ? (_lastResultData!['alternatives'] as List).whereType<Map<String, dynamic>>().toList()
+                : <Map<String, dynamic>>[];
+            unawaited(_drawEvResultOnMap(
+              pathPoints: _lastPathPoints,
+              pathSegments: _lastPathSegments,
+              originLat: _lastStartLat,
+              originLng: _lastStartLng,
+              destLat: _destLat!,
+              destLng: _destLng!,
+              recommended: rec,
+              alternatives: alts,
+            ));
+            unawaited(Future(() async {
+              try {
+                if (_sheetController.isAttached) {
+                  await _sheetController.animateTo(
+                    0.45,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOutCubic,
+                  );
+                }
+              } catch (_) {}
+            }));
             return;
           }
           _clearResult();
@@ -5232,6 +5330,33 @@ class _EvStationDetailSheetState extends State<_EvStationDetailSheet> {
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: widget.destLat != null ? () async {
+                          // 이미 활성 워치 세션이 있으면 전환 확인
+                          final existingSession = WatchService().session;
+                          if (existingSession != null && existingSession.statId != widget.stationId && context.mounted) {
+                            final switchOk = await showDialog<bool>(
+                              context: context,
+                              builder: (dCtx) => AlertDialog(
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                title: const Text('자리 변동 알림 전환', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                                content: Text(
+                                  '\'${existingSession.stationName}\'의 알림이 진행 중이에요.\n현재 알림을 끄고 이 충전소로 전환할까요?',
+                                  style: const TextStyle(fontSize: 13, height: 1.5),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(dCtx, false),
+                                    child: const Text('아니요', style: TextStyle(color: Color(0xFF888888))),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(dCtx, true),
+                                    child: Text('전환하기', style: TextStyle(color: accentColor, fontWeight: FontWeight.w700)),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (switchOk != true || !context.mounted) return;
+                            await WatchService().stop();
+                          }
                           // 워치 제안 다이얼로그 (시트 팝 전에 표시)
                           final accepted = await showDialog<bool>(
                             context: context,
