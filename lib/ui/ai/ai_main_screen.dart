@@ -25,6 +25,7 @@ import 'ai_result_screen.dart';
 import 'ai_vehicle_list_screen.dart';
 import 'ev_result_screen.dart';
 import '../widgets/gas_station_map_badge.dart';
+import '../widgets/watch_switch_dialog.dart';
 import '../detail/ev_detail_screen.dart';
 
 const _kPrimary = Color(0xFF1D9E75);
@@ -5370,28 +5371,11 @@ class _EvStationDetailSheetState extends State<_EvStationDetailSheet> {
                           // 이미 활성 워치 세션이 있으면 전환 확인
                           final existingSession = WatchService().session;
                           if (existingSession != null && existingSession.statId != widget.stationId && context.mounted) {
-                            final switchOk = await showDialog<bool>(
-                              context: context,
-                              builder: (dCtx) => AlertDialog(
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                title: const Text('자리 변동 알림 전환', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                                content: Text(
-                                  '\'${existingSession.stationName}\'의 알림이 진행 중이에요.\n현재 알림을 끄고 이 충전소로 전환할까요?',
-                                  style: const TextStyle(fontSize: 13, height: 1.5),
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(dCtx, false),
-                                    child: const Text('아니요', style: TextStyle(color: Color(0xFF888888))),
-                                  ),
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(dCtx, true),
-                                    child: Text('전환하기', style: TextStyle(color: accentColor, fontWeight: FontWeight.w700)),
-                                  ),
-                                ],
-                              ),
+                            final switchOk = await showWatchSwitchDialog(
+                              context,
+                              currentStationName: existingSession.stationName,
                             );
-                            if (switchOk != true || !context.mounted) return;
+                            if (!switchOk || !context.mounted) return;
                             await WatchService().stop();
                           }
                           // 워치 제안 다이얼로그 (시트 팝 전에 표시)
