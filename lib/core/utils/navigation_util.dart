@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kakao_flutter_sdk_navi/kakao_flutter_sdk_navi.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../constants/api_constants.dart';
 
@@ -49,6 +50,31 @@ Future<void> _launch(String url, {required String fallback}) async {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   } else {
     await launchUrl(Uri.parse(fallback), mode: LaunchMode.externalApplication);
+  }
+}
+
+Future<void> _launchKakaoNavi({
+  required String name,
+  required double lat,
+  required double lng,
+}) async {
+  try {
+    if (await NaviApi.instance.isKakaoNaviInstalled()) {
+      await NaviApi.instance.navigate(
+        destination: Location(name: name, x: '$lng', y: '$lat'),
+        option: NaviOption(coordType: CoordType.wgs84),
+      );
+    } else {
+      await launchUrl(
+        Uri.parse(NaviApi.webNaviInstall),
+        mode: LaunchMode.externalApplication,
+      );
+    }
+  } catch (_) {
+    await launchUrl(
+      Uri.parse('https://kakaonavi.kakao.com'),
+      mode: LaunchMode.externalApplication,
+    );
   }
 }
 
@@ -107,10 +133,7 @@ class _NavigationSheet extends StatelessWidget {
               icon: const _NavAssetIcon('assets/nav/kakaomap_logo.png'),
               label: '카카오내비',
               subtitle: '카카오',
-              onTap: () => _launch(
-                'kakaonavi://navigate?ep=${lng}_${lat}&by=CAR',
-                fallback: 'https://kakaonavi.kakao.com',
-              ),
+              onTap: () => _launchKakaoNavi(name: name, lat: lat, lng: lng),
             ),
             const SizedBox(height: 8),
           ],
