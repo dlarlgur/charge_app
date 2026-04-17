@@ -1063,17 +1063,80 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   }
 
   // ── 정체도(congestion) → 색상 변환 ──
-  // 네이버 체감 톤에 가깝게 조정:
+  // 네이버 체감 톤에 가깝게 조정(기존보다 살짝 연한 톤):
   // 1(원활)=초록, 2(서행)=노랑, 3(지체)=주황, 4(정체)=빨강
   static Color _congestionColor(int congestion) {
     switch (congestion) {
-      case 1: return const Color(0xFF00B050); // 원활 (초록)
-      case 2: return const Color(0xFFFFCC00); // 서행 (노랑)
-      case 3: return const Color(0xFFFF8A00); // 지체 (주황)
-      case 4: return const Color(0xFFE53935); // 정체 (빨강)
-      default: return _kPrimary;              // 미확인 (앱 기본색)
+      case 1: return const Color(0xFF39C56D).withValues(alpha: 0.78); // 원활 (연초록)
+      case 2: return const Color(0xFFFFD75A).withValues(alpha: 0.78); // 서행 (연노랑)
+      case 3: return const Color(0xFFFFB25A).withValues(alpha: 0.78); // 지체 (연주황)
+      case 4: return const Color(0xFFF27573).withValues(alpha: 0.78); // 정체 (연빨강)
+      default: return _kPrimary.withValues(alpha: 0.78);              // 미확인 (앱 기본색)
     }
   }
+
+  static double _haversineM(double lat1, double lng1, double lat2, double lng2) {
+    const r = 6371000.0;
+    final dLat = (lat2 - lat1) * pi / 180.0;
+    final dLng = (lng2 - lng1) * pi / 180.0;
+    final a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(lat1 * pi / 180.0) * cos(lat2 * pi / 180.0) *
+            sin(dLng / 2) * sin(dLng / 2);
+    return r * 2.0 * atan2(sqrt(a), sqrt(1.0 - a));
+  }
+
+  /// Chaikin 코너 커팅 — 꺾인 좌표열을 부드러운 곡선으로 다듬음
+  /// iterations=2 이면 원본 대비 ~4배 포인트 생성, 과도한 증폭 방지를 위해 2 고정
+  static List<NLatLng> _smoothPath(List<NLatLng> coords, {int iterations = 2}) {
+    var pts = coords;
+    for (int iter = 0; iter < iterations; iter++) {
+      if (pts.length < 3) break;
+      final smooth = <NLatLng>[pts.first];
+      for (int i = 0; i < pts.length - 1; i++) {
+        final a = pts[i];
+        final b = pts[i + 1];
+        smooth.add(NLatLng(
+          a.latitude * 0.75 + b.latitude * 0.25,
+          a.longitude * 0.75 + b.longitude * 0.25,
+        ));
+        smooth.add(NLatLng(
+          a.latitude * 0.25 + b.latitude * 0.75,
+          a.longitude * 0.25 + b.longitude * 0.75,
+        ));
+      }
+      smooth.add(pts.last);
+      pts = smooth;
+    }
+    return pts;
+  }
+
+  /// 경로 점 간격이 큰 구간을 선형 보간으로 촘촘히 채워 표시를 부드럽게 한다.
+  /// (좌표 자체를 바꾸는 게 아니라, 지도 렌더용 좌표만 보간)
+  static List<NLatLng> _densifyPath(
+    List<NLatLng> coords, {
+    double maxStepM = 40,
+  }) {
+    if (coords.length < 2) return coords;
+    final out = <NLatLng>[coords.first];
+    for (int i = 1; i < coords.length; i++) {
+      final a = coords[i - 1];
+      final b = coords[i];
+      final d = _haversineM(a.latitude, a.longitude, b.latitude, b.longitude);
+      if (d > maxStepM) {
+        final n = (d / maxStepM).ceil();
+        for (int k = 1; k < n; k++) {
+          final t = k / n;
+          out.add(NLatLng(
+            a.latitude + (b.latitude - a.latitude) * t,
+            a.longitude + (b.longitude - a.longitude) * t,
+          ));
+        }
+      }
+      out.add(b);
+    }
+    return out;
+  }
+
 
   void _debugSegmentStats({
     required String label,
@@ -1100,6 +1163,19 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   }
 
   // ── 분석 결과 지도에 그리기 ──
+  // ── 경로 방향 화살표 헬퍼 ──────────────────────────────────────────────────────
+
+  /// 두 좌표 사이의 방위각 (0°=북, 시계방향)
+  /// patternImage 생성 — NPathOverlay 가 경로 방향 자동 회전
+  Future<NOverlayImage> _buildPatternImage() => NOverlayImage.fromWidget(
+        widget: CustomPaint(
+          painter: _RouteArrowPainter(),
+          size: const Size(10, 14),
+        ),
+        size: const Size(10, 14),
+        context: context,
+      );
+
   Future<void> _drawResultOnMap({
     required List<Map<String, dynamic>> pathPoints,
     List<Map<String, dynamic>>? pathSegments, // 교통 구간 데이터
@@ -1129,34 +1205,36 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
     await _mapController!.clearOverlays(type: NOverlayType.pathOverlay);
     await _mapController!.clearOverlays(type: NOverlayType.multipartPathOverlay);
-    await _mapController!.clearOverlays(type: NOverlayType.arrowheadPathOverlay);
     await _mapController!.clearOverlays(type: NOverlayType.marker);
 
     // ── 경로 라인 ──
+    final patternImg = await _buildPatternImage();
+
     if (pathSegments != null && pathSegments.isNotEmpty) {
-      // ① NMultipartPathOverlay: 네이버 도로 폴리라인 그대로(출발 GPS를 끼워 넣지 않음 — 블록 가로지르는 직선 방지)
+      // ① NMultipartPathOverlay: 교통 정보 세그먼트별 색상
       final multiPaths = <NMultipartPath>[];
 
       for (int si = 0; si < pathSegments.length; si++) {
         final seg = pathSegments[si];
         final rawCoords = seg['coords'];
         if (rawCoords is! List || rawCoords.length < 2) continue;
-        final coords = rawCoords
+        final coordsRaw = rawCoords
             .whereType<Map>()
             .map((c) => NLatLng(
                   (c['lat'] as num).toDouble(),
                   (c['lng'] as num).toDouble(),
                 ))
             .toList();
-        if (coords.length < 2) continue;
+        if (coordsRaw.length < 2) continue;
+        final coords = _densifyPath(_smoothPath(coordsRaw));
         final congestion = seg['congestion'] is num ? (seg['congestion'] as num).toInt() : 0;
         final color = _congestionColor(congestion);
         multiPaths.add(NMultipartPath(
           coords: coords,
           color: color,
-          outlineColor: Colors.white.withValues(alpha: 0.9),
-          passedColor: color.withValues(alpha: 0.4),
-          passedOutlineColor: Colors.white.withValues(alpha: 0.4),
+          outlineColor: Colors.transparent,
+          passedColor: color.withValues(alpha: 0.28),
+          passedOutlineColor: Colors.transparent,
         ));
       }
 
@@ -1165,27 +1243,31 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           id: 'result_route_traffic',
           paths: multiPaths,
           width: 8,
-          outlineWidth: 2,
+          outlineWidth: 0,
+          patternImage: patternImg,
+          patternInterval: 30,
         ));
       } else {
         debugPrint('[AI_MAP_SEGMENTS] path_segments 존재하지만 유효 coords가 없어 multipart 렌더 실패');
       }
     } else if (pathPoints.length >= 2) {
       debugPrint('[AI_MAP_SEGMENTS] path_segments 없음/비어있음 -> 단색 경로로 폴백');
-      // 교통 세그먼트 없음: 네이버 ‘원활’ 구간과 동일한 초록 단색(구간색 있을 때와 톤 맞춤)
-      final coords = pathPoints
+      final coordsRaw = pathPoints
           .map((p) => NLatLng(
                 (p['lat'] as num).toDouble(),
                 (p['lng'] as num).toDouble(),
               ))
           .toList();
+      final coords = _densifyPath(_smoothPath(coordsRaw));
       await _mapController!.addOverlay(NPathOverlay(
         id: 'result_route',
         coords: coords,
         color: _congestionColor(1),
         width: 8,
-        outlineColor: Colors.white,
-        outlineWidth: 2,
+        outlineColor: Colors.transparent,
+        outlineWidth: 0,
+        patternImage: patternImg,
+        patternInterval: 50,
       ));
     }
 
@@ -5638,4 +5720,27 @@ class _WatchProposalDialog extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 경로 화살표 — 네이버 스타일 얇은 chevron (위쪽 기본, angle 으로 방향 회전)
+class _RouteArrowPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.0
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final w = size.width;
+    final h = size.height;
+    final path = Path()
+      ..moveTo(w * 0.1, h * 0.8)  // 왼쪽 하단
+      ..lineTo(w * 0.5, h * 0.15) // 꼭대기 중앙
+      ..lineTo(w * 0.9, h * 0.8); // 오른쪽 하단
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(_RouteArrowPainter oldDelegate) => false;
 }

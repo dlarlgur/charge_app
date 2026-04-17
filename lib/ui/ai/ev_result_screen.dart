@@ -14,6 +14,20 @@ const _kGreenLight = Color(0xFFE1F5EE);
 const _kOrange = Color(0xFFE8700A);
 const _kOrangeLight = Color(0xFFFFF3E0);
 const _kGrey = Color(0xFF888888);
+const _kPurple = Color(0xFF7B5EA7);
+const _kTeal = Color(0xFF00897B);
+
+/// recommendation_label → (배지 텍스트, 색상)
+(String, Color) _labelInfo(String? label, Color defaultColor) {
+  switch (label) {
+    case 'optimal':   return ('AI 추천',   defaultColor);
+    case 'safe':      return ('안전 추천',  _kGreen);
+    case 'efficient': return ('가성비',     _kOrange);
+    case 'fastest':   return ('빠른 도착',  _kPurple);
+    case 'spacious':  return ('여유 있음',  _kTeal);
+    default:          return ('AI 추천',   defaultColor);
+  }
+}
 
 final _wonFmt = NumberFormat('#,###', 'ko_KR');
 
@@ -139,6 +153,7 @@ class EvResultBody extends StatelessWidget {
                     destLat: destLat,
                     destLng: destLng,
                     destName: destName,
+                    recommendationLabel: recommended['recommendation_label']?.toString(),
                   ),
                   if (alternatives.isNotEmpty) ...[
                     const SizedBox(height: 20),
@@ -147,22 +162,28 @@ class EvResultBody extends StatelessWidget {
                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kGrey),
                     ),
                     const SizedBox(height: 8),
-                    ...alternatives.map((alt) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _StationCard(
-                        station: alt,
-                        isRecommended: false,
-                        chargerType: chargerType,
-                        accentColor: _kOrange,
-                        accentLight: _kOrangeLight,
-                        onMapTap: onStationMapTap != null ? () => onStationMapTap!(alt) : null,
-                        originLat: originLat,
-                        originLng: originLng,
-                        destLat: destLat,
-                        destLng: destLng,
-                        destName: destName,
-                      ),
-                    )),
+                    ...alternatives.map((alt) {
+                      final altLabel = alt['recommendation_label']?.toString();
+                      final (_, altColor) = _labelInfo(altLabel, _kOrange);
+                      final altLight = Color.lerp(altColor, Colors.white, 0.92) ?? _kOrangeLight;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _StationCard(
+                          station: alt,
+                          isRecommended: false,
+                          chargerType: chargerType,
+                          accentColor: altColor,
+                          accentLight: altLight,
+                          onMapTap: onStationMapTap != null ? () => onStationMapTap!(alt) : null,
+                          originLat: originLat,
+                          originLng: originLng,
+                          destLat: destLat,
+                          destLng: destLng,
+                          destName: destName,
+                          recommendationLabel: altLabel,
+                        ),
+                      );
+                    }),
                   ],
                   if (filteredOut > 0)
                     Padding(
@@ -230,6 +251,7 @@ class _StationCard extends StatefulWidget {
   final double? destLat;
   final double? destLng;
   final String? destName;
+  final String? recommendationLabel;
 
   const _StationCard({
     required this.station,
@@ -243,6 +265,7 @@ class _StationCard extends StatefulWidget {
     this.destLat,
     this.destLng,
     this.destName,
+    this.recommendationLabel,
   });
 
   @override
@@ -252,6 +275,8 @@ class _StationCard extends StatefulWidget {
 class _StationCardState extends State<_StationCard> {
   // null=미결정, true=받기, false=나중에
   bool? _watchDecision;
+  bool _isExpanded = false;
+  final Map<String, bool?> _subWatchDecisions = {};
 
   String _buildStatusText(int availCount, int? detourMin, int? oldestMin) {
     String detourText = '';
@@ -268,6 +293,190 @@ class _StationCardState extends State<_StationCard> {
     return '현재 만석이에요';
   }
 
+  Widget _buildGroupedRow(Map<String, dynamic> gs) {
+    final gsStatId = gs['statId']?.toString();
+    final gsOperator = gs['operator']?.toString() ?? '';
+    final gsAvail = (gs['available_count'] as num?)?.toInt() ?? 0;
+    final gsTotal = (gs['total_count'] as num?)?.toInt() ?? 0;
+    final gsUnitPrice = (gs['unit_price'] as num?)?.toInt();
+    final gsLat = (gs['lat'] as num?)?.toDouble();
+    final gsLng = (gs['lng'] as num?)?.toDouble();
+    final gsName = gs['name']?.toString() ?? '';
+    final gsWatchDecision = gsStatId != null ? _subWatchDecisions[gsStatId] : null;
+    final accentColor = widget.accentColor;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE5E5E5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+        children: [
+          Container(
+            width: 7, height: 7,
+            decoration: BoxDecoration(
+              color: gsAvail > 0 ? _kGreen : _kOrange,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            '$gsAvail/$gsTotal',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: gsAvail > 0 ? _kGreen : _kOrange,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              gsOperator,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF444444)),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (gsUnitPrice != null) ...[
+            Text(
+              '${_wonFmt.format(gsUnitPrice)}원',
+              style: const TextStyle(fontSize: 11, color: _kGrey),
+            ),
+            const SizedBox(width: 8),
+          ],
+          // 알림 버튼
+          if (gsStatId != null)
+            Builder(builder: (ctx) => GestureDetector(
+              onTap: () async {
+                final existingSession = WatchService().session;
+                if (existingSession != null && existingSession.statId == gsStatId) {
+                  if (ctx.mounted) {
+                    await showWatchAlreadyActiveDialog(ctx, stationName: existingSession.stationName);
+                  }
+                  return;
+                }
+                if (existingSession != null && ctx.mounted) {
+                  final switchOk = await showWatchSwitchDialog(
+                    ctx, currentStationName: existingSession.stationName);
+                  if (!switchOk || !ctx.mounted) return;
+                  await WatchService().stop();
+                }
+                if (!ctx.mounted) return;
+                final accepted = await showDialog<bool>(
+                  context: ctx,
+                  builder: (dCtx) => _WatchDialog(etaMin: null, accentColor: accentColor),
+                );
+                if (accepted != null && mounted) {
+                  setState(() => _subWatchDecisions[gsStatId] = accepted);
+                  if (accepted) {
+                    WatchService().start(
+                      statId: gsStatId,
+                      stationName: gsName,
+                      etaMin: 0,
+                      currentAvail: gsAvail,
+                    );
+                  }
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+                decoration: BoxDecoration(
+                  color: gsWatchDecision == true
+                      ? accentColor.withOpacity(0.1)
+                      : const Color(0xFFEEEEEE),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(
+                  gsWatchDecision == true
+                      ? Icons.notifications_active_rounded
+                      : Icons.notifications_rounded,
+                  size: 13,
+                  color: gsWatchDecision == true ? accentColor : _kGrey,
+                ),
+              ),
+            )),
+          const SizedBox(width: 6),
+          // 길안내 버튼
+          if (gsLat != null && gsLng != null &&
+              widget.originLat != null && widget.destLat != null)
+            Builder(builder: (ctx) => GestureDetector(
+              onTap: () => showViaWaypointNavigationSheet(
+                ctx,
+                originLat: widget.originLat!,
+                originLng: widget.originLng!,
+                waypointLat: gsLat,
+                waypointLng: gsLng,
+                waypointName: gsName,
+                destinationLat: widget.destLat!,
+                destinationLng: widget.destLng!,
+                destinationName: widget.destName ?? '목적지',
+              ),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: accentColor,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.navigation_rounded, size: 11, color: Colors.white),
+                    const SizedBox(width: 3),
+                    const Text(
+                      '길안내',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )),
+        ],
+          ),
+          // 상세보기 버튼
+          if (gsStatId != null) ...[
+            const SizedBox(height: 7),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => Navigator.of(context, rootNavigator: true).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => EvDetailScreen(stationId: gsStatId),
+                ),
+              ),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                decoration: BoxDecoration(
+                  color: accentColor.withOpacity(0.07),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.info_outline_rounded, size: 12, color: accentColor),
+                    const SizedBox(width: 4),
+                    Text(
+                      '상세보기',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: accentColor),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final station = widget.station;
@@ -282,6 +491,11 @@ class _StationCardState extends State<_StationCard> {
     final originDistM = (station['origin_distance_m'] as num?)?.toInt();
     final originEtaMin = (station['origin_eta_min'] as num?)?.toInt();
     final statId = station['statId']?.toString();
+    final groupedStations = station['grouped_stations'] is List
+        ? (station['grouped_stations'] as List).whereType<Map<String, dynamic>>().toList()
+        : null;
+    final groupedCount = (station['grouped_count'] as num?)?.toInt();
+    final isGrouped = groupedStations != null && groupedStations.length > 1;
 
     String? originDistLabel;
     if (originDistM != null && originDistM > 0) {
@@ -322,18 +536,21 @@ class _StationCardState extends State<_StationCard> {
             ),
             child: Row(
               children: [
-                if (widget.isRecommended) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: accentColor,
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                    child: const Text(
-                      'AI 추천',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white),
-                    ),
-                  ),
+                if (widget.isRecommended || widget.recommendationLabel != null) ...[
+                  Builder(builder: (_) {
+                    final (badgeText, badgeColor) = _labelInfo(widget.recommendationLabel, accentColor);
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: badgeColor,
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      child: Text(
+                        badgeText,
+                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white),
+                      ),
+                    );
+                  }),
                   const SizedBox(width: 8),
                 ],
                 Expanded(
@@ -371,10 +588,13 @@ class _StationCardState extends State<_StationCard> {
                   name,
                   style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A)),
                 ),
-                if (operator.isNotEmpty || address.isNotEmpty) ...[
+                if (isGrouped || operator.isNotEmpty || address.isNotEmpty) ...[
                   const SizedBox(height: 3),
                   Text(
-                    [if (operator.isNotEmpty) operator, if (address.isNotEmpty) address].join(' · '),
+                    isGrouped
+                        ? '${groupedCount ?? groupedStations!.length}개 운영사 통합'
+                            '${address.isNotEmpty ? " · $address" : ""}'
+                        : [if (operator.isNotEmpty) operator, if (address.isNotEmpty) address].join(' · '),
                     style: const TextStyle(fontSize: 12, color: _kGrey),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -416,6 +636,50 @@ class _StationCardState extends State<_StationCard> {
                       ),
                   ],
                 ),
+                // ── 그룹 운영사 펼치기 ──
+                if (isGrouped) ...[
+                  const SizedBox(height: 10),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => setState(() => _isExpanded = !_isExpanded),
+                    child: Row(
+                      children: [
+                        Text(
+                          _isExpanded
+                              ? '운영사 접기'
+                              : '${groupedCount ?? groupedStations!.length}개 운영사별 길안내',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: widget.accentColor,
+                          ),
+                        ),
+                        const SizedBox(width: 3),
+                        Icon(
+                          _isExpanded
+                              ? Icons.keyboard_arrow_up_rounded
+                              : Icons.keyboard_arrow_down_rounded,
+                          size: 16,
+                          color: widget.accentColor,
+                        ),
+                      ],
+                    ),
+                  ),
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeInOut,
+                    child: _isExpanded
+                        ? Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Column(
+                              children: groupedStations!
+                                  .map((gs) => _buildGroupedRow(gs))
+                                  .toList(),
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ],
                 if (widget.onMapTap != null ||
                     (widget.originLat != null && widget.destLat != null) ||
                     statId != null) ...[
@@ -530,7 +794,7 @@ class _StationCardState extends State<_StationCard> {
                       ],
                     ),
                   // ── 상세보기 버튼 (전체 너비) ──
-                  if (statId != null) ...[
+                  if (statId != null && !isGrouped) ...[
                     if (widget.onMapTap != null || (widget.originLat != null && widget.destLat != null))
                       const SizedBox(height: 8),
                     GestureDetector(
