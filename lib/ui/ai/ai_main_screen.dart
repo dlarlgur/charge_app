@@ -662,7 +662,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       if (dr['success'] == true) {
         final parsed = _pathPointsFromServerJson(dr['path_points']);
         if (parsed != null) pathPoints = parsed;
-        pathSegments = _parsePathSegments(dr['path_segments']);
+        pathSegments = _segmentsFromPayload(dr);
       }
     } catch (_) {}
 
@@ -884,7 +884,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             if (stLat != null && stLng != null) {
               await _maybeReplaceViaRouteFromClient(
                 serverPts: parsed,
-                serverSeg: _parsePathSegments(primaryVia['path_segments']),
+                serverSeg: _segmentsFromPayload(primaryVia),
                 stLat: stLat,
                 stLng: stLng,
                 serverViaRoute: primaryVia,
@@ -895,7 +895,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
               );
             } else {
               viaPathPoints = parsed;
-              viaSegments = _parsePathSegments(primaryVia['path_segments']);
+              viaSegments = _segmentsFromPayload(primaryVia);
             }
             usedServerPrimaryRoute = true;
             _debugSegmentStats(
@@ -912,7 +912,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             if (stLat != null && stLng != null) {
               await _maybeReplaceViaRouteFromClient(
                 serverPts: parsed,
-                serverSeg: _parsePathSegments(vpr['path_segments']),
+                serverSeg: _segmentsFromPayload(vpr),
                 stLat: stLat,
                 stLng: stLng,
                 serverViaRoute: vpr,
@@ -923,7 +923,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
               );
             } else {
               viaPathPoints = parsed;
-              viaSegments = _parsePathSegments(vpr['path_segments']);
+              viaSegments = _segmentsFromPayload(vpr);
             }
             usedServerPrimaryRoute = true;
             _debugSegmentStats(
@@ -943,7 +943,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             if (vr['success'] == true) {
               final parsed = _pathPointsFromServerJson(vr['path_points']);
               if (parsed != null) viaPathPoints = parsed;
-              viaSegments = _parsePathSegments(vr['path_segments']);
+              viaSegments = _segmentsFromPayload(vr);
               _debugSegmentStats(
                 label: 'client.getDrivingRoute(fallback)',
                 pathSegments: viaSegments,
@@ -1063,14 +1063,14 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   }
 
   // ── 정체도(congestion) → 색상 변환 ──
-  // 네이버 체감 톤에 가깝게 조정(기존보다 살짝 연한 톤):
-  // 1(원활)=초록, 2(서행)=노랑, 3(지체)=주황, 4(정체)=빨강
+  // 네이버 Directions5 congestion 코드 (0-indexed):
+  // 0(원활)=초록, 1(서행)=노랑, 2(지체)=주황, 3(정체)=빨강
   static Color _congestionColor(int congestion) {
     switch (congestion) {
-      case 1: return const Color(0xFF39C56D).withValues(alpha: 0.78); // 원활 (연초록)
-      case 2: return const Color(0xFFFFD75A).withValues(alpha: 0.78); // 서행 (연노랑)
-      case 3: return const Color(0xFFFFB25A).withValues(alpha: 0.78); // 지체 (연주황)
-      case 4: return const Color(0xFFF27573).withValues(alpha: 0.78); // 정체 (연빨강)
+      case 0: return const Color(0xFF39C56D).withValues(alpha: 0.78); // 원활 (연초록)
+      case 1: return const Color(0xFFFFD75A).withValues(alpha: 0.78); // 서행 (연노랑)
+      case 2: return const Color(0xFFFFB25A).withValues(alpha: 0.78); // 지체 (연주황)
+      case 3: return const Color(0xFFF27573).withValues(alpha: 0.78); // 정체 (연빨강)
       default: return _kPrimary.withValues(alpha: 0.78);              // 미확인 (앱 기본색)
     }
   }
@@ -1227,7 +1227,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             .toList();
         if (coordsRaw.length < 2) continue;
         final coords = _densifyPath(_smoothPath(coordsRaw));
-        final congestion = seg['congestion'] is num ? (seg['congestion'] as num).toInt() : 0;
+        final congestion = seg['congestion'] is num ? (seg['congestion'] as num).toInt() : -1;
         final color = _congestionColor(congestion);
         multiPaths.add(NMultipartPath(
           coords: coords,
@@ -1262,7 +1262,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       await _mapController!.addOverlay(NPathOverlay(
         id: 'result_route',
         coords: coords,
-        color: _congestionColor(1),
+        color: _congestionColor(-1),
         width: 8,
         outlineColor: Colors.transparent,
         outlineWidth: 0,
@@ -1550,6 +1550,96 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     return result.isEmpty ? null : result;
   }
 
+  // ── TMAP path_features (passthrough) → 앱 segments 변환 ──
+  // path_features: [{ coords:[{lat,lng}...], traffic: <원본> }, ...]
+  // traffic 형식 둘 다 처리:
+  //   1) 배열-of-배열  [[s,e,c,speed], ...]
+  //   2) 스트링 단일/리스트 ["s,e,c,speed", ...] 또는 "s,e,c,speed"
+  // TMAP congestion 스케일: 0=정보없음, 1=원활, 2=서행, 3=지체, 4=정체
+  // → 앱 스케일(_congestionColor): 0=원활, 1=서행, 2=지체, 3=정체 (0/1=원활로 묶음)
+  static int _tmapCongToApp(int tmapCong) {
+    if (tmapCong <= 1) return 0;
+    if (tmapCong >= 4) return 3;
+    return tmapCong - 1; // 2→1, 3→2
+  }
+
+  static List<List<int>> _parseTmapTrafficEntries(dynamic raw) {
+    if (raw == null) return const [];
+    final out = <List<int>>[];
+    final iterable = raw is List ? raw : [raw];
+    for (final item in iterable) {
+      if (item is List && item.length >= 3) {
+        final s = (item[0] as num?)?.toInt();
+        final e = (item[1] as num?)?.toInt();
+        final c = (item[2] as num?)?.toInt();
+        if (s != null && e != null && c != null) out.add([s, e, c]);
+      } else if (item is String) {
+        final parts = item.split(',').map((v) => int.tryParse(v.trim())).toList();
+        if (parts.length >= 3 && parts[0] != null && parts[1] != null && parts[2] != null) {
+          out.add([parts[0]!, parts[1]!, parts[2]!]);
+        }
+      }
+    }
+    return out;
+  }
+
+  static List<Map<String, dynamic>>? _pathFeaturesToSegments(dynamic raw) {
+    if (raw is! List || raw.isEmpty) return null;
+    final segments = <Map<String, dynamic>>[];
+    for (final feat in raw) {
+      if (feat is! Map) continue;
+      final rawCoords = feat['coords'];
+      if (rawCoords is! List || rawCoords.length < 2) continue;
+      final coords = <Map<String, dynamic>>[];
+      for (final p in rawCoords) {
+        if (p is Map && p['lat'] is num && p['lng'] is num) {
+          coords.add({
+            'lat': (p['lat'] as num).toDouble(),
+            'lng': (p['lng'] as num).toDouble(),
+          });
+        }
+      }
+      if (coords.length < 2) continue;
+
+      final entries = _parseTmapTrafficEntries(feat['traffic']);
+      if (entries.isEmpty) {
+        // 교통정보 없는 LineString — 단일 세그먼트로 원활(0) 처리
+        segments.add({'coords': coords, 'congestion': 0});
+        continue;
+      }
+
+      entries.sort((a, b) => a[0].compareTo(b[0]));
+      final lastIdx = coords.length - 1;
+      var cursor = 0;
+      for (final entry in entries) {
+        final s = entry[0].clamp(0, lastIdx);
+        final e = entry[1].clamp(s, lastIdx);
+        final cong = _tmapCongToApp(entry[2]);
+        if (s > cursor) {
+          // 갭은 원활(0)로 채움
+          final slice = coords.sublist(cursor, s + 1);
+          if (slice.length >= 2) segments.add({'coords': slice, 'congestion': 0});
+        }
+        final segStart = s > cursor ? s : cursor;
+        final slice = coords.sublist(segStart, e + 1);
+        if (slice.length >= 2) segments.add({'coords': slice, 'congestion': cong});
+        cursor = e;
+      }
+      if (cursor < lastIdx) {
+        final slice = coords.sublist(cursor, lastIdx + 1);
+        if (slice.length >= 2) segments.add({'coords': slice, 'congestion': 0});
+      }
+    }
+    return segments.isEmpty ? null : segments;
+  }
+
+  // 응답 payload에서 segments를 추출 — TMAP path_features 우선, 없으면 Naver path_segments fallback.
+  static List<Map<String, dynamic>>? _segmentsFromPayload(Map payload) {
+    final fromFeatures = _pathFeaturesToSegments(payload['path_features']);
+    if (fromFeatures != null && fromFeatures.isNotEmpty) return fromFeatures;
+    return _parsePathSegments(payload['path_segments']);
+  }
+
   static double _haversineMeters(double lat1, double lng1, double lat2, double lng2) {
     const earthM = 6371000.0;
     final r1 = lat1 * pi / 180, r2 = lat2 * pi / 180;
@@ -1679,7 +1769,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       if (vr['success'] == true) {
         final parsed = _pathPointsFromServerJson(vr['path_points']);
         if (parsed != null) {
-          final segs = _parsePathSegments(vr['path_segments']);
+          final segs = _segmentsFromPayload(vr);
           apply(parsed, segs);
           return;
         }
@@ -1709,7 +1799,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       if (parsed != null) {
         await _maybeReplaceViaRouteFromClient(
           serverPts: parsed,
-          serverSeg: _parsePathSegments(vrMap['path_segments']),
+          serverSeg: _segmentsFromPayload(vrMap),
           stLat: stLat,
           stLng: stLng,
           serverViaRoute: vrMap,
@@ -1736,7 +1826,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         if (vr['success'] == true) {
           final parsed = _pathPointsFromServerJson(vr['path_points']);
           if (parsed != null) pathPoints = parsed;
-          pathSegments = _parsePathSegments(vr['path_segments']);
+          pathSegments = _segmentsFromPayload(vr);
           _debugSegmentStats(
             label: 'alternative.client.getDrivingRoute(fallback)',
             pathSegments: pathSegments,
@@ -1787,7 +1877,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       if (parsed != null) {
         await _maybeReplaceViaRouteFromClient(
           serverPts: parsed,
-          serverSeg: _parsePathSegments(vrMap['path_segments']),
+          serverSeg: _segmentsFromPayload(vrMap),
           stLat: stLat,
           stLng: stLng,
           serverViaRoute: vrMap,
@@ -1807,7 +1897,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         if (vr['success'] == true) {
           final parsed = _pathPointsFromServerJson(vr['path_points']);
           if (parsed != null) pathPoints = parsed;
-          pathSegments = _parsePathSegments(vr['path_segments']);
+          pathSegments = _segmentsFromPayload(vr);
         }
       } catch (_) {}
     }
@@ -1895,7 +1985,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           if (dr['duration_ms'] is num) directDurationMs = (dr['duration_ms'] as num).round();
           final parsed = _pathPointsFromServerJson(dr['path_points']);
           if (parsed != null) pathPoints = parsed;
-          pathSegments = _parsePathSegments(dr['path_segments']);
+          pathSegments = _segmentsFromPayload(dr);
           _lastStartLat = startLat;
           _lastStartLng = startLng;
           _lastPathPoints = pathPoints;
@@ -1975,7 +2065,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       if (vr['success'] == true) {
         final parsed = _pathPointsFromServerJson(vr['path_points']);
         if (parsed != null) pathPoints = parsed;
-        pathSegments = _parsePathSegments(vr['path_segments']);
+        pathSegments = _segmentsFromPayload(vr);
       }
     } catch (_) {}
 
@@ -2079,7 +2169,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         if (dr['success'] == true) {
           final parsed = _pathPointsFromServerJson(dr['path_points']);
           if (parsed != null) pathPoints = parsed;
-          _lastPathSegments = _parsePathSegments(dr['path_segments']);
+          _lastPathSegments = _segmentsFromPayload(dr);
           _lastStartLat = startLat;
           _lastStartLng = startLng;
           _lastPathPoints = pathPoints;
