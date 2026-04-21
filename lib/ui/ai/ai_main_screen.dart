@@ -1876,7 +1876,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     setState(() { _aiAnalyzing = true; _errorMessage = null; });
 
     // 미리보기에서 이미 경로를 받아놨으면 재사용, 아니면 새로 fetch
-    var pathPoints = _lastPathPoints.length >= 2 ? _lastPathPoints
+    // (2점 = origin/dest만 있는 직선 폴백 → 추천 정확도 박살나므로 재fetch 강제)
+    var pathPoints = _lastPathPoints.length >= 3 ? _lastPathPoints
         : <Map<String, dynamic>>[
             {'lat': startLat, 'lng': startLng},
             {'lat': _destLat!, 'lng': _destLng!},
@@ -1884,7 +1885,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     List<Map<String, dynamic>>? pathSegments = _lastPathSegments;
     int? directDurationMs;
 
-    if (pathPoints.length < 2 || _lastStartLat != startLat || _lastStartLng != startLng) {
+    if (pathPoints.length < 3 || _lastStartLat != startLat || _lastStartLng != startLng) {
       try {
         final dr = await ApiService().getDrivingRoute(
           startLat: startLat, startLng: startLng,
@@ -2062,13 +2063,14 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     });
 
     // 미리보기에서 이미 경로를 받아놨으면 재사용
-    var pathPoints = _lastPathPoints.length >= 2 ? _lastPathPoints
+    // (2점 = origin/dest만 있는 직선 폴백 → 추천 정확도 박살나므로 재fetch 강제)
+    var pathPoints = _lastPathPoints.length >= 3 ? _lastPathPoints
         : <Map<String, dynamic>>[
             {'lat': startLat, 'lng': startLng},
             {'lat': _destLat!, 'lng': _destLng!},
           ];
 
-    if (pathPoints.length < 2 || _lastStartLat != startLat || _lastStartLng != startLng) {
+    if (pathPoints.length < 3 || _lastStartLat != startLat || _lastStartLng != startLng) {
       try {
         final dr = await ApiService().getDrivingRoute(
           startLat: startLat, startLng: startLng,
