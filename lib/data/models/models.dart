@@ -118,6 +118,7 @@ class EvStation {
   final bool limitYn;
   final String? limitDetail;
   final String? note;
+  final bool isRestricted;
 
   EvStation({
     required this.statId,
@@ -142,6 +143,7 @@ class EvStation {
     this.limitYn = false,
     this.limitDetail,
     this.note,
+    this.isRestricted = false,
   });
 
   factory EvStation.fromJson(Map<String, dynamic> json) {
@@ -172,6 +174,7 @@ class EvStation {
       limitYn: json['limitYn'] == 'Y' || json['limitYn'] == true,
       limitDetail: json['limitDetail']?.toString().isNotEmpty == true ? json['limitDetail'] : null,
       note: json['note']?.toString().isNotEmpty == true ? json['note'] : null,
+      isRestricted: json['isRestricted'] == true,
     );
   }
 

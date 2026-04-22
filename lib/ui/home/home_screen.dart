@@ -548,13 +548,8 @@ class _GasListViewState extends ConsumerState<_GasListView> {
                   )),
                 );
               }
-              // 즐겨찾기 상위 정렬
+              // provider에서 즐겨찾기 상위 정렬 + 필터 면제 처리됨
               final favIds = FavoriteService.getByType('gas').map((f) => f['id'] as String).toSet();
-              if (favIds.isNotEmpty) {
-                final favs = filtered.where((s) => favIds.contains(s.id)).toList();
-                final rest = filtered.where((s) => !favIds.contains(s.id)).toList();
-                filtered = [...favs, ...rest];
-              }
               final shown = filtered.take(_displayCount).toList();
               return SliverList(delegate: SliverChildBuilderDelegate(
                 (_, i) => GasStationCard(
@@ -740,13 +735,8 @@ class _EvListViewState extends ConsumerState<_EvListView> {
                   )),
                 );
               }
-              // 즐겨찾기 상위 정렬
+              // provider에서 즐겨찾기 상위 정렬 + 필터 면제 처리됨
               final favIds = FavoriteService.getByType('ev').map((f) => f['id'] as String).toSet();
-              if (favIds.isNotEmpty) {
-                final favs = filtered.where((s) => favIds.contains(s.statId)).toList();
-                final rest = filtered.where((s) => !favIds.contains(s.statId)).toList();
-                filtered = [...favs, ...rest];
-              }
               final shown = filtered.take(_displayCount).toList();
               return SliverList(delegate: SliverChildBuilderDelegate(
                 (_, i) => EvStationCard(

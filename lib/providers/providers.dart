@@ -200,19 +200,32 @@ final gasStationsProvider = FutureProvider<List<GasStation>>((ref) async {
     }
   }
 
-  // 브랜드 필터 (클라이언트)
+  // 즐겨찾기는 필터 면제: 먼저 분리
+  final favBox = Hive.box(AppConstants.favoritesBox);
+  final favIds = favBox.keys
+      .where((k) => k.toString().startsWith('gas_'))
+      .map((k) => k.toString().substring(4))
+      .toSet();
+  final favStations = stations.where((s) => favIds.contains(s.id)).toList();
+  var nonFavStations = stations.where((s) => !favIds.contains(s.id)).toList();
+
+  // 브랜드 필터 (클라이언트) — 즐겨찾기 제외하고 적용
   if (filter.brands.isNotEmpty) {
-    stations = stations.where((s) => filter.brands.contains(s.brand)).toList();
+    nonFavStations = nonFavStations.where((s) => filter.brands.contains(s.brand)).toList();
   }
 
   // 정렬
-  if (filter.sort == 2) {
-    stations.sort((a, b) => a.distance.compareTo(b.distance));
-  } else {
-    stations.sort((a, b) => a.price.compareTo(b.price));
+  void sortGas(List<GasStation> list) {
+    if (filter.sort == 2) {
+      list.sort((a, b) => a.distance.compareTo(b.distance));
+    } else {
+      list.sort((a, b) => a.price.compareTo(b.price));
+    }
   }
+  sortGas(favStations);
+  sortGas(nonFavStations);
 
-  return stations;
+  return [...favStations, ...nonFavStations];
 });
 
 // ─── EV Stations Provider ───
@@ -233,17 +246,27 @@ final evStationsProvider = FutureProvider<List<EvStation>>((ref) async {
     ...results[1].map((json) => EvStation.fromJson(json)),
   ];
 
+  // 즐겨찾기는 필터 면제: 먼저 분리
+  final evFavBox = Hive.box(AppConstants.favoritesBox);
+  final evFavIds = evFavBox.keys
+      .where((k) => k.toString().startsWith('ev_'))
+      .map((k) => k.toString().substring(3))
+      .toSet();
+  final favStations = stations.where((s) => evFavIds.contains(s.statId)).toList();
+  var nonFavStations = stations.where((s) => !evFavIds.contains(s.statId)).toList();
+
+  // 필터 — 즐겨찾기 제외하고 적용
   if (filter.availableOnly) {
-    stations = stations.where((s) => s.hasAvailable || s.isTesla).toList();
+    nonFavStations = nonFavStations.where((s) => s.hasAvailable || s.isTesla).toList();
   }
   if (filter.chargerTypes.isNotEmpty) {
-    stations = stations.where((s) =>
+    nonFavStations = nonFavStations.where((s) =>
       s.chargers.any((c) => _chargerMatchesFilter(c.type, filter.chargerTypes))).toList();
   }
   if (filter.operators.isNotEmpty) {
     final includeOther = filter.operators.contains('__other__');
     final mainOps = filter.operators.where((o) => o != '__other__').toList();
-    stations = stations.where((s) {
+    nonFavStations = nonFavStations.where((s) {
       if (mainOps.any((op) => s.operator.contains(op))) return true;
       if (includeOther && !['환경부','GS차지비','파워큐브','에버온','SK일렉링크','채비','Tesla']
           .any((op) => s.operator.contains(op))) return true;
@@ -251,7 +274,7 @@ final evStationsProvider = FutureProvider<List<EvStation>>((ref) async {
     }).toList();
   }
   if (filter.kinds.isNotEmpty) {
-    stations = stations.where((s) => filter.kinds.contains(s.kind)).toList();
+    nonFavStations = nonFavStations.where((s) => filter.kinds.contains(s.kind)).toList();
   }
 
   int cmpPrice(int? a, int? b) {
@@ -261,20 +284,24 @@ final evStationsProvider = FutureProvider<List<EvStation>>((ref) async {
     return a.compareTo(b);
   }
 
-  if (filter.sort == 2) {
-    stations.sort((a, b) => cmpPrice(
-      a.unitPriceFast ?? a.unitPriceSlow,
-      b.unitPriceFast ?? b.unitPriceSlow,
-    ));
-  } else if (filter.sort == 3) {
-    stations.sort((a, b) => cmpPrice(
-      a.unitPriceFastMember ?? a.unitPriceSlowMember,
-      b.unitPriceFastMember ?? b.unitPriceSlowMember,
-    ));
+  void sortEv(List<EvStation> list) {
+    if (filter.sort == 2) {
+      list.sort((a, b) => cmpPrice(
+        a.unitPriceFast ?? a.unitPriceSlow,
+        b.unitPriceFast ?? b.unitPriceSlow,
+      ));
+    } else if (filter.sort == 3) {
+      list.sort((a, b) => cmpPrice(
+        a.unitPriceFastMember ?? a.unitPriceSlowMember,
+        b.unitPriceFastMember ?? b.unitPriceSlowMember,
+      ));
+    }
+    // sort == 1: 거리순 (서버에서 이미 정렬됨)
   }
-  // sort == 1: 거리순 (서버에서 이미 정렬됨)
+  sortEv(favStations);
+  sortEv(nonFavStations);
 
-  return stations;
+  return [...favStations, ...nonFavStations];
 });
 
 // ─── Gas Avg Price Provider ───

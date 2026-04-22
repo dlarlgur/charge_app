@@ -336,7 +336,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
 
   // ─── 히어로 카드 ───
   Widget _heroCard(EvStation s, bool isDark) {
-    final isOpen = !s.limitYn;
+    final isOpen = !s.isRestricted;
     final hasAvail = s.hasAvailable;
 
     // 커넥터 타입별 보유 여부 (항상 4개 원 표시, 없으면 회색)
