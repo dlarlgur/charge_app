@@ -4,7 +4,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/utils/helpers.dart';
@@ -14,9 +13,14 @@ import '../../data/models/models.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/location_service.dart';
 import '../../providers/providers.dart';
+import '../detail/ev_detail_screen.dart';
+import '../detail/gas_detail_screen.dart';
 import '../filter/ev_filter_sheet.dart';
 import '../filter/gas_filter_sheet.dart';
 import '../widgets/gas_station_map_badge.dart';
+
+// HomeScreen의 PopScope가 시트 닫기와 앱종료 토스트를 동시에 띄우는 걸 막기 위한 플래그
+final ValueNotifier<bool> mapSheetOpen = ValueNotifier(false);
 
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
@@ -29,7 +33,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   late bool _showGas;
   late bool _showEv;
   dynamic _selectedStation;
-  bool _isEvSelected = false;
   bool _showSearchHere = false;
   bool _mapReady = false;
   int _markersGeneration = 0;
@@ -39,6 +42,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   bool _isLocating = false;
   bool _isAtMyLocation = false;
   bool _suppressCameraChange = false;
+  DraggableScrollableController? _sheetController;
 
   // 검색
   bool _isSearchMode = false;
@@ -108,7 +112,24 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   void dispose() {
     _markerDebounce?.cancel();
     _searchController.dispose();
+    _sheetController?.dispose();
     super.dispose();
+  }
+
+  void _selectStation(dynamic station) {
+    _sheetController?.dispose();
+    _sheetController = DraggableScrollableController();
+    mapSheetOpen.value = true;
+    setState(() => _selectedStation = station);
+  }
+
+  Future<void> _dismissSheet() async {
+    final prev = _selectedStation;
+    mapSheetOpen.value = false;
+    setState(() => _selectedStation = null);
+    _sheetController?.dispose();
+    _sheetController = null;
+    await _restoreMarkerIcon(prev, _lastMinGasPrice);
   }
 
   void _scheduleUpdateMarkers() {
@@ -207,7 +228,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         : _zoomToRadius(pos.zoom);
     ref.read(mapCenterProvider.notifier).state = (lat: pos.target.latitude, lng: pos.target.longitude);
     ref.read(mapRadiusProvider.notifier).state = radius;
-    setState(() { _showSearchHere = false; _selectedStation = null; });
+    if (_selectedStation != null) await _dismissSheet();
+    setState(() { _showSearchHere = false; });
   }
 
   // ─── 검색 ───
@@ -385,9 +407,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               if (_isSearchMode) {
                 setState(() { _isSearchMode = false; _searchResults = []; _searchController.clear(); });
               } else if (_selectedStation != null) {
-                final prev = _selectedStation;
-                setState(() => _selectedStation = null);
-                _restoreMarkerIcon(prev, _lastMinGasPrice);
+                _dismissSheet();
               }
             },
           ),
@@ -450,12 +470,18 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             ),
           ),
 
-          // ─── 하단 선택 카드 ───
-          if (_selectedStation != null)
-            Positioned(
-              bottom: MediaQuery.of(context).padding.bottom + 16,
-              left: 16, right: 16,
-              child: _buildSelectedCard(isDark),
+          // ─── 하단 상세 시트 ───
+          if (_selectedStation is GasStation && _sheetController != null)
+            PopScope(
+              canPop: false,
+              onPopInvokedWithResult: (_, __) => _dismissSheet(),
+              child: _buildGasDetailSheet(_selectedStation as GasStation, isDark),
+            ),
+          if (_selectedStation is EvStation && _sheetController != null)
+            PopScope(
+              canPop: false,
+              onPopInvokedWithResult: (_, __) => _dismissSheet(),
+              child: _buildEvDetailSheet(_selectedStation as EvStation, isDark),
             ),
         ],
       ),
@@ -872,14 +898,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         _markerRefs[markerId] = marker;
         marker.setOnTapListener((_) async {
           final prev = _selectedStation;
-          // 같은 마커 재탭 → 선택 해제
           if (prev is GasStation && prev.id == s.id) {
-            setState(() { _selectedStation = null; });
-            await _restoreMarkerIcon(prev, _lastMinGasPrice);
+            await _dismissSheet();
             return;
           }
-          setState(() { _selectedStation = s; _isEvSelected = false; });
           await _restoreMarkerIcon(prev, _lastMinGasPrice);
+          _selectStation(s);
           await _highlightMarker(markerId, label, brand: s.brand);
         });
         await controller.addOverlay(marker);
@@ -904,14 +928,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         _markerRefs[markerId] = marker;
         marker.setOnTapListener((_) async {
           final prev = _selectedStation;
-          // 같은 마커 재탭 → 선택 해제
           if (prev is EvStation && prev.statId == s.statId) {
-            setState(() { _selectedStation = null; });
-            await _restoreMarkerIcon(prev, _lastMinGasPrice);
+            await _dismissSheet();
             return;
           }
-          setState(() { _selectedStation = s; _isEvSelected = true; });
           await _restoreMarkerIcon(prev, _lastMinGasPrice);
+          _selectStation(s);
           await _highlightMarker(markerId, markerLabel, isEv: true);
         });
         await controller.addOverlay(marker);
@@ -952,188 +974,60 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     showNavigationSheet(context, lat: lat, lng: lng, name: name);
   }
 
-  // ─── 선택된 카드 ───
-  Widget _buildSelectedCard(bool isDark) {
-    if (_selectedStation is GasStation) {
-      final s = _selectedStation as GasStation;
-      return _bottomCard(
-        isDark: isDark, isEv: false,
-        name: s.name,
-        subtitle: '${s.distanceText} · ${s.brandName}',
-        trailingText: s.priceText,
-        trailingColor: AppColors.gasBlue,
-        onDetail: () => context.push('/gas/${s.id}'),
-        onNavigate: () => _openNavigation(s.lat, s.lng, s.name),
-        onDismiss: () async {
-          final prev = _selectedStation;
-          setState(() => _selectedStation = null);
-          await _restoreMarkerIcon(prev, _lastMinGasPrice);
-        },
-      );
-    } else if (_selectedStation is EvStation) {
-      final s = _selectedStation as EvStation;
-      return _bottomCard(
-        isDark: isDark, isEv: true,
-        name: s.name,
-        subtitle: '${s.distanceText} · ${s.operator} · ${s.chargerTypeText}',
-        trailingText: s.maxPowerText ?? '',
-        trailingColor: AppColors.evGreen,
-        priceText: s.priceNonMemberText,
-        priceMemberText: s.priceMemberText,
-        hasAvailable: s.hasAvailable,
-        isTesla: s.isTesla,
-        totalCount: s.totalCount,
-        onDetail: () => context.push('/ev/${s.statId}', extra: s),
-        onNavigate: () => _openNavigation(s.lat, s.lng, s.name),
-        onDismiss: () async {
-          final prev = _selectedStation;
-          setState(() => _selectedStation = null);
-          await _restoreMarkerIcon(prev, _lastMinGasPrice);
-        },
-      );
-    }
-    return const SizedBox();
-  }
-
-  Widget _bottomCard({
-    required bool isDark, required bool isEv,
-    required String name, required String subtitle,
-    required String trailingText, required Color trailingColor,
-    String? priceText,
-    String? priceMemberText,
-    bool hasAvailable = true,
-    bool isTesla = false,
-    int totalCount = 0,
-    required VoidCallback onDetail,
-    required VoidCallback onNavigate,
-    required VoidCallback onDismiss,
-  }) {
-    final accentColor = isEv ? AppColors.evGreen : AppColors.gasBlue;
-    return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
+  // ─── 주유소 상세 DraggableScrollableSheet ───
+  Widget _buildGasDetailSheet(GasStation s, bool isDark) {
+    return DraggableScrollableSheet(
+      key: ValueKey('gas_sheet_${s.id}'),
+      controller: _sheetController!,
+      initialChildSize: 0.32,
+      minChildSize: 0.2,
+      maxChildSize: 0.95,
+      snap: true,
+      snapSizes: const [0.32, 0.95],
+      builder: (ctx, scrollCtrl) {
+        return Material(
           color: isDark ? AppColors.darkBg : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 16, offset: const Offset(0, -4))],
-          border: Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder, width: 0.5),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                const Spacer(),
-                Center(child: Container(width: 36, height: 4,
-                    decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2)))),
-                Expanded(
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: GestureDetector(
-                      onTap: onDismiss,
-                      child: Icon(Icons.close_rounded, size: 20,
-                          color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Container(
-                  width: 40, height: 40,
-                  decoration: BoxDecoration(
-                    color: isEv
-                        ? (isDark ? AppColors.darkEvIconBg : AppColors.lightEvIconBg)
-                        : (isDark ? AppColors.darkIconBg : AppColors.lightIconBg),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    isEv ? Icons.ev_station_rounded : Icons.local_gas_station_rounded,
-                    size: 20,
-                    color: isEv ? AppColors.evGreen : AppColors.gasBlue,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Flexible(child: Text(name,
-                              style: Theme.of(context).textTheme.titleMedium,
-                              overflow: TextOverflow.ellipsis)),
-                          if (isEv) ...[
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: isTesla
-                                    ? (isDark ? AppColors.darkBadgeAvailBg : AppColors.lightBadgeAvailBg)
-                                    : hasAvailable
-                                        ? (isDark ? AppColors.darkBadgeAvailBg : AppColors.lightBadgeAvailBg)
-                                        : (isDark ? AppColors.darkBadgeOfflineBg : AppColors.lightBadgeOfflineBg),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                isTesla ? '$totalCount대' : (hasAvailable ? '이용가능' : '이용불가'),
-                                style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600,
-                                    color: isTesla ? AppColors.evGreen
-                                        : (hasAvailable ? AppColors.statusAvailable : AppColors.statusOffline)),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      Text(subtitle, style: Theme.of(context).textTheme.labelSmall,
-                          overflow: TextOverflow.ellipsis),
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(trailingText, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: trailingColor)),
-                    if (priceText != null)
-                      Text(priceText,
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500,
-                              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
-                    if (priceMemberText != null)
-                      Text(priceMemberText,
-                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500,
-                              color: AppColors.evGreen)),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: onNavigate,
-                    style: ElevatedButton.styleFrom(backgroundColor: accentColor),
-                    child: const Text('길찾기'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: onDetail,
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text('상세보기'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+          elevation: 12,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          clipBehavior: Clip.antiAlias,
+          child: GasDetailContent(
+            stationId: s.id,
+            station: s,
+            sheetController: scrollCtrl,
+            sheetMode: true,
+          ),
+        );
+      },
     );
   }
+
+  // ─── EV 상세 DraggableScrollableSheet ───
+  Widget _buildEvDetailSheet(EvStation s, bool isDark) {
+    return DraggableScrollableSheet(
+      key: ValueKey('ev_sheet_${s.statId}'),
+      controller: _sheetController!,
+      initialChildSize: 0.52,
+      minChildSize: 0.2,
+      maxChildSize: 0.95,
+      snap: true,
+      snapSizes: const [0.52, 0.95],
+      builder: (ctx, scrollCtrl) {
+        return Material(
+          color: isDark ? AppColors.darkBg : Colors.white,
+          elevation: 12,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          clipBehavior: Clip.antiAlias,
+          child: EvDetailContent(
+            station: s,
+            sheetController: scrollCtrl,
+            sheetMode: true,
+            onSelectRoute: null,
+          ),
+        );
+      },
+    );
+  }
+
 }
+
 

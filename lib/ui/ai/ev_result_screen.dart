@@ -22,7 +22,7 @@ const _kTeal = Color(0xFF00897B);
   switch (label) {
     case 'optimal':   return ('AI 추천',   defaultColor);
     case 'safe':      return ('안전 추천',  _kGreen);
-    case 'efficient': return ('가성비',     _kOrange);
+    case 'cheapest':  return ('가성비',     _kOrange);
     case 'fastest':   return ('빠른 도착',  _kPurple);
     case 'spacious':  return ('여유 있음',  _kTeal);
     default:          return ('AI 추천',   defaultColor);
@@ -485,6 +485,7 @@ class _StationCardState extends State<_StationCard> {
     final operator = station['operator']?.toString() ?? '';
     final availCount = (station['available_count'] as num?)?.toInt() ?? 0;
     final totalCount = (station['total_count'] as num?)?.toInt() ?? 0;
+    final headingCount = (station['heading_count'] as num?)?.toInt() ?? 0;
     final unitPrice = (station['unit_price'] as num?)?.toInt();
     final detourMin = (station['detour_time_min'] as num?)?.toInt();
     final oldestMin = (station['oldest_charging_min'] as num?)?.toInt();
@@ -601,6 +602,10 @@ class _StationCardState extends State<_StationCard> {
                   ),
                 ],
                 const SizedBox(height: 10),
+                if (headingCount > 0) ...[
+                  _HeadingBadge(headingCount: headingCount, availCount: availCount),
+                  const SizedBox(height: 8),
+                ],
                 Wrap(
                   spacing: 8,
                   runSpacing: 6,
@@ -887,6 +892,93 @@ class _InfoChip extends StatelessWidget {
         const SizedBox(width: 3),
         Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w500)),
       ],
+    );
+  }
+}
+
+/// 다른 사용자가 이 충전소로 향하는 중임을 알리는 라이브 배지.
+/// avail 대비 heading이 많을수록 색상 강도가 올라가 혼잡도를 직관적으로 전달.
+class _HeadingBadge extends StatefulWidget {
+  final int headingCount;
+  final int availCount;
+  const _HeadingBadge({required this.headingCount, required this.availCount});
+
+  @override
+  State<_HeadingBadge> createState() => _HeadingBadgeState();
+}
+
+class _HeadingBadgeState extends State<_HeadingBadge> with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..repeat(reverse: true);
+    _pulse = Tween<double>(begin: 0.55, end: 1.0).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final h = widget.headingCount;
+    final a = widget.availCount;
+
+    // 혼잡도 단계: 향하는 사람 수 vs 자리 수
+    // calm  : heading < avail (자리 여유)
+    // tight : heading == avail (딱 맞음)
+    // crowd : heading > avail (자리 부족)
+    final bool crowd = h > a;
+    final bool tight = !crowd && h >= a && a > 0;
+
+    final Color color = crowd
+        ? const Color(0xFFD32F2F)        // 빨강 — 자리 부족
+        : tight
+            ? const Color(0xFFEF6C00)    // 진한 주황 — 딱 맞음
+            : const Color(0xFF1976D2);   // 파랑 — 여유
+
+    final String label = crowd
+        ? '$h명이 향하는 중 · 자리보다 많음'
+        : tight
+            ? '$h명이 향하는 중 · 자리 빠듯'
+            : '$h명이 향하는 중';
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 7, 12, 7),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.25), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 라이브 신호 도트 (페이드 펄스)
+          AnimatedBuilder(
+            animation: _pulse,
+            builder: (_, __) => Container(
+              width: 7, height: 7,
+              decoration: BoxDecoration(
+                color: color.withOpacity(_pulse.value),
+                shape: BoxShape.circle,
+                boxShadow: [BoxShadow(color: color.withOpacity(_pulse.value * 0.5), blurRadius: 4, spreadRadius: 1)],
+              ),
+            ),
+          ),
+          const SizedBox(width: 7),
+          Icon(Icons.directions_car_filled_rounded, size: 13, color: color),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color),
+          ),
+        ],
+      ),
     );
   }
 }

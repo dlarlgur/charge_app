@@ -32,6 +32,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   final _messageBadgeKey = GlobalKey<_HomeTabState>();
+  DateTime? _lastBackPressTime;
 
   @override
   void initState() {
@@ -174,42 +175,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ));
   }
 
-  Future<bool> _onWillPop(BuildContext context) async {
-    return await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('앱 종료'),
-        content: const Text('풀업을 종료하시겠습니까?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text('종료', style: TextStyle(color: AppColors.error)),
-          ),
-        ],
-      ),
-    ) ?? false;
-  }
-
   @override
   Widget build(BuildContext context) {
     final bottomIndex = ref.watch(bottomNavIndexProvider);
 
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (didPop, _) async {
+      onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        // AI 탭(index 2)은 AiMainScreen 자체 PopScope가 뒤로가기와 종료 팝업을 모두 처리.
-        // HomeScreen의 PopScope가 동시에 트리거되면 종료 다이얼로그가 2개 뜨거나
-        // 결과 화면에서 종료 팝업이 잘못 표시되므로 AI 탭일 때는 여기서 처리하지 않는다.
+        // AI 탭(index 2)은 AiMainScreen 자체 PopScope가 처리
         final currentTab = ref.read(bottomNavIndexProvider);
         if (currentTab == 2) return;
-        final shouldExit = await _onWillPop(context);
-        if (shouldExit) {
+        // 지도 시트가 열려있으면 MapScreen의 PopScope가 처리 중 → 토스트 띄우지 않음
+        if (mapSheetOpen.value) return;
+
+        final now = DateTime.now();
+        if (_lastBackPressTime == null ||
+            now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
+          _lastBackPressTime = now;
+          ScaffoldMessenger.of(context).clearSnackBars();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                '한 번 더 누르시면 종료됩니다.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+              duration: const Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: const Color(0xFF1E293B),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              margin: EdgeInsets.only(
+                bottom: MediaQuery.of(context).padding.bottom + 80,
+                left: 40,
+                right: 40,
+              ),
+            ),
+          );
+        } else {
           SystemNavigator.pop();
         }
       },

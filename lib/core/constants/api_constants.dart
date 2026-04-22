@@ -28,6 +28,9 @@ class ApiConstants {
   // ─── 지오코딩 ───
   static const reverseGeocode = '/geocode/reverse';
 
+  // ─── 주변 POI ───
+  static const poiNearby = '/poi/nearby';
+
   // ─── AI 추천 ───
   static const routeDriving = '/route/driving';
   static const refuelAnalyze = '/v1/refuel/analyze';

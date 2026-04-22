@@ -103,7 +103,8 @@ class _NavigationSheet extends StatelessWidget {
               context,
               icon: const _NavAssetIcon('assets/nav/tmap_logo.webp'),
               label: '티맵',
-              subtitle: 'SK텔레콤',
+              subtitle: restArea ? '고속도로 휴게소는 티맵 안내를 권장해요' : 'SK텔레콤',
+              subtitleColor: restArea ? const Color(0xFFE07000) : Colors.grey,
               onTap: () => _launch(
                 Uri(
                   scheme: 'tmap',
@@ -121,8 +122,7 @@ class _NavigationSheet extends StatelessWidget {
               context,
               icon: const _NavAssetIcon('assets/nav/naver_logo.png'),
               label: '네이버 지도',
-              subtitle: restArea ? '고속도로 휴게소는 티맵 안내를 권장해요' : '네이버',
-              subtitleColor: restArea ? const Color(0xFFE07000) : Colors.grey,
+              subtitle: '네이버',
               onTap: () => _launch(
                 'nmap://navigation?dlat=$lat&dlng=$lng&dname=${Uri.encodeComponent(name)}&appname=${AppConstants.packageName}',
                 fallback: 'https://map.naver.com',

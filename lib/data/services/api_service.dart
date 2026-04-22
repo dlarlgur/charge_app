@@ -216,6 +216,36 @@ class ApiService {
     return Map<String, dynamic>.from(res.data ?? {});
   }
 
+  // ─── 주변 POI (Tmap 프록시) ───
+  Future<List<Map<String, dynamic>>> getNearbyPois({
+    required double lat,
+    required double lng,
+    List<String>? categories,
+    double radiusKm = 1,
+    int count = 30,
+    String sort = 'distance',
+  }) async {
+    try {
+      final res = await _dio.get(
+        ApiConstants.poiNearby,
+        queryParameters: {
+          'lat': lat, 'lng': lng,
+          if (categories != null && categories.isNotEmpty) 'categories': categories.join(','),
+          'radius': radiusKm,
+          'count': count,
+          'sort': sort,
+        },
+      );
+      if (res.data is Map && res.data['success'] == true) {
+        return List<Map<String, dynamic>>.from(res.data['items'] ?? []);
+      }
+      return [];
+    } catch (e) {
+      if (kDebugMode) debugPrint('[API] getNearbyPois 실패: $e');
+      return [];
+    }
+  }
+
   Future<String?> reverseGeocode(double lat, double lng) async {
     try {
       final res = await _dio.get(

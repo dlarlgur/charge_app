@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/utils/navigation_util.dart';
@@ -87,150 +88,657 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('충전소 상세'),
-        actions: [
-          if (_alarmLoading)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 14),
-              child: SizedBox(width: 20, height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.evGreen)),
-            )
-          else
-            IconButton(
-              icon: Icon(
-                _isAlarm ? Icons.notifications_active_rounded : Icons.notifications_none_rounded,
-                color: _isAlarm ? AppColors.evGreen : null,
-              ),
-              tooltip: _isAlarm ? '알림 해제' : '자리 생기면 알림',
-              onPressed: _toggleAlarm,
-            ),
-          IconButton(
-            icon: Icon(_isFavorite ? Icons.favorite : Icons.favorite_border,
-                color: _isFavorite ? AppColors.evGreen : null),
-            onPressed: () {
-              final s = _station;
-              if (s == null) return;
-              final result = FavoriteService.toggle(
-                id: widget.stationId, type: 'ev', name: s.name, subtitle: s.address,
-              );
-              setState(() => _isFavorite = result);
-              // 즐겨찾기 탭 즉시 갱신
-              ref.read(favoritesProvider.notifier).refresh();
-            },
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('충전소 상세')),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: AppColors.evGreen))
           : _station == null
               ? const Center(child: Text('정보를 불러올 수 없습니다'))
-              : _buildContent(isDark),
+              : EvDetailContent(
+                  station: _station!,
+                  onSelectRoute: widget.onSelectRoute,
+                ),
+    );
+  }
+}
+
+/// 재사용 가능한 상세 컨텐츠. 풀스크린 라우트와 지도 bottom-sheet 양쪽에서 사용.
+class EvDetailContent extends ConsumerStatefulWidget {
+  final EvStation station;
+  final VoidCallback? onSelectRoute;
+  final ScrollController? sheetController;
+  final bool sheetMode;
+  const EvDetailContent({
+    super.key,
+    required this.station,
+    this.onSelectRoute,
+    this.sheetController,
+    this.sheetMode = false,
+  });
+
+  @override
+  ConsumerState<EvDetailContent> createState() => _EvDetailContentState();
+}
+
+class _EvDetailContentState extends ConsumerState<EvDetailContent> {
+  // 알림 / 즐겨찾기 상태
+  late bool _isFavorite;
+  late bool _isAlarm;
+  bool _alarmLoading = false;
+  late final ScrollController _scroll;
+  final GlobalKey _kChargers = GlobalKey();
+  final GlobalKey _kPrice = GlobalKey();
+  final GlobalKey _kStation = GlobalKey();
+  final GlobalKey _kNearby = GlobalKey();
+  int _activeTab = 0;
+
+  // 주변 POI 상태
+  static const List<String> _nearbyCategories = [
+    '카페', '편의점', '마트', '주차장', '음식점',
+  ];
+  List<NearbyPoi> _nearbyAll = const [];
+  bool _nearbyLoading = true;
+  bool _nearbyExpanded = false;
+  String _nearbyFilter = '전체';
+  static const int _nearbyCollapsedLimit = 5;
+
+  List<GlobalKey> get _sectionKeys => [_kChargers, _kPrice, _kStation, _kNearby];
+  static const List<String> _tabLabels = ['충전기', '요금', '충전소', '주변'];
+
+  @override
+  void initState() {
+    super.initState();
+    final sid = widget.station.statId;
+    _isFavorite = FavoriteService.isFavorite(sid, 'ev');
+    _isAlarm = AlertService().isEvAlarmSubscribed(sid);
+    AlertService().subsChanged.addListener(_onSubsChanged);
+    _scroll = widget.sheetController ?? ScrollController();
+    _scroll.addListener(_onScroll);
+    _loadNearby();
+  }
+
+  @override
+  void dispose() {
+    AlertService().subsChanged.removeListener(_onSubsChanged);
+    _scroll.removeListener(_onScroll);
+    if (widget.sheetController == null) _scroll.dispose();
+    super.dispose();
+  }
+
+  void _onSubsChanged() {
+    if (mounted) {
+      setState(() => _isAlarm = AlertService().isEvAlarmSubscribed(widget.station.statId));
+    }
+  }
+
+  Future<void> _toggleAlarm() async {
+    if (_alarmLoading) return;
+    setState(() => _alarmLoading = true);
+    try {
+      final sid = widget.station.statId;
+      if (_isAlarm) {
+        await AlertService().unsubscribeEvAlarm(sid);
+        if (mounted) setState(() => _isAlarm = false);
+      } else {
+        final ids = AlertService().evAlarmStationIds;
+        if (!ids.contains(sid) && ids.length >= AlertService.evAlarmMaxCount) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('충전소 현황 알림은 최대 3개까지 설정할 수 있어요')),
+            );
+          }
+          return;
+        }
+        final ok = await AlertService().subscribeEvAlarm(
+            stationId: sid, stationName: widget.station.name);
+        if (mounted) setState(() => _isAlarm = ok);
+      }
+    } finally {
+      if (mounted) setState(() => _alarmLoading = false);
+    }
+  }
+
+  void _toggleFavorite() {
+    final s = widget.station;
+    final result = FavoriteService.toggle(
+      id: s.statId, type: 'ev', name: s.name, subtitle: s.address,
+    );
+    setState(() => _isFavorite = result);
+    ref.read(favoritesProvider.notifier).refresh();
+  }
+
+  Future<void> _loadNearby() async {
+    final s = widget.station;
+    try {
+      final raw = await ApiService().getNearbyPois(
+        lat: s.lat, lng: s.lng,
+        categories: _nearbyCategories,
+        radiusKm: 1,
+        count: 30,
+      );
+      final list = raw
+          .map(NearbyPoi.fromJson)
+          .where((p) => _nearbyCategories.contains(p.category))
+          .toList()
+        ..sort((a, b) => (a.distanceM ?? 1 << 30).compareTo(b.distanceM ?? 1 << 30));
+      if (mounted) {
+        setState(() {
+          _nearbyAll = list;
+          _nearbyLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _nearbyLoading = false);
+    }
+  }
+
+  void _onScroll() {
+    // 현재 보이는 섹션으로 탭 하이라이트 갱신.
+    double nearestDelta = double.infinity;
+    int nearestIdx = _activeTab;
+    for (int i = 0; i < _sectionKeys.length; i++) {
+      final ctx = _sectionKeys[i].currentContext;
+      if (ctx == null) continue;
+      final box = ctx.findRenderObject();
+      if (box is! RenderBox) continue;
+      final offset = box.localToGlobal(Offset.zero).dy;
+      final delta = (offset - 180).abs();
+      if (offset < 300 && delta < nearestDelta) {
+        nearestDelta = delta;
+        nearestIdx = i;
+      }
+    }
+    if (nearestIdx != _activeTab) {
+      setState(() => _activeTab = nearestIdx);
+    }
+  }
+
+  Future<void> _scrollToSection(int idx) async {
+    setState(() => _activeTab = idx);
+    final ctx = _sectionKeys[idx].currentContext;
+    if (ctx == null) return;
+    await Scrollable.ensureVisible(
+      ctx,
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOutCubic,
+      alignment: 0.0,
+      alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
     );
   }
 
-  Widget _buildContent(bool isDark) {
-    final s = _station!;
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final s = widget.station;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 히어로 카드
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0A2E1F) : AppColors.lightEvActiveCard,
-              borderRadius: BorderRadius.circular(16),
-              border: isDark ? null : Border.all(color: AppColors.lightEvActiveBorder, width: 0.5),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return CustomScrollView(
+      controller: _scroll,
+      slivers: [
+        if (widget.sheetMode)
+          SliverToBoxAdapter(child: _dragHandle(isDark)),
+        SliverToBoxAdapter(child: _heroCard(s, isDark)),
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _TabsDelegate(
+            labels: _tabLabels,
+            activeIndex: _activeTab,
+            onTap: _scrollToSection,
+            isDark: isDark,
+          ),
+        ),
+        SliverToBoxAdapter(child: _chargersSection(s, isDark)),
+        SliverToBoxAdapter(child: _priceSection(s, isDark)),
+        SliverToBoxAdapter(child: _stationInfoSection(s, isDark)),
+        SliverToBoxAdapter(child: _nearbySection(s, isDark)),
+        if (widget.onSelectRoute != null)
+          SliverToBoxAdapter(child: _routeIncludeButton()),
+        SliverToBoxAdapter(child: SizedBox(height: MediaQuery.of(context).padding.bottom + 24)),
+      ],
+    );
+  }
+
+  // ─── 드래그 핸들 (시트 모드) ───
+  Widget _dragHandle(bool isDark) {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.only(top: 8, bottom: 6),
+        width: 40, height: 4,
+        decoration: BoxDecoration(
+          color: isDark ? Colors.white24 : Colors.black26,
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+    );
+  }
+
+  // ─── 히어로 카드 ───
+  Widget _heroCard(EvStation s, bool isDark) {
+    final isOpen = !s.limitYn;
+    final hasAvail = s.hasAvailable;
+
+    // 커넥터 타입별 보유 여부 (항상 4개 원 표시, 없으면 회색)
+    int countContains(String kw) =>
+        s.chargers.where((c) => c.typeText.contains(kw)).length;
+    final cntCombo = countContains('DC콤보');
+    final cntChademo = countContains('DC차데모');
+    final cnt3Phase = countContains('AC3상');
+    final cntSlow = s.chargers.where((c) => c.type == '02').length;
+    final cntNacs = countContains('NACS') + countContains('슈퍼');
+
+    // 현재 충전 가능 대수 (커넥터 타입 기반: DC=급속, AC=완속)
+    // 출력(kW) 기반이 아니라 커넥터 분류로 집계 — 아래 커넥터 원 카운트와 일치하도록
+    // (예: DC콤보 30kW도 DC 커넥터이므로 '급속'으로 집계)
+    bool isDcType(String t) =>
+        t == '01' || t == '03' || t == '04' || t == '05' ||
+        t == '06' || t == '08' || t == '09' || t == 'SC' || t == 'DT';
+    final fastAvail = s.chargers
+        .where((c) => isDcType(c.type) && c.status == ChargerStatus.available)
+        .length;
+    final slowAvail = s.chargers
+        .where((c) =>
+            !isDcType(c.type) && c.status == ChargerStatus.available)
+        .length;
+
+    final cardBg = isDark ? const Color(0xFF151B22) : Colors.white;
+    final titleColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final subColor = isDark ? AppColors.darkTextMuted : const Color(0xFF64748B);
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withOpacity(0.06)
+              : const Color(0xFFECEFF3),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.25 : 0.05),
+            blurRadius: 20,
+            spreadRadius: -4,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 1) 상단: 운영사 + 완전개방 (우상단)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    EvOperatorLogo(operator: s.operator),
-                    const SizedBox(width: 12),
+                EvOperatorLogo(operator: s.operator),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    s.operator,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: subColor,
+                      letterSpacing: -0.2,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (isOpen)
+                  _topRightStack(
+                    icon: Icons.lock_open_rounded,
+                    label: '완전개방',
+                    color: AppColors.evGreen,
+                  )
+                else if (s.parkingFree)
+                  _topRightStack(
+                    icon: Icons.local_parking_rounded,
+                    label: '주차 무료',
+                    color: AppColors.success,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // 2) 이름
+            Text(
+              s.name,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.6,
+                height: 1.22,
+                color: titleColor,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 5),
+            // 3) 주소 + 복사 + 거리
+            InkWell(
+              onTap: s.address.isNotEmpty ? () => _copyAddress(s.address) : null,
+              borderRadius: BorderRadius.circular(8),
+              child: Row(
+                children: [
+                  if (s.address.isNotEmpty) ...[
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(s.name, style: Theme.of(context).textTheme.headlineSmall),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              s.isTesla
-                                  ? _badge('${s.totalCount}대', AppColors.evGreen,
-                                      isDark ? AppColors.darkBadgeAvailBg : AppColors.lightBadgeAvailBg)
-                                  : _badge(s.hasAvailable ? '이용가능' : '이용불가',
-                                      s.hasAvailable ? AppColors.statusAvailable : AppColors.statusOffline,
-                                      isDark ? AppColors.darkBadgeAvailBg : AppColors.lightBadgeAvailBg),
-                              const SizedBox(width: 6),
-                              Text(s.operator, style: TextStyle(fontSize: 12,
-                                  color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
-                              if (s.chargers.any((c) => c.isFast)) ...[
-                                const SizedBox(width: 6),
-                                _badge('DC 급속', AppColors.statusFast,
-                                    isDark ? AppColors.darkBadgeFastBg : AppColors.lightBadgeFastBg),
-                              ],
-                            ],
-                          ),
-                        ],
+                      child: Text(
+                        s.address,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w500,
+                          color: subColor,
+                          height: 1.35,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.copy_rounded,
+                        size: 13, color: subColor.withOpacity(0.6)),
+                  ],
+                  if (s.distanceText.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    Icon(Icons.near_me_rounded,
+                        size: 13, color: const Color(0xFF2F7DF6)),
+                    const SizedBox(width: 3),
+                    Text(
+                      s.distanceText,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF2F7DF6),
+                        letterSpacing: -0.3,
                       ),
                     ),
                   ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 11),
+            // 4) 현재 충전 가능 / 급속·완속 대수
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Icon(
+                  hasAvail
+                      ? Icons.check_circle_rounded
+                      : Icons.do_not_disturb_on_rounded,
+                  size: 16,
+                  color: hasAvail
+                      ? AppColors.evGreen
+                      : AppColors.statusOffline,
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      s.maxPowerText ?? '',
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700,
-                          color: isDark ? AppColors.evGreen : AppColors.evGreenDark),
+                const SizedBox(width: 5),
+                Text(
+                  hasAvail ? '현재 충전 가능' : '현재 이용 불가',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.4,
+                    color: titleColor,
+                  ),
+                ),
+                const Spacer(),
+                _availTag('급속', fastAvail, const Color(0xFFE76A3B), isDark),
+                Container(
+                  width: 1, height: 12,
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                  color: isDark
+                      ? Colors.white.withOpacity(0.12)
+                      : const Color(0xFFD8DEE6),
+                ),
+                _availTag('완속', slowAvail, const Color(0xFF16A34A), isDark),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // 5) 커넥터 아이콘 (항상 표시, 없으면 회색)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _connectorCircle('DC콤보', _PlugShape.combo, cntCombo,
+                    const Color(0xFF2F7DF6), isDark),
+                _connectorCircle('DC차데모', _PlugShape.chademo, cntChademo,
+                    const Color(0xFFE76A3B), isDark),
+                _connectorCircle('AC3상', _PlugShape.ac3phase, cnt3Phase,
+                    const Color(0xFF7C5CFF), isDark),
+                _connectorCircle('완속', _PlugShape.slow, cntSlow,
+                    const Color(0xFF16A34A), isDark),
+                if (cntNacs > 0)
+                  _connectorCircle('NACS', _PlugShape.nacs, cntNacs,
+                      const Color(0xFFE91E63), isDark),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Container(
+              height: 1,
+              color: isDark
+                  ? Colors.white.withOpacity(0.07)
+                  : const Color(0xFFEEF1F5),
+            ),
+            const SizedBox(height: 10),
+            // 6) 액션 버튼: 알림 + 즐겨찾기 + 길찾기
+            Row(
+              children: [
+                _ActionIconBtn(
+                  icon: _isAlarm
+                      ? Icons.notifications_active_rounded
+                      : Icons.notifications_none_rounded,
+                  color: _isAlarm ? AppColors.evGreen : null,
+                  loading: _alarmLoading,
+                  onTap: _toggleAlarm,
+                  isDark: isDark,
+                ),
+                const SizedBox(width: 6),
+                _ActionIconBtn(
+                  icon: _isFavorite ? Icons.favorite : Icons.favorite_border,
+                  color: _isFavorite ? AppColors.evGreen : null,
+                  onTap: _toggleFavorite,
+                  isDark: isDark,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => showNavigationSheet(
+                        context, lat: s.lat, lng: s.lng, name: s.name),
+                    icon: const Icon(Icons.navigation_rounded, size: 18),
+                    label: Text(
+                      s.distanceText.isNotEmpty
+                          ? '길 안내 시작 (${s.distanceText})'
+                          : '길 안내 시작',
                     ),
-                  ],
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.evGreen,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                      textStyle: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w700),
+                      elevation: 0,
+                    ),
+                  ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 16),
-
-          // 충전 요금 카드
-          if (s.hasPriceInfo) ...[
-            _buildPriceCard(s, isDark),
-            const SizedBox(height: 16),
           ],
+        ),
+      ),
+    );
+  }
 
-          // 충전기 현황 카드
-          Row(
-            children: [
-              Text('충전기 현황', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
-                  color: isDark ? const Color(0xFF60A5FA) : AppColors.gasBlueDark)),
-              const SizedBox(width: 6),
-              Text('총 ${s.totalCount}대', style: TextStyle(fontSize: 12,
-                  color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
-            ],
+  Widget _topRightStack({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 22, color: color),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w700,
+            color: color,
+            letterSpacing: -0.2,
           ),
-          const SizedBox(height: 10),
-          if (s.isTesla)
+        ),
+      ],
+    );
+  }
+
+  Widget _availTag(String label, int count, Color color, bool isDark) {
+    final active = count > 0;
+    final fg = active
+        ? color
+        : (isDark ? Colors.white54 : const Color(0xFF94A3B8));
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+            color: isDark ? Colors.white70 : const Color(0xFF475569),
+            letterSpacing: -0.2,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          '$count',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+            color: fg,
+            letterSpacing: -0.5,
+            height: 1,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _connectorCircle(
+    String label,
+    _PlugShape shape,
+    int count,
+    Color color,
+    bool isDark,
+  ) {
+    final active = count > 0;
+    final plugColor = active
+        ? color
+        : (isDark ? Colors.white24 : const Color(0xFFCBD5E1));
+    final bg = active
+        ? color.withOpacity(isDark ? 0.16 : 0.09)
+        : (isDark
+            ? Colors.white.withOpacity(0.05)
+            : const Color(0xFFF1F5F9));
+    final ringColor = active
+        ? color.withOpacity(0.32)
+        : (isDark
+            ? Colors.white.withOpacity(0.08)
+            : const Color(0xFFE2E8F0));
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: [
             Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 14),
+              width: 46, height: 46,
               decoration: BoxDecoration(
-                color: (isDark ? Colors.white : Colors.black).withOpacity(0.04),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder, width: 0.5),
+                color: bg,
+                shape: BoxShape.circle,
+                border: Border.all(color: ringColor, width: 1.2),
               ),
-              child: Text('실시간 정보 없음',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
-            )
+              alignment: Alignment.center,
+              child: CustomPaint(
+                size: const Size(22, 22),
+                painter: _PlugIconPainter(shape: shape, color: plugColor),
+              ),
+            ),
+            if (active)
+              Positioned(
+                top: -4, right: -4,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: isDark ? const Color(0xFF151B22) : Colors.white,
+                      width: 2,
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '$count',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      height: 1.1,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.3,
+            color: active
+                ? (isDark ? Colors.white : const Color(0xFF334155))
+                : (isDark ? Colors.white38 : const Color(0xFF94A3B8)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _copyAddress(String addr) async {
+    await Clipboard.setData(ClipboardData(text: addr));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('주소를 복사했어요'),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.fromLTRB(40, 0, 40, 80),
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      ),
+    );
+  }
+
+  // ─── 섹션: 충전기 ───
+  Widget _chargersSection(EvStation s, bool isDark) {
+    return Container(
+      key: _kChargers,
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle('충전기', '총 ${s.totalCount}대', isDark),
+          const SizedBox(height: 12),
+          if (s.isTesla)
+            _noticeBox('테슬라 슈퍼차저는 실시간 현황을 제공하지 않아요', isDark)
           else
             Row(
               children: [
@@ -241,190 +749,448 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
                 _statusCounter('고장', s.offlineCount, AppColors.statusOffline, isDark),
               ],
             ),
-          const SizedBox(height: 20),
-
-          // 개별 충전기 목록
           if (s.chargers.isNotEmpty) ...[
-            Text('충전기 목록', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
-                color: isDark ? const Color(0xFF60A5FA) : AppColors.gasBlueDark)),
-            const SizedBox(height: 10),
+            const SizedBox(height: 14),
             ...([...s.chargers]..sort((a, b) {
-                int order(ChargerStatus s) => switch (s) {
-                  ChargerStatus.available => 0,
-                  ChargerStatus.charging  => 1,
-                  _                       => 2,
-                };
-                return order(a.status).compareTo(order(b.status));
-              })).map((charger) => _chargerTile(charger, isDark)),
-            const SizedBox(height: 8),
+                  int order(ChargerStatus s) => switch (s) {
+                        ChargerStatus.available => 0,
+                        ChargerStatus.charging => 1,
+                        _ => 2,
+                      };
+                  return order(a.status).compareTo(order(b.status));
+                })).map((c) => _chargerTile(c, isDark)),
+            const SizedBox(height: 6),
             Text('충전기 상태는 실시간과 다를 수 있습니다',
-              style: TextStyle(fontSize: 11,
-                  color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
-            const SizedBox(height: 16),
-          ],
-
-          // 정보 행
-          _infoRow('주소', s.address),
-          _infoRow('충전타입', s.chargerTypeText),
-          _infoRow('이용시간', s.useTime),
-          _infoRow('주차요금', s.parkingFree ? '무료' : '유료',
-              valueColor: s.parkingFree ? AppColors.success : null),
-          if (s.limitYn || (s.limitDetail?.isNotEmpty == true)) _infoRow(
-            '이용제한',
-            s.limitDetail?.isNotEmpty == true ? s.limitDetail! : '외부인 이용 제한',
-            valueColor: const Color(0xFFE24B4A),
-          ),
-          if (s.note?.isNotEmpty == true) _infoRow('충전소 안내', s.note!),
-          if (s.distanceText.isNotEmpty) _infoRow('거리', s.distanceText),
-          const SizedBox(height: 20),
-
-          // 액션 버튼
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => showNavigationSheet(context, lat: s.lat, lng: s.lng, name: s.name),
-                  icon: const Icon(Icons.navigation_rounded, size: 18),
-                  label: const Text('길찾기'),
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.evGreen),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    if (s.phone != null && s.phone!.isNotEmpty) {
-                      launchUrl(Uri.parse('tel:${s.phone}'));
-                    }
-                  },
-                  icon: const Icon(Icons.phone_rounded, size: 18),
-                  label: const Text('전화하기'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (widget.onSelectRoute != null) ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: widget.onSelectRoute,
-                icon: const Icon(Icons.route_rounded, size: 18),
-                label: const Text('이 충전소로 경로에 포함'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.evGreen,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ),
+                style: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildPriceCard(EvStation s, bool isDark) {
-    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    final cardBg = isDark ? AppColors.darkCard : AppColors.lightCard;
-    final borderColor = isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder;
-
-    Widget priceCol(String label, int? price, Color accent) {
-      return Expanded(
-        child: Column(
-          children: [
-            Text(label,
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: mutedColor)),
-            const SizedBox(height: 6),
-            price != null
-              ? Text('$price원',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: accent,
-                    letterSpacing: -0.3))
-              : Text('-', style: TextStyle(fontSize: 16, color: mutedColor, fontWeight: FontWeight.w500)),
-            Text('원/kWh',
-              style: TextStyle(fontSize: 9, color: mutedColor, fontWeight: FontWeight.w400)),
+  // ─── 섹션: 요금 ───
+  Widget _priceSection(EvStation s, bool isDark) {
+    return Container(
+      key: _kPrice,
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle('요금', s.hasPriceInfo ? '단위 원/kWh' : null, isDark),
+          const SizedBox(height: 12),
+          if (!s.hasPriceInfo)
+            _noticeBox('요금 정보가 제공되지 않아요', isDark)
+          else ...[
+            _priceRow('비회원', isDark ? Colors.white60 : Colors.black54,
+                s.unitPriceFast, s.unitPriceSlow, isDark),
+            if (s.unitPriceFastMember != null || s.unitPriceSlowMember != null) ...[
+              const SizedBox(height: 8),
+              _priceRow('회원', AppColors.evGreen,
+                  s.unitPriceFastMember, s.unitPriceSlowMember, isDark),
+            ],
           ],
-        ),
-      );
-    }
+        ],
+      ),
+    );
+  }
 
-    Widget priceRow(String tier, Color tierColor, int? fast, int? slow) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+  // ─── 섹션: 충전소 정보 ───
+  Widget _stationInfoSection(EvStation s, bool isDark) {
+    return Container(
+      key: _kStation,
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle('충전소', null, isDark),
+          const SizedBox(height: 12),
+          _infoCard(isDark, children: [
+            _infoRow('주소', s.address, isDark, copyable: true),
+            _infoDivider(isDark),
+            _infoRow('충전타입', s.chargerTypeText, isDark),
+            _infoDivider(isDark),
+            _infoRow('이용시간', s.useTime, isDark),
+            _infoDivider(isDark),
+            _infoRow('주차요금', s.parkingFree ? '무료' : '유료', isDark,
+                valueColor: s.parkingFree ? AppColors.success : null),
+            if (s.limitYn || (s.limitDetail?.isNotEmpty == true)) ...[
+              _infoDivider(isDark),
+              _infoRow(
+                '이용제한',
+                s.limitDetail?.isNotEmpty == true ? s.limitDetail! : '외부인 이용 제한',
+                isDark,
+                valueColor: AppColors.statusOffline,
+              ),
+            ],
+            if (s.note?.isNotEmpty == true) ...[
+              _infoDivider(isDark),
+              _infoRow('안내', s.note!, isDark),
+            ],
+            if (s.phone != null && s.phone!.isNotEmpty) ...[
+              _infoDivider(isDark),
+              InkWell(
+                onTap: () => launchUrl(Uri.parse('tel:${s.phone}')),
+                child: _infoRow('전화', s.phone!, isDark, valueColor: AppColors.gasBlue),
+              ),
+            ],
+          ]),
+        ],
+      ),
+    );
+  }
+
+  // ─── 섹션: 주변 ───
+  Widget _nearbySection(EvStation s, bool isDark) {
+    // 카테고리 카운트
+    final counts = <String, int>{};
+    for (final p in _nearbyAll) {
+      counts[p.category] = (counts[p.category] ?? 0) + 1;
+    }
+    // count > 0 인 카테고리만 칩으로 표시 (빈 항목이 섞이면 separator 공백 발생)
+    final activeChips = ['전체', ..._nearbyCategories.where((c) => (counts[c] ?? 0) > 0)];
+
+    final filtered = _nearbyFilter == '전체'
+        ? _nearbyAll
+        : _nearbyAll.where((p) => p.category == _nearbyFilter).toList();
+
+    final showAll = _nearbyExpanded || filtered.length <= _nearbyCollapsedLimit;
+    final visible = showAll ? filtered : filtered.take(_nearbyCollapsedLimit).toList();
+    final hiddenCount = filtered.length - visible.length;
+
+    return Container(
+      key: _kNearby,
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle('주변', _nearbyAll.isEmpty ? null : '반경 1km', isDark),
+          const SizedBox(height: 12),
+          if (_nearbyLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: SizedBox(
+                  width: 22, height: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.evGreen),
+                ),
+              ),
+            )
+          else if (_nearbyAll.isEmpty)
+            _noticeBox('반경 1km 내에 등록된 장소가 없어요', isDark)
+          else ...[
+            // 카테고리 칩
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (int i = 0; i < activeChips.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 8),
+                    _nearbyChip(
+                      activeChips[i],
+                      activeChips[i] == '전체' ? _nearbyAll.length : (counts[activeChips[i]] ?? 0),
+                      _nearbyFilter == activeChips[i],
+                      isDark,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            // 리스트
+            Container(
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkCard : AppColors.lightCard,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
+                  width: 0.6,
+                ),
+              ),
+              child: Column(
+                children: [
+                  for (int i = 0; i < visible.length; i++) ...[
+                    _nearbyTile(visible[i], s, isDark),
+                    if (i != visible.length - 1) _infoDivider(isDark),
+                  ],
+                ],
+              ),
+            ),
+            if (hiddenCount > 0) ...[
+              const SizedBox(height: 8),
+              _nearbyMoreButton(hiddenCount, isDark),
+            ] else if (_nearbyExpanded && filtered.length > _nearbyCollapsedLimit) ...[
+              const SizedBox(height: 8),
+              _nearbyMoreButton(null, isDark),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _nearbyChip(String cat, int count, bool active, bool isDark) {
+    final bg = active
+        ? AppColors.evGreen
+        : (isDark ? AppColors.darkCard : const Color(0xFFF1F5F9));
+    final fg = active
+        ? Colors.white
+        : (isDark ? Colors.white70 : Colors.black87);
+    return InkWell(
+      onTap: () => setState(() => _nearbyFilter = cat),
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: borderColor, width: 0.8),
+          color: bg,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: active
+                ? Colors.transparent
+                : (isDark ? AppColors.darkCardBorder : const Color(0xFFE2E8F0)),
+            width: 0.6,
+          ),
         ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
-              width: 52,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                decoration: BoxDecoration(
-                  color: tierColor.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(tier, textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: tierColor)),
+            Text(cat,
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: fg)),
+            const SizedBox(width: 4),
+            Text('$count',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: active ? Colors.white : AppColors.evGreen)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _nearbyTile(NearbyPoi p, EvStation s, bool isDark) {
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    return InkWell(
+      onTap: () => _openPoiInKakaoMap(p),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(p.name,
+                            style: TextStyle(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w700,
+                                color: isDark ? Colors.white : Colors.black87),
+                            overflow: TextOverflow.ellipsis),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(Icons.open_in_new_rounded, size: 13, color: muted),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '이 장소로부터 ${p.distanceText}',
+                    style: TextStyle(fontSize: 12, color: muted),
+                  ),
+                ],
               ),
             ),
             const SizedBox(width: 12),
-            priceCol('급속', fast, AppColors.statusFast),
-            Container(width: 1, height: 36, color: borderColor),
-            priceCol('완속', slow, AppColors.evGreen),
+            Text(p.category,
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: muted)),
           ],
         ),
-      );
+      ),
+    );
+  }
+
+  Widget _nearbyMoreButton(int? hiddenCount, bool isDark) {
+    final expanded = hiddenCount == null;
+    return InkWell(
+      onTap: () => setState(() => _nearbyExpanded = !_nearbyExpanded),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkCard : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isDark ? AppColors.darkCardBorder : const Color(0xFFE2E8F0),
+            width: 0.6,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              expanded ? '주변정보 접기' : '주변정보 더보기 ($hiddenCount)',
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white70 : Colors.black87),
+            ),
+            const SizedBox(width: 4),
+            Icon(expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                size: 20, color: isDark ? Colors.white70 : Colors.black54),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openPoiInKakaoMap(NearbyPoi p) async {
+    // POI 이름 + 좌표로 카카오맵 검색 열기.
+    final q = Uri.encodeComponent(p.name);
+    final uri = (p.lat != null && p.lng != null)
+        ? Uri.parse('https://map.kakao.com/?q=$q&urlX=${p.lng}&urlY=${p.lat}&urlLevel=3')
+        : Uri.parse('https://map.kakao.com/?q=$q');
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${p.name} 을(를) 열 수 없어요')),
+        );
+      }
     }
+  }
 
-    final hasMember = s.unitPriceFastMember != null || s.unitPriceSlowMember != null;
+  // ─── 히어로 직하단 주 액션: [알림] [즐겨찾기] [────────길찾기────────] ───
+  Widget _primaryActions(EvStation s) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+      child: Row(
+        children: [
+          _ActionIconBtn(
+            icon: _isAlarm
+                ? Icons.notifications_active_rounded
+                : Icons.notifications_none_rounded,
+            color: _isAlarm ? AppColors.evGreen : null,
+            loading: _alarmLoading,
+            onTap: _toggleAlarm,
+            isDark: isDark,
+          ),
+          const SizedBox(width: 6),
+          _ActionIconBtn(
+            icon: _isFavorite ? Icons.favorite : Icons.favorite_border,
+            color: _isFavorite ? AppColors.evGreen : null,
+            onTap: _toggleFavorite,
+            isDark: isDark,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: () =>
+                  showNavigationSheet(context, lat: s.lat, lng: s.lng, name: s.name),
+              icon: const Icon(Icons.navigation_rounded, size: 18),
+              label: const Text('길찾기'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.evGreen,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                elevation: 0,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _routeIncludeButton() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: widget.onSelectRoute,
+          icon: const Icon(Icons.route_rounded, size: 18),
+          label: const Text('이 충전소로 경로에 포함'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.evGreen,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            elevation: 0,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─── 공용 소형 위젯 ───
+  Widget _sectionTitle(String title, String? trailing, bool isDark) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Text('충전 요금',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
-            color: isDark ? const Color(0xFF60A5FA) : AppColors.gasBlueDark)),
-        const SizedBox(height: 10),
-        priceRow('비회원', isDark ? Colors.white60 : Colors.black54,
-          s.unitPriceFast, s.unitPriceSlow),
-        if (hasMember) ...[
-          const SizedBox(height: 8),
-          priceRow('회원', AppColors.evGreen,
-            s.unitPriceFastMember, s.unitPriceSlowMember),
+        Text(title,
+            style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.3,
+                color: isDark ? Colors.white : Colors.black87)),
+        if (trailing != null) ...[
+          const SizedBox(width: 8),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 2),
+            child: Text(trailing,
+                style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+          ),
         ],
       ],
     );
   }
 
-  Widget _badge(String text, Color color, Color bgColor) {
+  Widget _noticeBox(String text, bool isDark) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(6)),
-      child: Text(text, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
+      decoration: BoxDecoration(
+        color: (isDark ? Colors.white : Colors.black).withOpacity(0.04),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
+          width: 0.5,
+        ),
+      ),
+      child: Text(text,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+              fontSize: 13,
+              color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
     );
   }
 
   Widget _statusCounter(String label, int count, Color color, bool isDark) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: color.withOpacity(isDark ? 0.08 : 0.06),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withOpacity(0.2), width: 0.5),
+          color: color.withOpacity(isDark ? 0.1 : 0.08),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
           children: [
-            Text('$count', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: color)),
+            Text('$count',
+                style: TextStyle(
+                    fontSize: 22, fontWeight: FontWeight.w800, color: color)),
             const SizedBox(height: 2),
-            Text(label, style: TextStyle(fontSize: 10, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
           ],
         ),
       ),
@@ -432,12 +1198,12 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
   }
 
   Widget _chargerTile(Charger charger, bool isDark) {
-    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
 
     Color statusColor;
     String statusText;
     String? subText;
-    Color subTextColor;
+    Color subTextColor = muted;
 
     switch (charger.status) {
       case ChargerStatus.available:
@@ -446,7 +1212,6 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
         subText = charger.lastStatusUpdate != null
             ? '${_timeAgo(charger.lastStatusUpdate!)} 마지막 충전'
             : null;
-        subTextColor = mutedColor;
         break;
       case ChargerStatus.charging:
         statusColor = AppColors.statusCharging;
@@ -469,52 +1234,51 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
         subText = charger.lastStatusUpdate != null
             ? '${_timeAgo(charger.lastStatusUpdate!)} 고장'
             : null;
-        subTextColor = mutedColor;
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 6),
+      margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkCard : AppColors.lightCard,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-            color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
-            width: 0.5),
+          color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
+          width: 0.5,
+        ),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // 왼쪽: 상태 + 시간 서브텍스트
+          Container(
+            width: 8, height: 8,
+            decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(statusText,
                     style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: statusColor)),
+                        fontSize: 15, fontWeight: FontWeight.w700, color: statusColor)),
                 if (subText != null) ...[
                   const SizedBox(height: 3),
-                  Text(subText,
-                      style: TextStyle(fontSize: 11, color: subTextColor)),
+                  Text(subText, style: TextStyle(fontSize: 11, color: subTextColor)),
                 ],
               ],
             ),
           ),
-          // 오른쪽: 충전기 타입 + 출력
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(charger.typeText,
                   style: TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                       color: isDark ? Colors.white70 : Colors.black87)),
               const SizedBox(height: 2),
               Text('${charger.output}kW',
-                  style: TextStyle(fontSize: 11, color: mutedColor)),
+                  style: TextStyle(fontSize: 11, color: muted)),
             ],
           ),
         ],
@@ -522,17 +1286,122 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
     );
   }
 
-  Widget _infoRow(String label, String value, {Color? valueColor}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+  Widget _priceRow(String tier, Color tierColor, int? fast, int? slow, bool isDark) {
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final border = isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder;
+
+    Widget col(String label, int? price, Color accent) {
+      return Expanded(
+        child: Column(
+          children: [
+            Text(label,
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: muted)),
+            const SizedBox(height: 4),
+            price != null
+                ? RichText(
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '$price',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: accent,
+                            letterSpacing: -0.4,
+                          ),
+                        ),
+                        TextSpan(
+                          text: '원',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: accent,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : Text('-',
+                    style: TextStyle(
+                        fontSize: 16, color: muted, fontWeight: FontWeight.w500)),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: border, width: 0.6),
+      ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: Theme.of(context).textTheme.bodyMedium),
-          Flexible(child: Text(value,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(color: valueColor),
-            textAlign: TextAlign.end,
-          )),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: tierColor.withOpacity(0.14),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(tier,
+                style: TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w800, color: tierColor)),
+          ),
+          const SizedBox(width: 14),
+          col('급속', fast, AppColors.statusFast),
+          Container(width: 1, height: 34, color: border),
+          col('완속', slow, AppColors.evGreen),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoCard(bool isDark, {required List<Widget> children}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
+          width: 0.6,
+        ),
+      ),
+      child: Column(children: children),
+    );
+  }
+
+  Widget _infoDivider(bool isDark) => Divider(
+        height: 1,
+        thickness: 0.5,
+        color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
+      );
+
+  Widget _infoRow(String label, String value, bool isDark,
+      {Color? valueColor, bool copyable = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 64,
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(value,
+                textAlign: TextAlign.end,
+                style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: valueColor ??
+                        (isDark ? Colors.white : Colors.black87))),
+          ),
         ],
       ),
     );
@@ -557,4 +1426,219 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
     final m = diff.inMinutes % 60;
     return m > 0 ? '$h시간 ${m}분 충전중' : '$h시간 충전중';
   }
+}
+
+// ─── 액션 아이콘 버튼 (알림/즐겨찾기용) ───
+class _ActionIconBtn extends StatelessWidget {
+  final IconData icon;
+  final Color? color;
+  final bool loading;
+  final VoidCallback onTap;
+  final bool isDark;
+  const _ActionIconBtn({
+    required this.icon, this.color, this.loading = false,
+    required this.onTap, required this.isDark,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final bg = isDark ? AppColors.darkCard : const Color(0xFFF1F5F9);
+    final border = isDark ? AppColors.darkCardBorder : const Color(0xFFE2E8F0);
+    return InkWell(
+      onTap: loading ? null : onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 48, height: 48,
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: border, width: 0.6),
+        ),
+        child: loading
+            ? const Center(
+                child: SizedBox(width: 18, height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.evGreen)))
+            : Icon(icon, size: 22, color: color ?? (isDark ? Colors.white70 : Colors.black54)),
+      ),
+    );
+  }
+}
+
+class NearbyPoi {
+  final String id;
+  final String name;
+  final String category;
+  final int? distanceM;
+  final String? tel;
+  final double? lat;
+  final double? lng;
+  final String? address;
+  const NearbyPoi({
+    required this.id,
+    required this.name,
+    required this.category,
+    this.distanceM,
+    this.tel,
+    this.lat,
+    this.lng,
+    this.address,
+  });
+
+  factory NearbyPoi.fromJson(Map<String, dynamic> j) {
+    double? toDouble(dynamic v) => v is num ? v.toDouble() : null;
+    int? toInt(dynamic v) => v is num ? v.toInt() : null;
+    return NearbyPoi(
+      id: (j['id'] ?? '').toString(),
+      name: (j['name'] ?? '').toString(),
+      category: (j['category'] ?? '기타').toString(),
+      distanceM: toInt(j['distance_m']),
+      tel: j['tel'] as String?,
+      lat: toDouble(j['lat']),
+      lng: toDouble(j['lng']),
+      address: j['address'] as String?,
+    );
+  }
+
+  String get distanceText {
+    final d = distanceM;
+    if (d == null) return '-';
+    if (d < 1000) return '${d}m';
+    return '${(d / 1000).toStringAsFixed(1)}km';
+  }
+}
+
+// ─── 섹션 탭 pinned 헤더 ───
+class _TabsDelegate extends SliverPersistentHeaderDelegate {
+  final List<String> labels;
+  final int activeIndex;
+  final ValueChanged<int> onTap;
+  final bool isDark;
+  _TabsDelegate({
+    required this.labels,
+    required this.activeIndex,
+    required this.onTap,
+    required this.isDark,
+  });
+
+  @override
+  double get minExtent => 48;
+  @override
+  double get maxExtent => 48;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      color: isDark ? AppColors.darkBg : Colors.white,
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+      child: Row(
+        children: List.generate(labels.length, (i) {
+          final active = i == activeIndex;
+          return Expanded(
+            child: InkWell(
+              onTap: () => onTap(i),
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: active ? AppColors.evGreen : Colors.transparent,
+                      width: 2.5,
+                    ),
+                  ),
+                ),
+                child: Text(
+                  labels[i],
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+                    color: active
+                        ? (isDark ? Colors.white : Colors.black87)
+                        : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _TabsDelegate old) =>
+      old.activeIndex != activeIndex || old.isDark != isDark;
+}
+
+enum _PlugShape { combo, chademo, ac3phase, slow, nacs }
+
+class _PlugIconPainter extends CustomPainter {
+  final _PlugShape shape;
+  final Color color;
+  const _PlugIconPainter({required this.shape, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = size.width * 0.07
+      ..isAntiAlias = true;
+    final w = size.width, h = size.height;
+    final cx = w / 2, cy = h / 2;
+    final r = w * 0.48;
+
+    // 아웃라인 (플러그 외곽)
+    canvas.drawCircle(Offset(cx, cy), r, stroke);
+
+    switch (shape) {
+      case _PlugShape.slow:
+        // 완속 (AC단상 / Type1 단순화): 2개 핀 수평
+        _dot(canvas, paint, cx - w * 0.18, cy, w * 0.08);
+        _dot(canvas, paint, cx + w * 0.18, cy, w * 0.08);
+        break;
+      case _PlugShape.chademo:
+        // DC차데모: 4개 핀 (2x2 사각형)
+        _dot(canvas, paint, cx - w * 0.16, cy - h * 0.16, w * 0.075);
+        _dot(canvas, paint, cx + w * 0.16, cy - h * 0.16, w * 0.075);
+        _dot(canvas, paint, cx - w * 0.16, cy + h * 0.16, w * 0.075);
+        _dot(canvas, paint, cx + w * 0.16, cy + h * 0.16, w * 0.075);
+        break;
+      case _PlugShape.ac3phase:
+        // AC3상 (Type2 단순화): 위 3핀, 아래 2핀
+        _dot(canvas, paint, cx - w * 0.22, cy - h * 0.14, w * 0.07);
+        _dot(canvas, paint, cx, cy - h * 0.2, w * 0.07);
+        _dot(canvas, paint, cx + w * 0.22, cy - h * 0.14, w * 0.07);
+        _dot(canvas, paint, cx - w * 0.12, cy + h * 0.15, w * 0.07);
+        _dot(canvas, paint, cx + w * 0.12, cy + h * 0.15, w * 0.07);
+        break;
+      case _PlugShape.combo:
+        // DC콤보 (CCS1/2): 위쪽 AC 핀들 + 아래쪽 큰 DC 핀 2개
+        _dot(canvas, paint, cx - w * 0.18, cy - h * 0.2, w * 0.06);
+        _dot(canvas, paint, cx, cy - h * 0.22, w * 0.06);
+        _dot(canvas, paint, cx + w * 0.18, cy - h * 0.2, w * 0.06);
+        _dot(canvas, paint, cx - w * 0.16, cy + h * 0.16, w * 0.11);
+        _dot(canvas, paint, cx + w * 0.16, cy + h * 0.16, w * 0.11);
+        break;
+      case _PlugShape.nacs:
+        // NACS (테슬라): 상단 반원 핀 2개 + 하단 큰 핀 2개
+        _dot(canvas, paint, cx - w * 0.14, cy - h * 0.16, w * 0.07);
+        _dot(canvas, paint, cx + w * 0.14, cy - h * 0.16, w * 0.07);
+        _dot(canvas, paint, cx - w * 0.14, cy + h * 0.16, w * 0.1);
+        _dot(canvas, paint, cx + w * 0.14, cy + h * 0.16, w * 0.1);
+        break;
+    }
+  }
+
+  void _dot(Canvas c, Paint p, double x, double y, double r) {
+    c.drawCircle(Offset(x, y), r, p);
+  }
+
+  @override
+  bool shouldRepaint(covariant _PlugIconPainter old) =>
+      old.shape != shape || old.color != color;
 }
