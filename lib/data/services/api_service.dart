@@ -216,6 +216,20 @@ class ApiService {
     return Map<String, dynamic>.from(res.data ?? {});
   }
 
+  // ─── EV 이용현황 카드 ───
+  Future<Map<String, dynamic>?> getEvAnalytics(String statId) async {
+    try {
+      final res = await _dio.get('${ApiConstants.evAnalytics}/$statId');
+      if (res.data is Map<String, dynamic>) {
+        return res.data as Map<String, dynamic>;
+      }
+      return null;
+    } catch (e) {
+      if (kDebugMode) debugPrint('[API] getEvAnalytics 실패: $e');
+      return null;
+    }
+  }
+
   // ─── 주변 POI (Tmap 프록시) ───
   Future<List<Map<String, dynamic>>> getNearbyPois({
     required double lat,

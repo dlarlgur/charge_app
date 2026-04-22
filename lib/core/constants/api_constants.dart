@@ -17,6 +17,7 @@ class ApiConstants {
   // ─── 충전소 (EV) ───
   static const evAround = '/stations/ev/around';
   static const evDetail = '/stations/ev'; // + /:id
+  static const evAnalytics = '/ev/analytics'; // + /:statId
 
   // ─── 테슬라 (OCM) ───
   static const teslaAround = '/stations/tesla/around';
