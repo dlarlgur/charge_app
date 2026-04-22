@@ -588,7 +588,7 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle('요금', '단위 원/L', isDark),
+          _sectionTitle('충전요금', '단위 원/L', isDark),
           const SizedBox(height: 12),
           if (prices.isEmpty)
             _noticeBox('가격 정보가 없어요', isDark)
@@ -672,7 +672,7 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle('주유소', null, isDark),
+          _sectionTitle('주유소 정보', null, isDark),
           const SizedBox(height: 12),
           Container(
             decoration: BoxDecoration(

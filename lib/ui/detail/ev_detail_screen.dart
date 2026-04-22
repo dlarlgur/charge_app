@@ -129,6 +129,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
   final GlobalKey _kChargers = GlobalKey();
   final GlobalKey _kPrice = GlobalKey();
   final GlobalKey _kStation = GlobalKey();
+  final GlobalKey _kUsage = GlobalKey();
   final GlobalKey _kNearby = GlobalKey();
   int _activeTab = 0;
 
@@ -142,8 +143,14 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
   String _nearbyFilter = '전체';
   static const int _nearbyCollapsedLimit = 5;
 
-  List<GlobalKey> get _sectionKeys => [_kChargers, _kPrice, _kStation, _kNearby];
-  static const List<String> _tabLabels = ['충전기', '요금', '충전소', '주변'];
+  // 이용현황 상태
+  Map<String, dynamic>? _analytics;
+  bool _analyticsLoading = true;
+
+  List<GlobalKey> get _sectionKeys =>
+      [_kChargers, _kPrice, _kStation, _kUsage, _kNearby];
+  static const List<String> _tabLabels =
+      ['충전기', '요금', '충전소', '이용현황', '주변'];
 
   @override
   void initState() {
@@ -155,6 +162,21 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
     _scroll = widget.sheetController ?? ScrollController();
     _scroll.addListener(_onScroll);
     _loadNearby();
+    _loadAnalytics();
+  }
+
+  Future<void> _loadAnalytics() async {
+    try {
+      final data = await ApiService().getEvAnalytics(widget.station.statId);
+      if (mounted) {
+        setState(() {
+          _analytics = data;
+          _analyticsLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _analyticsLoading = false);
+    }
   }
 
   @override
@@ -289,6 +311,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
         SliverToBoxAdapter(child: _chargersSection(s, isDark)),
         SliverToBoxAdapter(child: _priceSection(s, isDark)),
         SliverToBoxAdapter(child: _stationInfoSection(s, isDark)),
+        SliverToBoxAdapter(child: _usageSection(isDark)),
         SliverToBoxAdapter(child: _nearbySection(s, isDark)),
         if (widget.onSelectRoute != null)
           SliverToBoxAdapter(child: _routeIncludeButton()),
@@ -735,7 +758,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle('충전기', '총 ${s.totalCount}대', isDark),
+          _sectionTitle('충전기 정보', '총 ${s.totalCount}대', isDark),
           const SizedBox(height: 12),
           if (s.isTesla)
             _noticeBox('테슬라 슈퍼차저는 실시간 현황을 제공하지 않아요', isDark)
@@ -778,7 +801,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle('요금', s.hasPriceInfo ? '단위 원/kWh' : null, isDark),
+          _sectionTitle('충전요금', s.hasPriceInfo ? '단위 원/kWh' : null, isDark),
           const SizedBox(height: 12),
           if (!s.hasPriceInfo)
             _noticeBox('요금 정보가 제공되지 않아요', isDark)
@@ -804,7 +827,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle('충전소', null, isDark),
+          _sectionTitle('충전소 정보', null, isDark),
           const SizedBox(height: 12),
           _infoCard(isDark, children: [
             _infoRow('주소', s.address, isDark, copyable: true),
@@ -836,6 +859,254 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
               ),
             ],
           ]),
+        ],
+      ),
+    );
+  }
+
+  // ─── 섹션: 이용현황 ───
+  Widget _usageSection(bool isDark) {
+    final data = _analytics;
+    final loading = _analyticsLoading;
+    final hasFound = data != null && data['found'] == true;
+    final reliability = (data?['reliability'] as String?) ?? 'INSUFFICIENT';
+    final sampleWeeks = (data?['sampleWeeks'] as int?) ?? 0;
+    final totalSessions = (data?['totalSessions'] as int?) ?? 0;
+    final isInsufficient = !hasFound ||
+        reliability == 'INSUFFICIENT' ||
+        totalSessions == 0;
+
+    return Container(
+      key: _kUsage,
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle(
+            '이용현황',
+            loading
+                ? null
+                : (isInsufficient
+                    ? '분석 준비 중'
+                    : _reliabilityLabel(reliability, sampleWeeks)),
+            isDark,
+          ),
+          const SizedBox(height: 12),
+          if (loading)
+            _usageLoading(isDark)
+          else if (isInsufficient)
+            _usageInsufficient(isDark)
+          else ...[
+            _usageTypePill(data, isDark),
+            const SizedBox(height: 10),
+            for (final c in (data['cards'] as List? ?? const [])) ...[
+              _usageCard(c as Map<String, dynamic>, data['stationType'] as String?, isDark),
+              const SizedBox(height: 8),
+            ],
+            const SizedBox(height: 4),
+            _usageFooter(data, isDark),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _reliabilityLabel(String reliability, int weeks) {
+    switch (reliability) {
+      case 'HIGH':   return '관측 3주+ 기준';
+      case 'MEDIUM': return '관측 2주 기준';
+      case 'LOW':    return '관측 ${weeks > 0 ? weeks : 1}주 기준';
+    }
+    return '';
+  }
+
+  Widget _usageLoading(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 28),
+      alignment: Alignment.center,
+      child: const SizedBox(
+        width: 22, height: 22,
+        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.evGreen),
+      ),
+    );
+  }
+
+  Widget _usageInsufficient(bool isDark) {
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
+      decoration: BoxDecoration(
+        color: (isDark ? Colors.white : Colors.black).withOpacity(0.04),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
+          width: 0.6,
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.hourglass_bottom_rounded, size: 28, color: muted),
+          const SizedBox(height: 8),
+          Text(
+            '분석 준비 중이에요',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '이용 이력이 쌓이면 시간대별 특징을 알려드릴게요',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12.5, height: 1.4, color: muted),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _typeAccent(String? stationType) {
+    switch (stationType) {
+      case 'RESIDENTIAL': return const Color(0xFF7C5CFC); // 보라
+      case 'OFFICE':      return const Color(0xFF2F7DF6); // 파랑
+      case 'LEISURE':     return const Color(0xFFFF8A3D); // 주황
+      case 'CONVENIENCE': return const Color(0xFFE94D8C); // 핑크
+      default:            return AppColors.evGreen;        // UNKNOWN/EXCLUDED
+    }
+  }
+
+  IconData _iconOf(String? name) {
+    switch (name) {
+      case 'clock':        return Icons.access_time_rounded;
+      case 'moon':         return Icons.nights_stay_rounded;
+      case 'sun':          return Icons.wb_sunny_rounded;
+      case 'shopping-bag': return Icons.shopping_bag_rounded;
+      case 'battery':      return Icons.battery_charging_full_rounded;
+      case 'briefcase':    return Icons.business_center_rounded;
+      case 'calendar':     return Icons.calendar_month_rounded;
+      case 'hourglass':    return Icons.hourglass_bottom_rounded;
+    }
+    return Icons.insights_rounded;
+  }
+
+  Widget _usageTypePill(Map<String, dynamic> data, bool isDark) {
+    final stationType = data['stationType'] as String?;
+    final label = (data['stationTypeLabel'] as String?) ?? '분류 준비 중';
+    final accent = _typeAccent(stationType);
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: accent.withOpacity(isDark ? 0.18 : 0.12),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 6, height: 6,
+                decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: accent,
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _usageCard(Map<String, dynamic> card, String? stationType, bool isDark) {
+    final accent = _typeAccent(stationType);
+    final icon = _iconOf(card['icon'] as String?);
+    final title = (card['title'] as String?) ?? '';
+    final body  = (card['body']  as String?) ?? '';
+    final titleColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final bodyColor  = isDark ? AppColors.darkTextMuted : const Color(0xFF64748B);
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
+          width: 0.6,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+              color: accent.withOpacity(isDark ? 0.18 : 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.center,
+            child: Icon(icon, size: 20, color: accent),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    height: 1.3,
+                    letterSpacing: -0.2,
+                    color: titleColor,
+                  ),
+                ),
+                if (body.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    body,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      height: 1.4,
+                      color: bodyColor,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _usageFooter(Map<String, dynamic> data, bool isDark) {
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final sessions = data['totalSessions'] as int? ?? 0;
+    final window   = (data['dataWindow'] as Map?)?['days'] as int? ?? 28;
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline_rounded, size: 13, color: muted),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              '최근 $window일 관측 $sessions회 세션 기준',
+              style: TextStyle(fontSize: 11.5, color: muted),
+            ),
+          ),
         ],
       ),
     );
