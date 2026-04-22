@@ -351,11 +351,11 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
                     : GestureDetector(
                         onHorizontalDragEnd: (details) {
                           final dx = details.primaryVelocity ?? 0;
-                          if (dx < -300 && activeTab == 0) {
-                            // 왼쪽 스와이프 → 충전
+                          if (dx > 300 && activeTab == 0) {
+                            // 오른쪽 스와이프 → 충전
                             ref.read(activeTabProvider.notifier).state = 1;
-                          } else if (dx > 300 && activeTab == 1) {
-                            // 오른쪽 스와이프 → 주유
+                          } else if (dx < -300 && activeTab == 1) {
+                            // 왼쪽 스와이프 → 주유
                             ref.read(activeTabProvider.notifier).state = 0;
                           }
                         },
