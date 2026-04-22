@@ -686,7 +686,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                                         children: [
                                           Text(h['name'] ?? '',
                                               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500,
-                                                  color: isDark ? Colors.white : Colors.black87)),
+                                                  color: isDark ? Colors.white : Colors.black87),
+                                              maxLines: 1, overflow: TextOverflow.ellipsis),
                                           if ((h['address'] ?? '').isNotEmpty)
                                             Text(h['address'],
                                                 style: TextStyle(fontSize: 11,
@@ -757,14 +758,18 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                                       ),
                                       if (category != null && category.isNotEmpty) ...[
                                         const SizedBox(width: 6),
-                                        Text(category,
-                                            style: TextStyle(fontSize: 11,
-                                                color: isDark ? AppColors.darkTextMuted : const Color(0xFF888888))),
+                                        Flexible(
+                                          child: Text(category,
+                                              style: TextStyle(fontSize: 11,
+                                                  color: isDark ? AppColors.darkTextMuted : const Color(0xFF888888)),
+                                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                                        ),
                                       ],
                                       if (distStr != null) ...[
                                         const SizedBox(width: 6),
                                         Text(distStr,
-                                            style: const TextStyle(fontSize: 11, color: Color(0xFF1D6FE0))),
+                                            style: const TextStyle(fontSize: 11, color: Color(0xFF1D6FE0)),
+                                            maxLines: 1, overflow: TextOverflow.ellipsis),
                                       ],
                                     ],
                                   ),
@@ -975,15 +980,19 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   // ─── 주유소 상세 DraggableScrollableSheet ───
+  // 가격 행 1~4개 따라 높이가 달라지므로 보수적으로 넉넉하게 잡음
+  static const double _gasHeroCardPx = 420.0;
   Widget _buildGasDetailSheet(GasStation s, bool isDark) {
+    final screenH = MediaQuery.of(context).size.height;
+    final snap = (_gasHeroCardPx / screenH).clamp(0.38, 0.75);
     return DraggableScrollableSheet(
       key: ValueKey('gas_sheet_${s.id}'),
       controller: _sheetController!,
-      initialChildSize: 0.32,
+      initialChildSize: snap,
       minChildSize: 0.2,
       maxChildSize: 0.95,
       snap: true,
-      snapSizes: const [0.32, 0.95],
+      snapSizes: [snap, 0.95],
       builder: (ctx, scrollCtrl) {
         return Material(
           color: isDark ? AppColors.darkBg : Colors.white,
@@ -1002,15 +1011,20 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   // ─── EV 상세 DraggableScrollableSheet ───
+  // 히어로 카드(드래그핸들 포함) 예상 픽셀 높이 → 화면 비율로 변환.
+  // 폰 크기와 무관하게 "길 안내 시작" 버튼까지만 보이도록 동적 계산.
+  static const double _evHeroCardPx = 360.0; // 드래그핸들+히어로+버튼 합산 픽셀
   Widget _buildEvDetailSheet(EvStation s, bool isDark) {
+    final screenH = MediaQuery.of(context).size.height;
+    final snap = (_evHeroCardPx / screenH).clamp(0.35, 0.70);
     return DraggableScrollableSheet(
       key: ValueKey('ev_sheet_${s.statId}'),
       controller: _sheetController!,
-      initialChildSize: 0.52,
+      initialChildSize: snap,
       minChildSize: 0.2,
       maxChildSize: 0.95,
       snap: true,
-      snapSizes: const [0.52, 0.95],
+      snapSizes: [snap, 0.95],
       builder: (ctx, scrollCtrl) {
         return Material(
           color: isDark ? AppColors.darkBg : Colors.white,

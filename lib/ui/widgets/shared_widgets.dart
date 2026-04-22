@@ -99,6 +99,8 @@ class GasStationCard extends ConsumerWidget {
                   Text(
                     '${station.distanceText} · ${station.brandName} · ${_fuelTypeLabel(station.fuelType)}',
                     style: Theme.of(context).textTheme.labelSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -483,6 +485,8 @@ class EvStationCard extends ConsumerWidget {
                       fontSize: 10, fontWeight: FontWeight.w500,
                       color: nonMemberHighlighted ? AppColors.evGreen : secondaryColor,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 if (station.priceMemberText != null)
                   Text(
@@ -491,6 +495,8 @@ class EvStationCard extends ConsumerWidget {
                       fontSize: 10, fontWeight: FontWeight.w500,
                       color: memberHighlighted ? AppColors.evGreen : secondaryColor,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
               ],
             ),

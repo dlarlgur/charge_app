@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/utils/navigation_util.dart';
@@ -69,6 +70,17 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
   static const Map<String, String> _fuelLabel = {
     'B027': '휘발유', 'B034': '고급휘발유', 'D047': '경유', 'K015': 'LPG',
   };
+
+  // 유종별 색상
+  static Color _fuelColor(String code) {
+    switch (code) {
+      case 'B027': return const Color(0xFF2563EB); // 휘발유 — 파랑
+      case 'B034': return const Color(0xFFD97706); // 고급휘발유 — 금색
+      case 'D047': return const Color(0xFF16A34A); // 경유 — 초록
+      case 'K015': return const Color(0xFF7C3AED); // LPG — 보라
+      default:     return AppColors.gasBlue;
+    }
+  }
 
   @override
   void initState() {
@@ -194,7 +206,6 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
       slivers: [
         if (widget.sheetMode) SliverToBoxAdapter(child: _dragHandle(isDark)),
         SliverToBoxAdapter(child: _heroCard(name, brand, prices, d, isDark)),
-        SliverToBoxAdapter(child: _primaryActions(d, isDark)),
         SliverPersistentHeader(
           pinned: true,
           delegate: _GasTabsDelegate(
@@ -226,176 +237,347 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
 
   Widget _heroCard(String name, String brand, Map<String, double> prices,
       Map<String, dynamic> d, bool isDark) {
-    final isSelf = d['SELF_DIV_CD'] == 'Y' || d['isSelf'] == true;
+    final isSelf    = d['SELF_DIV_CD'] == 'Y' || d['isSelf'] == true;
     final hasCarWash = d['CAR_WASH_YN'] == 'Y' || d['hasCarWash'] == true;
     final distanceText = widget.station?.distanceText ?? '';
-    final mainFuel = widget.station?.fuelType ?? 'B027';
-    final mainPrice = prices[mainFuel] ?? prices.values.firstOrNull;
+    final address   = (d['NEW_ADR'] ?? d['address'] ?? widget.station?.address ?? '').toString();
+    final lat = (d['lat'] ?? d['GIS_Y_COOR'])?.toDouble() ?? widget.station?.lat ?? 0.0;
+    final lng = (d['lng'] ?? d['GIS_X_COOR'])?.toDouble() ?? widget.station?.lng ?? 0.0;
+
+    // 브랜드별 대표색
+    final brandColor = _brandColor(brand);
+
+    // 가격 행: 있는 유종만 순서대로
+    final priceEntries = _fuelOrder
+        .where((k) => prices.containsKey(k))
+        .map((k) => MapEntry(k, prices[k]!))
+        .toList();
+
+    final cardBg    = isDark ? const Color(0xFF151B22) : Colors.white;
+    final titleColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final subColor  = isDark ? AppColors.darkTextMuted : const Color(0xFF64748B);
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 6),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft, end: Alignment.bottomRight,
-          colors: isDark
-              ? [const Color(0xFF0D1B2E), const Color(0xFF111827)]
-              : [const Color(0xFFEFF6FF), const Color(0xFFF0F9FF)],
-        ),
-        borderRadius: BorderRadius.circular(20),
+        color: cardBg,
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: isDark
               ? Colors.white.withValues(alpha: 0.06)
-              : AppColors.gasBlue.withValues(alpha: 0.2),
-          width: 0.8,
+              : const Color(0xFFECEFF3),
+          width: 1,
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 44, height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.gasBlue.withValues(alpha: isDark ? 0.16 : 0.10),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.local_gas_station_rounded,
-                    color: AppColors.gasBlue, size: 24),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(name,
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.w700, letterSpacing: -0.4),
-                        maxLines: 2, overflow: TextOverflow.ellipsis),
-                    if (brand.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(brand,
-                          style: TextStyle(fontSize: 12,
-                              color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
-                    ],
-                  ],
-                ),
-              ),
-            ],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
+            blurRadius: 20, spreadRadius: -4,
+            offset: const Offset(0, 8),
           ),
-          if (isSelf || hasCarWash) ...[
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 6, runSpacing: 6,
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 1) 브랜드 아이콘 + 브랜드명 + 셀프/세차 (우상단)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                if (isSelf) _pill('셀프', AppColors.gasBlue, isDark),
-                if (hasCarWash) _pill('세차', AppColors.success, isDark),
+                _brandIcon(brand, brandColor, isDark),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    widget.station?.brandName ?? brand,
+                    style: TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600,
+                      color: subColor, letterSpacing: -0.2,
+                    ),
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (isSelf || hasCarWash) ...[
+                  if (isSelf)
+                    _topTag('셀프', AppColors.gasBlue),
+                  if (isSelf && hasCarWash) const SizedBox(width: 6),
+                  if (hasCarWash)
+                    _topTag('세차', AppColors.success),
+                ],
+              ],
+            ),
+            const SizedBox(height: 8),
+            // 2) 이름
+            Text(
+              name,
+              style: TextStyle(
+                fontSize: 20, fontWeight: FontWeight.w800,
+                letterSpacing: -0.6, height: 1.22,
+                color: titleColor,
+              ),
+              maxLines: 2, overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 5),
+            // 3) 주소 + 복사 + 거리
+            InkWell(
+              onTap: address.isNotEmpty ? () => _copyAddress(address) : null,
+              borderRadius: BorderRadius.circular(8),
+              child: Row(
+                children: [
+                  if (address.isNotEmpty) ...[
+                    Expanded(
+                      child: Text(
+                        address,
+                        style: TextStyle(
+                          fontSize: 12.5, fontWeight: FontWeight.w500,
+                          color: subColor, height: 1.35,
+                        ),
+                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.copy_rounded,
+                        size: 13, color: subColor.withValues(alpha: 0.6)),
+                  ],
+                  if (distanceText.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    Icon(Icons.near_me_rounded, size: 13, color: brandColor),
+                    const SizedBox(width: 3),
+                    Text(
+                      distanceText,
+                      style: TextStyle(
+                        fontSize: 12.5, fontWeight: FontWeight.w700,
+                        color: brandColor, letterSpacing: -0.3,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              height: 1,
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.07)
+                  : const Color(0xFFEEF1F5),
+            ),
+            const SizedBox(height: 12),
+            // 4) 유종별 가격 행
+            if (priceEntries.isEmpty)
+              Text('가격 정보 없음',
+                  style: TextStyle(fontSize: 14, color: subColor))
+            else
+              ...priceEntries.asMap().entries.map((e) {
+                final isMain = e.key == 0;
+                final fuelCode = e.value.key;
+                final label = _fuelLabel[fuelCode] ?? fuelCode;
+                final price = e.value.value;
+                final fuelColor = _fuelColor(fuelCode);
+                return Padding(
+                  padding: EdgeInsets.only(bottom: isMain ? 6 : 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: fuelColor.withValues(alpha: isDark ? 0.18 : 0.10),
+                          borderRadius: BorderRadius.circular(7),
+                        ),
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: isDark
+                                ? fuelColor
+                                : fuelColor.withValues(alpha: 0.85),
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        _formatPrice(price),
+                        style: TextStyle(
+                          fontSize: isMain ? 26 : 18,
+                          height: 1.0,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.8,
+                          color: isDark
+                              ? fuelColor
+                              : fuelColor.withValues(alpha: 0.85),
+                        ),
+                      ),
+                      Text(
+                        '원',
+                        style: TextStyle(
+                          fontSize: isMain ? 14 : 12,
+                          fontWeight: FontWeight.w700,
+                          color: subColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            const SizedBox(height: 10),
+            Container(
+              height: 1,
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.07)
+                  : const Color(0xFFEEF1F5),
+            ),
+            const SizedBox(height: 10),
+            // 5) 액션: 알림 + 즐겨찾기 + 길 안내 시작
+            Row(
+              children: [
+                _ActionIconBtn(
+                  icon: _isAlarm
+                      ? Icons.notifications_active_rounded
+                      : Icons.notifications_none_rounded,
+                  color: _isAlarm ? brandColor : null,
+                  onTap: _openAlertSheet,
+                  isDark: isDark,
+                ),
+                const SizedBox(width: 6),
+                _ActionIconBtn(
+                  icon: _isFavorite ? Icons.favorite : Icons.favorite_border,
+                  color: _isFavorite ? brandColor : null,
+                  onTap: _toggleFavorite,
+                  isDark: isDark,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () =>
+                        showNavigationSheet(context, lat: lat, lng: lng, name: name),
+                    icon: const Icon(Icons.navigation_rounded, size: 18),
+                    label: Text(
+                      distanceText.isNotEmpty
+                          ? '길 안내 시작 ($distanceText)'
+                          : '길 안내 시작',
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: brandColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                      textStyle: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w700),
+                      elevation: 0,
+                    ),
+                  ),
+                ),
               ],
             ),
           ],
-          const SizedBox(height: 14),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              if (mainPrice != null) ...[
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(_fuelLabel[mainFuel] ?? '휘발유',
-                        style: TextStyle(fontSize: 11,
-                            color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
-                    const SizedBox(height: 2),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(_formatPrice(mainPrice),
-                            style: TextStyle(
-                              fontSize: 32, height: 1.0,
-                              fontWeight: FontWeight.w800, letterSpacing: -1,
-                              color: isDark ? AppColors.gasBlue : AppColors.gasBlueDark,
-                            )),
-                        const SizedBox(width: 4),
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Text('원/L',
-                              style: TextStyle(fontSize: 13,
-                                  color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ] else
-                Text('가격 정보 없음',
-                    style: TextStyle(fontSize: 16,
-                        color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
-              const Spacer(),
-              if (distanceText.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    children: [
-                      Icon(Icons.place_rounded, size: 14,
-                          color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
-                      const SizedBox(width: 2),
-                      Text(distanceText,
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
-                              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  // ─── 주 액션: [알림] [즐겨찾기] [────────길찾기────────] ───
-  Widget _primaryActions(Map<String, dynamic> d, bool isDark) {
-    final lat = (d['lat'] ?? d['GIS_Y_COOR'])?.toDouble() ?? 0.0;
-    final lng = (d['lng'] ?? d['GIS_X_COOR'])?.toDouble() ?? 0.0;
-    final name = (d['OS_NM'] ?? d['name'] ?? '').toString();
+  Future<void> _copyAddress(String addr) async {
+    await Clipboard.setData(ClipboardData(text: addr));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('주소를 복사했어요'),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.fromLTRB(40, 0, 40, 80),
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      ),
+    );
+  }
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-      child: Row(
-        children: [
-          _ActionIconBtn(
-            icon: _isAlarm
-                ? Icons.notifications_active_rounded
-                : Icons.notifications_none_rounded,
-            color: _isAlarm ? AppColors.gasBlue : null,
-            onTap: _openAlertSheet,
-            isDark: isDark,
-          ),
-          const SizedBox(width: 6),
-          _ActionIconBtn(
-            icon: _isFavorite ? Icons.favorite : Icons.favorite_border,
-            color: _isFavorite ? AppColors.gasBlue : null,
-            onTap: _toggleFavorite,
-            isDark: isDark,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: () => showNavigationSheet(context, lat: lat, lng: lng, name: name),
-              icon: const Icon(Icons.navigation_rounded, size: 18),
-              label: const Text('길찾기'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.gasBlue,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                elevation: 0,
+  static const _logoAssets = {'SKE', 'GSC', 'HDO', 'SOL', 'NHO', 'E1G', 'RTO', 'RTX', 'ETC'};
+
+  // 브랜드 로고 이미지
+  Widget _brandIcon(String brand, Color color, bool isDark) {
+    return SizedBox(
+      width: 46, height: 46,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(13),
+        child: Image.asset(
+          'assets/brands/${_logoAssets.contains(brand) ? brand : 'ETC'}.png',
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(
+            width: 46, height: 46,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: isDark ? 0.18 : 0.10),
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              _brandShortLabel(brand),
+              style: TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w900,
+                color: isDark ? color : _brandColorDark(brand),
+                letterSpacing: -0.3,
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
+  }
+
+  Widget _topTag(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11.5, fontWeight: FontWeight.w800,
+          color: color, letterSpacing: -0.2,
+        ),
+      ),
+    );
+  }
+
+  static Color _brandColor(String brand) {
+    switch (brand) {
+      case 'SKE': return const Color(0xFFFF6600);   // SK 주황
+      case 'GSC': return const Color(0xFF00A651);   // GS 초록
+      case 'HDO': return const Color(0xFF003DA5);   // 현대 파랑
+      case 'SOL': return const Color(0xFFE31E25);   // S-OIL 빨강
+      case 'RTO': case 'RTX': return const Color(0xFF6D28D9); // 알뜰 보라
+      case 'NHO': return const Color(0xFF16A34A);   // NH 초록
+      default:    return AppColors.gasBlue;
+    }
+  }
+
+  static Color _brandColorDark(String brand) {
+    switch (brand) {
+      case 'SKE': return const Color(0xFFCC5200);
+      case 'GSC': return const Color(0xFF007A3D);
+      case 'HDO': return const Color(0xFF002E80);
+      case 'SOL': return const Color(0xFFB71418);
+      case 'RTO': case 'RTX': return const Color(0xFF5B21B6);
+      case 'NHO': return const Color(0xFF15803D);
+      default:    return AppColors.gasBlueDark;
+    }
+  }
+
+  static String _brandShortLabel(String brand) {
+    switch (brand) {
+      case 'SKE': return 'SK';
+      case 'GSC': return 'GS';
+      case 'HDO': return 'HD';
+      case 'SOL': return 'S-OIL';
+      case 'RTO': case 'RTX': return '알뜰';
+      case 'NHO': return 'NH';
+      default:    return brand.isNotEmpty ? brand.substring(0, brand.length.clamp(0, 3)) : '주유';
+    }
   }
 
   // ─── 섹션: 요금 ───
@@ -527,16 +709,6 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
   }
 
   // ─── 공용 소형 위젯 ───
-  Widget _pill(String label, Color color, bool isDark) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: isDark ? 0.14 : 0.10),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Text(label,
-            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: color)),
-      );
-
   Widget _sectionTitle(String title, String? trailing, bool isDark) => Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
