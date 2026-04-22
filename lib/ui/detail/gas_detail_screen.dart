@@ -8,7 +8,7 @@ import '../../data/models/models.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/alert_service.dart';
 import '../favorites/favorites_screen.dart';
-import '../widgets/shared_widgets.dart' show showFuelTypeAlertSheet;
+import '../widgets/shared_widgets.dart' show showFuelTypeAlertSheet, BrandLogo;
 
 // ─── 풀스크린 라우트 래퍼 ───────────────────────────────────────────────────
 class GasDetailScreen extends ConsumerStatefulWidget {
@@ -494,16 +494,16 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
     );
   }
 
-  static const _logoAssets = {'SKE', 'GSC', 'HDO', 'SOL', 'NHO', 'E1G', 'RTO', 'RTX', 'ETC'};
-
-  // 브랜드 로고 이미지
+  // 브랜드 로고 이미지 (BrandLogo 위젯 재사용, 상세화면용 46x46)
   Widget _brandIcon(String brand, Color color, bool isDark) {
     return SizedBox(
-      width: 46, height: 46,
+      width: 46,
+      height: 46,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(13),
         child: Image.asset(
-          'assets/brands/${_logoAssets.contains(brand) ? brand : 'ETC'}.png',
+          'assets/brands/${BrandLogo.assetName(brand)}.png',
+          width: 46, height: 46,
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => Container(
             width: 46, height: 46,

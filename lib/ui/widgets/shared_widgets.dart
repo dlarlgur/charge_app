@@ -27,6 +27,9 @@ class BrandLogo extends StatelessWidget {
 
   static const _validBrands = {'SKE', 'GSC', 'HDO', 'SOL', 'NHO', 'E1G', 'RTO', 'RTX', 'ETC'};
 
+  static String assetName(String brand) =>
+      _validBrands.contains(brand) ? brand : 'ETC';
+
   @override
   Widget build(BuildContext context) {
     final assetBrand = _validBrands.contains(brand) ? brand : 'ETC';
