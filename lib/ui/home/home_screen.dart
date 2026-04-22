@@ -20,6 +20,7 @@ import '../../data/services/watch_service.dart';
 import '../widgets/update_dialog.dart';
 import '../filter/gas_filter_sheet.dart';
 import '../filter/ev_filter_sheet.dart';
+import '../../data/services/favorite_service.dart';
 import '../favorites/favorites_screen.dart';
 import '../detail/ev_detail_screen.dart';
 
@@ -411,7 +412,7 @@ class _GasListViewState extends ConsumerState<_GasListView> {
       onRefresh: () async {
         setState(() { _displayCount = _pageSize; _searchQuery = ''; _searchController.clear(); });
         ref.invalidate(locationProvider);
-        ref.invalidate(gasStationsProvider);
+        ref.invalidate(gasStationsRawProvider);
       },
       child: CustomScrollView(
         controller: _scrollController,
@@ -530,7 +531,7 @@ class _GasListViewState extends ConsumerState<_GasListView> {
                   const SizedBox(height: 12),
                   Text('데이터를 불러올 수 없습니다', style: Theme.of(context).textTheme.bodyMedium),
                   const SizedBox(height: 8),
-                  TextButton(onPressed: () => ref.invalidate(gasStationsProvider), child: const Text('다시 시도')),
+                  TextButton(onPressed: () => ref.invalidate(gasStationsRawProvider), child: const Text('다시 시도')),
                 ]),
               )),
             ),
@@ -610,7 +611,7 @@ class _EvListViewState extends ConsumerState<_EvListView> {
       onRefresh: () async {
         setState(() { _displayCount = _pageSize; _searchQuery = ''; _searchController.clear(); });
         ref.invalidate(locationProvider);
-        ref.invalidate(evStationsProvider);
+        ref.invalidate(evStationsRawProvider);
       },
       child: CustomScrollView(
         controller: _scrollController,
@@ -716,7 +717,7 @@ class _EvListViewState extends ConsumerState<_EvListView> {
                   const SizedBox(height: 12),
                   Text('데이터를 불러올 수 없습니다', style: Theme.of(context).textTheme.bodyMedium),
                   const SizedBox(height: 8),
-                  TextButton(onPressed: () => ref.invalidate(evStationsProvider), child: const Text('다시 시도')),
+                  TextButton(onPressed: () => ref.invalidate(evStationsRawProvider), child: const Text('다시 시도')),
                 ]),
               )),
             ),

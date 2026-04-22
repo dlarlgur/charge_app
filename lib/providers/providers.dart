@@ -4,7 +4,9 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../core/constants/api_constants.dart';
 import '../data/models/models.dart';
 import '../data/services/api_service.dart';
+import '../data/services/favorite_service.dart';
 import '../data/services/location_service.dart';
+import '../data/services/widget_service.dart';
 
 // ─── Theme Provider ───
 final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>((ref) {
@@ -156,6 +158,28 @@ final locationStreamProvider = StreamProvider<({double lat, double lng})>((ref) 
   return LocationService().getPositionStream().map((pos) => (lat: pos.latitude, lng: pos.longitude));
 });
 
+// ─── Favorites Provider ───
+final favoritesProvider = StateNotifierProvider<FavoritesNotifier, List<Map<String, dynamic>>>((ref) {
+  return FavoritesNotifier();
+});
+
+class FavoritesNotifier extends StateNotifier<List<Map<String, dynamic>>> {
+  FavoritesNotifier() : super(FavoriteService.getAll());
+
+  void refresh() => state = FavoriteService.getAll();
+
+  bool toggle({required String id, required String type, required String name, required String subtitle}) {
+    final result = FavoriteService.toggle(id: id, type: type, name: name, subtitle: subtitle);
+    state = FavoriteService.getAll();
+    if (type == 'gas') {
+      WidgetService.updateGasWidget();
+    } else if (type == 'ev') {
+      WidgetService.updateEvWidget();
+    }
+    return result;
+  }
+}
+
 // chgerType 복합 타입을 단일 커넥터 코드로 확장
 // 01=DC차데모, 02=AC완속, 03=DC차데모+AC3상, 04=DC콤보, 05=DC차데모+DC콤보
 // 06=DC차데모+AC3상+DC콤보, 07=AC3상, 08=DC콤보(저속), 09=NACS, 89=H2(수소)
@@ -174,134 +198,151 @@ bool _chargerMatchesFilter(String chargerType, List<String> filterTypes) {
   return filterTypes.any((t) => supported.contains(t));
 }
 
-// ─── Gas Stations Provider ───
-final gasStationsProvider = FutureProvider<List<GasStation>>((ref) async {
-  final location = await ref.watch(locationProvider.future);
-  if (location == null) return [];
+// ─── Gas Stations Raw Provider (API 호출만, 필터·정렬 없음) ───
+final gasStationsRawProvider = FutureProvider.family<List<GasStation>, ({double lat, double lng, int radius, List<String> fuelTypes})>(
+  (ref, args) async {
+    final results = await Future.wait(
+      args.fuelTypes.map((ft) => ApiService().getGasStationsAround(
+        lat: args.lat, lng: args.lng, radius: args.radius, fuelType: ft,
+      )),
+    );
+    final seen = <String>{};
+    final stations = <GasStation>[];
+    for (final data in results) {
+      for (final json in data) {
+        final s = GasStation.fromJson(json);
+        if (seen.add(s.id)) stations.add(s);
+      }
+    }
+    return stations;
+  },
+);
 
+// ─── Gas Stations Provider (필터 + 즐겨찾기 반응형) ───
+final gasStationsProvider = Provider<AsyncValue<List<GasStation>>>((ref) {
+  final location = ref.watch(locationProvider);
   final filter = ref.watch(gasFilterProvider);
+  final favorites = ref.watch(favoritesProvider); // 즐겨찾기 변경 시 즉시 재계산
 
-  // 유종별 병렬 호출 후 합치기 (중복 제거)
-  final results = await Future.wait(
-    filter.fuelTypes.map((ft) => ApiService().getGasStationsAround(
-      lat: location.lat,
-      lng: location.lng,
-      radius: filter.radius,
-      fuelType: ft,
-    )),
+  return location.when(
+    loading: () => const AsyncValue.loading(),
+    error: (e, s) => AsyncValue.error(e, s),
+    data: (loc) {
+      if (loc == null) return const AsyncValue.data([]);
+      final rawAsync = ref.watch(gasStationsRawProvider(
+        (lat: loc.lat, lng: loc.lng, radius: filter.radius, fuelTypes: filter.fuelTypes),
+      ));
+      return rawAsync.when(
+        loading: () => const AsyncValue.loading(),
+        error: (e, s) => AsyncValue.error(e, s),
+        data: (raw) {
+          final favIds = favorites
+              .where((f) => f['type'] == 'gas')
+              .map((f) => f['id'] as String)
+              .toSet();
+          final favStations = raw.where((s) => favIds.contains(s.id)).toList();
+          var nonFavStations = raw.where((s) => !favIds.contains(s.id)).toList();
+
+          if (filter.brands.isNotEmpty) {
+            nonFavStations = nonFavStations.where((s) => filter.brands.contains(s.brand)).toList();
+          }
+
+          void sortGas(List<GasStation> list) {
+            if (filter.sort == 2) {
+              list.sort((a, b) => a.distance.compareTo(b.distance));
+            } else {
+              list.sort((a, b) => a.price.compareTo(b.price));
+            }
+          }
+          sortGas(favStations);
+          sortGas(nonFavStations);
+          return AsyncValue.data([...favStations, ...nonFavStations]);
+        },
+      );
+    },
   );
-
-  final seen = <String>{};
-  var stations = <GasStation>[];
-  for (final data in results) {
-    for (final json in data) {
-      final s = GasStation.fromJson(json);
-      if (seen.add(s.id)) stations.add(s);
-    }
-  }
-
-  // 즐겨찾기는 필터 면제: 먼저 분리
-  final favBox = Hive.box(AppConstants.favoritesBox);
-  final favIds = favBox.keys
-      .where((k) => k.toString().startsWith('gas_'))
-      .map((k) => k.toString().substring(4))
-      .toSet();
-  final favStations = stations.where((s) => favIds.contains(s.id)).toList();
-  var nonFavStations = stations.where((s) => !favIds.contains(s.id)).toList();
-
-  // 브랜드 필터 (클라이언트) — 즐겨찾기 제외하고 적용
-  if (filter.brands.isNotEmpty) {
-    nonFavStations = nonFavStations.where((s) => filter.brands.contains(s.brand)).toList();
-  }
-
-  // 정렬
-  void sortGas(List<GasStation> list) {
-    if (filter.sort == 2) {
-      list.sort((a, b) => a.distance.compareTo(b.distance));
-    } else {
-      list.sort((a, b) => a.price.compareTo(b.price));
-    }
-  }
-  sortGas(favStations);
-  sortGas(nonFavStations);
-
-  return [...favStations, ...nonFavStations];
 });
 
-// ─── EV Stations Provider ───
-final evStationsProvider = FutureProvider<List<EvStation>>((ref) async {
-  final location = await ref.watch(locationProvider.future);
-  if (location == null) return [];
+// ─── EV Stations Raw Provider (API 호출만) ───
+final evStationsRawProvider = FutureProvider.family<List<EvStation>, ({double lat, double lng, int radius})>(
+  (ref, args) async {
+    final results = await Future.wait([
+      ApiService().getEvStationsAround(lat: args.lat, lng: args.lng, radius: args.radius),
+      ApiService().getTeslaStationsAround(lat: args.lat, lng: args.lng, radius: args.radius),
+    ]);
+    return [
+      ...results[0].map((json) => EvStation.fromJson(json)),
+      ...results[1].map((json) => EvStation.fromJson(json)),
+    ];
+  },
+);
 
+// ─── EV Stations Provider (필터 + 즐겨찾기 반응형) ───
+final evStationsProvider = Provider<AsyncValue<List<EvStation>>>((ref) {
+  final location = ref.watch(locationProvider);
   final filter = ref.watch(evFilterProvider);
+  final favorites = ref.watch(favoritesProvider); // 즐겨찾기 변경 시 즉시 재계산
 
-  // EV + Tesla 동시 조회
-  final results = await Future.wait([
-    ApiService().getEvStationsAround(lat: location.lat, lng: location.lng, radius: filter.radius),
-    ApiService().getTeslaStationsAround(lat: location.lat, lng: location.lng, radius: filter.radius),
-  ]);
-
-  var stations = [
-    ...results[0].map((json) => EvStation.fromJson(json)),
-    ...results[1].map((json) => EvStation.fromJson(json)),
-  ];
-
-  // 즐겨찾기는 필터 면제: 먼저 분리
-  final evFavBox = Hive.box(AppConstants.favoritesBox);
-  final evFavIds = evFavBox.keys
-      .where((k) => k.toString().startsWith('ev_'))
-      .map((k) => k.toString().substring(3))
-      .toSet();
-  final favStations = stations.where((s) => evFavIds.contains(s.statId)).toList();
-  var nonFavStations = stations.where((s) => !evFavIds.contains(s.statId)).toList();
-
-  // 필터 — 즐겨찾기 제외하고 적용
-  if (filter.availableOnly) {
-    nonFavStations = nonFavStations.where((s) => s.hasAvailable || s.isTesla).toList();
-  }
-  if (filter.chargerTypes.isNotEmpty) {
-    nonFavStations = nonFavStations.where((s) =>
-      s.chargers.any((c) => _chargerMatchesFilter(c.type, filter.chargerTypes))).toList();
-  }
-  if (filter.operators.isNotEmpty) {
-    final includeOther = filter.operators.contains('__other__');
-    final mainOps = filter.operators.where((o) => o != '__other__').toList();
-    nonFavStations = nonFavStations.where((s) {
-      if (mainOps.any((op) => s.operator.contains(op))) return true;
-      if (includeOther && !['환경부','GS차지비','파워큐브','에버온','SK일렉링크','채비','Tesla']
-          .any((op) => s.operator.contains(op))) return true;
-      return false;
-    }).toList();
-  }
-  if (filter.kinds.isNotEmpty) {
-    nonFavStations = nonFavStations.where((s) => filter.kinds.contains(s.kind)).toList();
-  }
-
-  int cmpPrice(int? a, int? b) {
-    if (a == null && b == null) return 0;
-    if (a == null) return 1;
-    if (b == null) return -1;
-    return a.compareTo(b);
-  }
-
-  void sortEv(List<EvStation> list) {
-    if (filter.sort == 2) {
-      list.sort((a, b) => cmpPrice(
-        a.unitPriceFast ?? a.unitPriceSlow,
-        b.unitPriceFast ?? b.unitPriceSlow,
+  return location.when(
+    loading: () => const AsyncValue.loading(),
+    error: (e, s) => AsyncValue.error(e, s),
+    data: (loc) {
+      if (loc == null) return const AsyncValue.data([]);
+      final rawAsync = ref.watch(evStationsRawProvider(
+        (lat: loc.lat, lng: loc.lng, radius: filter.radius),
       ));
-    } else if (filter.sort == 3) {
-      list.sort((a, b) => cmpPrice(
-        a.unitPriceFastMember ?? a.unitPriceSlowMember,
-        b.unitPriceFastMember ?? b.unitPriceSlowMember,
-      ));
-    }
-    // sort == 1: 거리순 (서버에서 이미 정렬됨)
-  }
-  sortEv(favStations);
-  sortEv(nonFavStations);
+      return rawAsync.when(
+        loading: () => const AsyncValue.loading(),
+        error: (e, s) => AsyncValue.error(e, s),
+        data: (raw) {
+          final favIds = favorites
+              .where((f) => f['type'] == 'ev')
+              .map((f) => f['id'] as String)
+              .toSet();
+          final favStations = raw.where((s) => favIds.contains(s.statId)).toList();
+          var nonFavStations = raw.where((s) => !favIds.contains(s.statId)).toList();
 
-  return [...favStations, ...nonFavStations];
+          if (filter.availableOnly) {
+            nonFavStations = nonFavStations.where((s) => s.hasAvailable || s.isTesla).toList();
+          }
+          if (filter.chargerTypes.isNotEmpty) {
+            nonFavStations = nonFavStations.where((s) =>
+              s.chargers.any((c) => _chargerMatchesFilter(c.type, filter.chargerTypes))).toList();
+          }
+          if (filter.operators.isNotEmpty) {
+            final includeOther = filter.operators.contains('__other__');
+            final mainOps = filter.operators.where((o) => o != '__other__').toList();
+            nonFavStations = nonFavStations.where((s) {
+              if (mainOps.any((op) => s.operator.contains(op))) return true;
+              if (includeOther && !['환경부','GS차지비','파워큐브','에버온','SK일렉링크','채비','Tesla']
+                  .any((op) => s.operator.contains(op))) return true;
+              return false;
+            }).toList();
+          }
+          if (filter.kinds.isNotEmpty) {
+            nonFavStations = nonFavStations.where((s) => filter.kinds.contains(s.kind)).toList();
+          }
+
+          int cmpPrice(int? a, int? b) {
+            if (a == null && b == null) return 0;
+            if (a == null) return 1;
+            if (b == null) return -1;
+            return a.compareTo(b);
+          }
+          void sortEv(List<EvStation> list) {
+            if (filter.sort == 2) {
+              list.sort((a, b) => cmpPrice(a.unitPriceFast ?? a.unitPriceSlow, b.unitPriceFast ?? b.unitPriceSlow));
+            } else if (filter.sort == 3) {
+              list.sort((a, b) => cmpPrice(a.unitPriceFastMember ?? a.unitPriceSlowMember, b.unitPriceFastMember ?? b.unitPriceSlowMember));
+            }
+          }
+          sortEv(favStations);
+          sortEv(nonFavStations);
+          return AsyncValue.data([...favStations, ...nonFavStations]);
+        },
+      );
+    },
+  );
 });
 
 // ─── Gas Avg Price Provider ───

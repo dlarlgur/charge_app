@@ -1,83 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/constants/api_constants.dart';
-import '../../data/services/widget_service.dart';
-
-/// 즐겨찾기 관리 서비스 (Hive 로컬 DB)
-class FavoriteService {
-  static final _box = Hive.box(AppConstants.favoritesBox);
-
-  /// 즐겨찾기 추가
-  static void add({required String id, required String type, required String name, required String subtitle}) {
-    _box.put('${type}_$id', {
-      'id': id,
-      'type': type, // 'gas' or 'ev'
-      'name': name,
-      'subtitle': subtitle,
-      'addedAt': DateTime.now().toIso8601String(),
-    });
-  }
-
-  /// 즐겨찾기 삭제
-  static void remove(String id, String type) {
-    _box.delete('${type}_$id');
-  }
-
-  /// 즐겨찾기 여부 확인
-  static bool isFavorite(String id, String type) {
-    return _box.containsKey('${type}_$id');
-  }
-
-  /// 즐겨찾기 토글
-  static bool toggle({required String id, required String type, required String name, required String subtitle}) {
-    if (isFavorite(id, type)) {
-      remove(id, type);
-      return false;
-    } else {
-      add(id: id, type: type, name: name, subtitle: subtitle);
-      return true;
-    }
-  }
-
-  /// 전체 즐겨찾기 목록
-  static List<Map<String, dynamic>> getAll() {
-    return _box.values
-        .map((v) => Map<String, dynamic>.from(v as Map))
-        .toList()
-      ..sort((a, b) => (b['addedAt'] ?? '').compareTo(a['addedAt'] ?? ''));
-  }
-
-  /// 타입별 즐겨찾기
-  static List<Map<String, dynamic>> getByType(String type) {
-    return getAll().where((f) => f['type'] == type).toList();
-  }
-}
-
-/// 즐겨찾기 프로바이더
-final favoritesProvider = StateNotifierProvider<FavoritesNotifier, List<Map<String, dynamic>>>((ref) {
-  return FavoritesNotifier();
-});
-
-class FavoritesNotifier extends StateNotifier<List<Map<String, dynamic>>> {
-  FavoritesNotifier() : super(FavoriteService.getAll());
-
-  void refresh() => state = FavoriteService.getAll();
-
-  bool toggle({required String id, required String type, required String name, required String subtitle}) {
-    final result = FavoriteService.toggle(id: id, type: type, name: name, subtitle: subtitle);
-    state = FavoriteService.getAll();
-    // 즐겨찾기 변경 시 위젯 데이터도 갱신
-    if (type == 'gas') {
-      WidgetService.updateGasWidget();
-    } else if (type == 'ev') {
-      WidgetService.updateEvWidget();
-    }
-    return result;
-  }
-}
+import '../../data/services/favorite_service.dart';
+import '../../providers/providers.dart' show favoritesProvider, FavoritesNotifier;
 
 /// 즐겨찾기 화면
 class FavoritesScreen extends ConsumerStatefulWidget {

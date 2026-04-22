@@ -7,7 +7,8 @@ import '../../core/theme/app_colors.dart';
 import '../../data/models/models.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/alert_service.dart';
-import '../favorites/favorites_screen.dart';
+import '../../data/services/favorite_service.dart';
+import '../../providers/providers.dart' show favoritesProvider;
 import '../widgets/shared_widgets.dart' show showFuelTypeAlertSheet, BrandLogo;
 
 // ─── 풀스크린 라우트 래퍼 ───────────────────────────────────────────────────
