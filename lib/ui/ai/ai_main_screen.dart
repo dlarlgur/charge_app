@@ -4969,7 +4969,7 @@ class _LevelSummaryCard extends StatelessWidget {
   Color get _levelColor {
     if (currentLevel <= 20) return const Color(0xFFE24B4A);
     if (currentLevel <= 50) return const Color(0xFFEF9F27);
-    return isEv ? const Color(0xFF1D6FE0) : _kPrimary;
+    return const Color(0xFF22C55E);
   }
 
   @override
@@ -5007,12 +5007,14 @@ class _LevelSummaryCard extends StatelessWidget {
                       child: Container(
                         height: 7, width: fillW,
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: isEv
-                                ? [const Color(0xFF1D6FE0), const Color(0xFF34C8F5)]
-                                : [const Color(0xFFE24B4A), const Color(0xFFEF9F27),
-                                   const Color(0xFFFFD60A), const Color(0xFF34C759)],
-                            stops: isEv ? [0.0, 1.0] : [0.0, 0.35, 0.65, 1.0],
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFFE24B4A),
+                              Color(0xFFEF9F27),
+                              Color(0xFFFFD60A),
+                              Color(0xFF22C55E),
+                            ],
+                            stops: [0.0, 0.2, 0.5, 1.0],
                           ),
                         ),
                       ),
@@ -5079,7 +5081,7 @@ class _LevelEditSheetState extends State<_LevelEditSheet> {
   Color get _thumbColor {
     if (_level <= 20) return const Color(0xFFE24B4A);
     if (_level <= 50) return const Color(0xFFEF9F27);
-    return _kPrimary;
+    return const Color(0xFF22C55E);
   }
 
   void _applyDte(String val) {
@@ -5197,8 +5199,8 @@ class _LevelEditSheetState extends State<_LevelEditSheet> {
                       width: 44,
                       child: Text('${_level.toStringAsFixed(0)}%',
                           textAlign: TextAlign.right,
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
-                              color: Color(0xFF1a1a1a))),
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
+                              color: _thumbColor)),
                     ),
                   ],
                 ),
