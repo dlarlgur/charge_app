@@ -198,7 +198,39 @@ bool _chargerMatchesFilter(String chargerType, List<String> filterTypes) {
   return filterTypes.any((t) => supported.contains(t));
 }
 
-// ─── Gas Stations Raw Provider (API 호출만, 필터·정렬 없음) ───
+// ─── 즐겨찾기 ID 기반 주유소 조회 (위치 무관) ───
+final favGasStationsProvider = FutureProvider<List<GasStation>>((ref) async {
+  final favIds = ref.watch(favoritesProvider)
+      .where((f) => f['type'] == 'gas')
+      .map((f) => f['id'] as String)
+      .toList();
+  if (favIds.isEmpty) return [];
+  final results = await Future.wait(
+    favIds.map((id) => ApiService().getGasStationDetail(id).catchError((_) => <String, dynamic>{})),
+  );
+  return results
+      .where((json) => json.isNotEmpty)
+      .map((json) => GasStation.fromJson(json))
+      .toList();
+});
+
+// ─── 즐겨찾기 ID 기반 충전소 조회 (위치 무관) ───
+final favEvStationsProvider = FutureProvider<List<EvStation>>((ref) async {
+  final favIds = ref.watch(favoritesProvider)
+      .where((f) => f['type'] == 'ev')
+      .map((f) => f['id'] as String)
+      .toList();
+  if (favIds.isEmpty) return [];
+  final results = await Future.wait(
+    favIds.map((id) => ApiService().getEvStationDetail(id).catchError((_) => <String, dynamic>{})),
+  );
+  return results
+      .where((json) => json.isNotEmpty)
+      .map((json) => EvStation.fromJson(json['data'] ?? json))
+      .toList();
+});
+
+// ─── Gas Stations Raw Provider (위치 기반 API, 필터·즐겨찾기 없음) ───
 final gasStationsRawProvider = FutureProvider.family<List<GasStation>, ({double lat, double lng, int radius, List<String> fuelTypes})>(
   (ref, args) async {
     final results = await Future.wait(
@@ -218,11 +250,11 @@ final gasStationsRawProvider = FutureProvider.family<List<GasStation>, ({double 
   },
 );
 
-// ─── Gas Stations Provider (필터 + 즐겨찾기 반응형) ───
+// ─── Gas Stations Provider (즐겨찾기 항상 상단 + 필터 반응형) ───
 final gasStationsProvider = Provider<AsyncValue<List<GasStation>>>((ref) {
   final location = ref.watch(locationProvider);
   final filter = ref.watch(gasFilterProvider);
-  final favorites = ref.watch(favoritesProvider); // 즐겨찾기 변경 시 즉시 재계산
+  final favAsync = ref.watch(favGasStationsProvider);
 
   return location.when(
     loading: () => const AsyncValue.loading(),
@@ -236,11 +268,9 @@ final gasStationsProvider = Provider<AsyncValue<List<GasStation>>>((ref) {
         loading: () => const AsyncValue.loading(),
         error: (e, s) => AsyncValue.error(e, s),
         data: (raw) {
-          final favIds = favorites
-              .where((f) => f['type'] == 'gas')
-              .map((f) => f['id'] as String)
-              .toSet();
-          final favStations = raw.where((s) => favIds.contains(s.id)).toList();
+          final favStations = favAsync.valueOrNull ?? [];
+          final favIds = favStations.map((s) => s.id).toSet();
+          // 위치 기반 결과에서 즐겨찾기 중복 제거
           var nonFavStations = raw.where((s) => !favIds.contains(s.id)).toList();
 
           if (filter.brands.isNotEmpty) {
@@ -254,7 +284,6 @@ final gasStationsProvider = Provider<AsyncValue<List<GasStation>>>((ref) {
               list.sort((a, b) => a.price.compareTo(b.price));
             }
           }
-          sortGas(favStations);
           sortGas(nonFavStations);
           return AsyncValue.data([...favStations, ...nonFavStations]);
         },
@@ -263,7 +292,7 @@ final gasStationsProvider = Provider<AsyncValue<List<GasStation>>>((ref) {
   );
 });
 
-// ─── EV Stations Raw Provider (API 호출만) ───
+// ─── EV Stations Raw Provider (위치 기반 API) ───
 final evStationsRawProvider = FutureProvider.family<List<EvStation>, ({double lat, double lng, int radius})>(
   (ref, args) async {
     final results = await Future.wait([
@@ -277,11 +306,11 @@ final evStationsRawProvider = FutureProvider.family<List<EvStation>, ({double la
   },
 );
 
-// ─── EV Stations Provider (필터 + 즐겨찾기 반응형) ───
+// ─── EV Stations Provider (즐겨찾기 항상 상단 + 필터 반응형) ───
 final evStationsProvider = Provider<AsyncValue<List<EvStation>>>((ref) {
   final location = ref.watch(locationProvider);
   final filter = ref.watch(evFilterProvider);
-  final favorites = ref.watch(favoritesProvider); // 즐겨찾기 변경 시 즉시 재계산
+  final favAsync = ref.watch(favEvStationsProvider);
 
   return location.when(
     loading: () => const AsyncValue.loading(),
@@ -295,11 +324,9 @@ final evStationsProvider = Provider<AsyncValue<List<EvStation>>>((ref) {
         loading: () => const AsyncValue.loading(),
         error: (e, s) => AsyncValue.error(e, s),
         data: (raw) {
-          final favIds = favorites
-              .where((f) => f['type'] == 'ev')
-              .map((f) => f['id'] as String)
-              .toSet();
-          final favStations = raw.where((s) => favIds.contains(s.statId)).toList();
+          final favStations = favAsync.valueOrNull ?? [];
+          final favIds = favStations.map((s) => s.statId).toSet();
+          // 위치 기반 결과에서 즐겨찾기 중복 제거
           var nonFavStations = raw.where((s) => !favIds.contains(s.statId)).toList();
 
           if (filter.availableOnly) {
@@ -336,7 +363,6 @@ final evStationsProvider = Provider<AsyncValue<List<EvStation>>>((ref) {
               list.sort((a, b) => cmpPrice(a.unitPriceFastMember ?? a.unitPriceSlowMember, b.unitPriceFastMember ?? b.unitPriceSlowMember));
             }
           }
-          sortEv(favStations);
           sortEv(nonFavStations);
           return AsyncValue.data([...favStations, ...nonFavStations]);
         },
