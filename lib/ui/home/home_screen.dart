@@ -204,10 +204,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               duration: const Duration(seconds: 2),
               behavior: SnackBarBehavior.floating,
-              backgroundColor: const Color(0xFF1E293B),
+              backgroundColor: const Color(0xFF64748B).withValues(alpha: 0.92),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
               margin: EdgeInsets.only(
-                bottom: MediaQuery.of(context).padding.bottom + 80,
+                bottom: MediaQuery.of(context).padding.bottom + kBottomNavigationBarHeight + 8,
                 left: 40,
                 right: 40,
               ),
