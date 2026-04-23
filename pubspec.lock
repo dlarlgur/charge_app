@@ -172,9 +172,11 @@ packages:
   dksw_app_core:
     dependency: "direct main"
     description:
-      path: "../dksw_app_core"
-      relative: true
-    source: path
+      path: "."
+      ref: "v0.2.0"
+      resolved-ref: "63a4323d56937270fb7967860b9d736685af129f"
+      url: "https://github.com/dlarlgur/dksw_app_core.git"
+    source: git
     version: "0.1.0"
   encrypt:
     dependency: transitive
