@@ -77,9 +77,6 @@ class AppConstants {
   // 반경 옵션 (미터) - 오피넷 API는 최대 5km까지만 지원
   static const radiusOptions = [1000, 3000, 5000];
 
-  // Splash 표시 시간
-  static const splashDuration = Duration(milliseconds: 1500);
-
   // Hive Box 이름
   static const settingsBox = 'settings';
   static const favoritesBox = 'favorites';

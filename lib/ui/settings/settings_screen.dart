@@ -1,13 +1,28 @@
 import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../data/services/alert_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/constants/api_constants.dart';
 import '../../data/models/models.dart';
 import '../../providers/providers.dart';
 import '../widgets/shared_widgets.dart';
+
+const _chargerTypeOptions = <({String code, String label})>[
+  (code: '02', label: 'AC완속'),
+  (code: '07', label: 'AC3상'),
+  (code: '04', label: 'DC콤보'),
+  (code: '01', label: 'DC차데모'),
+  (code: '09', label: 'NACS'),
+  (code: 'SC', label: '슈퍼차저'),
+  (code: 'DT', label: '데스티네이션'),
+];
+
+String _chargerLabel(String code) =>
+    _chargerTypeOptions.firstWhere((t) => t.code == code, orElse: () => (code: code, label: code)).label;
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -21,69 +36,97 @@ class SettingsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('설정')),
       body: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.fromLTRB(0, 12, 0, 24),
         children: [
-          _sectionHeader(context, '차량 설정'),
-          _settingTile(context, isDark,
+          _SectionCard(
+            isDark: isDark,
             icon: Icons.directions_car_rounded,
-            title: '차량 타입',
-            value: settings.vehicleType.label,
-            onTap: () => _showVehicleTypePicker(context, ref),
+            accent: AppColors.gasBlue,
+            title: '차량 설정',
+            summary: _vehicleSummary(settings),
+            children: [
+              _settingTile(context, isDark,
+                icon: Icons.directions_car_rounded,
+                title: '차량 타입',
+                value: settings.vehicleType.label,
+                onTap: () => _showVehicleTypePicker(context, ref),
+              ),
+              if (settings.vehicleType != VehicleType.ev)
+                _settingTile(context, isDark,
+                  icon: Icons.local_gas_station_rounded,
+                  title: '유종',
+                  value: settings.fuelType.label,
+                  onTap: () => _showFuelTypePicker(context, ref),
+                ),
+              if (settings.vehicleType != VehicleType.gas)
+                _settingTile(context, isDark,
+                  icon: Icons.ev_station_rounded,
+                  title: '충전기 타입',
+                  value: settings.chargerTypes.isEmpty
+                      ? '미선택'
+                      : '${settings.chargerTypes.length}개 선택',
+                  onTap: () => _showChargerTypePicker(context, ref),
+                ),
+              _settingTile(context, isDark,
+                icon: Icons.radar_rounded,
+                title: '검색 반경',
+                value: '${(settings.radius / 1000).toInt()}Km',
+                onTap: () => _showRadiusPicker(context, ref),
+              ),
+            ],
           ),
-          if (settings.vehicleType != VehicleType.ev)
-            _settingTile(context, isDark,
-              icon: Icons.local_gas_station_rounded,
-              title: '유종',
-              value: settings.fuelType.label,
-              onTap: () => _showFuelTypePicker(context, ref),
+          ValueListenableBuilder<int>(
+            valueListenable: AlertService().subsChanged,
+            builder: (_, __, ___) => _SectionCard(
+              isDark: isDark,
+              icon: Icons.notifications_active_rounded,
+              accent: AppColors.warning,
+              title: '알림',
+              summary: _alertSummary(),
+              children: [
+                _AlertSettingTile(isDark: isDark),
+                _EvAlarmSettingTile(isDark: isDark),
+              ],
             ),
-          if (settings.vehicleType != VehicleType.gas)
-            _settingTile(context, isDark,
-              icon: Icons.ev_station_rounded,
-              title: '충전기 타입',
-              value: settings.chargerTypes.isEmpty
-                  ? '미선택'
-                  : '${settings.chargerTypes.length}개 선택',
-              onTap: () => _showChargerTypePicker(context, ref),
-            ),
-          _settingTile(context, isDark,
-            icon: Icons.radar_rounded,
-            title: '검색 반경',
-            value: '${(settings.radius / 1000).toInt()}Km',
-            onTap: () => _showRadiusPicker(context, ref),
           ),
-
-          const SizedBox(height: 16),
-          _sectionHeader(context, '알림'),
-          _AlertSettingTile(isDark: isDark),
-          _EvAlarmSettingTile(isDark: isDark),
-
-          const SizedBox(height: 16),
-          _sectionHeader(context, '앱 설정'),
-          _settingTile(context, isDark,
-            icon: Icons.dark_mode_rounded,
-            title: '테마',
-            value: themeMode == ThemeMode.dark ? '다크' : '라이트',
-            onTap: () => _showThemePicker(context, ref),
+          _SectionCard(
+            isDark: isDark,
+            icon: Icons.palette_rounded,
+            accent: AppColors.evGreen,
+            title: '앱 설정',
+            summary: themeMode == ThemeMode.dark ? '다크 모드' : '라이트 모드',
+            children: [
+              _settingTile(context, isDark,
+                icon: Icons.dark_mode_rounded,
+                title: '테마',
+                value: themeMode == ThemeMode.dark ? '다크' : '라이트',
+                onTap: () => _showThemePicker(context, ref),
+              ),
+            ],
           ),
-
-          const SizedBox(height: 16),
-          _sectionHeader(context, '정보'),
-          _settingTile(context, isDark,
-              icon: Icons.info_outline_rounded, title: '앱 버전', value: DkswCore.appVersion),
-          _settingTile(context, isDark, icon: Icons.description_outlined, title: '이용약관', onTap: () {}),
-          _settingTile(context, isDark, icon: Icons.shield_outlined, title: '개인정보 처리방침', onTap: () {}),
-
-          const SizedBox(height: 24),
-
-          // 데이터 출처
+          _SupportSection(isDark: isDark),
+          _SectionCard(
+            isDark: isDark,
+            icon: Icons.info_outline_rounded,
+            accent: AppColors.gasBlue,
+            title: '정보',
+            summary: 'v${DkswCore.appVersion}',
+            children: [
+              _settingTile(context, isDark,
+                icon: Icons.verified_outlined,
+                title: '앱 버전',
+                value: DkswCore.appVersion,
+              ),
+              _LegalLinks(isDark: isDark),
+            ],
+          ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+            padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
             child: Text(
               '유가 정보 출처: 한국석유공사 오피넷(www.opinet.co.kr)\n충전소 정보 출처: 환경부 전기차 충전소 공공데이터',
               style: TextStyle(
                 fontSize: 11,
-                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
                 height: 1.6,
               ),
             ),
@@ -93,12 +136,32 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _sectionHeader(BuildContext context, String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-      child: Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
-          color: AppColors.gasBlue, letterSpacing: 0.3)),
-    );
+  String _vehicleSummary(SettingsState s) {
+    final parts = <String>[s.vehicleType.label];
+    if (s.vehicleType != VehicleType.ev) parts.add(s.fuelType.label);
+    if (s.vehicleType != VehicleType.gas) {
+      if (s.chargerTypes.isEmpty) {
+        parts.add('충전기 미선택');
+      } else if (s.chargerTypes.length == 1) {
+        parts.add(_chargerLabel(s.chargerTypes.first));
+      } else {
+        parts.add('${_chargerLabel(s.chargerTypes.first)} 외 ${s.chargerTypes.length - 1}');
+      }
+    }
+    parts.add('${(s.radius / 1000).toInt()}Km');
+    return parts.join(' · ');
+  }
+
+  String _alertSummary() {
+    final gasCount = AlertService().subscribedStationIds.length;
+    final evCount = AlertService().evAlarmStationIds.length;
+    final enabled = AlertService().alertsEnabled;
+    if (!enabled && gasCount == 0 && evCount == 0) return '알림 꺼짐';
+    final parts = <String>[];
+    if (gasCount > 0) parts.add('주유소 $gasCount곳');
+    if (evCount > 0) parts.add('충전소 $evCount곳');
+    if (parts.isEmpty) return enabled ? '알림 켜짐' : '알림 꺼짐';
+    return parts.join(' · ');
   }
 
   Widget _settingTile(BuildContext context, bool isDark, {
@@ -156,15 +219,6 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   void _showChargerTypePicker(BuildContext context, WidgetRef ref) {
-    final types = [
-      ('02', 'AC완속'),
-      ('07', 'AC3상'),
-      ('04', 'DC콤보'),
-      ('01', 'DC차데모'),
-      ('09', 'NACS'),
-      ('SC', '슈퍼차저'),
-      ('DT', '데스티네이션'),
-    ];
     showModalBottomSheet(
       context: context,
       builder: (_) => StatefulBuilder(
@@ -175,17 +229,17 @@ class SettingsScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               Text('충전기 타입', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
-              ...types.map((t) {
-                final isSelected = selected.contains(t.$1);
+              ..._chargerTypeOptions.map((t) {
+                final isSelected = selected.contains(t.code);
                 return ListTile(
-                  title: Text(t.$2),
+                  title: Text(t.label),
                   trailing: isSelected
                       ? const Icon(Icons.check_box_rounded, color: AppColors.evGreen)
                       : const Icon(Icons.check_box_outline_blank_rounded),
                   onTap: () {
                     setState(() {
-                      if (isSelected) selected.remove(t.$1);
-                      else selected.add(t.$1);
+                      if (isSelected) selected.remove(t.code);
+                      else selected.add(t.code);
                     });
                     ref.read(settingsProvider.notifier).setChargerTypes(List.from(selected));
                   },
@@ -229,6 +283,132 @@ class SettingsScreen extends ConsumerWidget {
         const SizedBox(height: 16),
       ]),
     ));
+  }
+}
+
+class _SectionCard extends StatelessWidget {
+  final bool isDark;
+  final IconData icon;
+  final Color accent;
+  final String title;
+  final String summary;
+  final List<Widget> children;
+
+  const _SectionCard({
+    required this.isDark,
+    required this.icon,
+    required this.accent,
+    required this.title,
+    required this.summary,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = isDark ? const Color(0xFF141823) : AppColors.lightCard;
+    final border = isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder;
+    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final secondaryColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: border, width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+            child: Row(
+              children: [
+                Container(
+                  width: 32, height: 32,
+                  decoration: BoxDecoration(
+                    color: accent.withOpacity(isDark ? 0.18 : 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, size: 18, color: accent),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                            letterSpacing: -0.2,
+                          )),
+                      const SizedBox(height: 2),
+                      Text(summary,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: secondaryColor,
+                            height: 1.3,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(height: 1, color: mutedColor.withOpacity(0.15)),
+          const SizedBox(height: 4),
+          ...children,
+          const SizedBox(height: 6),
+        ],
+      ),
+    );
+  }
+}
+
+class _LegalLinks extends StatelessWidget {
+  final bool isDark;
+  const _LegalLinks({required this.isDark});
+
+  Future<void> _open(BuildContext context) async {
+    final url = DkswCore.config<String>('privacy_url');
+    if (url == null || url.isEmpty) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('개인정보 처리방침 준비 중입니다')),
+      );
+      return;
+    }
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final secondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final dividerColor = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 10),
+      child: InkWell(
+        onTap: () => _open(context),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Text(
+            '개인정보 처리방침',
+            style: TextStyle(
+              fontSize: 12,
+              color: secondary,
+              decoration: TextDecoration.underline,
+              decorationColor: dividerColor.withOpacity(0.4),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -276,7 +456,6 @@ class _AlertSettingTileState extends State<_AlertSettingTile> {
     if (value) {
       final status = await Permission.notification.status;
       if (status.isPermanentlyDenied) {
-        // 이미 영구 거부 → 설정으로 안내
         if (!mounted) return;
         await showDialog(
           context: context,
@@ -296,9 +475,8 @@ class _AlertSettingTileState extends State<_AlertSettingTile> {
         return;
       }
       if (!status.isGranted) {
-        // 권한 요청 → 네이티브 다이얼로그 바로 표시
         final result = await Permission.notification.request();
-        if (!result.isGranted) return; // 거부하면 토글 변경 안 함
+        if (!result.isGranted) return;
       }
     }
     setState(() => _toggling = true);
@@ -312,7 +490,6 @@ class _AlertSettingTileState extends State<_AlertSettingTile> {
   Future<void> _unsubscribe(String id) async {
     await AlertService().unsubscribe(id);
     setState(() => _ids.remove(id));
-    // 더 이상 구독 없으면 접기
     if (_ids.isEmpty) setState(() => _expanded = false);
   }
 
@@ -324,7 +501,6 @@ class _AlertSettingTileState extends State<_AlertSettingTile> {
 
     return Column(
       children: [
-        // ── 헤더 행 ──
         ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
           leading: Icon(
@@ -342,7 +518,6 @@ class _AlertSettingTileState extends State<_AlertSettingTile> {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // 알림 시각 설정 버튼 (켜진 상태일 때만)
               if (_enabled)
                 GestureDetector(
                   onTap: _pickAlertTime,
@@ -359,7 +534,6 @@ class _AlertSettingTileState extends State<_AlertSettingTile> {
                     ),
                   ),
                 ),
-              // 드롭다운 화살표 (구독 있을 때만)
               if (_ids.isNotEmpty)
                 GestureDetector(
                   onTap: () => setState(() => _expanded = !_expanded),
@@ -372,7 +546,6 @@ class _AlertSettingTileState extends State<_AlertSettingTile> {
                     ),
                   ),
                 ),
-              // 전체 on/off 스위치
               _toggling
                   ? const SizedBox(
                       width: 36, height: 20,
@@ -390,8 +563,6 @@ class _AlertSettingTileState extends State<_AlertSettingTile> {
           ),
           onTap: _ids.isNotEmpty ? () => setState(() => _expanded = !_expanded) : null,
         ),
-
-        // ── 드롭다운: 구독 주유소 리스트 ──
         AnimatedSize(
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeInOut,
@@ -432,7 +603,6 @@ class _AlertSettingTileState extends State<_AlertSettingTile> {
   }
 }
 
-// ── EV 충전소 현황 알림 설정 타일 ──
 class _EvAlarmSettingTile extends StatefulWidget {
   final bool isDark;
   const _EvAlarmSettingTile({required this.isDark});
@@ -587,3 +757,70 @@ class _EvAlarmSettingTileState extends State<_EvAlarmSettingTile> {
   }
 }
 
+class _SupportSection extends StatelessWidget {
+  final bool isDark;
+  const _SupportSection({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    final counts = DkswCore.lastBootstrap?.counts;
+    final hasNotices = (counts?.notices ?? 0) > 0;
+    final hasEvents = (counts?.events ?? 0) > 0;
+    final hasFaqs = (counts?.faqs ?? 0) > 0;
+    if (!hasNotices && !hasEvents && !hasFaqs) return const SizedBox.shrink();
+
+    final parts = <String>[];
+    if (hasNotices) parts.add('공지 ${counts!.notices}');
+    if (hasEvents) parts.add('이벤트 ${counts!.events}');
+    if (hasFaqs) parts.add('FAQ ${counts!.faqs}');
+
+    return _SectionCard(
+      isDark: isDark,
+      icon: Icons.support_agent_rounded,
+      accent: AppColors.warning,
+      title: '고객 지원',
+      summary: parts.join(' · '),
+      children: [
+        if (hasNotices)
+          _supportTile(context,
+              icon: Icons.campaign_rounded,
+              title: '공지사항',
+              count: counts!.notices,
+              onTap: () => context.push('/notices')),
+        if (hasEvents)
+          _supportTile(context,
+              icon: Icons.celebration_rounded,
+              title: '이벤트',
+              count: counts!.events,
+              onTap: () => context.push('/events')),
+        if (hasFaqs)
+          _supportTile(context,
+              icon: Icons.help_outline_rounded,
+              title: '자주 묻는 질문',
+              count: counts!.faqs,
+              onTap: () => context.push('/faq')),
+      ],
+    );
+  }
+
+  Widget _supportTile(BuildContext context, {
+    required IconData icon,
+    required String title,
+    required int count,
+    required VoidCallback onTap,
+  }) {
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final secondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+      leading: Icon(icon, size: 22, color: secondary),
+      title: Text(title, style: Theme.of(context).textTheme.titleSmall),
+      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+        Text('$count', style: TextStyle(fontSize: 13, color: muted)),
+        const SizedBox(width: 4),
+        Icon(Icons.chevron_right_rounded, size: 20, color: muted),
+      ]),
+      onTap: onTap,
+    );
+  }
+}

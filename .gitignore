@@ -33,6 +33,9 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# 로컬 SDK override (상용은 pubspec.yaml 의 git ref 사용)
+pubspec_overrides.yaml
+
 # Symbolication related
 app.*.symbols
 

@@ -15,6 +15,7 @@ import '../../providers/providers.dart';
 import '../ai/ai_main_screen.dart';
 import '../map/map_screen.dart';
 import '../widgets/popup_ad_dialog.dart';
+import '../widgets/popup_notice_dialog.dart';
 import '../widgets/shared_widgets.dart';
 import '../widgets/watch_session_bar.dart';
 import '../../data/services/watch_service.dart';
@@ -70,10 +71,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
     });
 
-    // 홈 팝업 광고 (하루 1회 한도, fire-and-forget)
+    // 홈 팝업: 공지(type=popup) 우선, 없으면 광고 (둘 다 하루 1회 한도)
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future.delayed(const Duration(milliseconds: 400), () {
-        if (mounted) PopupAdDialog.showIfEligible(context);
+      Future.delayed(const Duration(milliseconds: 400), () async {
+        if (!mounted) return;
+        await PopupNoticeDialog.showIfEligible(context);
+        if (!mounted) return;
+        await PopupAdDialog.showIfEligible(context);
       });
     });
 

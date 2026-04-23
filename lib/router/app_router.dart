@@ -9,6 +9,9 @@ import '../core/navigation/app_route_observer.dart';
 import '../ui/detail/gas_detail_screen.dart';
 import '../ui/detail/ev_detail_screen.dart';
 import '../ui/settings/settings_screen.dart';
+import '../ui/notices/notices_screen.dart';
+import '../ui/events/events_screen.dart';
+import '../ui/faq/faq_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -34,6 +37,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
+      GoRoute(path: '/notices', builder: (_, __) => const NoticesScreen()),
+      GoRoute(path: '/events', builder: (_, __) => const EventsScreen()),
+      GoRoute(path: '/faq', builder: (_, __) => const FaqScreen()),
     ],
   );
 });
