@@ -757,49 +757,94 @@ class _EvAlarmSettingTileState extends State<_EvAlarmSettingTile> {
   }
 }
 
-class _SupportSection extends StatelessWidget {
+class _SupportSection extends StatefulWidget {
   final bool isDark;
   const _SupportSection({required this.isDark});
 
   @override
+  State<_SupportSection> createState() => _SupportSectionState();
+}
+
+class _SupportCounts {
+  final int notices;
+  final int events;
+  final int faqs;
+  const _SupportCounts(this.notices, this.events, this.faqs);
+}
+
+class _SupportSectionState extends State<_SupportSection> {
+  late Future<_SupportCounts> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  Future<_SupportCounts> _load() async {
+    final results = await Future.wait([
+      DkswCore.fetchNotices(),
+      DkswCore.fetchEvents(),
+      DkswCore.fetchFaqs(),
+    ]);
+    return _SupportCounts(
+      (results[0] as List).length,
+      (results[1] as List).length,
+      (results[2] as List).length,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final counts = DkswCore.lastBootstrap?.counts;
-    final hasNotices = (counts?.notices ?? 0) > 0;
-    final hasEvents = (counts?.events ?? 0) > 0;
-    final hasFaqs = (counts?.faqs ?? 0) > 0;
-    if (!hasNotices && !hasEvents && !hasFaqs) return const SizedBox.shrink();
+    final boot = DkswCore.lastBootstrap?.counts;
+    final seed = boot == null
+        ? null
+        : _SupportCounts(boot.notices, boot.events, boot.faqs);
 
-    final parts = <String>[];
-    if (hasNotices) parts.add('공지 ${counts!.notices}');
-    if (hasEvents) parts.add('이벤트 ${counts!.events}');
-    if (hasFaqs) parts.add('FAQ ${counts!.faqs}');
+    return FutureBuilder<_SupportCounts>(
+      future: _future,
+      initialData: seed,
+      builder: (context, snap) {
+        final c = snap.data;
+        if (c == null) return const SizedBox.shrink();
+        final hasNotices = c.notices > 0;
+        final hasEvents = c.events > 0;
+        final hasFaqs = c.faqs > 0;
+        if (!hasNotices && !hasEvents && !hasFaqs) return const SizedBox.shrink();
 
-    return _SectionCard(
-      isDark: isDark,
-      icon: Icons.support_agent_rounded,
-      accent: AppColors.warning,
-      title: '고객 지원',
-      summary: parts.join(' · '),
-      children: [
-        if (hasNotices)
-          _supportTile(context,
-              icon: Icons.campaign_rounded,
-              title: '공지사항',
-              count: counts!.notices,
-              onTap: () => context.push('/notices')),
-        if (hasEvents)
-          _supportTile(context,
-              icon: Icons.celebration_rounded,
-              title: '이벤트',
-              count: counts!.events,
-              onTap: () => context.push('/events')),
-        if (hasFaqs)
-          _supportTile(context,
-              icon: Icons.help_outline_rounded,
-              title: '자주 묻는 질문',
-              count: counts!.faqs,
-              onTap: () => context.push('/faq')),
-      ],
+        final parts = <String>[];
+        if (hasNotices) parts.add('공지 ${c.notices}');
+        if (hasEvents) parts.add('이벤트 ${c.events}');
+        if (hasFaqs) parts.add('FAQ ${c.faqs}');
+
+        return _SectionCard(
+          isDark: widget.isDark,
+          icon: Icons.support_agent_rounded,
+          accent: AppColors.warning,
+          title: '고객 지원',
+          summary: parts.join(' · '),
+          children: [
+            if (hasNotices)
+              _supportTile(context,
+                  icon: Icons.campaign_rounded,
+                  title: '공지사항',
+                  count: c.notices,
+                  onTap: () => context.push('/notices')),
+            if (hasEvents)
+              _supportTile(context,
+                  icon: Icons.celebration_rounded,
+                  title: '이벤트',
+                  count: c.events,
+                  onTap: () => context.push('/events')),
+            if (hasFaqs)
+              _supportTile(context,
+                  icon: Icons.help_outline_rounded,
+                  title: '자주 묻는 질문',
+                  count: c.faqs,
+                  onTap: () => context.push('/faq')),
+          ],
+        );
+      },
     );
   }
 
@@ -809,6 +854,7 @@ class _SupportSection extends StatelessWidget {
     required int count,
     required VoidCallback onTap,
   }) {
+    final isDark = widget.isDark;
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     final secondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
     return ListTile(
