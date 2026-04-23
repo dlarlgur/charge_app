@@ -1,7 +1,7 @@
+import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
-import '../../data/services/version_service.dart';
 import '../../data/services/alert_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/constants/api_constants.dart';
@@ -69,11 +69,8 @@ class SettingsScreen extends ConsumerWidget {
 
           const SizedBox(height: 16),
           _sectionHeader(context, '정보'),
-          FutureBuilder<String>(
-            future: VersionService.fetchLatestVersion(),
-            builder: (context, snap) => _settingTile(context, isDark,
-                icon: Icons.info_outline_rounded, title: '앱 버전', value: snap.data ?? '...'),
-          ),
+          _settingTile(context, isDark,
+              icon: Icons.info_outline_rounded, title: '앱 버전', value: DkswCore.appVersion),
           _settingTile(context, isDark, icon: Icons.description_outlined, title: '이용약관', onTap: () {}),
           _settingTile(context, isDark, icon: Icons.shield_outlined, title: '개인정보 처리방침', onTap: () {}),
 

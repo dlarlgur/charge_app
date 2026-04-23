@@ -1,3 +1,4 @@
+import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -10,14 +11,12 @@ import '../../core/constants/api_constants.dart';
 import '../../data/models/models.dart';
 import '../../data/services/alert_service.dart';
 import '../../data/services/notification_service.dart';
-import '../../data/services/version_service.dart';
 import '../../providers/providers.dart';
 import '../ai/ai_main_screen.dart';
 import '../map/map_screen.dart';
 import '../widgets/shared_widgets.dart';
 import '../widgets/watch_session_bar.dart';
 import '../../data/services/watch_service.dart';
-import '../widgets/update_dialog.dart';
 import '../filter/gas_filter_sheet.dart';
 import '../filter/ev_filter_sheet.dart';
 import '../../data/services/favorite_service.dart';
@@ -133,18 +132,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
     });
 
-    // 앱 시작 시 버전 체크
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      debugPrint('[HomeScreen] 버전 체크 시작');
-      final result = await VersionService.check();
-      debugPrint('[HomeScreen] 버전 체크 결과: ${result?.type}');
-      if (!mounted) return;
-      
-      if (result != null && result.type != UpdateType.none) {
-        debugPrint('[HomeScreen] 업데이트 다이얼로그 표시');
-        await UpdateDialog.showIfNeeded(context, result);
-      }
-    });
   }
 
   @override
@@ -1277,12 +1264,9 @@ class SettingsScreenEmbed extends ConsumerWidget {
           }),
           const SizedBox(height: 16),
           _sectionHeader(context, '정보'),
-          FutureBuilder<String>(
-            future: VersionService.fetchLatestVersion(),
-            builder: (context, snap) => _tile(
-              context, isDark, Icons.info_outline_rounded, '앱 버전',
-              snap.data ?? '...', null,
-            ),
+          _tile(
+            context, isDark, Icons.info_outline_rounded, '앱 버전',
+            DkswCore.appVersion, null,
           ),
           const SizedBox(height: 24),
           Padding(

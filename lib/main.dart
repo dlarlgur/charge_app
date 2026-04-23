@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -10,6 +11,7 @@ import 'package:kakao_flutter_sdk_navi/kakao_flutter_sdk_navi.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:workmanager/workmanager.dart';
 import 'app.dart';
+import 'core/constants/api_constants.dart';
 import 'core/constants/secrets.dart';
 import 'data/services/alert_service.dart';
 import 'data/services/notification_service.dart';
@@ -236,6 +238,12 @@ void main() async {
     clientId: Secrets.naverMapClientId,
     onAuthFailed: (e) => debugPrint('네이버 지도 인증 실패: $e'),
   );
+
+  await DkswCore.init(
+    packageName: AppConstants.packageName,
+    serverUrl: 'https://dksw4.com/console',
+  );
+  DkswCore.trackSession();
 
   runApp(const ProviderScope(child: ChargeHelperApp()));
 }
