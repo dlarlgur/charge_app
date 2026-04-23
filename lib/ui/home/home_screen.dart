@@ -14,6 +14,7 @@ import '../../data/services/notification_service.dart';
 import '../../providers/providers.dart';
 import '../ai/ai_main_screen.dart';
 import '../map/map_screen.dart';
+import '../widgets/popup_ad_dialog.dart';
 import '../widgets/shared_widgets.dart';
 import '../widgets/watch_session_bar.dart';
 import '../../data/services/watch_service.dart';
@@ -67,6 +68,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (navigateToEvStationNotifier.value.isNotEmpty) {
         _onNavigateToEvStation();
       }
+    });
+
+    // 홈 팝업 광고 (하루 1회 한도, fire-and-forget)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 400), () {
+        if (mounted) PopupAdDialog.showIfEligible(context);
+      });
     });
 
     // 백그라운드 알림 탭해서 앱 열린 경우 (앱이 이미 실행 중)
