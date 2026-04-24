@@ -1275,6 +1275,7 @@ class SettingsScreenEmbed extends ConsumerWidget {
                 (i) => ref.read(themeModeProvider.notifier).setTheme(modes[i]));
           }),
           const SizedBox(height: 16),
+          _SupportEmbed(isDark: isDark),
           _sectionHeader(context, '정보'),
           _tile(
             context, isDark, Icons.info_outline_rounded, '앱 버전',
@@ -1332,6 +1333,97 @@ class SettingsScreenEmbed extends ConsumerWidget {
         const SizedBox(height: 16),
       ]),
     ));
+  }
+}
+
+// ─── 고객 지원 (공지/이벤트/FAQ) ───
+class _SupportCountsEmbed {
+  final int notices;
+  final int events;
+  final int faqs;
+  const _SupportCountsEmbed(this.notices, this.events, this.faqs);
+}
+
+class _SupportEmbed extends StatefulWidget {
+  final bool isDark;
+  const _SupportEmbed({required this.isDark});
+  @override
+  State<_SupportEmbed> createState() => _SupportEmbedState();
+}
+
+class _SupportEmbedState extends State<_SupportEmbed> {
+  late Future<_SupportCountsEmbed> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    debugPrint('[SupportEmbed] initState → fetch');
+    _future = _load();
+  }
+
+  Future<_SupportCountsEmbed> _load() async {
+    final r = await Future.wait([
+      DkswCore.fetchNotices(),
+      DkswCore.fetchEvents(),
+      DkswCore.fetchFaqs(),
+    ]);
+    final c = _SupportCountsEmbed(
+      (r[0] as List).length,
+      (r[1] as List).length,
+      (r[2] as List).length,
+    );
+    debugPrint('[SupportEmbed] fetched: n=${c.notices} e=${c.events} f=${c.faqs}');
+    return c;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final boot = DkswCore.lastBootstrap?.counts;
+    final seed = boot == null
+        ? null
+        : _SupportCountsEmbed(boot.notices, boot.events, boot.faqs);
+    return FutureBuilder<_SupportCountsEmbed>(
+      future: _future,
+      initialData: seed,
+      builder: (context, snap) {
+        final c = snap.data;
+        if (c == null) return const SizedBox.shrink();
+        final hasN = c.notices > 0;
+        final hasE = c.events > 0;
+        final hasF = c.faqs > 0;
+        if (!hasN && !hasE && !hasF) return const SizedBox.shrink();
+        final isDark = widget.isDark;
+        final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+        final secondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+        Widget tile(IconData icon, String title, int count, String route) => ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+          leading: Icon(icon, size: 22, color: secondary),
+          title: Text(title, style: Theme.of(context).textTheme.titleSmall),
+          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+            Text('$count', style: TextStyle(fontSize: 13, color: muted)),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right_rounded, size: 20, color: muted),
+          ]),
+          onTap: () => context.push(route),
+        );
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+              child: Text('고객 지원',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.gasBlue)),
+            ),
+            if (hasN) tile(Icons.campaign_rounded, '공지사항', c.notices, '/notices'),
+            if (hasE) tile(Icons.celebration_rounded, '이벤트', c.events, '/events'),
+            if (hasF) tile(Icons.help_outline_rounded, '자주 묻는 질문', c.faqs, '/faq'),
+            const SizedBox(height: 16),
+          ],
+        );
+      },
+    );
   }
 }
 

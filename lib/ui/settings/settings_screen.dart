@@ -29,6 +29,7 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    debugPrint('[SettingsScreen] build 진입');
     final settings = ref.watch(settingsProvider);
     final themeMode = ref.watch(themeModeProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -778,25 +779,30 @@ class _SupportSectionState extends State<_SupportSection> {
   @override
   void initState() {
     super.initState();
+    debugPrint('[SupportSection] initState → _load() 호출');
     _future = _load();
   }
 
   Future<_SupportCounts> _load() async {
+    debugPrint('[SupportSection] _load 시작');
     final results = await Future.wait([
       DkswCore.fetchNotices(),
       DkswCore.fetchEvents(),
       DkswCore.fetchFaqs(),
     ]);
-    return _SupportCounts(
+    final c = _SupportCounts(
       (results[0] as List).length,
       (results[1] as List).length,
       (results[2] as List).length,
     );
+    debugPrint('[SupportSection] _load 완료: notices=${c.notices} events=${c.events} faqs=${c.faqs}');
+    return c;
   }
 
   @override
   Widget build(BuildContext context) {
     final boot = DkswCore.lastBootstrap?.counts;
+    debugPrint('[SupportSection] build — lastBootstrap.counts = ${boot == null ? "null" : "n=${boot.notices} e=${boot.events} f=${boot.faqs}"}');
     final seed = boot == null
         ? null
         : _SupportCounts(boot.notices, boot.events, boot.faqs);

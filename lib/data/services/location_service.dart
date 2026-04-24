@@ -48,7 +48,9 @@ class LocationService {
         Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.medium,
           timeLimit: const Duration(seconds: 5),
-        ).then((pos) => _lastPosition = pos).catchError((_) {});
+        ).then((pos) {
+          _lastPosition = pos;
+        }).catchError((_) {});
         return _lastPosition;
       }
 
