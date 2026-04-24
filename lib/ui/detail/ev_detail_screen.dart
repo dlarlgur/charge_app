@@ -337,7 +337,6 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
 
   // ─── 히어로 카드 ───
   Widget _heroCard(EvStation s, bool isDark) {
-    final isOpen = !s.isRestricted;
     final hasAvail = s.hasAvailable;
 
     // 커넥터 타입별 보유 여부 (항상 4개 원 표시, 없으면 회색)
@@ -411,18 +410,32 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (isOpen)
+                if (s.accessLevel == 'restricted')
+                  _topRightStack(
+                    icon: Icons.lock_rounded,
+                    label: '이용제한',
+                    color: AppColors.error,
+                  )
+                else if (s.accessLevel == 'partial')
+                  _topRightStack(
+                    icon: Icons.lock_outline_rounded,
+                    label: '부분개방',
+                    color: AppColors.warning,
+                  )
+                else
                   _topRightStack(
                     icon: Icons.lock_open_rounded,
                     label: '완전개방',
                     color: AppColors.evGreen,
-                  )
-                else if (s.parkingFree)
+                  ),
+                if (s.parkingFree) ...[
+                  const SizedBox(width: 8),
                   _topRightStack(
                     icon: Icons.local_parking_rounded,
-                    label: '주차 무료',
+                    label: '주차무료',
                     color: AppColors.success,
                   ),
+                ],
               ],
             ),
             const SizedBox(height: 8),
@@ -980,6 +993,11 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
 
   IconData _iconOf(String? name) {
     switch (name) {
+      case 'busy':         return Icons.do_not_disturb_on_rounded;
+      case 'opening':      return Icons.trending_down_rounded;
+      case 'arrive':       return Icons.login_rounded;
+      case 'free':         return Icons.check_circle_rounded;
+      case 'stopwatch':    return Icons.timer_rounded;
       case 'clock':        return Icons.access_time_rounded;
       case 'moon':         return Icons.nights_stay_rounded;
       case 'sun':          return Icons.wb_sunny_rounded;

@@ -119,6 +119,8 @@ class EvStation {
   final String? limitDetail;
   final String? note;
   final bool isRestricted;
+  /// 'open' | 'partial' | 'restricted'
+  final String accessLevel;
 
   EvStation({
     required this.statId,
@@ -144,6 +146,7 @@ class EvStation {
     this.limitDetail,
     this.note,
     this.isRestricted = false,
+    this.accessLevel = 'open',
   });
 
   factory EvStation.fromJson(Map<String, dynamic> json) {
@@ -175,6 +178,7 @@ class EvStation {
       limitDetail: json['limitDetail']?.toString().isNotEmpty == true ? json['limitDetail'] : null,
       note: json['note']?.toString().isNotEmpty == true ? json['note'] : null,
       isRestricted: json['isRestricted'] == true,
+      accessLevel: (json['accessLevel'] as String?) ?? (json['isRestricted'] == true ? 'restricted' : 'open'),
     );
   }
 
