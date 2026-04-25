@@ -92,6 +92,22 @@ class GasStation {
   }
 
   String get priceText => '${price.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}원';
+
+  GasStation copyWithDistance(double newDistance) => GasStation(
+    id: id,
+    name: name,
+    brand: brand,
+    address: address,
+    price: price,
+    distance: newDistance,
+    lat: lat,
+    lng: lng,
+    phone: phone,
+    isSelf: isSelf,
+    hasCarWash: hasCarWash,
+    hasMaintenance: hasMaintenance,
+    fuelType: fuelType,
+  );
 }
 
 // ─── 전기차 충전소 모델 ───
@@ -213,16 +229,51 @@ class EvStation {
     return '${(distance! / 1000).toStringAsFixed(1)}Km';
   }
 
+  /// 카드 우측 상단의 파워 라벨.
+  /// 급속(50kW+)이 하나라도 있으면 "급속 NkW"로 표시,
+  /// 없으면 "완속 NkW".
   String? get maxPowerText {
     if (chargers.isEmpty) return null;
-    final maxPower = chargers.map((c) => c.output).reduce((a, b) => a > b ? a : b);
-    return '${maxPower}kW';
+    final fast = chargers.where((c) => c.isFast).toList();
+    if (fast.isNotEmpty) {
+      final maxFast = fast.map((c) => c.output).reduce((a, b) => a > b ? a : b);
+      return '급속 ${maxFast}kW';
+    }
+    final maxSlow = chargers.map((c) => c.output).reduce((a, b) => a > b ? a : b);
+    return '완속 ${maxSlow}kW';
   }
 
   String get chargerTypeText {
     final types = chargers.map((c) => c.typeText).toSet().toList();
     return types.join(' · ');
   }
+
+  EvStation copyWithDistance(double newDistance) => EvStation(
+    statId: statId,
+    name: name,
+    address: address,
+    lat: lat,
+    lng: lng,
+    operator: operator,
+    phone: phone,
+    useTime: useTime,
+    parkingFree: parkingFree,
+    chargers: chargers,
+    distance: newDistance,
+    unitPriceFast: unitPriceFast,
+    unitPriceSlow: unitPriceSlow,
+    unitPriceFastMember: unitPriceFastMember,
+    unitPriceSlowMember: unitPriceSlowMember,
+    kind: kind,
+    kindDetail: kindDetail,
+    isTesla: isTesla,
+    stationType: stationType,
+    limitYn: limitYn,
+    limitDetail: limitDetail,
+    note: note,
+    isRestricted: isRestricted,
+    accessLevel: accessLevel,
+  );
 }
 
 // ─── 충전기 모델 ───

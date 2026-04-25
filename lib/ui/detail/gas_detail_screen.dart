@@ -8,6 +8,7 @@ import '../../data/models/models.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/alert_service.dart';
 import '../../data/services/favorite_service.dart';
+import '../../data/services/widget_service.dart';
 import '../../providers/providers.dart' show favoritesProvider;
 import '../widgets/shared_widgets.dart' show showFuelTypeAlertSheet, BrandLogo;
 
@@ -124,6 +125,7 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
     );
     setState(() => _isFavorite = result);
     ref.read(favoritesProvider.notifier).refresh();
+    WidgetService.updateGasWidget();
   }
 
   void _openAlertSheet() {

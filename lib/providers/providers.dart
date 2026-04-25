@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -7,6 +8,20 @@ import '../data/services/api_service.dart';
 import '../data/services/favorite_service.dart';
 import '../data/services/location_service.dart';
 import '../data/services/widget_service.dart';
+
+/// 두 좌표 사이 거리(m) — 즐겨찾기처럼 distance가 서버에서 안 내려오는 경우
+/// 사용자 현재 위치로 클라이언트에서 보정해서 표시.
+double _haversineM(double lat1, double lng1, double lat2, double lng2) {
+  const r = 6371000.0;
+  final dLat = (lat2 - lat1) * math.pi / 180;
+  final dLng = (lng2 - lng1) * math.pi / 180;
+  final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+      math.cos(lat1 * math.pi / 180) *
+          math.cos(lat2 * math.pi / 180) *
+          math.sin(dLng / 2) *
+          math.sin(dLng / 2);
+  return r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+}
 
 // ─── Theme Provider ───
 final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>((ref) {
@@ -199,14 +214,19 @@ bool _chargerMatchesFilter(String chargerType, List<String> filterTypes) {
 }
 
 // ─── 즐겨찾기 ID 기반 주유소 조회 (위치 무관) ───
+// 단건 detail API는 유종을 모르면 가격이 0으로 떨어진다 → 현재 필터 유종 전달.
 final favGasStationsProvider = FutureProvider<List<GasStation>>((ref) async {
   final favIds = ref.watch(favoritesProvider)
       .where((f) => f['type'] == 'gas')
       .map((f) => f['id'] as String)
       .toList();
   if (favIds.isEmpty) return [];
+  final filter = ref.watch(gasFilterProvider);
+  final fuelType = filter.fuelTypes.isNotEmpty ? filter.fuelTypes.first : 'B027';
   final results = await Future.wait(
-    favIds.map((id) => ApiService().getGasStationDetail(id).catchError((_) => <String, dynamic>{})),
+    favIds.map((id) => ApiService()
+        .getGasStationDetail(id, fuelType: fuelType)
+        .catchError((_) => <String, dynamic>{})),
   );
   return results
       .where((json) => json.isNotEmpty)
@@ -268,7 +288,14 @@ final gasStationsProvider = Provider<AsyncValue<List<GasStation>>>((ref) {
         loading: () => const AsyncValue.loading(),
         error: (e, s) => AsyncValue.error(e, s),
         data: (raw) {
-          final favStations = favAsync.valueOrNull ?? [];
+          // 즐겨찾기 로딩을 기다리지 않는다 — 위치 기반 결과를 먼저 그리고,
+          // fav 도착 시 자연스럽게 상단에 끼어든다 (첫 진입 응답성 우선).
+          final favRaw = favAsync.valueOrNull ?? [];
+          // 상세 API는 distance를 안 돌려주므로 현재 위치 기반으로 재계산
+          final favStations = favRaw
+              .map((s) => s.copyWithDistance(_haversineM(loc.lat, loc.lng, s.lat, s.lng)))
+              .toList()
+            ..sort((a, b) => a.distance.compareTo(b.distance));
           final favIds = favStations.map((s) => s.id).toSet();
           // 위치 기반 결과에서 즐겨찾기 중복 제거
           var nonFavStations = raw.where((s) => !favIds.contains(s.id)).toList();
@@ -324,7 +351,14 @@ final evStationsProvider = Provider<AsyncValue<List<EvStation>>>((ref) {
         loading: () => const AsyncValue.loading(),
         error: (e, s) => AsyncValue.error(e, s),
         data: (raw) {
-          final favStations = favAsync.valueOrNull ?? [];
+          // 즐겨찾기 로딩을 기다리지 않는다 — 위치 기반 결과를 먼저 그리고,
+          // fav 도착 시 자연스럽게 상단에 끼어든다 (첫 진입 응답성 우선).
+          final favRaw = favAsync.valueOrNull ?? [];
+          // 상세 API는 distance를 안 돌려주므로 현재 위치 기반으로 재계산
+          final favStations = favRaw
+              .map((s) => s.copyWithDistance(_haversineM(loc.lat, loc.lng, s.lat, s.lng)))
+              .toList()
+            ..sort((a, b) => (a.distance ?? double.infinity).compareTo(b.distance ?? double.infinity));
           final favIds = favStations.map((s) => s.statId).toSet();
           // 위치 기반 결과에서 즐겨찾기 중복 제거
           var nonFavStations = raw.where((s) => !favIds.contains(s.statId)).toList();

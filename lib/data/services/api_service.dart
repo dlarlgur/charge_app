@@ -107,8 +107,11 @@ class ApiService {
     return List<Map<String, dynamic>>.from(res.data['data'] ?? []);
   }
 
-  Future<Map<String, dynamic>> getGasStationDetail(String id) async {
-    final res = await _dio.get('${ApiConstants.gasDetail}/$id');
+  Future<Map<String, dynamic>> getGasStationDetail(String id, {String? fuelType}) async {
+    final res = await _dio.get(
+      '${ApiConstants.gasDetail}/$id',
+      queryParameters: fuelType != null ? {'fuelType': fuelType} : null,
+    );
     return Map<String, dynamic>.from(res.data['data'] ?? {});
   }
 

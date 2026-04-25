@@ -78,7 +78,7 @@ class PopupAdDialog extends StatelessWidget {
                     child: AspectRatio(
                       aspectRatio: 9 / 16,
                       child: Image.network(
-                        ad.imageUrl,
+                        DkswCore.resolveAssetUrl(ad.imageUrl),
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => Container(
                           color: Colors.black26,

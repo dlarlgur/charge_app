@@ -304,174 +304,148 @@ class _StationCardState extends State<_StationCard> {
     final gsName = gs['name']?.toString() ?? '';
     final gsWatchDecision = gsStatId != null ? _subWatchDecisions[gsStatId] : null;
     final accentColor = widget.accentColor;
+    final canNavigate = gsLat != null && gsLng != null &&
+        widget.originLat != null && widget.destLat != null;
 
     return Container(
-      margin: const EdgeInsets.only(top: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       decoration: BoxDecoration(
         color: const Color(0xFFF8F9FA),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE5E5E5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── Info row: status + operator + price (액션 버튼 분리) ──
           Row(
-        children: [
-          Container(
-            width: 7, height: 7,
-            decoration: BoxDecoration(
-              color: gsAvail > 0 ? _kGreen : _kOrange,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 5),
-          Text(
-            '$gsAvail/$gsTotal',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: gsAvail > 0 ? _kGreen : _kOrange,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              gsOperator,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF444444)),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          if (gsUnitPrice != null) ...[
-            Text(
-              '${_wonFmt.format(gsUnitPrice)}원',
-              style: const TextStyle(fontSize: 11, color: _kGrey),
-            ),
-            const SizedBox(width: 8),
-          ],
-          // 알림 버튼
-          if (gsStatId != null)
-            Builder(builder: (ctx) => GestureDetector(
-              onTap: () async {
-                final existingSession = WatchService().session;
-                if (existingSession != null && existingSession.statId == gsStatId) {
-                  if (ctx.mounted) {
-                    await showWatchAlreadyActiveDialog(ctx, stationName: existingSession.stationName);
-                  }
-                  return;
-                }
-                if (existingSession != null && ctx.mounted) {
-                  final switchOk = await showWatchSwitchDialog(
-                    ctx, currentStationName: existingSession.stationName);
-                  if (!switchOk || !ctx.mounted) return;
-                  await WatchService().stop();
-                }
-                if (!ctx.mounted) return;
-                final accepted = await showDialog<bool>(
-                  context: ctx,
-                  builder: (dCtx) => _WatchDialog(etaMin: null, accentColor: accentColor),
-                );
-                if (accepted != null && mounted) {
-                  setState(() => _subWatchDecisions[gsStatId] = accepted);
-                  if (accepted) {
-                    WatchService().start(
-                      statId: gsStatId,
-                      stationName: gsName,
-                      etaMin: 0,
-                      currentAvail: gsAvail,
-                    );
-                  }
-                }
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+            children: [
+              Container(
+                width: 8, height: 8,
                 decoration: BoxDecoration(
-                  color: gsWatchDecision == true
+                  color: gsAvail > 0 ? _kGreen : _kOrange,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '$gsAvail/$gsTotal',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: gsAvail > 0 ? _kGreen : _kOrange,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  gsOperator,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1F2937),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (gsUnitPrice != null) ...[
+                const SizedBox(width: 6),
+                Text(
+                  '${_wonFmt.format(gsUnitPrice)}원',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1F2937),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 12),
+          // ── Action row: [bell] [상세] [길안내] — 44pt 터치 타깃 ──
+          Row(
+            children: [
+              if (gsStatId != null) ...[
+                Builder(builder: (ctx) => _ActionIconBtn(
+                  icon: gsWatchDecision == true
+                      ? Icons.notifications_active_rounded
+                      : Icons.notifications_none_rounded,
+                  iconColor: gsWatchDecision == true ? accentColor : _kGrey,
+                  fillColor: gsWatchDecision == true
                       ? accentColor.withOpacity(0.1)
                       : const Color(0xFFEEEEEE),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(
-                  gsWatchDecision == true
-                      ? Icons.notifications_active_rounded
-                      : Icons.notifications_rounded,
-                  size: 13,
-                  color: gsWatchDecision == true ? accentColor : _kGrey,
-                ),
-              ),
-            )),
-          const SizedBox(width: 6),
-          // 길안내 버튼
-          if (gsLat != null && gsLng != null &&
-              widget.originLat != null && widget.destLat != null)
-            Builder(builder: (ctx) => GestureDetector(
-              onTap: () => showViaWaypointNavigationSheet(
-                ctx,
-                originLat: widget.originLat!,
-                originLng: widget.originLng!,
-                waypointLat: gsLat,
-                waypointLng: gsLng,
-                waypointName: gsName,
-                destinationLat: widget.destLat!,
-                destinationLng: widget.destLng!,
-                destinationName: widget.destName ?? '목적지',
-              ),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                decoration: BoxDecoration(
-                  color: accentColor,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.navigation_rounded, size: 11, color: Colors.white),
-                    const SizedBox(width: 3),
-                    const Text(
-                      '길안내',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
+                  onTap: () async {
+                    final existingSession = WatchService().session;
+                    if (existingSession != null && existingSession.statId == gsStatId) {
+                      if (ctx.mounted) {
+                        await showWatchAlreadyActiveDialog(ctx, stationName: existingSession.stationName);
+                      }
+                      return;
+                    }
+                    if (existingSession != null && ctx.mounted) {
+                      final switchOk = await showWatchSwitchDialog(
+                        ctx, currentStationName: existingSession.stationName);
+                      if (!switchOk || !ctx.mounted) return;
+                      await WatchService().stop();
+                    }
+                    if (!ctx.mounted) return;
+                    final accepted = await showDialog<bool>(
+                      context: ctx,
+                      builder: (dCtx) => _WatchDialog(etaMin: null, accentColor: accentColor),
+                    );
+                    if (accepted != null && mounted) {
+                      setState(() => _subWatchDecisions[gsStatId] = accepted);
+                      if (accepted) {
+                        WatchService().start(
+                          statId: gsStatId,
+                          stationName: gsName,
+                          etaMin: 0,
+                          currentAvail: gsAvail,
+                        );
+                      }
+                    }
+                  },
+                )),
+                const SizedBox(width: 8),
+              ],
+              if (gsStatId != null)
+                Expanded(
+                  child: _ActionBtn(
+                    icon: Icons.info_outline_rounded,
+                    label: '상세',
+                    color: accentColor,
+                    primary: false,
+                    onTap: () => Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => EvDetailScreen(stationId: gsStatId),
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            )),
-        ],
-          ),
-          // 상세보기 버튼
-          if (gsStatId != null) ...[
-            const SizedBox(height: 7),
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => Navigator.of(context, rootNavigator: true).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => EvDetailScreen(stationId: gsStatId),
-                ),
-              ),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                decoration: BoxDecoration(
-                  color: accentColor.withOpacity(0.07),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.info_outline_rounded, size: 12, color: accentColor),
-                    const SizedBox(width: 4),
-                    Text(
-                      '상세보기',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: accentColor),
+              if (gsStatId != null && canNavigate) const SizedBox(width: 8),
+              if (canNavigate)
+                Expanded(
+                  child: Builder(builder: (ctx) => _ActionBtn(
+                    icon: Icons.navigation_rounded,
+                    label: '길안내',
+                    color: accentColor,
+                    primary: true,
+                    onTap: () => showViaWaypointNavigationSheet(
+                      ctx,
+                      originLat: widget.originLat!,
+                      originLng: widget.originLng!,
+                      waypointLat: gsLat,
+                      waypointLng: gsLng,
+                      waypointName: gsName,
+                      destinationLat: widget.destLat!,
+                      destinationLng: widget.destLng!,
+                      destinationName: widget.destName ?? '목적지',
                     ),
-                  ],
+                  )),
                 ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ],
       ),
     );
@@ -688,155 +662,208 @@ class _StationCardState extends State<_StationCard> {
                 if (widget.onMapTap != null ||
                     (widget.originLat != null && widget.destLat != null) ||
                     statId != null) ...[
+                  const SizedBox(height: 4),
                   const Divider(height: 1, color: Color(0xFFEEEEEE)),
-                  const SizedBox(height: 8),
-                  // ── 지도/길안내 버튼 행 ──
-                  if (widget.onMapTap != null || (widget.originLat != null && widget.destLat != null))
+                  const SizedBox(height: 12),
+                  // ── 보조 액션 (지도 / 상세) — 50:50 또는 단독 ──
+                  if (widget.onMapTap != null || (statId != null && !isGrouped)) ...[
                     Row(
                       children: [
-                        if (widget.onMapTap != null) ...[
+                        if (widget.onMapTap != null)
                           Expanded(
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.opaque,
+                            child: _ActionBtn(
+                              icon: Icons.map_rounded,
+                              label: '지도에서 보기',
+                              color: accentColor,
+                              primary: false,
                               onTap: widget.onMapTap,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 2),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.map_rounded, size: 13, color: accentColor),
-                                    const SizedBox(width: 3),
-                                    Text(
-                                      '지도에서 경로 보기',
-                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: accentColor),
-                                    ),
-                                  ],
-                                ),
-                              ),
                             ),
                           ),
-                        ],
-                        if (widget.onMapTap != null && widget.originLat != null && widget.destLat != null)
-                          Container(width: 1, height: 16, color: const Color(0xFFEEEEEE)),
-                        if (widget.originLat != null && widget.destLat != null) ...[
+                        if (widget.onMapTap != null && statId != null && !isGrouped)
+                          const SizedBox(width: 8),
+                        if (statId != null && !isGrouped)
                           Expanded(
-                            child: Builder(builder: (ctx) => GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTap: () async {
-                                final stLat = (station['lat'] as num?)?.toDouble();
-                                final stLng = (station['lng'] as num?)?.toDouble();
-                                final stName = station['name']?.toString() ?? '충전소';
-                                if (stLat == null || stLng == null) return;
-                                // 워치 제안 다이얼로그
-                                if (statId != null && ctx.mounted) {
-                                  // 이미 활성 워치 세션이 있으면 분기
-                                  final existingSession = WatchService().session;
-                                  if (existingSession != null && existingSession.statId == statId) {
-                                    // 같은 충전소 → 이미 알림 중 다이얼로그, 확인 후 계속 진행
-                                    await showWatchAlreadyActiveDialog(
-                                      ctx,
-                                      stationName: existingSession.stationName,
-                                    );
-                                  } else {
-                                  if (existingSession != null && ctx.mounted) {
-                                    final switchOk = await showWatchSwitchDialog(
-                                      ctx,
-                                      currentStationName: existingSession.stationName,
-                                    );
-                                    if (!switchOk || !ctx.mounted) return;
-                                    await WatchService().stop();
-                                  }
-                                  final accepted = await showDialog<bool>(
-                                    context: ctx,
-                                    builder: (dCtx) => _WatchDialog(
-                                      etaMin: originEtaMin,
-                                      accentColor: accentColor,
-                                    ),
-                                  );
-                                  if (accepted == true) {
-                                    WatchService().start(
-                                      statId: statId,
-                                      stationName: stName,
-                                      etaMin: originEtaMin ?? 0,
-                                      currentAvail: availCount,
-                                    );
-                                  }
-                                  if (accepted != null && mounted) {
-                                    setState(() => _watchDecision = accepted);
-                                  }
-                                  } // else
-                                }
-                                if (!ctx.mounted) return;
-                                showViaWaypointNavigationSheet(
-                                  ctx,
-                                  originLat: widget.originLat!,
-                                  originLng: widget.originLng!,
-                                  waypointLat: stLat,
-                                  waypointLng: stLng,
-                                  waypointName: stName,
-                                  destinationLat: widget.destLat!,
-                                  destinationLng: widget.destLng!,
-                                  destinationName: widget.destName ?? '목적지',
+                            child: _ActionBtn(
+                              icon: Icons.info_outline_rounded,
+                              label: '충전소 상세',
+                              color: accentColor,
+                              primary: false,
+                              onTap: () {
+                                Navigator.of(context, rootNavigator: true).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => EvDetailScreen(stationId: statId),
+                                  ),
                                 );
                               },
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 2),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.navigation_rounded, size: 13, color: accentColor),
-                                    const SizedBox(width: 3),
-                                    Text(
-                                      '길안내',
-                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: accentColor),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            )),
+                            ),
                           ),
-                        ],
                       ],
                     ),
-                  // ── 상세보기 버튼 (전체 너비) ──
-                  if (statId != null && !isGrouped) ...[
-                    if (widget.onMapTap != null || (widget.originLat != null && widget.destLat != null))
-                      const SizedBox(height: 8),
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () {
-                        Navigator.of(context, rootNavigator: true).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => EvDetailScreen(stationId: statId),
-                          ),
+                    const SizedBox(height: 8),
+                  ],
+                  // ── Primary CTA: 길안내 (가로 풀너비, filled) ──
+                  if (widget.originLat != null && widget.destLat != null)
+                    Builder(builder: (ctx) => _ActionBtn(
+                      icon: Icons.navigation_rounded,
+                      label: '길안내 시작',
+                      color: accentColor,
+                      primary: true,
+                      fullWidth: true,
+                      onTap: () async {
+                        final stLat = (station['lat'] as num?)?.toDouble();
+                        final stLng = (station['lng'] as num?)?.toDouble();
+                        final stName = station['name']?.toString() ?? '충전소';
+                        if (stLat == null || stLng == null) return;
+                        // 워치 제안 다이얼로그
+                        if (statId != null && ctx.mounted) {
+                          final existingSession = WatchService().session;
+                          if (existingSession != null && existingSession.statId == statId) {
+                            await showWatchAlreadyActiveDialog(
+                              ctx,
+                              stationName: existingSession.stationName,
+                            );
+                          } else {
+                            if (existingSession != null && ctx.mounted) {
+                              final switchOk = await showWatchSwitchDialog(
+                                ctx,
+                                currentStationName: existingSession.stationName,
+                              );
+                              if (!switchOk || !ctx.mounted) return;
+                              await WatchService().stop();
+                            }
+                            final accepted = await showDialog<bool>(
+                              context: ctx,
+                              builder: (dCtx) => _WatchDialog(
+                                etaMin: originEtaMin,
+                                accentColor: accentColor,
+                              ),
+                            );
+                            if (accepted == true) {
+                              WatchService().start(
+                                statId: statId,
+                                stationName: stName,
+                                etaMin: originEtaMin ?? 0,
+                                currentAvail: availCount,
+                              );
+                            }
+                            if (accepted != null && mounted) {
+                              setState(() => _watchDecision = accepted);
+                            }
+                          }
+                        }
+                        if (!ctx.mounted) return;
+                        showViaWaypointNavigationSheet(
+                          ctx,
+                          originLat: widget.originLat!,
+                          originLng: widget.originLng!,
+                          waypointLat: stLat,
+                          waypointLng: stLng,
+                          waypointName: stName,
+                          destinationLat: widget.destLat!,
+                          destinationLng: widget.destLng!,
+                          destinationName: widget.destName ?? '목적지',
                         );
                       },
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 9),
-                        decoration: BoxDecoration(
-                          color: accentColor.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.info_outline_rounded, size: 14, color: accentColor),
-                            const SizedBox(width: 5),
-                            Text(
-                              '충전소 상세보기',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: accentColor),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+                    )),
                 ],
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 일관된 액션 버튼.
+/// - primary=true → filled (accent bg, 흰 글자) — 메인 CTA
+/// - primary=false → tonal (accent.withOpacity(0.08), accent 글자) — 보조
+/// 최소 높이 44pt (Apple HIG 터치 타깃), Material InkWell 리플 포함.
+class _ActionBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback? onTap;
+  final bool primary;
+  final bool fullWidth;
+
+  const _ActionBtn({
+    required this.icon,
+    required this.label,
+    required this.color,
+    this.onTap,
+    this.primary = false,
+    this.fullWidth = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = primary ? Colors.white : color;
+    final bg = primary ? color : color.withOpacity(0.10);
+    final btn = Material(
+      color: bg,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          height: 44,
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: fg),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: fg,
+                    letterSpacing: -0.2,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    return fullWidth ? SizedBox(width: double.infinity, child: btn) : btn;
+  }
+}
+
+/// 정사각 아이콘 버튼 (44×44, 알림 토글 등에 사용).
+class _ActionIconBtn extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final Color fillColor;
+  final VoidCallback? onTap;
+
+  const _ActionIconBtn({
+    required this.icon,
+    required this.iconColor,
+    required this.fillColor,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: fillColor,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: SizedBox(
+          width: 44, height: 44,
+          child: Center(child: Icon(icon, size: 18, color: iconColor)),
+        ),
       ),
     );
   }

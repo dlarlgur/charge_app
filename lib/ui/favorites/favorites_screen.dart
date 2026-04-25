@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/services/favorite_service.dart';
+import '../../data/services/widget_service.dart';
 import '../../providers/providers.dart' show favoritesProvider, FavoritesNotifier;
 
 /// 즐겨찾기 화면
@@ -115,9 +116,12 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> with SingleTi
             child: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
           ),
           onDismissed: (_) {
+            final type = item['type'] as String? ?? '';
             ref.read(favoritesProvider.notifier).toggle(
-              id: item['id'], type: item['type'], name: item['name'], subtitle: item['subtitle'] ?? '',
+              id: item['id'], type: type, name: item['name'], subtitle: item['subtitle'] ?? '',
             );
+            if (type == 'gas') WidgetService.updateGasWidget();
+            if (type == 'ev') WidgetService.updateEvWidget();
           },
           child: GestureDetector(
             onTap: () {

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../data/services/alert_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/constants/api_constants.dart';
@@ -118,7 +117,11 @@ class SettingsScreen extends ConsumerWidget {
                 title: '앱 버전',
                 value: DkswCore.appVersion,
               ),
-              _LegalLinks(isDark: isDark),
+              _settingTile(context, isDark,
+                icon: Icons.description_outlined,
+                title: '정책 및 약관',
+                onTap: () => context.push('/policies'),
+              ),
             ],
           ),
           Padding(
@@ -365,49 +368,6 @@ class _SectionCard extends StatelessWidget {
           ...children,
           const SizedBox(height: 6),
         ],
-      ),
-    );
-  }
-}
-
-class _LegalLinks extends StatelessWidget {
-  final bool isDark;
-  const _LegalLinks({required this.isDark});
-
-  Future<void> _open(BuildContext context) async {
-    final url = DkswCore.config<String>('privacy_url');
-    if (url == null || url.isEmpty) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('개인정보 처리방침 준비 중입니다')),
-      );
-      return;
-    }
-    final uri = Uri.tryParse(url);
-    if (uri == null) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final secondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-    final dividerColor = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 10),
-      child: InkWell(
-        onTap: () => _open(context),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Text(
-            '개인정보 처리방침',
-            style: TextStyle(
-              fontSize: 12,
-              color: secondary,
-              decoration: TextDecoration.underline,
-              decorationColor: dividerColor.withOpacity(0.4),
-            ),
-          ),
-        ),
       ),
     );
   }
