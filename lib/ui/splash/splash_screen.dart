@@ -7,11 +7,8 @@ import '../../core/update/app_updater.dart';
 import '../../providers/providers.dart';
 import '../widgets/update_dialog.dart';
 
-/// 네이티브 스플래시가 bootstrap 끝날 때까지 유지되므로,
-/// 이 화면은 화면을 그리지 않고 게이트 역할만 한다.
-/// - bootstrap 완료 → 네이티브 스플래시 제거
-/// - 업데이트 필요 시 인앱 업데이트 / 다이얼로그
-/// - 스플래시 광고 있으면 노출, 없으면 홈/권한 화면 직행
+/// 네이티브 스플래시는 다음 화면(광고/홈/권한) 첫 프레임이 커밋된 직후에만 내려간다.
+/// 그래야 흰색 갭 없이 로고 → 광고 또는 로고 → 홈 으로 자연스럽게 스냅.
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
   @override
@@ -25,6 +22,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _runBootstrap());
   }
 
+  void _removeNativeSplashNextFrame() {
+    WidgetsBinding.instance.addPostFrameCallback((_) => FlutterNativeSplash.remove());
+  }
+
   Future<void> _runBootstrap() async {
     if (!mounted) return;
 
@@ -33,11 +34,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     debugPrint('[SplashScreen] bootstrap 결과: force=${result?.update.forceUpdate}, ad=${result?.ad != null}');
     if (!mounted) return;
 
-    // 이후 단계는 모두 화면 UI를 노출해야 하므로 네이티브 스플래시 내림
-    FlutterNativeSplash.remove();
-
     if (result?.maintenance != null) {
       final m = result!.maintenance!;
+      FlutterNativeSplash.remove();
       await Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => _MaintenanceScreen(title: m.title, body: m.body)),
       );
@@ -45,6 +44,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     }
 
     if (result != null && (result.update.forceUpdate || result.update.optionalUpdate)) {
+      FlutterNativeSplash.remove();
       final native = result.update.forceUpdate
           ? await AppUpdater.tryImmediateUpdate()
           : await AppUpdater.tryFlexibleUpdate();
@@ -63,15 +63,26 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
     final ad = result?.ad;
     if (ad != null) {
+      // 광고 이미지를 미리 디코드해 캐시에 올린 뒤 push → 첫 프레임에 즉시 그려짐.
+      try {
+        await precacheImage(NetworkImage(ad.imageUrl), context)
+            .timeout(const Duration(milliseconds: 1200));
+      } catch (_) {
+        // 캐시 실패해도 그냥 진행 — SplashAdScreen 의 loadingBuilder 가 받아준다.
+      }
+      if (!mounted) return;
+
+      _removeNativeSplashNextFrame();
       await Navigator.of(context).push(
         PageRouteBuilder(
           pageBuilder: (_, __, ___) => SplashAdScreen(ad: ad),
-          transitionDuration: const Duration(milliseconds: 150),
-          transitionsBuilder: (_, anim, __, child) =>
-              FadeTransition(opacity: anim, child: child),
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
         ),
       );
       if (!mounted) return;
+    } else {
+      _removeNativeSplashNextFrame();
     }
 
     final settings = ref.read(settingsProvider);
@@ -84,7 +95,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 네이티브 스플래시가 위에 떠 있는 동안 깜빡이지 않도록 동일 배경색만 제공.
+    // 네이티브 스플래시가 위를 덮고 있으므로 이 색상은 거의 보이지 않는다.
+    // 단 안전장치 타이머가 발동했을 때만 잠깐 보일 수 있으니 테마와 통일.
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0C0E13) : Colors.white,

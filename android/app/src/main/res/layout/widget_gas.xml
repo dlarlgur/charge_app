@@ -1,32 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/gas_widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@drawable/widget_bg"
-    android:padding="12dp">
+    android:background="#FFFFFF"
+    android:padding="14dp">
 
     <!-- Header -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="20dp"
+        android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:gravity="center_vertical"
+        android:paddingBottom="6dp">
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="⭐ 즐겨찾기 주유소"
-            android:textSize="11sp"
-            android:textColor="#999999"
-            android:textStyle="bold" />
+            android:text="즐겨찾기 주유소"
+            android:textSize="12sp"
+            android:textColor="#111827"
+            android:textStyle="bold"
+            android:letterSpacing="-0.01" />
         <TextView
             android:id="@+id/gas_time"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text=""
             android:textSize="10sp"
-            android:textColor="#BBBBBB" />
+            android:textColor="#9CA3AF" />
     </LinearLayout>
 
     <!-- Row 1 -->
@@ -36,57 +39,82 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingTop="2dp"
-        android:paddingBottom="2dp">
+        android:gravity="center_vertical">
         <TextView
             android:id="@+id/gas_brand1"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
             android:gravity="center"
-            android:textSize="9sp"
+            android:text="GS"
+            android:textSize="11sp"
             android:textStyle="bold"
-            android:textColor="#085041"
-            android:background="#E1F5EE" />
+            android:textColor="#FFFFFF"
+            android:background="@drawable/badge_gs"
+            android:letterSpacing="-0.02" />
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:orientation="vertical"
-            android:paddingStart="8dp"
-            android:paddingEnd="4dp">
+            android:paddingLeft="11dp"
+            android:paddingRight="8dp">
             <TextView
                 android:id="@+id/gas_name1"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="12sp"
-                android:textColor="#1a1a1a"
+                android:text="즐겨찾기 주유소"
+                android:textSize="13sp"
+                android:textColor="#111827"
                 android:textStyle="bold"
                 android:maxLines="1"
-                android:ellipsize="end" />
+                android:ellipsize="end"
+                android:letterSpacing="-0.02" />
             <TextView
                 android:id="@+id/gas_sub1"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:text="휘발유 · 셀프"
                 android:textSize="10sp"
-                android:textColor="#999999"
+                android:textColor="#9CA3AF"
                 android:maxLines="1"
-                android:ellipsize="end" />
+                android:ellipsize="end"
+                android:paddingTop="2dp" />
         </LinearLayout>
-        <TextView
-            android:id="@+id/gas_price1"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="13sp"
-            android:textColor="#1a1a1a"
-            android:textStyle="bold"
-            android:gravity="end" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical|end"
+            android:baselineAligned="false">
+            <TextView
+                android:id="@+id/gas_price1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="1,680"
+                android:textSize="16sp"
+                android:textColor="#111827"
+                android:textStyle="bold"
+                android:letterSpacing="-0.03" />
+            <TextView
+                android:id="@+id/gas_unit1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="원"
+                android:textSize="11sp"
+                android:textColor="#9CA3AF"
+                android:paddingLeft="2dp"
+                android:paddingBottom="1dp" />
+        </LinearLayout>
     </LinearLayout>
 
-    <View
+    <!-- Divider -->
+    <ImageView
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="#F5F5F5" />
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="4dp"
+        android:background="#F1F5F9"
+        android:scaleType="fitXY" />
 
     <!-- Row 2 -->
     <LinearLayout
@@ -95,120 +123,72 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingTop="2dp"
-        android:paddingBottom="2dp">
+        android:gravity="center_vertical">
         <TextView
             android:id="@+id/gas_brand2"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
             android:gravity="center"
-            android:textSize="9sp"
+            android:text="SK"
+            android:textSize="11sp"
             android:textStyle="bold"
-            android:textColor="#791F1F"
-            android:background="#FCEBEB" />
+            android:textColor="#FFFFFF"
+            android:background="@drawable/badge_sk"
+            android:letterSpacing="-0.02" />
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:orientation="vertical"
-            android:paddingStart="8dp"
-            android:paddingEnd="4dp">
+            android:paddingLeft="11dp"
+            android:paddingRight="8dp">
             <TextView
                 android:id="@+id/gas_name2"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="12sp"
-                android:textColor="#1a1a1a"
+                android:text="앱에서 설정하기"
+                android:textSize="13sp"
+                android:textColor="#111827"
                 android:textStyle="bold"
                 android:maxLines="1"
-                android:ellipsize="end" />
+                android:ellipsize="end"
+                android:letterSpacing="-0.02" />
             <TextView
                 android:id="@+id/gas_sub2"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:text="경유 · 셀프"
                 android:textSize="10sp"
-                android:textColor="#999999"
+                android:textColor="#9CA3AF"
                 android:maxLines="1"
-                android:ellipsize="end" />
+                android:ellipsize="end"
+                android:paddingTop="2dp" />
         </LinearLayout>
-        <TextView
-            android:id="@+id/gas_price2"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="13sp"
-            android:textColor="#1a1a1a"
-            android:textStyle="bold"
-            android:gravity="end" />
-    </LinearLayout>
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="#F5F5F5" />
-
-    <!-- Row 3 -->
-    <LinearLayout
-        android:id="@+id/gas_row3"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingTop="2dp"
-        android:paddingBottom="2dp">
-        <TextView
-            android:id="@+id/gas_brand3"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:gravity="center"
-            android:textSize="9sp"
-            android:textStyle="bold"
-            android:textColor="#633806"
-            android:background="#FAEEDA" />
         <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:paddingStart="8dp"
-            android:paddingEnd="4dp">
-            <TextView
-                android:id="@+id/gas_name3"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textSize="12sp"
-                android:textColor="#1a1a1a"
-                android:textStyle="bold"
-                android:maxLines="1"
-                android:ellipsize="end" />
-            <TextView
-                android:id="@+id/gas_sub3"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textSize="10sp"
-                android:textColor="#999999"
-                android:maxLines="1"
-                android:ellipsize="end" />
-        </LinearLayout>
-        <TextView
-            android:id="@+id/gas_price3"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="13sp"
-            android:textColor="#1a1a1a"
-            android:textStyle="bold"
-            android:gravity="end" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical|end"
+            android:baselineAligned="false">
+            <TextView
+                android:id="@+id/gas_price2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="1,580"
+                android:textSize="16sp"
+                android:textColor="#111827"
+                android:textStyle="bold"
+                android:letterSpacing="-0.03" />
+            <TextView
+                android:id="@+id/gas_unit2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="원"
+                android:textSize="11sp"
+                android:textColor="#9CA3AF"
+                android:paddingLeft="2dp"
+                android:paddingBottom="1dp" />
+        </LinearLayout>
     </LinearLayout>
-
-    <!-- Footer -->
-    <TextView
-        android:id="@+id/gas_footer"
-        android:layout_width="match_parent"
-        android:layout_height="16dp"
-        android:text=""
-        android:textSize="10sp"
-        android:textColor="#BBBBBB"
-        android:gravity="end|center_vertical" />
 
 </LinearLayout>

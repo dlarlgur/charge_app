@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="gas_widget_label">주유소 가격</string>
+    <string name="gas_widget_description">즐겨찾기 주유소 실시간 가격</string>
+    <string name="ev_widget_label">충전소 현황</string>
+    <string name="ev_widget_description">즐겨찾기 충전소 실시간 상태</string>
+</resources>

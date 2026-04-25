@@ -2,10 +2,11 @@
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="250dp"
     android:minHeight="110dp"
-    android:targetCellWidth="4"
-    android:targetCellHeight="2"
+    android:minResizeWidth="180dp"
+    android:minResizeHeight="80dp"
     android:updatePeriodMillis="1800000"
     android:initialLayout="@layout/widget_gas"
+    android:previewLayout="@layout/widget_gas"
     android:widgetCategory="home_screen"
     android:resizeMode="horizontal|vertical"
-    android:previewImage="@mipmap/ic_launcher" />
+    android:description="@string/gas_widget_description" />

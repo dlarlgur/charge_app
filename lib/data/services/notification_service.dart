@@ -10,6 +10,9 @@ final navigateToAlertsNotifier = ValueNotifier<int>(0);
 /// EV 알람 탭 시 stationId 전달 → HomeScreen에서 충전소 상세로 이동
 final navigateToEvStationNotifier = ValueNotifier<String>('');
 
+/// 홈 위젯(주유소) 탭 시 stationId 전달 → HomeScreen에서 주유소 상세로 이동
+final navigateToGasStationNotifier = ValueNotifier<String>('');
+
 const gasPriceChannel = AndroidNotificationChannel(
   'gas_price_alert',
   '주유 가격 알림 (소리)',

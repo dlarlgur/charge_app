@@ -47,13 +47,14 @@ class WidgetService {
 
       final items = <Map<String, dynamic>>[];
 
-      for (final fav in gasFavs.take(3)) {
+      for (final fav in gasFavs.take(2)) {
         final id = fav['id'] as String? ?? '';
         if (id.isEmpty) continue;
         try {
           final detail = await ApiService().getGasStationDetail(id);
           final station = GasStation.fromJson(detail);
           items.add({
+            'id': id,
             'name': station.name,
             'brand': station.brand,
             'price': station.price.toInt(),
@@ -63,6 +64,7 @@ class WidgetService {
         } catch (_) {
           // API 실패 시 즐겨찾기 이름만 표시
           items.add({
+            'id': id,
             'name': fav['name'] ?? '',
             'brand': '',
             'price': 0,
@@ -98,7 +100,7 @@ class WidgetService {
 
       final items = <Map<String, dynamic>>[];
 
-      for (final fav in evFavs.take(3)) {
+      for (final fav in evFavs.take(2)) {
         final id = fav['id'] as String? ?? '';
         if (id.isEmpty) continue;
         try {
@@ -122,6 +124,7 @@ class WidgetService {
                   : 0;
 
           items.add({
+            'id': id,
             'name': station.name,
             'available': station.availableCount,
             'total': station.totalCount,
@@ -132,6 +135,7 @@ class WidgetService {
           });
         } catch (_) {
           items.add({
+            'id': id,
             'name': fav['name'] ?? '',
             'available': 0,
             'total': 0,

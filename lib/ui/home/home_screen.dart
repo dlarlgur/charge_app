@@ -24,6 +24,8 @@ import '../filter/ev_filter_sheet.dart';
 import '../../data/services/favorite_service.dart';
 import '../favorites/favorites_screen.dart';
 import '../detail/ev_detail_screen.dart';
+import '../detail/gas_detail_screen.dart';
+import 'package:home_widget/home_widget.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -32,13 +34,15 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen>
+    with WidgetsBindingObserver {
   final _messageBadgeKey = GlobalKey<_HomeTabState>();
   DateTime? _lastBackPressTime;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     AlertService().refreshToken();
     WatchService().restore();
 
@@ -64,10 +68,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     // 로컬 알림(ev_alarm) 탭 → 충전소 상세로 이동
     navigateToEvStationNotifier.addListener(_onNavigateToEvStation);
-    // 앱 종료 상태에서 알림 탭 시: 리스너 등록 전에 이미 값이 세팅됐을 수 있으므로 초기값 체크
+    // 홈 위젯(주유소) 탭 → 주유소 상세로 이동
+    navigateToGasStationNotifier.addListener(_onNavigateToGasStation);
+    // 앱 종료 상태에서 알림/위젯 탭 시: 리스너 등록 전에 이미 값이 세팅됐을 수 있으므로 초기값 체크
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (navigateToEvStationNotifier.value.isNotEmpty) {
         _onNavigateToEvStation();
+      }
+      if (navigateToGasStationNotifier.value.isNotEmpty) {
+        _onNavigateToGasStation();
       }
     });
 
@@ -148,9 +157,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     navigateToAlertsNotifier.removeListener(_onNavigateToAlerts);
     navigateToEvStationNotifier.removeListener(_onNavigateToEvStation);
+    navigateToGasStationNotifier.removeListener(_onNavigateToGasStation);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      // 앱이 포그라운드로 돌아올 때 위젯 딥링크 대기값 소비
+      _consumeWidgetPendingOnResume();
+    }
+  }
+
+  Future<void> _consumeWidgetPendingOnResume() async {
+    try {
+      final type = await HomeWidget.getWidgetData<String>('widget_pending_type');
+      if (type == null || type.isEmpty) return;
+      final stationId = await HomeWidget.getWidgetData<String>(
+          'widget_pending_station_id');
+      await HomeWidget.saveWidgetData<String>('widget_pending_type', '');
+      await HomeWidget.saveWidgetData<String>(
+          'widget_pending_station_id', '');
+      if (stationId == null || stationId.isEmpty) return;
+      if (type == 'ev') {
+        navigateToEvStationNotifier.value = stationId;
+      } else if (type == 'gas') {
+        navigateToGasStationNotifier.value = stationId;
+      }
+    } catch (_) {}
   }
 
   void _onNavigateToAlerts() => _openAlertsPage();
@@ -161,6 +199,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     navigateToEvStationNotifier.value = ''; // 중복 이동 방지
     Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
       builder: (_) => EvDetailScreen(stationId: stationId),
+    ));
+  }
+
+  void _onNavigateToGasStation() {
+    final stationId = navigateToGasStationNotifier.value;
+    if (stationId.isEmpty || !mounted) return;
+    navigateToGasStationNotifier.value = '';
+    Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
+      builder: (_) => GasDetailScreen(stationId: stationId),
     ));
   }
 
@@ -205,11 +252,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               behavior: SnackBarBehavior.floating,
               backgroundColor: const Color(0xFF2D3748).withValues(alpha: 0.95),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-              margin: EdgeInsets.only(
-                bottom: MediaQuery.of(context).padding.bottom + kBottomNavigationBarHeight + 4,
-                left: 40,
-                right: 40,
-              ),
+              margin: const EdgeInsets.only(bottom: 8, left: 40, right: 40),
             ),
           );
         } else {
@@ -299,7 +342,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
             padding: const EdgeInsets.fromLTRB(20, 12, 8, 8),
             child: Row(
               children: [
-                Text('풀업', style: Theme.of(context).textTheme.headlineSmall),
+                Text('모두의 주유충전', style: Theme.of(context).textTheme.headlineSmall),
                 const Spacer(),
                 Stack(
                   clipBehavior: Clip.none,
@@ -1277,6 +1320,10 @@ class SettingsScreenEmbed extends ConsumerWidget {
           const SizedBox(height: 16),
           _SupportEmbed(isDark: isDark),
           _sectionHeader(context, '정보'),
+          _tile(
+            context, isDark, Icons.description_outlined, '정책 및 약관',
+            '', () => context.push('/policies'),
+          ),
           _tile(
             context, isDark, Icons.info_outline_rounded, '앱 버전',
             DkswCore.appVersion, null,

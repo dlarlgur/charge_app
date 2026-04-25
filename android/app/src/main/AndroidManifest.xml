@@ -4,7 +4,7 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
     <application
-        android:label="풀업"
+        android:label="모두의 주유충전"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -45,6 +45,7 @@
         <!-- 주유소 홈 위젯 (D - Medium 4x2) -->
         <receiver
             android:name=".GasWidgetProvider"
+            android:label="@string/gas_widget_label"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -57,6 +58,7 @@
         <!-- 충전소 홈 위젯 (E - Medium 4x2) -->
         <receiver
             android:name=".EvWidgetProvider"
+            android:label="@string/ev_widget_label"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />

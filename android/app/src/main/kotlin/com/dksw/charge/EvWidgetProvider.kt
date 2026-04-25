@@ -31,104 +31,146 @@ class EvWidgetProvider : AppWidgetProvider() {
         ) {
             val views = RemoteViews(context.packageName, R.layout.widget_ev)
 
-            // Tap widget → open app
-            val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
-            if (intent != null) {
-                val pendingIntent = PendingIntent.getActivity(
-                    context, 1, intent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                )
-                views.setOnClickPendingIntent(android.R.id.content, pendingIntent)
-            }
+            val prefs = context.getSharedPreferences(
+                "HomeWidgetPreferences", Context.MODE_PRIVATE
+            )
+            val listJson = prefs.getString("widget_ev_list", "[]") ?: "[]"
+            val updatedAt = prefs.getString("widget_ev_updated", "") ?: ""
 
-            val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-            val listJson = prefs.getString("flutter.widget_ev_list", "[]") ?: "[]"
-            val updatedAt = prefs.getString("flutter.widget_ev_updated", "") ?: ""
-
-            data class RowIds(val row: Int, val icon: Int, val name: Int, val type: Int, val status: Int)
+            data class RowIds(
+                val row: Int, val icon: Int, val name: Int, val type: Int,
+                val status: Int, val total: Int
+            )
             val rows = listOf(
-                RowIds(R.id.ev_row1, R.id.ev_icon1, R.id.ev_name1, R.id.ev_type1, R.id.ev_status1),
-                RowIds(R.id.ev_row2, R.id.ev_icon2, R.id.ev_name2, R.id.ev_type2, R.id.ev_status2),
-                RowIds(R.id.ev_row3, R.id.ev_icon3, R.id.ev_name3, R.id.ev_type3, R.id.ev_status3),
+                RowIds(R.id.ev_row1, R.id.ev_icon1, R.id.ev_name1, R.id.ev_type1,
+                    R.id.ev_status1, R.id.ev_total1),
+                RowIds(R.id.ev_row2, R.id.ev_icon2, R.id.ev_name2, R.id.ev_type2,
+                    R.id.ev_status2, R.id.ev_total2),
+            )
+
+            views.setOnClickPendingIntent(
+                R.id.ev_widget_root,
+                buildLaunchIntent(context, appWidgetId, "ev", null)
             )
 
             try {
                 val list = JSONArray(listJson)
-                val count = minOf(list.length(), 3)
+                val count = minOf(list.length(), 2)
 
                 for (i in 0 until count) {
                     val item = list.getJSONObject(i)
                     val name = item.optString("name", "—")
+                    val stationId = item.optString("id", "")
                     val available = item.optInt("available", 0)
                     val total = item.optInt("total", 0)
                     val broken = item.optInt("broken", 0)
                     val hasFast = item.optBoolean("hasFast", false)
                     val maxKw = item.optInt("maxKw", 0)
-                    val statusCode = item.optInt("statusCode", 0)
-                    // statusCode: 0=ok(avail>0), 1=busy(full), 2=broken(all broken)
 
                     val row = rows[i]
                     views.setViewVisibility(row.row, View.VISIBLE)
 
-                    // Icon background by status
-                    val (iconBg, statusText, statusColor) = when {
-                        broken > 0 && broken >= total -> Triple(
-                            Color.parseColor("#FCEBEB"), "고장", Color.parseColor("#E24B4A")
-                        )
-                        available == 0 -> Triple(
-                            Color.parseColor("#FAEEDA"), "대기중", Color.parseColor("#EF9F27")
-                        )
-                        else -> Triple(
-                            Color.parseColor("#E1F5EE"),
-                            "${available}/${total}",
-                            Color.parseColor("#1D9E75")
-                        )
-                    }
+                    views.setInt(row.icon, "setBackgroundResource",
+                        when {
+                            broken > 0 && broken >= total -> R.drawable.badge_ev_broken
+                            total == 0 -> R.drawable.badge_ev_empty
+                            available == 0 -> R.drawable.badge_ev_busy
+                            else -> R.drawable.badge_ev_ok
+                        }
+                    )
+                    views.setTextViewText(row.icon, "EV")
+                    views.setTextColor(row.icon, Color.WHITE)
 
-                    views.setInt(row.icon, "setBackgroundColor", iconBg)
-
-                    // Name
                     views.setTextViewText(row.name, name)
 
-                    // Type info
                     val typeStr = buildString {
-                        if (hasFast) append("급속")
-                        else append("완속")
+                        append(if (hasFast) "급속" else "완속")
                         if (maxKw > 0) append(" ${maxKw}kW")
                     }
                     views.setTextViewText(row.type, typeStr)
 
-                    // Status
-                    views.setTextViewText(row.status, statusText)
-                    views.setTextColor(row.status, statusColor)
+                    when {
+                        broken > 0 && broken >= total -> {
+                            views.setTextViewText(row.status, "고장")
+                            views.setTextViewText(row.total, "")
+                            views.setTextColor(row.status, Color.parseColor("#E24B4A"))
+                            views.setFloat(row.status, "setTextSize", 13f)
+                        }
+                        total == 0 -> {
+                            views.setTextViewText(row.status, "—")
+                            views.setTextViewText(row.total, "")
+                            views.setTextColor(row.status, Color.parseColor("#CBD5E1"))
+                            views.setFloat(row.status, "setTextSize", 13f)
+                        }
+                        available == 0 -> {
+                            views.setTextViewText(row.status, "대기중")
+                            views.setTextViewText(row.total, "")
+                            views.setTextColor(row.status, Color.parseColor("#EF9F27"))
+                            views.setFloat(row.status, "setTextSize", 13f)
+                        }
+                        else -> {
+                            views.setTextViewText(row.status, available.toString())
+                            views.setTextViewText(row.total, "/$total")
+                            views.setTextColor(row.status, Color.parseColor("#1D9E75"))
+                            views.setFloat(row.status, "setTextSize", 17f)
+                        }
+                    }
+
+                    views.setOnClickPendingIntent(
+                        row.row,
+                        buildLaunchIntent(context, appWidgetId, "ev", stationId.takeIf { it.isNotEmpty() })
+                    )
                 }
 
-                // Hide unused rows
-                for (i in count until 3) {
+                for (i in count until rows.size) {
                     views.setViewVisibility(rows[i].row, View.GONE)
                 }
 
                 if (count == 0) {
-                    views.setTextViewText(R.id.ev_name1, "즐겨찾기 충전소를 추가하세요")
-                    views.setTextViewText(R.id.ev_status1, "")
-                    views.setViewVisibility(R.id.ev_row1, View.VISIBLE)
+                    views.setViewVisibility(rows[0].row, View.VISIBLE)
+                    views.setTextViewText(rows[0].icon, "+")
+                    views.setInt(rows[0].icon, "setBackgroundResource", R.drawable.badge_ev_empty)
+                    views.setTextColor(rows[0].icon, Color.WHITE)
+                    views.setTextViewText(rows[0].name, "즐겨찾기 충전소를 추가하세요")
+                    views.setTextViewText(rows[0].type, "앱을 열어 추가")
+                    views.setTextViewText(rows[0].status, "")
+                    views.setTextViewText(rows[0].total, "")
                 }
 
             } catch (e: JSONException) {
-                views.setTextViewText(R.id.ev_name1, "데이터 로드 중...")
-                views.setViewVisibility(R.id.ev_row1, View.VISIBLE)
-                views.setViewVisibility(R.id.ev_row2, View.GONE)
-                views.setViewVisibility(R.id.ev_row3, View.GONE)
+                views.setViewVisibility(rows[0].row, View.VISIBLE)
+                views.setTextViewText(rows[0].name, "데이터 로드 중...")
+                views.setTextViewText(rows[0].status, "")
+                views.setTextViewText(rows[0].total, "")
+                views.setViewVisibility(rows[1].row, View.GONE)
             }
 
-            if (updatedAt.isNotEmpty()) {
-                views.setTextViewText(R.id.ev_footer, "환경부 API · $updatedAt")
-            } else {
-                views.setTextViewText(R.id.ev_footer, "환경부 API · 실시간")
-            }
-            views.setTextViewText(R.id.ev_time, "실시간")
+            views.setTextViewText(
+                R.id.ev_time,
+                if (updatedAt.isNotEmpty()) updatedAt else "실시간"
+            )
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
+        }
+
+        private fun buildLaunchIntent(
+            context: Context,
+            appWidgetId: Int,
+            type: String,
+            stationId: String?
+        ): PendingIntent {
+            val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+                ?: Intent(Intent.ACTION_MAIN)
+            intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            intent.putExtra("widget_type", type)
+            if (stationId != null) {
+                intent.putExtra("widget_station_id", stationId)
+            }
+            val requestCode = appWidgetId * 100 + (stationId?.hashCode()?.and(0x7F) ?: 0)
+            return PendingIntent.getActivity(
+                context, requestCode, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
         }
     }
 }

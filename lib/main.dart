@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -10,6 +11,7 @@ import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kakao_flutter_sdk_navi/kakao_flutter_sdk_navi.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:home_widget/home_widget.dart';
 import 'package:workmanager/workmanager.dart';
 import 'app.dart';
 import 'core/constants/api_constants.dart';
@@ -17,6 +19,29 @@ import 'core/constants/secrets.dart';
 import 'data/services/alert_service.dart';
 import 'data/services/notification_service.dart';
 import 'data/services/widget_service.dart';
+
+/// 홈 위젯 탭으로 전달된 station 딥링크 처리.
+/// MainActivity.onCreate / onNewIntent 에서 SharedPreferences("flutter.widget_pending_*")
+/// 키에 써둔 값을 읽어 적절한 notifier에 전달 후 클리어.
+Future<void> _consumePendingWidgetIntent() async {
+  try {
+    final type = await HomeWidget.getWidgetData<String>('widget_pending_type');
+    if (type == null || type.isEmpty) return;
+    final stationId =
+        await HomeWidget.getWidgetData<String>('widget_pending_station_id');
+    await HomeWidget.saveWidgetData<String>('widget_pending_type', '');
+    await HomeWidget.saveWidgetData<String>(
+        'widget_pending_station_id', '');
+    if (stationId == null || stationId.isEmpty) return;
+    if (type == 'ev') {
+      navigateToEvStationNotifier.value = stationId;
+    } else if (type == 'gas') {
+      navigateToGasStationNotifier.value = stationId;
+    }
+  } catch (_) {
+    // 위젯 딥링크 실패는 무시 (앱 실행 자체엔 영향 없음)
+  }
+}
 
 /// WorkManager 백그라운드 콜백 (top-level 함수 필수)
 @pragma('vm:entry-point')
@@ -143,29 +168,9 @@ Future<void> _saveEvAlarmToHive(dynamic box, Map<String, dynamic> data) async {
   } catch (_) {}
 }
 
-void main() async {
-  final binding = WidgetsFlutterBinding.ensureInitialized();
-  // bootstrap 끝날 때까지 네이티브 스플래시 유지 (2단 스플래시 제거)
-  FlutterNativeSplash.preserve(widgetsBinding: binding);
-
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      systemNavigationBarColor: Colors.transparent,
-    ),
-  );
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
-
-  KakaoSdk.init(nativeAppKey: Secrets.kakaoNativeAppKey);
-
-  await Firebase.initializeApp();
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-  // 로컬 알림 초기화 (소리/진동/무음 채널 각각 등록)
+/// 로컬 알림 채널 + 핸들러 초기화. main() 을 빨리 끝내기 위해 분리.
+/// 채널 생성은 OS 측에서 idempotent — 첫 알림이 발송되기 전에만 끝나면 됨.
+Future<void> _initLocalNotifications() async {
   final androidPlugin = notificationPlugin
       .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
   await androidPlugin?.createNotificationChannel(gasPriceChannel);
@@ -208,14 +213,66 @@ void main() async {
     },
     onDidReceiveBackgroundNotificationResponse: _onBackgroundNotificationResponse,
   );
+}
+
+void main() async {
+  final binding = WidgetsFlutterBinding.ensureInitialized();
+  // 네이티브 스플래시 유지 — bootstrap+precache 완료 후 SplashScreen이 직접 내린다.
+  // 안전장치: 1.5초 안에 어떤 경로에서도 내리지 못하면 강제 제거.
+  FlutterNativeSplash.preserve(widgetsBinding: binding);
+  Timer(const Duration(milliseconds: 1500), FlutterNativeSplash.remove);
+
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      systemNavigationBarColor: Colors.transparent,
+    ),
+  );
+  // setPreferredOrientations 는 await 안 해도 무방 (이후 화면 빌드 전에 적용됨)
+  unawaited(SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]));
+
+  KakaoSdk.init(nativeAppKey: Secrets.kakaoNativeAppKey);
+
+  // Firebase 는 onBackgroundMessage 등록 전에 필수
+  await Firebase.initializeApp();
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // 로컬 알림 초기화는 fire-and-forget — 채널 생성은 idempotent,
+  // 첫 알림이 발송되기 전에만 끝나면 됨. main() 을 0.3초 정도 줄임.
+  unawaited(_initLocalNotifications());
 
   await Hive.initFlutter();
   await Hive.openBox('settings');
   await Hive.openBox('favorites');
 
-  // 홈 위젯 초기화 및 WorkManager 등록
-  await WidgetService.init();
+  // 홈 위젯 탭 딥링크: MainActivity가 SharedPreferences에 써둔 값 소비.
+  // 첫 프레임 라우팅에 영향 가능 → await 유지.
+  await _consumePendingWidgetIntent();
+
+  // bootstrap 호출에 _serverUrl 필요 → 첫 프레임 전 필수
+  await DkswCore.init(
+    packageName: AppConstants.packageName,
+    serverUrl: 'https://dksw4.com/console',
+  );
+  DkswCore.trackSession();
+
+  // 무거운 init들은 fire-and-forget. 첫 프레임/스플래시 시간만 늘리던 주범:
+  //  - Workmanager: 백그라운드 작업 등록 (지도/주유 위젯) — 화면 빌드 전 끝날 필요 X
+  //  - WidgetService: 홈 위젯 갱신 — 위젯이 백그라운드로 갱신되므로 약간 지연 OK
+  //  - FlutterNaverMap.init: 지도 화면 들어가기 전에만 끝나면 됨
+  unawaited(_initBackgroundTasks());
+
+  runApp(const ProviderScope(child: ChargeHelperApp()));
+}
+
+/// 첫 프레임 이후에 진행해도 되는 무거운 init들. main() 응답 시간 단축용.
+Future<void> _initBackgroundTasks() async {
   try {
+    await WidgetService.init();
     await Workmanager().initialize(callbackDispatcher);
     await Workmanager().registerPeriodicTask(
       'widgetGasUpdate',
@@ -231,22 +288,16 @@ void main() async {
       existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
       constraints: Constraints(networkType: NetworkType.connected),
     );
+    WidgetService.updateAll();
   } catch (e) {
-    debugPrint('[WorkManager] 초기화 실패 (무시됨): $e');
+    debugPrint('[BG Tasks] 초기화 실패 (무시됨): $e');
   }
-  // 앱 시작 시 즉시 1회 갱신
-  WidgetService.updateAll();
-
-  await FlutterNaverMap().init(
-    clientId: Secrets.naverMapClientId,
-    onAuthFailed: (e) => debugPrint('네이버 지도 인증 실패: $e'),
-  );
-
-  await DkswCore.init(
-    packageName: AppConstants.packageName,
-    serverUrl: 'https://dksw4.com/console',
-  );
-  DkswCore.trackSession();
-
-  runApp(const ProviderScope(child: ChargeHelperApp()));
+  try {
+    await FlutterNaverMap().init(
+      clientId: Secrets.naverMapClientId,
+      onAuthFailed: (e) => debugPrint('네이버 지도 인증 실패: $e'),
+    );
+  } catch (e) {
+    debugPrint('[NaverMap] init 실패 (무시됨): $e');
+  }
 }
