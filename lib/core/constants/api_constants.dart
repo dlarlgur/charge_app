@@ -66,7 +66,7 @@ class ApiConstants {
 class AppConstants {
   AppConstants._();
 
-  static const appName = '풀업';
+  static const appName = '모두의 주유충전';
   static const packageName = 'com.dksw.charge';  // Android: com.dksw.charge
 
   // 기본값
