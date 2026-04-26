@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -300,5 +301,10 @@ Future<void> _initBackgroundTasks() async {
     );
   } catch (e) {
     debugPrint('[NaverMap] init 실패 (무시됨): $e');
+  }
+  try {
+    await MobileAds.instance.initialize();
+  } catch (e) {
+    debugPrint('[AdMob] init 실패 (무시됨): $e');
   }
 }

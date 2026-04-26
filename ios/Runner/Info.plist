@@ -56,5 +56,10 @@
 		<string>주변 주유소 및 충전소를 찾기 위해 위치 정보가 필요합니다.</string>
 		<key>UIStatusBarHidden</key>
 		<false/>
+
+		<!-- AdMob App ID — TODO: 본인 AdMob iOS App ID 로 교체 (ca-app-pub-XXXX~YYYY) -->
+		<!-- 현재 값은 Google 공식 테스트 App ID. 실서비스 전 반드시 교체. -->
+		<key>GADApplicationIdentifier</key>
+		<string>ca-app-pub-3940256099942544~1458002511</string>
 	</dict>
 </plist>

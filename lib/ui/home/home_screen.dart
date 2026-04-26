@@ -5,15 +5,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart' show TemplateType;
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/helpers.dart';
 import '../../core/constants/api_constants.dart';
 import '../../data/models/models.dart';
+import '../../data/services/ad_service.dart';
 import '../../data/services/alert_service.dart';
 import '../../data/services/notification_service.dart';
 import '../../providers/providers.dart';
 import '../ai/ai_main_screen.dart';
 import '../map/map_screen.dart';
+import '../widgets/native_ad_card.dart';
 import '../widgets/popup_ad_dialog.dart';
 import '../widgets/popup_notice_dialog.dart';
 import '../widgets/shared_widgets.dart';
@@ -473,6 +476,12 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
             ),
             const SizedBox(height: 4),
           ],
+          // 상단 네이티브 배너 (탭 바로 아래, 차종 무관 항상 노출)
+          NativeAdCard(
+            adUnitId: AdUnitIds.topBanner,
+            type: TemplateType.small,
+            margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+          ),
           // 리스트 (둘 다 모드는 IndexedStack으로 백그라운드 프리로드)
           Expanded(
             child: vehicleType == VehicleType.ev
@@ -683,14 +692,26 @@ class _GasListViewState extends ConsumerState<_GasListView> {
               // provider에서 즐겨찾기 상위 정렬 + 필터 면제 처리됨
               final favIds = FavoriteService.getByType('gas').map((f) => f['id'] as String).toSet();
               final shown = filtered.take(_displayCount).toList();
+              const adAt = 2; // 0,1 = 주유소, 2 = 광고, 3+ = 주유소 (즉 3번째 위치)
+              final showAd = shown.length >= 3;
               return SliverList(delegate: SliverChildBuilderDelegate(
-                (_, i) => GasStationCard(
-                  station: shown[i],
-                  isTop: i == 0 && favIds.isEmpty,
-                  topBadgeLabel: filter.sort == 1 ? '최저가' : '최단거리',
-                  onTap: () => context.push('/gas/${shown[i].id}', extra: shown[i]),
-                ),
-                childCount: shown.length,
+                (_, i) {
+                  if (showAd && i == adAt) {
+                    return NativeAdCard(
+                      adUnitId: AdUnitIds.listBanner,
+                      type: TemplateType.medium,
+                    );
+                  }
+                  final stationIdx = (showAd && i > adAt) ? i - 1 : i;
+                  final s = shown[stationIdx];
+                  return GasStationCard(
+                    station: s,
+                    isTop: stationIdx == 0 && favIds.isEmpty,
+                    topBadgeLabel: filter.sort == 1 ? '최저가' : '최단거리',
+                    onTap: () => context.push('/gas/${s.id}', extra: s),
+                  );
+                },
+                childCount: shown.length + (showAd ? 1 : 0),
               ));
             },
           ),
@@ -870,13 +891,25 @@ class _EvListViewState extends ConsumerState<_EvListView> {
               // provider에서 즐겨찾기 상위 정렬 + 필터 면제 처리됨
               final favIds = FavoriteService.getByType('ev').map((f) => f['id'] as String).toSet();
               final shown = filtered.take(_displayCount).toList();
+              const adAt = 2; // 3번째 위치
+              final showAd = shown.length >= 3;
               return SliverList(delegate: SliverChildBuilderDelegate(
-                (_, i) => EvStationCard(
-                  station: shown[i],
-                  isTop: i == 0 && favIds.isEmpty,
-                  onTap: () => context.push('/ev/${shown[i].statId}', extra: shown[i]),
-                ),
-                childCount: shown.length,
+                (_, i) {
+                  if (showAd && i == adAt) {
+                    return NativeAdCard(
+                      adUnitId: AdUnitIds.listBanner,
+                      type: TemplateType.medium,
+                    );
+                  }
+                  final stationIdx = (showAd && i > adAt) ? i - 1 : i;
+                  final s = shown[stationIdx];
+                  return EvStationCard(
+                    station: s,
+                    isTop: stationIdx == 0 && favIds.isEmpty,
+                    onTap: () => context.push('/ev/${s.statId}', extra: s),
+                  );
+                },
+                childCount: shown.length + (showAd ? 1 : 0),
               ));
             },
           ),

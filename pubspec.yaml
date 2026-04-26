@@ -60,6 +60,9 @@ dependencies:
   home_widget: ^0.6.0
   workmanager: ^0.9.0
 
+  # AdMob
+  google_mobile_ads: ^5.2.0
+
   # DKSW 통합 어드민 연동 SDK (상용은 git ref 로 고정)
   dksw_app_core:
     git:

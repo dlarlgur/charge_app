@@ -73,6 +73,12 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- AdMob App ID — TODO: 본인 AdMob App ID 로 교체 (ca-app-pub-XXXX~YYYY 형식) -->
+        <!-- 현재 값은 Google 공식 테스트 App ID. 실서비스 전 반드시 교체. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-3940256099942544~3347511713" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
