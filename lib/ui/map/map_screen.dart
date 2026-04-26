@@ -578,19 +578,23 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         const SizedBox(width: 8),
         // 주유 탭
         if (vehicleType != VehicleType.ev) ...[
-          _buildTabChip('⛽ 주유', _showGas, AppColors.gasBlue, isDark,
-              () => _setShowGas(!_showGas)),
+          _buildTabChip(Icons.local_gas_station_rounded, '주유', _showGas,
+              AppColors.gasBlue, isDark, () => _setShowGas(!_showGas)),
           if (vehicleType == VehicleType.both) const SizedBox(width: 6),
         ],
         // 충전 탭
         if (vehicleType != VehicleType.gas)
-          _buildTabChip('🔋 충전', _showEv, AppColors.evGreen, isDark,
-              () => _setShowEv(!_showEv)),
+          _buildTabChip(Icons.electric_bolt_rounded, '충전', _showEv,
+              AppColors.evGreen, isDark, () => _setShowEv(!_showEv)),
       ],
     );
   }
 
-  Widget _buildTabChip(String label, bool active, Color color, bool isDark, VoidCallback onTap) {
+  Widget _buildTabChip(IconData icon, String label, bool active, Color color,
+      bool isDark, VoidCallback onTap) {
+    final fg = active
+        ? Colors.white
+        : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary);
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -603,11 +607,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           border: active ? null : Border.all(
               color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder, width: 0.8),
         ),
-        child: Text(label, style: TextStyle(
-          fontSize: 13, fontWeight: FontWeight.w600,
-          color: active ? Colors.white
-              : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
-        )),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: fg),
+            const SizedBox(width: 5),
+            Text(label, style: TextStyle(
+              fontSize: 13, fontWeight: FontWeight.w700, color: fg, letterSpacing: 0.2,
+            )),
+          ],
+        ),
       ),
     );
   }

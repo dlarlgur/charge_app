@@ -783,7 +783,8 @@ class _GasEvTabBarState extends State<GasEvTabBar> {
   Widget _buildPill(int tabIdx, bool isActive, {bool highlight = false, double scale = 1.0}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isEv = tabIdx == 1;
-    final label = isEv ? '🔋 충전' : '⛽ 주유';
+    final label = isEv ? '충전' : '주유';
+    final icon = isEv ? Icons.electric_bolt_rounded : Icons.local_gas_station_rounded;
     final activeColor = isEv ? AppColors.evGreen : AppColors.gasBlue;
 
     final bgColor = highlight
@@ -791,6 +792,10 @@ class _GasEvTabBarState extends State<GasEvTabBar> {
         : isActive
             ? activeColor
             : (isDark ? const Color(0x14FFFFFF) : const Color(0xFFE2E8F0));
+
+    final fgColor = isActive
+        ? Colors.white
+        : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted);
 
     return Transform.scale(
       scale: scale,
@@ -806,13 +811,21 @@ class _GasEvTabBarState extends State<GasEvTabBar> {
               : null,
         ),
         alignment: Alignment.center,
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: isActive ? Colors.white : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
-          ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 18, color: fgColor),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: fgColor,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
         ),
       ),
     );

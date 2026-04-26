@@ -203,7 +203,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     return Column(
       children: VehicleType.values.map((type) {
         final isSelected = _vehicleType == type;
-        final emoji = type == VehicleType.gas ? '⛽' : type == VehicleType.ev ? '🔋' : '⚡';
+        final icon = type == VehicleType.gas
+            ? Icons.local_gas_station_rounded
+            : type == VehicleType.ev
+                ? Icons.electric_bolt_rounded
+                : Icons.commute_rounded;
+        final tint = type == VehicleType.gas
+            ? AppColors.gasBlue
+            : type == VehicleType.ev
+                ? AppColors.evGreen
+                : AppColors.gasBlue;
         final desc = type == VehicleType.gas ? '휘발유 · 경유 · LPG'
             : type == VehicleType.ev ? 'DC콤보 · AC완속 · 급속' : 'PHEV 또는 차량 2대 이상';
 
@@ -216,7 +225,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           }),
           child: Row(
             children: [
-              Text(emoji, style: const TextStyle(fontSize: 28)),
+              Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                  color: tint.withOpacity(isSelected ? 0.18 : 0.10),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, size: 24, color: tint),
+              ),
               const SizedBox(width: 14),
               Expanded(child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -343,10 +359,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   // ─── Step: 알림 권한 ───
   Widget _notificationStep() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final items = [
-      ('⛽', '주유 가격 인하 알림', '즐겨찾기 주유소 가격이 내리면 알려드려요'),
-      ('🔕', '광고 없음', '불필요한 마케팅 알림은 보내지 않아요'),
-      ('⚙️', '언제든 해제 가능', '설정에서 알림을 켜고 끌 수 있어요'),
+    final items = <(IconData, String, String)>[
+      (Icons.local_gas_station_rounded, '주유 가격 인하 알림', '즐겨찾기 주유소 가격이 내리면 알려드려요'),
+      (Icons.block_rounded, '광고 없음', '불필요한 마케팅 알림은 보내지 않아요'),
+      (Icons.tune_rounded, '언제든 해제 가능', '설정에서 알림을 켜고 끌 수 있어요'),
     ];
     return Column(
       children: [
@@ -371,7 +387,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ),
           child: Row(
             children: [
-              Text(item.$1, style: const TextStyle(fontSize: 24)),
+              Container(
+                width: 36, height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.gasBlue.withOpacity(0.10),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(item.$1, size: 20, color: AppColors.gasBlue),
+              ),
               const SizedBox(width: 14),
               Expanded(child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

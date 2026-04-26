@@ -344,35 +344,65 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
               children: [
                 Text('모두의 주유충전', style: Theme.of(context).textTheme.headlineSmall),
                 const Spacer(),
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    IconButton(
-                      icon: Icon(
-                        _msgCount > 0
-                            ? Icons.notifications_rounded
-                            : Icons.notifications_none_rounded,
-                        color: _msgCount > 0
-                            ? AppColors.gasBlue
-                            : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
-                      ),
-                      onPressed: _openAlertSheet,
-                    ),
-                    if (_msgCount > 0)
-                      Positioned(
-                        right: 8,
-                        top: 8,
-                        child: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Colors.redAccent,
-                            shape: BoxShape.circle,
+                Builder(builder: (_) {
+                  final hasUnread = _msgCount > 0;
+                  final bellColor = hasUnread
+                      ? AppColors.gasBlue
+                      : (isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary);
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Material(
+                      color: hasUnread
+                          ? AppColors.gasBlue.withOpacity(0.10)
+                          : (isDark
+                              ? const Color(0x14FFFFFF)
+                              : const Color(0xFFF1F5F9)),
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: _openAlertSheet,
+                        child: SizedBox(
+                          width: 40,
+                          height: 40,
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            alignment: Alignment.center,
+                            children: [
+                              Icon(
+                                hasUnread
+                                    ? Icons.notifications_rounded
+                                    : Icons.notifications_none_rounded,
+                                size: 22,
+                                color: bellColor,
+                              ),
+                              if (hasUnread)
+                                Positioned(
+                                  right: 8,
+                                  top: 8,
+                                  child: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: Colors.redAccent,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: isDark
+                                            ? AppColors.darkBg
+                                            : Colors.white,
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ),
-                  ],
-                ),
+                    ),
+                  );
+                }),
               ],
             ),
           ),
