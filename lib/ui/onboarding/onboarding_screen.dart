@@ -361,7 +361,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final items = <(IconData, String, String)>[
       (Icons.local_gas_station_rounded, '주유 가격 인하 알림', '즐겨찾기 주유소 가격이 내리면 알려드려요'),
-      (Icons.block_rounded, '광고 없음', '불필요한 마케팅 알림은 보내지 않아요'),
+      (Icons.electric_bolt_rounded, '충전기 빈자리 알림', '대기 중인 충전소가 비면 바로 알려드려요'),
       (Icons.tune_rounded, '언제든 해제 가능', '설정에서 알림을 켜고 끌 수 있어요'),
     ];
     return Column(
