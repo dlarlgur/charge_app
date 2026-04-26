@@ -2969,11 +2969,20 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       final currentTab = ref.watch(bottomNavIndexProvider);
       if (currentTab == 2 && !_onboardingPushed) {
         _onboardingPushed = true;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
           if (!mounted) return;
-          Navigator.of(context, rootNavigator: true).push(
+          await Navigator.of(context, rootNavigator: true).push(
             MaterialPageRoute(builder: (_) => const AiOnboardingScreen()),
           );
+          if (!mounted) return;
+          // 온보딩 미완료 채 닫혔으면 홈 탭으로 — 흰 빈 화면 방치 방지.
+          // 완료되면 aiOnboardingDone=true 라 자연스럽게 본 AI 화면으로 진행.
+          final stillUndone =
+              !ref.read(settingsProvider).aiOnboardingDone;
+          if (stillUndone) {
+            _onboardingPushed = false; // 다음 진입 시 재표시 가능하도록 리셋
+            ref.read(bottomNavIndexProvider.notifier).state = 0;
+          }
         });
       }
       return const Scaffold(backgroundColor: Colors.white);
