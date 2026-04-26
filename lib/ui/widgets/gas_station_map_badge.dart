@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 /// 지도 탭과 동일: 흰 배경 + 브랜드 로고 + 가격(텍스트) 주유소 마커.
 class GasStationMapBadge {
@@ -11,6 +12,7 @@ class GasStationMapBadge {
     'HDO': 'assets/logo/oil/hd_icon.png',
     'SOL': 'assets/logo/oil/soil_icon.png',
     'NHO': 'assets/logo/oil/nh_icon.png',
+    'RTO': 'assets/logo/oil/sail_logo.svg', // 알뜰주유소 (SAIL)
   };
 
   /// 고속도로 휴게소 EX(한국도로공사서비스) 로고.
@@ -27,6 +29,7 @@ class GasStationMapBadge {
 
   static Future<void> precacheBrandImages(BuildContext context) async {
     for (final path in brandLogos.values) {
+      if (path.toLowerCase().endsWith('.svg')) continue; // SVG 는 자체 캐시
       await precacheImage(AssetImage(path), context);
     }
     await precacheImage(const AssetImage(_highwayLogo), context);
@@ -89,12 +92,19 @@ class GasStationMapBadge {
                 if (showLogo) ...[
                   ClipRRect(
                     borderRadius: BorderRadius.circular(2),
-                    child: Image.asset(
-                      logoAsset,
-                      width: logoSize,
-                      height: logoSize,
-                      fit: BoxFit.contain,
-                    ),
+                    child: logoAsset.toLowerCase().endsWith('.svg')
+                        ? SvgPicture.asset(
+                            logoAsset,
+                            width: logoSize,
+                            height: logoSize,
+                            fit: BoxFit.contain,
+                          )
+                        : Image.asset(
+                            logoAsset,
+                            width: logoSize,
+                            height: logoSize,
+                            fit: BoxFit.contain,
+                          ),
                   ),
                   const SizedBox(width: logoGap),
                 ] else if (isEv) ...[

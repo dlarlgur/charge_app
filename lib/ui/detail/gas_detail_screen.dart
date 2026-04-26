@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/utils/navigation_util.dart';
 import '../../core/theme/app_colors.dart';
@@ -502,6 +503,7 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
   Widget _brandIcon(String brand, Color color, bool isDark, String? stationName) {
     final realLogo = BrandLogo.resolveLogoAsset(brand: brand, stationName: stationName);
     if (realLogo != null) {
+      final isSvg = realLogo.toLowerCase().endsWith('.svg');
       return Container(
         width: 46, height: 46,
         decoration: BoxDecoration(
@@ -513,7 +515,9 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
           ),
         ),
         padding: const EdgeInsets.all(7),
-        child: Image.asset(realLogo, fit: BoxFit.contain),
+        child: isSvg
+            ? SvgPicture.asset(realLogo, fit: BoxFit.contain)
+            : Image.asset(realLogo, fit: BoxFit.contain),
       );
     }
     return Container(

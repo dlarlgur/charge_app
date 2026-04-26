@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/theme/app_colors.dart';
@@ -35,13 +36,14 @@ class BrandLogo extends StatelessWidget {
 
   static const _validBrands = {'SKE', 'GSC', 'HDO', 'SOL', 'NHO', 'E1G', 'RTO', 'RTX', 'ETC'};
 
-  // 진짜 브랜드 심볼 — 흰 bg 위에 올려 사용.
+  // 진짜 브랜드 심볼 — 흰 bg 위에 올려 사용. PNG 또는 SVG.
   static const _realLogoAsset = <String, String>{
     'SKE': 'assets/logo/oil/sk_icon.png',
     'GSC': 'assets/logo/oil/gs_icon.png',
     'HDO': 'assets/logo/oil/hd_icon.png',
     'SOL': 'assets/logo/oil/soil_icon.png',
     'NHO': 'assets/logo/oil/nh_icon.png',
+    'RTO': 'assets/logo/oil/sail_logo.svg', // 알뜰주유소 (SAIL)
   };
 
   /// 고속도로 휴게소 EX(한국도로공사서비스) 로고. 이름에 '휴게소' 포함 시 사용.
@@ -50,7 +52,6 @@ class BrandLogo extends StatelessWidget {
   // 텍스트 타일용 브랜드 컬러 + 약자.
   static const _fallback = <String, ({Color color, String label})>{
     'E1G': (color: Color(0xFFE60012), label: 'E1'),
-    'RTO': (color: Color(0xFF22C55E), label: '알뜰'),
     'RTX': (color: Color(0xFF0EA5E9), label: '자영'),
     'ETC': (color: Color(0xFF94A3B8), label: '기타'),
   };
@@ -74,6 +75,7 @@ class BrandLogo extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final logoPath = resolveLogoAsset(brand: brand, stationName: stationName);
     if (logoPath != null) {
+      final isSvg = logoPath.toLowerCase().endsWith('.svg');
       return Container(
         width: size, height: size,
         decoration: BoxDecoration(
@@ -85,7 +87,9 @@ class BrandLogo extends StatelessWidget {
           ),
         ),
         padding: const EdgeInsets.all(6),
-        child: Image.asset(logoPath, fit: BoxFit.contain),
+        child: isSvg
+            ? SvgPicture.asset(logoPath, fit: BoxFit.contain)
+            : Image.asset(logoPath, fit: BoxFit.contain),
       );
     }
 
@@ -1029,6 +1033,18 @@ class _GasEvTabBarState extends State<GasEvTabBar> {
     Hive.box(AppConstants.settingsBox).put(AppConstants.keyHomeTabOrder, _order[0]);
   }
 
+  /// 드래그된 탭이 다른 위치에 드롭됐을 때:
+  /// 1) 위치 swap (기존 동작 유지 — 사용자가 선호하는 배치 저장)
+  /// 2) 드래그한 탭을 활성 상태로 전환 — 드래그 의도와 결과 일치
+  void _onDropFrom(int draggedFromPos) {
+    final draggedTabIdx = _order[draggedFromPos];
+    HapticFeedback.selectionClick();
+    _swap();
+    if (widget.activeIndex != draggedTabIdx) {
+      widget.onChanged(draggedTabIdx);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -1063,7 +1079,7 @@ class _GasEvTabBarState extends State<GasEvTabBar> {
       ),
       child: DragTarget<int>(
         onWillAcceptWithDetails: (d) => d.data != pos,
-        onAcceptWithDetails: (_) => _swap(),
+        onAcceptWithDetails: (d) => _onDropFrom(d.data),
         builder: (ctx, candidates, _) => GestureDetector(
           onTap: () {
             HapticFeedback.selectionClick();

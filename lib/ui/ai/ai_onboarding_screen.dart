@@ -22,8 +22,10 @@ class _AiOnboardingScreenState extends State<AiOnboardingScreen> {
     super.dispose();
   }
 
+  static const _kTotal = 4;
+
   void _next() {
-    if (_page < 2) {
+    if (_page < _kTotal - 1) {
       _ctrl.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
@@ -62,23 +64,31 @@ class _AiOnboardingScreenState extends State<AiOnboardingScreen> {
                 controller: _ctrl,
                 onPageChanged: (i) => setState(() => _page = i),
                 children: const [
-                  // 1. 진짜 이득인 주유소
+                  // 1. 진짜 이득인 주유소 (우회 비용 계산)
                   _HeroPage(
                     iconBg: Color(0xFFE1F5EE),
-                    icon: Icons.schedule_rounded,
+                    icon: Icons.alt_route_rounded,
                     iconColor: _kPrimary,
                     title: '그냥 싼 주유소 말고,\n진짜 이득인 주유소',
                     desc: '경로에서 조금 벗어나도 훨씬 싼 주유소가 있다면?\n우회 비용까지 계산해서 진짜 절약을 알려드려요.',
                   ),
-                  // 2. 비교는 AI가
+                  // 2. 충전소도 똑똑하게 — SOC 기반 추천
+                  _HeroPage(
+                    iconBg: Color(0xFFE9F8F0),
+                    icon: Icons.ev_station_rounded,
+                    iconColor: _kPrimary,
+                    title: '전기차도 마찬가지,\n꼭 필요한 충전소만',
+                    desc: '배터리 잔량과 주행 거리를 계산해\n경로상 휴게소·충전소를 우선 추천해요.',
+                  ),
+                  // 3. AI 비교 분석
                   _HeroPage(
                     iconBg: Color(0xFFFAEEDA),
-                    icon: Icons.space_dashboard_rounded,
+                    icon: Icons.balance_rounded,
                     iconColor: Color(0xFFBA7517),
                     title: '비교는 AI가,\n선택은 내가',
-                    desc: '경로상 최저가 주유소와 우회 추천 주유소를\n우회 거리·연료비·시간까지 비교 분석합니다.',
+                    desc: '최저가·우회 추천을 거리·연료비·시간까지\n한눈에 비교해서 보여드려요.',
                   ),
-                  // 3. 내연기관 + 전기차 모두 지원
+                  // 4. 차량 등록으로 시작
                   _HeroPage(
                     iconBg: Color(0xFFE6F1FB),
                     icon: Icons.directions_car_rounded,
@@ -89,7 +99,7 @@ class _AiOnboardingScreenState extends State<AiOnboardingScreen> {
                 ],
               ),
             ),
-            _DotsIndicator(count: 3, current: _page),
+            _DotsIndicator(count: _kTotal, current: _page),
             const SizedBox(height: 24),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -107,7 +117,7 @@ class _AiOnboardingScreenState extends State<AiOnboardingScreen> {
                     elevation: 0,
                   ),
                   child: Text(
-                    _page < 2 ? '다음' : '차량 정보 입력하기',
+                    _page < _kTotal - 1 ? '다음' : '차량 정보 입력하기',
                     style: const TextStyle(
                         fontSize: 16, fontWeight: FontWeight.w600),
                   ),
