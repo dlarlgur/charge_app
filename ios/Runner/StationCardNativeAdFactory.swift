@@ -186,6 +186,121 @@ class StationCardTopNativeAdFactory: NSObject, FLTNativeAdFactory {
     }
 }
 
+// ─── EV List 인라인 (좌측 4dp 컬러 스트립 추가) ─────────────────────────
+class StationCardListEvNativeAdFactory: NSObject, FLTNativeAdFactory {
+    func createNativeAd(_ nativeAd: GADNativeAd,
+                        customOptions: [AnyHashable: Any]? = nil) -> GADNativeAdView? {
+        let c = AdColors.current()
+
+        let adView = GADNativeAdView(frame: .zero)
+        adView.translatesAutoresizingMaskIntoConstraints = false
+        adView.backgroundColor = c.cardBg
+        adView.layer.cornerRadius = 14
+        adView.layer.borderWidth = 0.5
+        adView.layer.borderColor = c.border.cgColor
+        adView.layer.masksToBounds = true
+
+        // 좌측 4pt 스트립
+        let strip = UIView()
+        strip.translatesAutoresizingMaskIntoConstraints = false
+        strip.backgroundColor = c.brandBlue
+
+        let icon = UIImageView()
+        icon.translatesAutoresizingMaskIntoConstraints = false
+        icon.contentMode = .scaleAspectFill
+        icon.backgroundColor = c.brandBlue.withAlphaComponent(0.10)
+        icon.layer.cornerRadius = 10
+        icon.layer.masksToBounds = true
+
+        let headline = UILabel()
+        headline.translatesAutoresizingMaskIntoConstraints = false
+        headline.font = UIFont.systemFont(ofSize: 13, weight: .bold)
+        headline.textColor = c.primary
+        headline.numberOfLines = 1
+        headline.lineBreakMode = .byTruncatingTail
+
+        let body = UILabel()
+        body.translatesAutoresizingMaskIntoConstraints = false
+        body.font = UIFont.systemFont(ofSize: 11, weight: .regular)
+        body.textColor = c.secondary
+        body.numberOfLines = 1
+        body.lineBreakMode = .byTruncatingTail
+
+        // '광고' 칩 (EV status chip 위치)
+        let dot = UIView()
+        dot.translatesAutoresizingMaskIntoConstraints = false
+        dot.backgroundColor = c.brandBlue
+        dot.layer.cornerRadius = 2.5
+        let chipLabel = UILabel()
+        chipLabel.translatesAutoresizingMaskIntoConstraints = false
+        chipLabel.text = "광고"
+        chipLabel.font = UIFont.systemFont(ofSize: 10.5, weight: .heavy)
+        chipLabel.textColor = c.secondary
+        let chipStack = UIStackView(arrangedSubviews: [dot, chipLabel])
+        chipStack.translatesAutoresizingMaskIntoConstraints = false
+        chipStack.axis = .horizontal
+        chipStack.alignment = .center
+        chipStack.spacing = 5
+        chipStack.layoutMargins = UIEdgeInsets(top: 3, left: 7, bottom: 3, right: 7)
+        chipStack.isLayoutMarginsRelativeArrangement = true
+        chipStack.backgroundColor = c.labelBg
+        chipStack.layer.cornerRadius = 6
+        chipStack.layer.masksToBounds = true
+
+        let chipWrap = UIView()
+        chipWrap.translatesAutoresizingMaskIntoConstraints = false
+        chipWrap.addSubview(chipStack)
+
+        let middleStack = UIStackView(arrangedSubviews: [headline, body, chipWrap])
+        middleStack.translatesAutoresizingMaskIntoConstraints = false
+        middleStack.axis = .vertical
+        middleStack.alignment = .leading
+        middleStack.spacing = 3
+        middleStack.setCustomSpacing(6, after: body)
+
+        let cta = makeCtaButton(color: c)
+        cta.titleLabel?.font = UIFont.systemFont(ofSize: 11, weight: .bold)
+        cta.contentEdgeInsets = UIEdgeInsets(top: 0, left: 12, bottom: 0, right: 12)
+
+        adView.addSubview(strip)
+        adView.addSubview(icon)
+        adView.addSubview(middleStack)
+        adView.addSubview(cta)
+
+        NSLayoutConstraint.activate([
+            strip.leadingAnchor.constraint(equalTo: adView.leadingAnchor),
+            strip.topAnchor.constraint(equalTo: adView.topAnchor),
+            strip.bottomAnchor.constraint(equalTo: adView.bottomAnchor),
+            strip.widthAnchor.constraint(equalToConstant: 4),
+
+            icon.leadingAnchor.constraint(equalTo: strip.trailingAnchor, constant: 12),
+            icon.centerYAnchor.constraint(equalTo: adView.centerYAnchor),
+            icon.widthAnchor.constraint(equalToConstant: 44),
+            icon.heightAnchor.constraint(equalToConstant: 44),
+
+            middleStack.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 12),
+            middleStack.trailingAnchor.constraint(equalTo: cta.leadingAnchor, constant: -8),
+            middleStack.centerYAnchor.constraint(equalTo: adView.centerYAnchor),
+
+            dot.widthAnchor.constraint(equalToConstant: 5),
+            dot.heightAnchor.constraint(equalToConstant: 5),
+
+            chipStack.leadingAnchor.constraint(equalTo: chipWrap.leadingAnchor),
+            chipStack.topAnchor.constraint(equalTo: chipWrap.topAnchor),
+            chipStack.bottomAnchor.constraint(equalTo: chipWrap.bottomAnchor),
+
+            cta.trailingAnchor.constraint(equalTo: adView.trailingAnchor, constant: -14),
+            cta.centerYAnchor.constraint(equalTo: adView.centerYAnchor),
+            cta.heightAnchor.constraint(equalToConstant: 28),
+
+            adView.heightAnchor.constraint(greaterThanOrEqualToConstant: 80),
+        ])
+
+        bind(adView, nativeAd, headline: headline, body: body, cta: cta, icon: icon)
+        return adView
+    }
+}
+
 // ─── List 인라인 (스테이션 카드와 동일, ~64dp) ─────────────────────────
 class StationCardListNativeAdFactory: NSObject, FLTNativeAdFactory {
     func createNativeAd(_ nativeAd: GADNativeAd,

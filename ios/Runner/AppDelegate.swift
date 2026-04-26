@@ -19,6 +19,9 @@ import google_mobile_ads
     FLTGoogleMobileAdsPlugin.registerNativeAdFactory(
       self, factoryId: "stationCardList",
       nativeAdFactory: StationCardListNativeAdFactory())
+    FLTGoogleMobileAdsPlugin.registerNativeAdFactory(
+      self, factoryId: "stationCardListEv",
+      nativeAdFactory: StationCardListEvNativeAdFactory())
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
@@ -26,6 +29,7 @@ import google_mobile_ads
   override func applicationWillTerminate(_ application: UIApplication) {
     FLTGoogleMobileAdsPlugin.unregisterNativeAdFactory(self, factoryId: "stationCardTop")
     FLTGoogleMobileAdsPlugin.unregisterNativeAdFactory(self, factoryId: "stationCardList")
+    FLTGoogleMobileAdsPlugin.unregisterNativeAdFactory(self, factoryId: "stationCardListEv")
     super.applicationWillTerminate(application)
   }
 }

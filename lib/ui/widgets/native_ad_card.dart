@@ -15,11 +15,14 @@ import '../../data/services/house_ad_service.dart';
 class AdMobNativeCard extends StatefulWidget {
   /// AdMob 광고 단위 ID.
   final String adUnitId;
+  /// EV 탭 컨텍스트 — 좌측 4dp 컬러 스트립이 있는 layout 사용.
+  final bool isEv;
   final EdgeInsets margin;
 
   const AdMobNativeCard({
     super.key,
     required this.adUnitId,
+    this.isEv = false,
     this.margin = const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
   });
 
@@ -32,7 +35,7 @@ class _AdMobNativeCardState extends State<AdMobNativeCard> {
   bool _loaded = false;
   bool _failed = false;
 
-  static const double _height = 64; // station card 와 동일
+  double get _height => widget.isEv ? 80 : 64; // EV 카드와 동일 / Gas 카드와 동일
 
   @override
   void didChangeDependencies() {
@@ -43,7 +46,7 @@ class _AdMobNativeCardState extends State<AdMobNativeCard> {
   void _load() {
     _ad = NativeAd(
       adUnitId: widget.adUnitId,
-      factoryId: 'stationCardList',
+      factoryId: widget.isEv ? 'stationCardListEv' : 'stationCardList',
       request: const AdRequest(),
       listener: NativeAdListener(
         onAdLoaded: (_) {
@@ -80,11 +83,14 @@ class _AdMobNativeCardState extends State<AdMobNativeCard> {
 /// 콘솔에서 등록한 house ad 카드. 우리가 직접 그림 (자유 디자인).
 class HouseAdCard extends StatefulWidget {
   final HouseAd ad;
+  /// EV 탭 컨텍스트 — 좌측 4dp 컬러 스트립 노출.
+  final bool isEv;
   final EdgeInsets margin;
 
   const HouseAdCard({
     super.key,
     required this.ad,
+    this.isEv = false,
     this.margin = const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
   });
 
@@ -94,7 +100,7 @@ class HouseAdCard extends StatefulWidget {
 
 class _HouseAdCardState extends State<HouseAdCard> {
   bool _impressionReported = false;
-  static const double _height = 64;
+  double get _height => widget.isEv ? 80 : 64;
 
   @override
   void initState() {
@@ -127,6 +133,38 @@ class _HouseAdCardState extends State<HouseAdCard> {
     final borderColor =
         isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder;
 
+    final cardChild = Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.network(
+          DkswCore.resolveAssetUrl(widget.ad.imageUrl),
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+        ),
+        Positioned(
+          top: 6,
+          left: widget.isEv ? 10 : 6, // 스트립 두께 보정
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.black54,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: const Text(
+              'AD',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+
     return Container(
       margin: widget.margin,
       height: _height,
@@ -140,37 +178,15 @@ class _HouseAdCardState extends State<HouseAdCard> {
         color: Colors.transparent,
         child: InkWell(
           onTap: _onTap,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Image.network(
-                DkswCore.resolveAssetUrl(widget.ad.imageUrl),
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-              ),
-              Positioned(
-                top: 6,
-                left: 6,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.black54,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: const Text(
-                    'AD',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.4,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+          child: widget.isEv
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(width: 4, color: AppColors.gasBlue),
+                    Expanded(child: cardChild),
+                  ],
+                )
+              : cardChild,
         ),
       ),
     );

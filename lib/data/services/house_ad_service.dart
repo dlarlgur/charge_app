@@ -1,5 +1,10 @@
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
 import 'package:dio/dio.dart';
 import 'package:dksw_app_core/dksw_app_core.dart';
+import 'package:flutter/painting.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/constants/api_constants.dart';
 
 /// 콘솔에서 등록한 직접(house) 광고.
@@ -32,15 +37,35 @@ class HouseAd {
         ctaType: j['ctaType']?.toString() ?? 'none',
         weight: (j['weight'] as num?)?.toInt() ?? 1,
       );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'listPosition': listPosition,
+        'bypassAdmob': bypassAdmob,
+        'imageUrl': imageUrl,
+        'ctaUrl': ctaUrl,
+        'ctaType': ctaType,
+        'weight': weight,
+      };
 }
 
-/// 콘솔에서 받은 house ad 캐시. 앱 시작 후 1회 fetch.
+/// 콘솔에서 받은 house ad 캐시. 앱 시작 후 1회 fetch + 이미지 디스크 캐시.
+///
+/// stale-while-revalidate 패턴:
+///  - 시작 시 Hive 디스크 캐시에서 메타+이미지 로드 → 즉시 사용 가능 (광고 깜빡임 0)
+///  - 동시에 서버 fetch + 이미지 다운로드해 디스크 갱신
+///  - 다음 실행/메타 새로고침 시 새 광고 적용
 ///
 /// 노출 규칙:
 ///  - 슬롯 4·8 = 기본 AdMob. 같은 위치에 bypass=true house ad 가 있으면 대체.
 ///  - 슬롯 12+ = 등록된 house ad 항상 노출 (AdMob 자리 아님).
 class HouseAdCache {
   HouseAdCache._();
+
+  static const _box = 'settings';
+  static const _kAdsJson = 'house_ads_meta';
+  static const _kImagePrefix = 'house_ads_img_'; // + ad.id
+  static const _maxAgeMs = 7 * 24 * 60 * 60 * 1000;
 
   static List<HouseAd> _ads = const [];
   static bool _fetched = false;
@@ -56,7 +81,50 @@ class HouseAdCache {
     return null;
   }
 
-  /// 콘솔 /api/house-ads 호출. 실패해도 조용히 무시 (광고 없음 상태).
+  /// 디스크에 저장된 이전 광고 + 이미지 즉시 로드.
+  /// 첫 프레임에 광고가 보이게 — 네트워크 fetch 기다리지 않음.
+  static void readFromDiskAndInstall() {
+    try {
+      final box = Hive.box(_box);
+      final savedAt = box.get('${_kAdsJson}_savedAt') as int?;
+      if (savedAt == null) return;
+      if (DateTime.now().millisecondsSinceEpoch - savedAt > _maxAgeMs) return;
+
+      final raw = box.get(_kAdsJson);
+      if (raw is! List) return;
+      _ads = raw
+          .whereType<Map>()
+          .map((m) => HouseAd.fromJson(Map<String, dynamic>.from(m)))
+          .toList();
+      _fetched = true;
+
+      // 이미지 바이트를 Flutter image cache 에 NetworkImage(url) 키로 미리 꽂음.
+      for (final ad in _ads) {
+        final bytes = box.get('$_kImagePrefix${ad.id}');
+        if (bytes is Uint8List && bytes.isNotEmpty) {
+          _installInImageCache(DkswCore.resolveAssetUrl(ad.imageUrl), bytes);
+        }
+      }
+    } catch (_) {}
+  }
+
+  /// 디스크에서 읽은 광고를 Flutter image cache 에 등록 → Image.network(url) 즉시 그림.
+  static Future<void> _installInImageCache(String url, Uint8List bytes) async {
+    try {
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      final completer = OneFrameImageStreamCompleter(
+        Future.value(ImageInfo(image: frame.image, scale: 1.0)),
+      );
+      PaintingBinding.instance.imageCache.putIfAbsent(
+        NetworkImage(url),
+        () => completer,
+      );
+    } catch (_) {}
+  }
+
+  /// 콘솔 /api/house-ads 호출 + 이미지 다운로드 + 디스크 저장.
+  /// 실패해도 조용히 무시 (광고 없음 상태).
   static Future<void> fetch({String? serverBaseUrl}) async {
     try {
       final base = serverBaseUrl ?? 'https://dksw4.com/console';
@@ -69,11 +137,45 @@ class HouseAdCache {
       if (data is! Map || data['ok'] != true) return;
       final adsRaw = data['ads'];
       if (adsRaw is! List) return;
-      _ads = adsRaw
+      final fresh = adsRaw
           .whereType<Map>()
           .map((m) => HouseAd.fromJson(Map<String, dynamic>.from(m)))
           .toList();
+      _ads = fresh;
       _fetched = true;
+
+      // 이미지 다운로드 + Hive 저장 + image cache 등록
+      final box = Hive.box(_box);
+      final dio = Dio();
+      final keepIds = <int>{};
+      for (final ad in fresh) {
+        keepIds.add(ad.id);
+        final url = DkswCore.resolveAssetUrl(ad.imageUrl);
+        try {
+          final r = await dio.get<List<int>>(
+            url,
+            options: Options(
+              responseType: ResponseType.bytes,
+              receiveTimeout: const Duration(seconds: 10),
+            ),
+          );
+          final body = r.data;
+          if (r.statusCode == 200 && body != null && body.isNotEmpty) {
+            final bytes = Uint8List.fromList(body);
+            await box.put('$_kImagePrefix${ad.id}', bytes);
+            await _installInImageCache(url, bytes);
+          }
+        } catch (_) {}
+      }
+      // 더 이상 등록 안 된 광고 이미지는 정리
+      for (final key in box.keys.where((k) => k is String && k.startsWith(_kImagePrefix)).toList()) {
+        final id = int.tryParse((key as String).substring(_kImagePrefix.length));
+        if (id != null && !keepIds.contains(id)) {
+          await box.delete(key);
+        }
+      }
+      await box.put(_kAdsJson, fresh.map((a) => a.toJson()).toList());
+      await box.put('${_kAdsJson}_savedAt', DateTime.now().millisecondsSinceEpoch);
     } catch (_) {
       _fetched = true;
     }

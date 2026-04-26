@@ -929,10 +929,12 @@ class _EvListViewState extends ConsumerState<_EvListView> {
                   final item = merged[i];
                   if (item is _AdMobAt) {
                     return AdMobNativeCard(
-                        adUnitId: AdUnitIds.forPosition(item.position));
+                      adUnitId: AdUnitIds.forPosition(item.position),
+                      isEv: true,
+                    );
                   }
                   if (item is HouseAd) {
-                    return HouseAdCard(ad: item);
+                    return HouseAdCard(ad: item, isEv: true);
                   }
                   final s = item as EvStation;
                   final isTop = identical(s, shown.first) && favIds.isEmpty;

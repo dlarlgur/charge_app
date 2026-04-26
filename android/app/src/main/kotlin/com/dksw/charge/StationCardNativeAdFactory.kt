@@ -91,3 +91,17 @@ class StationCardListNativeAdFactory(private val context: Context) :
         return view
     }
 }
+
+/** EV 탭 인-피드 — 좌측 4dp 컬러 스트립 추가, 나머지 list 와 동일. */
+class StationCardListEvNativeAdFactory(private val context: Context) :
+    GoogleMobileAdsPlugin.NativeAdFactory {
+    override fun createNativeAd(
+        nativeAd: NativeAd,
+        customOptions: MutableMap<String, Any>?
+    ): NativeAdView {
+        val view = LayoutInflater.from(context)
+            .inflate(R.layout.native_ad_list_ev, null) as NativeAdView
+        bind(view, nativeAd)
+        return view
+    }
+}

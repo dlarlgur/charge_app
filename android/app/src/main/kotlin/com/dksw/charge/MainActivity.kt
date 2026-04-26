@@ -72,6 +72,11 @@ class MainActivity : FlutterFragmentActivity() {
             "stationCardList",
             StationCardListNativeAdFactory(this),
         )
+        io.flutter.plugins.googlemobileads.GoogleMobileAdsPlugin.registerNativeAdFactory(
+            flutterEngine,
+            "stationCardListEv",
+            StationCardListEvNativeAdFactory(this),
+        )
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: io.flutter.embedding.engine.FlutterEngine) {
@@ -80,6 +85,8 @@ class MainActivity : FlutterFragmentActivity() {
             .unregisterNativeAdFactory(flutterEngine, "stationCardTop")
         io.flutter.plugins.googlemobileads.GoogleMobileAdsPlugin
             .unregisterNativeAdFactory(flutterEngine, "stationCardList")
+        io.flutter.plugins.googlemobileads.GoogleMobileAdsPlugin
+            .unregisterNativeAdFactory(flutterEngine, "stationCardListEv")
         super.cleanUpFlutterEngine(flutterEngine)
     }
 }
