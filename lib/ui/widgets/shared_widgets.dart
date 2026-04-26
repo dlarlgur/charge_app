@@ -569,104 +569,241 @@ class EvStationCard extends ConsumerWidget {
 
   const EvStationCard({super.key, required this.station, this.isTop = false, this.onTap});
 
+  /// 사용 가능 비율 → 좌측 컬러 스트립 / 상태 배지 컬러.
+  /// 여유: 50% 이상, 혼잡: 그 외(0 포함), 회색: total 0 / 테슬라.
+  ({Color color, Color bg, String label}) _statusOf(BuildContext context, bool isDark) {
+    if (station.isTesla) {
+      return (
+        color: const Color(0xFFE5484D),
+        bg: isDark ? const Color(0x1AE5484D) : const Color(0x12E5484D),
+        label: '실시간 미지원',
+      );
+    }
+    final total = station.totalCount;
+    if (total == 0) {
+      return (
+        color: isDark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF),
+        bg: isDark ? const Color(0x149CA3AF) : const Color(0x0F9CA3AF),
+        label: '이용불가',
+      );
+    }
+    final avail = station.availableCount;
+    if (avail >= 1 && avail >= (total / 2).ceil()) {
+      return (
+        color: AppColors.evGreen,
+        bg: isDark ? AppColors.darkBadgeAvailBg : AppColors.lightBadgeAvailBg,
+        label: '$avail대 여유',
+      );
+    }
+    if (avail >= 1) {
+      return (
+        color: const Color(0xFFF59E0B),
+        bg: isDark ? const Color(0x1AF59E0B) : const Color(0x14F59E0B),
+        label: '$avail/$total',
+      );
+    }
+    return (
+      color: const Color(0xFFEF4444),
+      bg: isDark ? const Color(0x1AEF4444) : const Color(0x12EF4444),
+      label: '혼잡',
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isFav = ref.watch(favoritesProvider).any((f) => f['type'] == 'ev' && f['id'] == station.statId);
     final sortMode = ref.watch(evFilterProvider).sort; // 2=비회원가격순, 3=회원가격순
     final secondaryColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-    final nonMemberHighlighted = sortMode == 2;
-    final memberHighlighted = sortMode != 2; // 거리순(1)도 회원가 초록 유지
+    final priceMain = sortMode == 2 ? station.unitPriceFast ?? station.unitPriceSlow
+        : station.unitPriceFastMember ?? station.unitPriceSlowMember
+            ?? station.unitPriceFast ?? station.unitPriceSlow;
+    final priceMainLabel = sortMode == 2 ? '비회원' : '회원';
+    final priceSub = sortMode == 2
+        ? (station.unitPriceFastMember ?? station.unitPriceSlowMember)
+        : (station.unitPriceFast ?? station.unitPriceSlow);
+    final priceSubLabel = sortMode == 2 ? '회원' : '비회원';
+    final status = _statusOf(context, isDark);
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: isTop
               ? (isDark ? AppColors.darkEvActiveCard : AppColors.lightEvActiveCard)
               : (isDark ? AppColors.darkCard : AppColors.lightCard),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           border: isTop
               ? Border.all(color: isDark ? AppColors.darkEvActiveBorder : AppColors.lightEvActiveBorder, width: 0.5)
               : Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder, width: 0.5),
         ),
-        child: Row(
-          children: [
-            EvOperatorLogo(operator: station.operator),
-            const SizedBox(width: 12),
-            // 이름 + 상태 배지 + 정보
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+        clipBehavior: Clip.antiAlias,
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // 좌측 4px 상태 스트립 — 한눈에 여유/혼잡/이용불가 구분.
+              Container(width: 4, color: status.color),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                  child: Row(
                     children: [
-                      Flexible(child: Text(station.name, style: Theme.of(context).textTheme.titleSmall, overflow: TextOverflow.ellipsis)),
+                      EvOperatorLogo(operator: station.operator, size: 44),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              station.name,
+                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w700, height: 1.2),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Text(station.distanceText,
+                                    style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: secondaryColor,
+                                        letterSpacing: -0.1)),
+                                const SizedBox(width: 6),
+                                if (station.maxPowerText != null) ...[
+                                  Container(
+                                    width: 3, height: 3,
+                                    decoration: BoxDecoration(
+                                      color: secondaryColor.withOpacity(0.5),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(station.maxPowerText!,
+                                      style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: secondaryColor,
+                                          letterSpacing: -0.1)),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            // 상태 chip — 닷+한글
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: status.bg,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 5, height: 5,
+                                    decoration: BoxDecoration(
+                                      color: status.color,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(status.label,
+                                      style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: status.color,
+                                          letterSpacing: -0.2,
+                                          height: 1)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // 가격 — 메인(회원/비회원 sort에 따라 강조) 크게, 서브 작게.
+                      if (priceMain != null)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            RichText(
+                              textAlign: TextAlign.right,
+                              text: TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: '$priceMain',
+                                    style: TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.evGreen,
+                                      letterSpacing: -0.4,
+                                      height: 1,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: '원',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.evGreen,
+                                      height: 1,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 1),
+                            Text(
+                              '$priceMainLabel · /kWh',
+                              style: TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w600,
+                                color: secondaryColor,
+                                letterSpacing: -0.1,
+                                height: 1.1,
+                              ),
+                            ),
+                            if (priceSub != null) ...[
+                              const SizedBox(height: 3),
+                              Text(
+                                '$priceSubLabel $priceSub원',
+                                style: TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: secondaryColor.withOpacity(0.75),
+                                  letterSpacing: -0.1,
+                                  height: 1.1,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                       const SizedBox(width: 6),
-                      EvStatusBadge(station: station),
+                      GestureDetector(
+                        onTap: () => ref.read(favoritesProvider.notifier).toggle(
+                          id: station.statId, type: 'ev', name: station.name,
+                          subtitle: '${station.operator} · ${station.address}',
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Icon(
+                            isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                            size: 20,
+                            color: isFav ? AppColors.evGreen : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${station.distanceText} · ${station.operator} · ${station.chargerTypeText}',
-                    style: Theme.of(context).textTheme.labelSmall,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                if (station.maxPowerText != null)
-                  Text(
-                    station.maxPowerText!,
-                    style: TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w700,
-                      color: isTop ? AppColors.evGreen : (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
-                    ),
-                  ),
-                if (station.priceNonMemberText != null)
-                  Text(
-                    station.priceNonMemberText!,
-                    style: TextStyle(
-                      fontSize: 10, fontWeight: FontWeight.w500,
-                      color: nonMemberHighlighted ? AppColors.evGreen : secondaryColor,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                if (station.priceMemberText != null)
-                  Text(
-                    station.priceMemberText!,
-                    style: TextStyle(
-                      fontSize: 10, fontWeight: FontWeight.w500,
-                      color: memberHighlighted ? AppColors.evGreen : secondaryColor,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-              ],
-            ),
-            const SizedBox(width: 4),
-            GestureDetector(
-              onTap: () => ref.read(favoritesProvider.notifier).toggle(
-                id: station.statId, type: 'ev', name: station.name,
-                subtitle: '${station.operator} · ${station.address}',
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: Icon(
-                  isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                  size: 20,
-                  color: isFav ? AppColors.evGreen : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
