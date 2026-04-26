@@ -139,9 +139,9 @@ class _NativeAdCardState extends State<NativeAdCard> {
     } catch (_) {}
   }
 
-  /// 카드 높이 — Android XML / iOS layout 의 실제 높이와 일치시켜야 잘림 방지.
-  /// stationCard layout 은 한 줄 카드 (~76dp).
-  double get _height => widget.slot == HouseAdSlot.homeTop ? 76 : 96;
+  /// 카드 높이 — Android XML / iOS layout 의 실제 컨텐츠 높이와 정확히 일치.
+  /// (layout: padding 12 + 44 icon + padding 12 = 68dp). 살짝 여유 +2.
+  double get _height => widget.slot == HouseAdSlot.homeTop ? 70 : 90;
 
   @override
   Widget build(BuildContext context) {

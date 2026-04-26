@@ -629,13 +629,14 @@ class _GasListViewState extends ConsumerState<_GasListView> {
               ),
             ),
           ),
-          // 상단 네이티브 배너 — 리스트와 함께 스크롤됨 (고정 X)
+          // 상단 네이티브 배너 — 리스트와 함께 스크롤됨 (고정 X).
+          // 요약 카드와 자연스럽게 붙도록 bottom margin 0.
           SliverToBoxAdapter(
             child: NativeAdCard(
               adUnitId: AdUnitIds.topBanner,
               slot: HouseAdSlot.homeTop,
               type: TemplateType.small,
-              margin: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+              margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
             ),
           ),
           // 요약 카드
