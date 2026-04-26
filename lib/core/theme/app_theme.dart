@@ -4,9 +4,9 @@ import 'app_colors.dart';
 class AppTheme {
   AppTheme._();
 
-  // Pretendard 폰트 사용 시 assets/fonts/ 에 otf 파일 추가 후 pubspec.yaml fonts 섹션 활성화
-  // static const _fontFamily = 'Pretendard';
-  static const String? _fontFamily = null; // 시스템 기본 폰트 사용
+  // Pretendard 번들 — assets/fonts/ 에 otf 5단계 weight 포함.
+  // 안드로이드 기기간 시스템 폰트 차이를 제거해 동일한 시각 인상 유지.
+  static const String? _fontFamily = 'Pretendard';
 
   // ─── Light Theme ───
   static final light = ThemeData(
