@@ -1,12 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Native ad — 앱 카드(GasStationCard / EvStationCard) 와 동일한 시각 스타일.
-  한 줄 카드: [icon] [headline+body] [CTA] (오른쪽). KakaoTalk 채팅 광고와 동일 구조.
-
-  AdMob 가이드 준수:
-   - NativeAdView 가 root.
-   - headlineView / iconView / bodyView / callToActionView 는 setNativeAd 호출
-     전에 NativeAdView 에 setter 로 등록 + 텍스트 바인딩 후 setNativeAd 호출.
+  List 인-피드 광고 — 스테이션 카드와 동일한 한 줄 레이아웃.
+  카톡 채팅목록 광고처럼 다른 행과 구분 없이 자연스럽게 섞임.
+  height: ~64dp (station card 와 동일).
 -->
 <com.google.android.gms.ads.nativead.NativeAdView
     xmlns:android="http://schemas.android.com/apk/res/android"
@@ -19,8 +15,8 @@
         android:background="@drawable/ad_card_bg"
         android:paddingStart="14dp"
         android:paddingEnd="14dp"
-        android:paddingTop="12dp"
-        android:paddingBottom="12dp">
+        android:paddingTop="13dp"
+        android:paddingBottom="13dp">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -28,21 +24,16 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <!-- 아이콘 (브랜드 로고 자리) -->
-            <FrameLayout
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:background="@drawable/ad_logo_bg">
-                <ImageView
-                    android:id="@+id/ad_icon"
-                    android:layout_width="44dp"
-                    android:layout_height="44dp"
-                    android:scaleType="centerInside"
-                    android:padding="6dp"
-                    android:contentDescription="@null" />
-            </FrameLayout>
+            <!-- 아이콘 38x38 (BrandLogo 사이즈 매칭) -->
+            <ImageView
+                android:id="@+id/ad_icon"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:scaleType="centerCrop"
+                android:background="@drawable/ad_logo_bg"
+                android:contentDescription="@null" />
 
-            <!-- 가운데: headline + body -->
+            <!-- 가운데: headline + body (스테이션 이름·서브 위치) -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -51,7 +42,6 @@
                 android:layout_marginEnd="8dp"
                 android:orientation="vertical">
 
-                <!-- AD 라벨 + headline 한 줄 -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -76,7 +66,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:textSize="14sp"
+                        android:textSize="13sp"
                         android:textStyle="bold"
                         android:textColor="@color/ad_text_primary"
                         android:maxLines="1"
@@ -94,18 +84,18 @@
                     android:ellipsize="end" />
             </LinearLayout>
 
-            <!-- 오른쪽: CTA 버튼 (pill) -->
+            <!-- 오른쪽 CTA pill — 작게 -->
             <Button
                 android:id="@+id/ad_call_to_action"
                 android:layout_width="wrap_content"
-                android:layout_height="32dp"
+                android:layout_height="28dp"
                 android:minWidth="0dp"
                 android:minHeight="0dp"
-                android:paddingStart="14dp"
-                android:paddingEnd="14dp"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
                 android:paddingTop="0dp"
                 android:paddingBottom="0dp"
-                android:textSize="12sp"
+                android:textSize="11sp"
                 android:textStyle="bold"
                 android:textColor="#FFFFFFFF"
                 android:textAllCaps="false"

@@ -59,19 +59,27 @@ class MainActivity : FlutterFragmentActivity() {
             AdFitNativeListPlatformViewFactory(this),
         )
 
-        // AdMob 네이티브 광고 — 앱 카드 디자인 (factoryId="stationCard").
-        // Flutter 측에서 NativeAd(factoryId: "stationCard") 로 호출 시 매칭.
+        // AdMob 네이티브 광고 — 두 layout 분리:
+        //  - stationCardTop  : 강조형 (홈 상단)
+        //  - stationCardList : 인라인 (리스트 3번째)
         io.flutter.plugins.googlemobileads.GoogleMobileAdsPlugin.registerNativeAdFactory(
             flutterEngine,
-            "stationCard",
-            StationCardNativeAdFactory(this),
+            "stationCardTop",
+            StationCardTopNativeAdFactory(this),
+        )
+        io.flutter.plugins.googlemobileads.GoogleMobileAdsPlugin.registerNativeAdFactory(
+            flutterEngine,
+            "stationCardList",
+            StationCardListNativeAdFactory(this),
         )
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: io.flutter.embedding.engine.FlutterEngine) {
         // AdMob factory 해제 — 누수 방지
         io.flutter.plugins.googlemobileads.GoogleMobileAdsPlugin
-            .unregisterNativeAdFactory(flutterEngine, "stationCard")
+            .unregisterNativeAdFactory(flutterEngine, "stationCardTop")
+        io.flutter.plugins.googlemobileads.GoogleMobileAdsPlugin
+            .unregisterNativeAdFactory(flutterEngine, "stationCardList")
         super.cleanUpFlutterEngine(flutterEngine)
     }
 }

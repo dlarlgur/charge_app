@@ -10,17 +10,22 @@ import google_mobile_ads
   ) -> Bool {
     GeneratedPluginRegistrant.register(with: self)
 
-    // AdMob 네이티브 광고 — Flutter 측 factoryId="stationCard" 매칭.
-    // 앱 카드 디자인으로 통합 렌더링.
-    let factory = StationCardNativeAdFactory()
+    // AdMob 네이티브 광고 — 두 layout 분리:
+    //  - stationCardTop  : 강조형 (홈 상단)
+    //  - stationCardList : 인라인 (리스트 3번째)
     FLTGoogleMobileAdsPlugin.registerNativeAdFactory(
-      self, factoryId: "stationCard", nativeAdFactory: factory)
+      self, factoryId: "stationCardTop",
+      nativeAdFactory: StationCardTopNativeAdFactory())
+    FLTGoogleMobileAdsPlugin.registerNativeAdFactory(
+      self, factoryId: "stationCardList",
+      nativeAdFactory: StationCardListNativeAdFactory())
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
   override func applicationWillTerminate(_ application: UIApplication) {
-    FLTGoogleMobileAdsPlugin.unregisterNativeAdFactory(self, factoryId: "stationCard")
+    FLTGoogleMobileAdsPlugin.unregisterNativeAdFactory(self, factoryId: "stationCardTop")
+    FLTGoogleMobileAdsPlugin.unregisterNativeAdFactory(self, factoryId: "stationCardList")
     super.applicationWillTerminate(application)
   }
 }

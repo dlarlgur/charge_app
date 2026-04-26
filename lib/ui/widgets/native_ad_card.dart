@@ -99,11 +99,14 @@ class _NativeAdCardState extends State<NativeAdCard> {
     HouseAdCache.reportImpression(_houseAd!.id);
   }
 
+  String get _factoryId => widget.slot == HouseAdSlot.homeTop
+      ? 'stationCardTop'   // 강조형 큰 배너
+      : 'stationCardList'; // 인라인 (스테이션 카드와 동일한 행)
+
   void _loadAdmob() {
     _ad = NativeAd(
       adUnitId: widget.adUnitId,
-      // 앱 카드 디자인 — 플랫폼 측 factory 가 layout 렌더.
-      factoryId: 'stationCard',
+      factoryId: _factoryId,
       request: const AdRequest(),
       listener: NativeAdListener(
         onAdLoaded: (_) {
@@ -140,8 +143,9 @@ class _NativeAdCardState extends State<NativeAdCard> {
   }
 
   /// 카드 높이 — Android XML / iOS layout 의 실제 컨텐츠 높이와 정확히 일치.
-  /// (layout: padding 12 + 44 icon + padding 12 = 68dp). 살짝 여유 +2.
-  double get _height => widget.slot == HouseAdSlot.homeTop ? 70 : 90;
+  /// top  : 14 padding + 80 icon + 14 padding = 108dp (강조형 큰 배너)
+  /// list : 13 padding + 38 icon + 13 padding = 64dp (스테이션 카드와 동일)
+  double get _height => widget.slot == HouseAdSlot.homeTop ? 108 : 64;
 
   @override
   Widget build(BuildContext context) {
