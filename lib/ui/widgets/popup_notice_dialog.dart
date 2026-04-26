@@ -50,10 +50,12 @@ class PopupNoticeDialog extends StatelessWidget {
     final secondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
     final divider = isDark ? const Color(0x14FFFFFF) : const Color(0xFFE2E8F0);
 
+    final hasImage = notice.imageUrl != null && notice.imageUrl!.isNotEmpty;
     return Dialog(
       backgroundColor: bg,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 60),
+      clipBehavior: Clip.antiAlias,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 380),
         child: Column(
@@ -71,13 +73,29 @@ class PopupNoticeDialog extends StatelessWidget {
             ),
             Flexible(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                child: Html(
-                  data: notice.body,
-                  onLinkTap: (url, _, __) async {
-                    if (url == null) return;
-                    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-                  },
+                padding: EdgeInsets.zero,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (hasImage)
+                      Image.network(
+                        DkswCore.resolveAssetUrl(notice.imageUrl!),
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                      ),
+                    if (notice.body.isNotEmpty)
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(20, hasImage ? 14 : 0, 20, 16),
+                        child: Html(
+                          data: notice.body,
+                          onLinkTap: (url, _, __) async {
+                            if (url == null) return;
+                            await launchUrl(Uri.parse(url),
+                                mode: LaunchMode.externalApplication);
+                          },
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),

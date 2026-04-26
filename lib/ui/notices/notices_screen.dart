@@ -173,7 +173,7 @@ class NoticeDetailScreen extends StatelessWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(14),
                 child: Image.network(
-                  notice.imageUrl!,
+                  DkswCore.resolveAssetUrl(notice.imageUrl!),
                   fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                 ),

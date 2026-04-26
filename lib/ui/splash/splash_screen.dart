@@ -165,7 +165,7 @@ class _MaintenanceScreen extends StatelessWidget {
                     minScale: 1,
                     maxScale: 4,
                     child: Image.network(
-                      imageUrl!,
+                      DkswCore.resolveAssetUrl(imageUrl!),
                       fit: BoxFit.contain,
                       errorBuilder: (_, __, ___) =>
                           _defaultBody(context, isDark),
