@@ -20,33 +20,73 @@ String _fuelTypeLabel(String code) {
   }
 }
 
-// ─── 브랜드 컬러 로고 ───
+// ─── 브랜드 로고 ───
+//
+// 카드용: 흰 배경 + 진짜 브랜드 심볼 (5대 정유사) → 프리미엄 인상.
+// 보유 안 된 브랜드: 브랜드 단색 + 약자 → 깔끔한 텍스트 타일.
+// 디테일 화면 등에서 풀 로고가 필요한 경우 assetName() 으로 'assets/brands/$code.png' 접근.
 class BrandLogo extends StatelessWidget {
   final String brand;
-  const BrandLogo({super.key, required this.brand});
+  final double size;
+  const BrandLogo({super.key, required this.brand, this.size = 40});
 
   static const _validBrands = {'SKE', 'GSC', 'HDO', 'SOL', 'NHO', 'E1G', 'RTO', 'RTX', 'ETC'};
+
+  // 진짜 브랜드 심볼 — 흰 bg 위에 올려 사용.
+  static const _realLogoAsset = <String, String>{
+    'SKE': 'assets/logo/oil/sk_icon.png',
+    'GSC': 'assets/logo/oil/gs_icon.png',
+    'HDO': 'assets/logo/oil/hd_icon.png',
+    'SOL': 'assets/logo/oil/soil_icon.png',
+    'NHO': 'assets/logo/oil/nh_icon.png',
+  };
+
+  // 텍스트 타일용 브랜드 컬러 + 약자.
+  static const _fallback = <String, ({Color color, String label})>{
+    'E1G': (color: Color(0xFFE60012), label: 'E1'),
+    'RTO': (color: Color(0xFF22C55E), label: '알뜰'),
+    'RTX': (color: Color(0xFF0EA5E9), label: '자영'),
+    'ETC': (color: Color(0xFF94A3B8), label: '기타'),
+  };
 
   static String assetName(String brand) =>
       _validBrands.contains(brand) ? brand : 'ETC';
 
   @override
   Widget build(BuildContext context) {
-    final assetBrand = _validBrands.contains(brand) ? brand : 'ETC';
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(10),
-      child: Image.asset(
-        'assets/brands/$assetBrand.png',
-        width: 38, height: 38,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Container(
-          width: 38, height: 38,
-          decoration: BoxDecoration(color: const Color(0xFF94A3B8), borderRadius: BorderRadius.circular(10)),
-          alignment: Alignment.center,
-          child: Text(
-            brand.isNotEmpty ? brand.substring(0, brand.length > 2 ? 2 : brand.length) : '?',
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.5),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final logoPath = _realLogoAsset[brand];
+    if (logoPath != null) {
+      return Container(
+        width: size, height: size,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isDark ? const Color(0xFF2A3040) : const Color(0xFFE2E8F0),
+            width: 1,
           ),
+        ),
+        padding: const EdgeInsets.all(6),
+        child: Image.asset(logoPath, fit: BoxFit.contain),
+      );
+    }
+
+    final fb = _fallback[_validBrands.contains(brand) ? brand : 'ETC']!;
+    return Container(
+      width: size, height: size,
+      decoration: BoxDecoration(
+        color: fb.color,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        fb.label,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
+          letterSpacing: -0.3,
         ),
       ),
     );
@@ -373,9 +413,18 @@ void showAlertLimitDialog(BuildContext context) {
 }
 
 // ─── EV 운영사 로고 ───
+//
+// `assets/logo/elec/$code.png` 에 진짜 운영사 심볼이 있으면 흰 bg 위에 올려 노출.
+// 없으면 운영사별 컬러 + 짧은 약칭 텍스트 타일로 fallback.
+//
+// 새 로고 추가 절차:
+//  1) `assets/logo/elec/<code>.png` 에 파일 추가 (PNG, 정사각형 권장).
+//  2) pubspec.yaml `flutter.assets` 에 `assets/logo/elec/` 등록.
+//  3) 아래 _realLogoAvailable 셋에 코드 추가.
 class EvOperatorLogo extends StatelessWidget {
   final String operator;
-  const EvOperatorLogo({super.key, required this.operator});
+  final double size;
+  const EvOperatorLogo({super.key, required this.operator, this.size = 40});
 
   static String _toCode(String op) {
     if (op.contains('한국전력') || op.contains('한전') || op.contains('KEPCO')) return 'KEP';
@@ -393,22 +442,105 @@ class EvOperatorLogo extends StatelessWidget {
     return 'ETC';
   }
 
+  // 진짜 로고 PNG 가 `assets/logo/elec/` 에 존재하는 코드 셋.
+  // 비어있는 동안엔 모두 텍스트 타일로 폴백 (깜빡임 방지를 위해 동기 체크).
+  static const _realLogoAvailable = <String>{};
+
+  // 운영사별 브랜드 컬러 (실제 키 컬러 또는 그에 가까운 톤).
+  static const _brandColor = <String, Color>{
+    'KEP': Color(0xFF0072CE), // 한전 블루
+    'ENV': Color(0xFF22A66B), // 환경부 그린
+    'GSC': Color(0xFF0072BC),
+    'SKP': Color(0xFFEA002C), // SK 레드
+    'HMC': Color(0xFF002C5F), // 현대 네이비
+    'TSL': Color(0xFFCC0000), // Tesla 레드
+    'CHV': Color(0xFF1E90FF),
+    'DYC': Color(0xFFF59E0B),
+    'EVR': Color(0xFF22C55E), // 에버온 그린
+    'STR': Color(0xFF6366F1),
+    'LTR': Color(0xFFE60012), // 롯데 레드
+    'KLP': Color(0xFF14B8A6),
+    'ETC': Color(0xFF94A3B8),
+  };
+
+  // 카드에 들어갈 짧은 약칭. 4자 이내.
+  static const _shortLabel = <String, String>{
+    'KEP': '한전',
+    'ENV': '환경부',
+    'GSC': 'GS',
+    'SKP': 'SK',
+    'HMC': '현대',
+    'TSL': 'Tesla',
+    'CHV': '차지비',
+    'DYC': '채비',
+    'EVR': '에버온',
+    'STR': 'S트래픽',
+    'LTR': '롯데',
+    'KLP': '클린',
+    'ETC': '기타',
+  };
+
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final code = _toCode(operator);
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(10),
-      child: Image.asset(
-        'assets/ev_operators/$code.png',
-        width: 38, height: 38,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Container(
-          width: 38, height: 38,
-          decoration: BoxDecoration(color: AppColors.evGreen, borderRadius: BorderRadius.circular(10)),
+    final color = _brandColor[code] ?? AppColors.evGreen;
+    final label = _shortLabel[code] ?? code;
+
+    // 텍스트 타일 폴백 — 진한 단색 + 미세 그래디언트로 입체감, 작은 그림자.
+    Widget tileFallback() => Container(
+          width: size, height: size,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [color, Color.lerp(color, Colors.black, 0.18)!],
+            ),
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: isDark
+                ? null
+                : [
+                    BoxShadow(
+                      color: color.withOpacity(0.18),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+          ),
           alignment: Alignment.center,
-          child: const Icon(Icons.ev_station, size: 20, color: Colors.white),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  letterSpacing: -0.3,
+                  height: 1.1,
+                ),
+              ),
+            ),
+          ),
+        );
+
+    // 진짜 로고가 있으면 흰 bg + 보더 카드로 노출, 없으면 컬러 타일.
+    if (!_realLogoAvailable.contains(code)) return tileFallback();
+    return Container(
+      width: size, height: size,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isDark ? const Color(0xFF2A3040) : const Color(0xFFE2E8F0),
+          width: 1,
         ),
       ),
+      padding: const EdgeInsets.all(6),
+      child: Image.asset('assets/logo/elec/$code.png', fit: BoxFit.contain),
     );
   }
 }

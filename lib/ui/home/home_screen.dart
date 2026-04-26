@@ -339,9 +339,16 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
         children: [
           // 헤더
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 8, 8),
+            padding: const EdgeInsets.fromLTRB(16, 10, 8, 8),
             child: Row(
               children: [
+                Image.asset(
+                  'assets/logo_final.png',
+                  width: 36,
+                  height: 36,
+                  filterQuality: FilterQuality.medium,
+                ),
+                const SizedBox(width: 8),
                 Text('모두의 주유충전', style: Theme.of(context).textTheme.headlineSmall),
                 const Spacer(),
                 Builder(builder: (_) {
