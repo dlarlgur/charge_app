@@ -833,6 +833,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   Future<NOverlayImage> _stationBadgeIcon({
     required String label,
     String? brand,
+    String? stationName,
     bool isEv = false,
     bool isHighlighted = false,
     bool isCheapest = false,
@@ -847,6 +848,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       context,
       label: label,
       brand: brand,
+      stationName: stationName,
       isEv: isEv,
       borderColor: borderColor,
       textColor: textColor,
@@ -905,7 +907,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           id: markerId,
           position: NLatLng(s.lat, s.lng),
           icon: await _stationBadgeIcon(
-            label: label, brand: s.brand,
+            label: label, brand: s.brand, stationName: s.name,
             isHighlighted: isSelected, isCheapest: isCheapest,
           ),
         );
@@ -918,7 +920,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           }
           await _restoreMarkerIcon(prev, _lastMinGasPrice);
           _selectStation(s);
-          await _highlightMarker(markerId, label, brand: s.brand);
+          await _highlightMarker(markerId, label, brand: s.brand, stationName: s.name);
         });
         await controller.addOverlay(marker);
       }
@@ -956,10 +958,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   /// 특정 마커를 강조(선택) 스타일로 변경.
-  Future<void> _highlightMarker(String markerId, String label, {String? brand, bool isEv = false}) async {
+  Future<void> _highlightMarker(String markerId, String label, {String? brand, String? stationName, bool isEv = false}) async {
     final marker = _markerRefs[markerId];
     if (marker == null) return;
-    marker.setIcon(await _stationBadgeIcon(label: label, brand: brand, isEv: isEv, isHighlighted: true));
+    marker.setIcon(await _stationBadgeIcon(label: label, brand: brand, stationName: stationName, isEv: isEv, isHighlighted: true));
   }
 
   /// 이전에 선택된 스테이션 마커를 원래 아이콘으로 복원 (전체 redraw 없이).
@@ -971,7 +973,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       if (marker == null) return;
       final isCheapest = minGasPrice != null && prev.price == minGasPrice;
       marker.setIcon(await _stationBadgeIcon(
-        label: prev.priceText, brand: prev.brand, isCheapest: isCheapest,
+        label: prev.priceText, brand: prev.brand, stationName: prev.name, isCheapest: isCheapest,
       ));
     } else if (prev is EvStation) {
       final markerId = 'ev_${prev.statId}';

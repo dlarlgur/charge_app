@@ -1085,7 +1085,7 @@ class _RecommendedCard extends StatelessWidget {
             child: Row(
               children: [
                 if (brand != null && brand!.isNotEmpty) ...[
-                  BrandLogo(brand: brand!),
+                  BrandLogo(brand: brand!, stationName: name),
                   const SizedBox(width: 10),
                 ],
                 Expanded(

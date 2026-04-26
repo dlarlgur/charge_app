@@ -288,7 +288,7 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                _brandIcon(brand, brandColor, isDark),
+                _brandIcon(brand, brandColor, isDark, widget.station?.name),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -497,34 +497,39 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
     );
   }
 
-  // 브랜드 로고 이미지 (BrandLogo 위젯 재사용, 상세화면용 46x46)
-  Widget _brandIcon(String brand, Color color, bool isDark) {
-    return SizedBox(
-      width: 46,
-      height: 46,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(13),
-        child: Image.asset(
-          'assets/brands/${BrandLogo.assetName(brand)}.png',
-          width: 46, height: 46,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Container(
-            width: 46, height: 46,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: isDark ? 0.18 : 0.10),
-              borderRadius: BorderRadius.circular(13),
-              border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              _brandShortLabel(brand),
-              style: TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w900,
-                color: isDark ? color : _brandColorDark(brand),
-                letterSpacing: -0.3,
-              ),
-            ),
+  // 브랜드 로고 이미지 (상세화면 hero용 46x46).
+  // 휴게소면 EX 로고, 5대 정유사면 진짜 심볼, 그 외는 컬러 텍스트 타일.
+  Widget _brandIcon(String brand, Color color, bool isDark, String? stationName) {
+    final realLogo = BrandLogo.resolveLogoAsset(brand: brand, stationName: stationName);
+    if (realLogo != null) {
+      return Container(
+        width: 46, height: 46,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(
+            color: isDark ? const Color(0xFF2A3040) : const Color(0xFFE2E8F0),
+            width: 1,
           ),
+        ),
+        padding: const EdgeInsets.all(7),
+        child: Image.asset(realLogo, fit: BoxFit.contain),
+      );
+    }
+    return Container(
+      width: 46, height: 46,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isDark ? 0.18 : 0.10),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        _brandShortLabel(brand),
+        style: TextStyle(
+          fontSize: 12, fontWeight: FontWeight.w900,
+          color: isDark ? color : _brandColorDark(brand),
+          letterSpacing: -0.3,
         ),
       ),
     );

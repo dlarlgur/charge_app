@@ -22,13 +22,15 @@ String _fuelTypeLabel(String code) {
 
 // ─── 브랜드 로고 ───
 //
-// 카드용: 흰 배경 + 진짜 브랜드 심볼 (5대 정유사) → 프리미엄 인상.
+// 카드용: 흰 배경 + 진짜 브랜드 심볼 (5대 정유사 + 고속도로 휴게소 EX) → 프리미엄 인상.
 // 보유 안 된 브랜드: 브랜드 단색 + 약자 → 깔끔한 텍스트 타일.
 // 디테일 화면 등에서 풀 로고가 필요한 경우 assetName() 으로 'assets/brands/$code.png' 접근.
 class BrandLogo extends StatelessWidget {
   final String brand;
+  /// 주유소 이름. '휴게소' 포함 시 도로공사 EX 로고 우선 사용.
+  final String? stationName;
   final double size;
-  const BrandLogo({super.key, required this.brand, this.size = 40});
+  const BrandLogo({super.key, required this.brand, this.stationName, this.size = 40});
 
   static const _validBrands = {'SKE', 'GSC', 'HDO', 'SOL', 'NHO', 'E1G', 'RTO', 'RTX', 'ETC'};
 
@@ -41,6 +43,9 @@ class BrandLogo extends StatelessWidget {
     'NHO': 'assets/logo/oil/nh_icon.png',
   };
 
+  /// 고속도로 휴게소 EX(한국도로공사서비스) 로고. 이름에 '휴게소' 포함 시 사용.
+  static const _highwayLogoAsset = 'assets/logo/oil/ex_log.png';
+
   // 텍스트 타일용 브랜드 컬러 + 약자.
   static const _fallback = <String, ({Color color, String label})>{
     'E1G': (color: Color(0xFFE60012), label: 'E1'),
@@ -52,10 +57,21 @@ class BrandLogo extends StatelessWidget {
   static String assetName(String brand) =>
       _validBrands.contains(brand) ? brand : 'ETC';
 
+  /// 주유소가 고속도로 휴게소 소속인지 — 이름에 '휴게소' 포함하면 true.
+  static bool isHighwayRestArea(String? name) =>
+      name != null && name.contains('휴게소');
+
+  /// 주어진 브랜드/이름 조합에 해당하는 진짜 로고 자산 경로.
+  /// 없으면 null (텍스트 타일 폴백).
+  static String? resolveLogoAsset({required String brand, String? stationName}) {
+    if (isHighwayRestArea(stationName)) return _highwayLogoAsset;
+    return _realLogoAsset[brand];
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final logoPath = _realLogoAsset[brand];
+    final logoPath = resolveLogoAsset(brand: brand, stationName: stationName);
     if (logoPath != null) {
       return Container(
         width: size, height: size,
@@ -125,7 +141,7 @@ class GasStationCard extends ConsumerWidget {
         ),
         child: Row(
           children: [
-            BrandLogo(brand: station.brand),
+            BrandLogo(brand: station.brand, stationName: station.name),
             const SizedBox(width: 12),
             // 이름 + 거리/브랜드
             Expanded(

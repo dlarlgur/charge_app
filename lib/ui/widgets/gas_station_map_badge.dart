@@ -13,22 +13,36 @@ class GasStationMapBadge {
     'NHO': 'assets/logo/oil/nh_icon.png',
   };
 
+  /// 고속도로 휴게소 EX(한국도로공사서비스) 로고.
+  static const String _highwayLogo = 'assets/logo/oil/ex_log.png';
+
+  /// 주유소 이름에 '휴게소' 포함 시 EX 로고 우선, 그 외는 brand 매핑.
+  static String? logoFor({String? brand, String? stationName}) {
+    if (stationName != null && stationName.contains('휴게소')) {
+      return _highwayLogo;
+    }
+    if (brand != null && brand.isNotEmpty) return brandLogos[brand];
+    return null;
+  }
+
   static Future<void> precacheBrandImages(BuildContext context) async {
     for (final path in brandLogos.values) {
       await precacheImage(AssetImage(path), context);
     }
+    await precacheImage(const AssetImage(_highwayLogo), context);
   }
 
   static Future<NOverlayImage> overlayImage(
     BuildContext context, {
     required String label,
     String? brand,
+    String? stationName,
     bool isEv = false,
     required Color borderColor,
     required Color textColor,
     bool emphasizeBorder = false,
   }) {
-    final String? logoAsset = (brand != null && brand.isNotEmpty) ? brandLogos[brand] : null;
+    final String? logoAsset = logoFor(brand: brand, stationName: stationName);
     final bool showLogo = logoAsset != null;
     const double logoSize = 20.0;
     const double logoGap = 4.0;
