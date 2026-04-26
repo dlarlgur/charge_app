@@ -479,6 +479,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
           // 상단 네이티브 배너 (탭 바로 아래, 차종 무관 항상 노출)
           NativeAdCard(
             adUnitId: AdUnitIds.topBanner,
+            slot: HouseAdSlot.homeTop,
             type: TemplateType.small,
             margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
           ),
@@ -699,6 +700,7 @@ class _GasListViewState extends ConsumerState<_GasListView> {
                   if (showAd && i == adAt) {
                     return NativeAdCard(
                       adUnitId: AdUnitIds.listBanner,
+                      slot: HouseAdSlot.homeList,
                       type: TemplateType.medium,
                     );
                   }
@@ -898,6 +900,7 @@ class _EvListViewState extends ConsumerState<_EvListView> {
                   if (showAd && i == adAt) {
                     return NativeAdCard(
                       adUnitId: AdUnitIds.listBanner,
+                      slot: HouseAdSlot.homeList,
                       type: TemplateType.medium,
                     );
                   }

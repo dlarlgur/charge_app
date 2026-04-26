@@ -18,6 +18,7 @@ import 'app.dart';
 import 'core/constants/api_constants.dart';
 import 'core/constants/secrets.dart';
 import 'data/services/alert_service.dart';
+import 'data/services/house_ad_service.dart';
 import 'data/services/notification_service.dart';
 import 'data/services/widget_service.dart';
 
@@ -307,4 +308,7 @@ Future<void> _initBackgroundTasks() async {
   } catch (e) {
     debugPrint('[AdMob] init 실패 (무시됨): $e');
   }
+  // house ad (콘솔 직접 등록 광고) — 백그라운드 fetch.
+  // 첫 NativeAdCard 마운트 전에 끝나면 즉시 사용, 늦어도 동작에 지장 없음.
+  unawaited(HouseAdCache.fetch());
 }
