@@ -9,11 +9,18 @@ import '../../core/constants/api_constants.dart';
 
 /// 콘솔에서 등록한 직접(house) 광고.
 /// imageUrl 은 상대 경로일 수 있어 사용 시 [DkswCore.resolveAssetUrl] 권장.
+///
+/// home_list 광고는 headline/bodyText/ctaLabel 채워서 등록하면 AdMob 카드와
+/// 동일한 [icon | headline + body | CTA] 구조로 노출. 비어있으면 이미지만
+/// 깔리는 배너로 폴백.
 class HouseAd {
   final int id;
   final int listPosition;
   final bool bypassAdmob;
   final String imageUrl;
+  final String? headline;
+  final String? bodyText;
+  final String? ctaLabel;
   final String? ctaUrl;
   final String ctaType;
   final int weight;
@@ -23,16 +30,25 @@ class HouseAd {
     required this.listPosition,
     required this.bypassAdmob,
     required this.imageUrl,
+    this.headline,
+    this.bodyText,
+    this.ctaLabel,
     this.ctaUrl,
     required this.ctaType,
     required this.weight,
   });
+
+  /// 구조화(텍스트) 형태로 등록되었는지 — headline 있으면 AdMob 스타일 카드.
+  bool get isStructured => headline != null && headline!.trim().isNotEmpty;
 
   factory HouseAd.fromJson(Map<String, dynamic> j) => HouseAd(
         id: (j['id'] as num).toInt(),
         listPosition: (j['listPosition'] as num?)?.toInt() ?? 0,
         bypassAdmob: j['bypassAdmob'] == true,
         imageUrl: j['imageUrl']?.toString() ?? '',
+        headline: j['headline']?.toString(),
+        bodyText: j['bodyText']?.toString(),
+        ctaLabel: j['ctaLabel']?.toString(),
         ctaUrl: j['ctaUrl']?.toString(),
         ctaType: j['ctaType']?.toString() ?? 'none',
         weight: (j['weight'] as num?)?.toInt() ?? 1,
@@ -43,6 +59,9 @@ class HouseAd {
         'listPosition': listPosition,
         'bypassAdmob': bypassAdmob,
         'imageUrl': imageUrl,
+        'headline': headline,
+        'bodyText': bodyText,
+        'ctaLabel': ctaLabel,
         'ctaUrl': ctaUrl,
         'ctaType': ctaType,
         'weight': weight,
