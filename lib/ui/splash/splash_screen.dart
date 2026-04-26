@@ -77,7 +77,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       FlutterNativeSplash.remove();
       await Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
-            builder: (_) => _MaintenanceScreen(title: m.title, body: m.body)),
+            builder: (_) => _MaintenanceScreen(
+                  title: m.title,
+                  body: m.body,
+                  imageUrl: m.imageUrl,
+                )),
         (_) => false,
       );
       return;
@@ -143,42 +147,62 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 class _MaintenanceScreen extends StatelessWidget {
   final String title;
   final String body;
-  const _MaintenanceScreen({required this.title, required this.body});
+  final String? imageUrl;
+  const _MaintenanceScreen({required this.title, required this.body, this.imageUrl});
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
     return WillPopScope(
       onWillPop: () async => false,
       child: Scaffold(
         backgroundColor: isDark ? const Color(0xFF0C0E13) : Colors.white,
         body: SafeArea(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.build_rounded, size: 64,
-                      color: isDark ? Colors.white54 : Colors.black45),
-                  const SizedBox(height: 20),
-                  Text(title.isEmpty ? '점검 중입니다' : title,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: isDark ? Colors.white : Colors.black87)),
-                  const SizedBox(height: 12),
-                  Text(body.isEmpty ? '잠시 후 다시 이용해주세요.' : body,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          fontSize: 14,
-                          height: 1.55,
-                          color: isDark ? Colors.white70 : Colors.black54)),
-                ],
-              ),
-            ),
-          ),
+          child: hasImage
+              ? Center(
+                  child: InteractiveViewer(
+                    minScale: 1,
+                    maxScale: 4,
+                    child: Image.network(
+                      imageUrl!,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) =>
+                          _defaultBody(context, isDark),
+                    ),
+                  ),
+                )
+              : _defaultBody(context, isDark),
+        ),
+      ),
+    );
+  }
+
+  Widget _defaultBody(BuildContext context, bool isDark) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.build_rounded,
+                size: 64,
+                color: isDark ? Colors.white54 : Colors.black45),
+            const SizedBox(height: 20),
+            Text(title.isEmpty ? '점검 중입니다' : title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? Colors.white : Colors.black87)),
+            const SizedBox(height: 12),
+            Text(body.isEmpty ? '잠시 후 다시 이용해주세요.' : body,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 14,
+                    height: 1.55,
+                    color: isDark ? Colors.white70 : Colors.black54)),
+          ],
         ),
       ),
     );

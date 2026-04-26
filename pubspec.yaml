@@ -64,7 +64,7 @@ dependencies:
   dksw_app_core:
     git:
       url: https://github.com/dlarlgur/dksw_app_core.git
-      ref: v0.2.5
+      ref: v0.2.7
 
 dev_dependencies:
   flutter_test:
