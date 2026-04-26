@@ -5,13 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart' show TemplateType;
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/helpers.dart';
 import '../../core/constants/api_constants.dart';
 import '../../data/models/models.dart';
 import '../../data/services/ad_service.dart';
 import '../../data/services/alert_service.dart';
+import '../../data/services/house_ad_service.dart';
 import '../../data/services/notification_service.dart';
 import '../../providers/providers.dart';
 import '../ai/ai_main_screen.dart';
@@ -506,6 +506,41 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
   }
 }
 
+// ─── 광고 슬롯 + 스테이션 머지 ───
+//
+// list_position 4·8 = AdMob 자리 (bypass=true house ad 가 있으면 대체).
+// 12+ = 등록된 house ad 만 노출 (없으면 station 자리).
+// stations 가 다 떨어지면 종료 — 이후 광고 슬롯은 화면에 등장하지 않음.
+class _AdMobAt {
+  final int position;
+  const _AdMobAt(this.position);
+}
+
+List<Object> mergeWithAdSlots<T extends Object>(List<T> stations) {
+  final merged = <Object>[];
+  int sIdx = 0;
+  int pos = 1;
+  while (sIdx < stations.length) {
+    final kind = AdSlotResolver.kindAt(pos);
+    switch (kind) {
+      case SlotKind.admob:
+        merged.add(_AdMobAt(pos));
+        break;
+      case SlotKind.house:
+        final house = HouseAdCache.at(pos);
+        if (house != null) merged.add(house);
+        break;
+      case SlotKind.none:
+        merged.add(stations[sIdx]);
+        sIdx++;
+        break;
+    }
+    pos++;
+    if (pos > 200) break; // 안전망 — 광고 슬롯만 잇따르는 비정상 케이스 방지
+  }
+  return merged;
+}
+
 // ─── 주유소 리스트 뷰 ───
 class _GasListView extends ConsumerStatefulWidget {
   const _GasListView();
@@ -629,16 +664,6 @@ class _GasListViewState extends ConsumerState<_GasListView> {
               ),
             ),
           ),
-          // 상단 네이티브 배너 — 리스트와 함께 스크롤됨 (고정 X).
-          // 요약 카드와 자연스럽게 붙도록 bottom margin 0.
-          SliverToBoxAdapter(
-            child: NativeAdCard(
-              adUnitId: AdUnitIds.topBanner,
-              slot: HouseAdSlot.homeTop,
-              type: TemplateType.small,
-              margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-            ),
-          ),
           // 요약 카드
           SliverToBoxAdapter(
             child: stationsAsync.when(
@@ -697,27 +722,28 @@ class _GasListViewState extends ConsumerState<_GasListView> {
               // provider에서 즐겨찾기 상위 정렬 + 필터 면제 처리됨
               final favIds = FavoriteService.getByType('gas').map((f) => f['id'] as String).toSet();
               final shown = filtered.take(_displayCount).toList();
-              const adAt = 2; // 0,1 = 주유소, 2 = 광고, 3+ = 주유소 (즉 3번째 위치)
-              final showAd = shown.length >= 3;
+              final merged = mergeWithAdSlots<GasStation>(shown);
               return SliverList(delegate: SliverChildBuilderDelegate(
                 (_, i) {
-                  if (showAd && i == adAt) {
-                    return NativeAdCard(
-                      adUnitId: AdUnitIds.listBanner,
-                      slot: HouseAdSlot.homeList,
-                      type: TemplateType.medium,
-                    );
+                  final item = merged[i];
+                  if (item is _AdMobAt) {
+                    return AdMobNativeCard(
+                        adUnitId: AdUnitIds.forPosition(item.position));
                   }
-                  final stationIdx = (showAd && i > adAt) ? i - 1 : i;
-                  final s = shown[stationIdx];
+                  if (item is HouseAd) {
+                    return HouseAdCard(ad: item);
+                  }
+                  final s = item as GasStation;
+                  // station index for isTop: 첫 station 인지
+                  final isTop = identical(s, shown.first) && favIds.isEmpty;
                   return GasStationCard(
                     station: s,
-                    isTop: stationIdx == 0 && favIds.isEmpty,
+                    isTop: isTop,
                     topBadgeLabel: filter.sort == 1 ? '최저가' : '최단거리',
                     onTap: () => context.push('/gas/${s.id}', extra: s),
                   );
                 },
-                childCount: shown.length + (showAd ? 1 : 0),
+                childCount: merged.length,
               ));
             },
           ),
@@ -851,15 +877,6 @@ class _EvListViewState extends ConsumerState<_EvListView> {
               ),
             ),
           ),
-          // 상단 네이티브 배너 — 리스트와 함께 스크롤됨
-          SliverToBoxAdapter(
-            child: NativeAdCard(
-              adUnitId: AdUnitIds.topBanner,
-              slot: HouseAdSlot.homeTop,
-              type: TemplateType.small,
-              margin: const EdgeInsets.fromLTRB(16, 4, 16, 6),
-            ),
-          ),
           // 요약 카드
           SliverToBoxAdapter(
             child: stationsAsync.when(
@@ -906,26 +923,26 @@ class _EvListViewState extends ConsumerState<_EvListView> {
               // provider에서 즐겨찾기 상위 정렬 + 필터 면제 처리됨
               final favIds = FavoriteService.getByType('ev').map((f) => f['id'] as String).toSet();
               final shown = filtered.take(_displayCount).toList();
-              const adAt = 2; // 3번째 위치
-              final showAd = shown.length >= 3;
+              final merged = mergeWithAdSlots<EvStation>(shown);
               return SliverList(delegate: SliverChildBuilderDelegate(
                 (_, i) {
-                  if (showAd && i == adAt) {
-                    return NativeAdCard(
-                      adUnitId: AdUnitIds.listBanner,
-                      slot: HouseAdSlot.homeList,
-                      type: TemplateType.medium,
-                    );
+                  final item = merged[i];
+                  if (item is _AdMobAt) {
+                    return AdMobNativeCard(
+                        adUnitId: AdUnitIds.forPosition(item.position));
                   }
-                  final stationIdx = (showAd && i > adAt) ? i - 1 : i;
-                  final s = shown[stationIdx];
+                  if (item is HouseAd) {
+                    return HouseAdCard(ad: item);
+                  }
+                  final s = item as EvStation;
+                  final isTop = identical(s, shown.first) && favIds.isEmpty;
                   return EvStationCard(
                     station: s,
-                    isTop: stationIdx == 0 && favIds.isEmpty,
+                    isTop: isTop,
                     onTap: () => context.push('/ev/${s.statId}', extra: s),
                   );
                 },
-                childCount: shown.length + (showAd ? 1 : 0),
+                childCount: merged.length,
               ));
             },
           ),
