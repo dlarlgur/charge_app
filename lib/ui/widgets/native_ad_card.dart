@@ -7,25 +7,28 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/services/house_ad_service.dart';
 
-/// 하이브리드 광고 카드.
+enum HouseAdSlot { homeTop, homeList }
+
+enum _Source { admob, house, none }
+
+/// Hybrid 광고 카드 — house ad(콘솔 등록) 와 AdMob native 를 모드별로 섞어 노출.
 ///
-/// 우선순위:
-///  1. House ad (콘솔 직접 등록):
-///     - mode=solo     : AdMob 없이 house 만 노출
-///     - mode=fallback : AdMob 우선, 실패 시 house 로 대체
-///     - mode=mix      : weight(=house weight, AdMob=1) 가중치 분배
-///  2. House ad 없음: AdMob 만
+/// AdMob 측은 factoryId="stationCard" 로 등록된 플랫폼 네이티브 레이아웃
+/// (Android: layout/native_ad_card.xml, iOS: StationCardNativeAdFactory.swift)
+/// 으로 렌더 → 앱 카드와 시각 통합.
 ///
-/// 두 경로 모두 실패하면 빈 위젯.
+/// House ad 측은 우리가 직접 그림 → 자유 디자인.
 class NativeAdCard extends StatefulWidget {
-  /// AdMob 광고 단위 ID.
+  /// AdMob 광고 단위 ID (네이티브 광고 고급형).
   final String adUnitId;
 
-  /// 위치 — house ad 캐시 매칭용.
+  /// 위치 — house ad 캐시 매칭 + 카드 높이 결정.
   final HouseAdSlot slot;
 
-  /// AdMob 측 템플릿 크기.
+  /// (deprecated, NativeTemplateStyle 시절 잔존) — 무시됨.
+  /// factoryId 방식은 layout 으로 사이즈 결정.
   final TemplateType type;
+
   final EdgeInsets margin;
 
   const NativeAdCard({
@@ -39,10 +42,6 @@ class NativeAdCard extends StatefulWidget {
   @override
   State<NativeAdCard> createState() => _NativeAdCardState();
 }
-
-enum HouseAdSlot { homeTop, homeList }
-
-enum _Source { admob, house, none }
 
 class _NativeAdCardState extends State<NativeAdCard> {
   NativeAd? _ad;
@@ -76,11 +75,10 @@ class _NativeAdCardState extends State<NativeAdCard> {
         _markImpression();
         break;
       case HouseAdMode.fallback:
-        _source = _Source.admob; // AdMob 시도 → 실패 시 house 로 전환
+        _source = _Source.admob;
         _loadAdmob();
         break;
       case HouseAdMode.mix:
-        // weight 가중치: house=weight, AdMob=1
         final w = _houseAd!.weight.clamp(1, 100);
         final pickHouse = Random().nextInt(w + 1) < w;
         if (pickHouse) {
@@ -102,17 +100,10 @@ class _NativeAdCardState extends State<NativeAdCard> {
   }
 
   void _loadAdmob() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor =
-        isDark ? const Color(0xFF12141A) : Colors.white;
-    final primary =
-        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final secondary =
-        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-    final cornerRadius = widget.type == TemplateType.small ? 12.0 : 14.0;
-
     _ad = NativeAd(
       adUnitId: widget.adUnitId,
+      // 앱 카드 디자인 — 플랫폼 측 factory 가 layout 렌더.
+      factoryId: 'stationCard',
       request: const AdRequest(),
       listener: NativeAdListener(
         onAdLoaded: (_) {
@@ -128,35 +119,6 @@ class _NativeAdCardState extends State<NativeAdCard> {
           }
           if (mounted) setState(() {});
         },
-      ),
-      nativeTemplateStyle: NativeTemplateStyle(
-        templateType: widget.type,
-        mainBackgroundColor: cardColor,
-        cornerRadius: cornerRadius,
-        callToActionTextStyle: NativeTemplateTextStyle(
-          textColor: Colors.white,
-          backgroundColor: AppColors.gasBlue,
-          style: NativeTemplateFontStyle.bold,
-          size: 14,
-        ),
-        primaryTextStyle: NativeTemplateTextStyle(
-          textColor: primary,
-          backgroundColor: Colors.transparent,
-          style: NativeTemplateFontStyle.bold,
-          size: 15,
-        ),
-        secondaryTextStyle: NativeTemplateTextStyle(
-          textColor: secondary,
-          backgroundColor: Colors.transparent,
-          style: NativeTemplateFontStyle.normal,
-          size: 12,
-        ),
-        tertiaryTextStyle: NativeTemplateTextStyle(
-          textColor: secondary,
-          backgroundColor: Colors.transparent,
-          style: NativeTemplateFontStyle.normal,
-          size: 11,
-        ),
       ),
     )..load();
   }
@@ -177,7 +139,9 @@ class _NativeAdCardState extends State<NativeAdCard> {
     } catch (_) {}
   }
 
-  double get _height => widget.type == TemplateType.small ? 90 : 320;
+  /// 카드 높이 — Android XML / iOS layout 의 실제 높이와 일치시켜야 잘림 방지.
+  /// stationCard layout 은 한 줄 카드 (~76dp).
+  double get _height => widget.slot == HouseAdSlot.homeTop ? 76 : 96;
 
   @override
   Widget build(BuildContext context) {
@@ -192,7 +156,10 @@ class _NativeAdCardState extends State<NativeAdCard> {
     }
     if (_source == _Source.admob) {
       if (_admobFailed) return const SizedBox.shrink();
-      if (!_admobLoaded || _ad == null) return SizedBox(height: _height);
+      if (!_admobLoaded || _ad == null) {
+        // 로딩 중: 점프 방지용 빈 자리.
+        return SizedBox(height: _height + widget.margin.vertical);
+      }
       return Container(
         margin: widget.margin,
         height: _height,
@@ -203,7 +170,7 @@ class _NativeAdCardState extends State<NativeAdCard> {
   }
 }
 
-/// House ad 자체 렌더링 — 앱 카드 디자인과 통합되도록 우리가 직접 그림.
+/// House ad 자체 렌더링 — 앱 카드와 동일 코너/보더 + 'AD' 라벨.
 class _HouseAdView extends StatelessWidget {
   final HouseAd ad;
   final HouseAdSlot slot;
@@ -226,14 +193,13 @@ class _HouseAdView extends StatelessWidget {
     final borderColor = isDark
         ? AppColors.darkCardBorder
         : AppColors.lightCardBorder;
-    final radius = slot == HouseAdSlot.homeTop ? 12.0 : 14.0;
 
     return Container(
       margin: margin,
       height: height,
       decoration: BoxDecoration(
         color: cardColor,
-        borderRadius: BorderRadius.circular(radius),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: borderColor, width: 0.5),
       ),
       clipBehavior: Clip.antiAlias,
@@ -249,7 +215,7 @@ class _HouseAdView extends StatelessWidget {
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => const SizedBox.shrink(),
               ),
-              // '광고' 라벨 — 의무 표기 (네이티브 광고 가이드라인).
+              // 'AD' 라벨 — 의무 표기
               Positioned(
                 top: 6,
                 left: 6,

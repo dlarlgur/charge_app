@@ -476,14 +476,8 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
             ),
             const SizedBox(height: 4),
           ],
-          // 상단 네이티브 배너 (탭 바로 아래, 차종 무관 항상 노출)
-          NativeAdCard(
-            adUnitId: AdUnitIds.topBanner,
-            slot: HouseAdSlot.homeTop,
-            type: TemplateType.small,
-            margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-          ),
           // 리스트 (둘 다 모드는 IndexedStack으로 백그라운드 프리로드)
+          // top 배너는 각 list view 의 첫 sliver 로 들어가 리스트와 함께 스크롤됨
           Expanded(
             child: vehicleType == VehicleType.ev
                 ? const _EvListView()
@@ -633,6 +627,15 @@ class _GasListViewState extends ConsumerState<_GasListView> {
                   ),
                 ],
               ),
+            ),
+          ),
+          // 상단 네이티브 배너 — 리스트와 함께 스크롤됨 (고정 X)
+          SliverToBoxAdapter(
+            child: NativeAdCard(
+              adUnitId: AdUnitIds.topBanner,
+              slot: HouseAdSlot.homeTop,
+              type: TemplateType.small,
+              margin: const EdgeInsets.fromLTRB(16, 4, 16, 6),
             ),
           ),
           // 요약 카드
@@ -845,6 +848,15 @@ class _EvListViewState extends ConsumerState<_EvListView> {
                   ),
                 ],
               ),
+            ),
+          ),
+          // 상단 네이티브 배너 — 리스트와 함께 스크롤됨
+          SliverToBoxAdapter(
+            child: NativeAdCard(
+              adUnitId: AdUnitIds.topBanner,
+              slot: HouseAdSlot.homeTop,
+              type: TemplateType.small,
+              margin: const EdgeInsets.fromLTRB(16, 4, 16, 6),
             ),
           ),
           // 요약 카드

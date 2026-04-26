@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Native ad colors — 다크 모드 (Flutter AppColors 와 동일 값) -->
+    <color name="ad_card_bg">#FF12141A</color>
+    <color name="ad_card_border">#24FFFFFF</color>
+    <color name="ad_text_primary">#FFF1F5F9</color>
+    <color name="ad_text_secondary">#FF94A3B8</color>
+    <color name="ad_text_muted">#FF475569</color>
+    <color name="ad_brand_blue">#FF3B82F6</color>
+    <color name="ad_brand_blue_light">#1A3B82F6</color>
+    <color name="ad_label_bg">#14FFFFFF</color>
+    <color name="ad_label_text">#FF94A3B8</color>
+</resources>

@@ -48,15 +48,30 @@ class MainActivity : FlutterFragmentActivity() {
     override fun configureFlutterEngine(flutterEngine: io.flutter.embedding.engine.FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        // Kakao AdFit 네이티브 상단 카드 (홈 탭바 아래)
+        // Kakao AdFit 네이티브 상단 카드 (홈 탭바 아래) — 레거시
         flutterEngine.platformViewsController.registry.registerViewFactory(
             ADFIT_NATIVE_TOP_VIEW_TYPE,
             AdFitNativeTopPlatformViewFactory(this),
         )
-        // Kakao AdFit 네이티브 목록 슬롯 (리스트 3번째)
+        // Kakao AdFit 네이티브 목록 슬롯 (리스트 3번째) — 레거시
         flutterEngine.platformViewsController.registry.registerViewFactory(
             ADFIT_NATIVE_LIST_VIEW_TYPE,
             AdFitNativeListPlatformViewFactory(this),
         )
+
+        // AdMob 네이티브 광고 — 앱 카드 디자인 (factoryId="stationCard").
+        // Flutter 측에서 NativeAd(factoryId: "stationCard") 로 호출 시 매칭.
+        io.flutter.plugins.googlemobileads.GoogleMobileAdsPlugin.registerNativeAdFactory(
+            flutterEngine,
+            "stationCard",
+            StationCardNativeAdFactory(this),
+        )
+    }
+
+    override fun cleanUpFlutterEngine(flutterEngine: io.flutter.embedding.engine.FlutterEngine) {
+        // AdMob factory 해제 — 누수 방지
+        io.flutter.plugins.googlemobileads.GoogleMobileAdsPlugin
+            .unregisterNativeAdFactory(flutterEngine, "stationCard")
+        super.cleanUpFlutterEngine(flutterEngine)
     }
 }

@@ -1,4 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#FFFFFF</color>
+
+    <!-- Native ad colors — Flutter AppColors 와 동일 값 -->
+    <color name="ad_card_bg">#FFFFFF</color>
+    <color name="ad_card_border">#FFE8ECF0</color>
+    <color name="ad_text_primary">#FF0F172A</color>
+    <color name="ad_text_secondary">#FF64748B</color>
+    <color name="ad_text_muted">#FF94A3B8</color>
+    <color name="ad_brand_blue">#FF3B82F6</color>
+    <color name="ad_brand_blue_light">#1A3B82F6</color>
+    <color name="ad_label_bg">#FFE8ECF0</color>
+    <color name="ad_label_text">#FF64748B</color>
 </resources>
