@@ -123,6 +123,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   final DraggableScrollableController _sheetController = DraggableScrollableController();
   double _sheetSize = 0.45;
   DateTime? _lastInScreenBackHandledAt;
+  DateTime? _lastExitBackPressTime;
   /// `DraggableScrollableSheet` 빌더가 넘기는 스크롤 컨트롤러 (결과·비교 본문)
   ScrollController? _resultSheetScrollController;
   PageRoute<void>? _routeAwarePageRoute;
@@ -2893,26 +2894,28 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   }
 
   void _showExitDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('앱 종료'),
-        content: const Text('앱을 종료하시겠습니까?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('취소'),
+    final now = DateTime.now();
+    if (_lastExitBackPressTime == null ||
+        now.difference(_lastExitBackPressTime!) > const Duration(seconds: 2)) {
+      _lastExitBackPressTime = now;
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            '한 번 더 누르시면 종료됩니다.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              SystemNavigator.pop();
-            },
-            child: const Text('종료', style: TextStyle(color: Color(0xFFE24B4A))),
-          ),
-        ],
-      ),
-    );
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFF2D3748).withValues(alpha: 0.95),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          margin: const EdgeInsets.only(bottom: 8, left: 40, right: 40),
+        ),
+      );
+    } else {
+      SystemNavigator.pop();
+    }
   }
 
   void _showLevelEditSheet({bool isEv = false}) {
