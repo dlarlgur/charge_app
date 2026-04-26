@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/constants/api_constants.dart';
@@ -189,10 +190,13 @@ class GasStationCard extends ConsumerWidget {
             ),
             const SizedBox(width: 4),
             GestureDetector(
-              onTap: () => ref.read(favoritesProvider.notifier).toggle(
-                id: station.id, type: 'gas', name: station.name,
-                subtitle: '${station.brandName} · ${station.address}',
-              ),
+              onTap: () {
+                HapticFeedback.selectionClick();
+                ref.read(favoritesProvider.notifier).toggle(
+                  id: station.id, type: 'gas', name: station.name,
+                  subtitle: '${station.brandName} · ${station.address}',
+                );
+              },
               child: Padding(
                 padding: const EdgeInsets.all(4),
                 child: Icon(
@@ -314,7 +318,7 @@ Future<void> showFuelTypeAlertSheet(
                           horizontal: 18, vertical: 10),
                       decoration: BoxDecoration(
                         color: isOn
-                            ? AppColors.gasBlue.withOpacity(0.12)
+                            ? AppColors.gasBlue.withValues(alpha: 0.12)
                             : (isDark
                                 ? const Color(0x0AFFFFFF)
                                 : const Color(0xFFF5F6F8)),
@@ -400,7 +404,7 @@ void showAlertLimitDialog(BuildContext context) {
             Container(
               width: 64, height: 64,
               decoration: BoxDecoration(
-                color: AppColors.gasBlue.withOpacity(0.12),
+                color: AppColors.gasBlue.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.notifications_off_rounded, size: 32, color: AppColors.gasBlue),
@@ -517,7 +521,7 @@ class EvOperatorLogo extends StatelessWidget {
                 ? null
                 : [
                     BoxShadow(
-                      color: color.withOpacity(0.18),
+                      color: color.withValues(alpha: 0.18),
                       blurRadius: 6,
                       offset: const Offset(0, 2),
                     ),
@@ -678,7 +682,7 @@ class EvStationCard extends ConsumerWidget {
                                   Container(
                                     width: 3, height: 3,
                                     decoration: BoxDecoration(
-                                      color: secondaryColor.withOpacity(0.5),
+                                      color: secondaryColor.withValues(alpha: 0.5),
                                       shape: BoxShape.circle,
                                     ),
                                   ),
@@ -775,7 +779,7 @@ class EvStationCard extends ConsumerWidget {
                                 style: TextStyle(
                                   fontSize: 9.5,
                                   fontWeight: FontWeight.w500,
-                                  color: secondaryColor.withOpacity(0.75),
+                                  color: secondaryColor.withValues(alpha: 0.75),
                                   letterSpacing: -0.1,
                                   height: 1.1,
                                 ),
@@ -785,10 +789,13 @@ class EvStationCard extends ConsumerWidget {
                         ),
                       const SizedBox(width: 6),
                       GestureDetector(
-                        onTap: () => ref.read(favoritesProvider.notifier).toggle(
-                          id: station.statId, type: 'ev', name: station.name,
-                          subtitle: '${station.operator} · ${station.address}',
-                        ),
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          ref.read(favoritesProvider.notifier).toggle(
+                            id: station.statId, type: 'ev', name: station.name,
+                            subtitle: '${station.operator} · ${station.address}',
+                          );
+                        },
                         child: Padding(
                           padding: const EdgeInsets.all(4),
                           child: Icon(
@@ -1058,7 +1065,10 @@ class _GasEvTabBarState extends State<GasEvTabBar> {
         onWillAcceptWithDetails: (d) => d.data != pos,
         onAcceptWithDetails: (_) => _swap(),
         builder: (ctx, candidates, _) => GestureDetector(
-          onTap: () => widget.onChanged(tabIdx),
+          onTap: () {
+            HapticFeedback.selectionClick();
+            widget.onChanged(tabIdx);
+          },
           child: _buildPill(tabIdx, isActive, highlight: candidates.isNotEmpty),
         ),
       ),
@@ -1073,7 +1083,7 @@ class _GasEvTabBarState extends State<GasEvTabBar> {
     final activeColor = isEv ? AppColors.evGreen : AppColors.gasBlue;
 
     final bgColor = highlight
-        ? activeColor.withOpacity(0.25)
+        ? activeColor.withValues(alpha: 0.25)
         : isActive
             ? activeColor
             : (isDark ? const Color(0x14FFFFFF) : const Color(0xFFE2E8F0));
@@ -1092,7 +1102,7 @@ class _GasEvTabBarState extends State<GasEvTabBar> {
           borderRadius: BorderRadius.circular(12),
           border: highlight ? Border.all(color: activeColor, width: 1.5) : null,
           boxShadow: isActive
-              ? [BoxShadow(color: activeColor.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))]
+              ? [BoxShadow(color: activeColor.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))]
               : null,
         ),
         alignment: Alignment.center,
@@ -1365,7 +1375,7 @@ class _DrumTimePickerState extends State<_DrumTimePicker> {
                 Container(
                   height: 44,
                   decoration: BoxDecoration(
-                    color: accentColor.withOpacity(0.08),
+                    color: accentColor.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),

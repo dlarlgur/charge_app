@@ -721,9 +721,9 @@ class _FuelChip extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: color.withOpacity(0.3)),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -1348,9 +1348,9 @@ class _ComparisonTable extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
-                        color: (!detourIsWinner ? _kMarkerRecommend : _kCompareLoser).withOpacity(0.1),
+                        color: (!detourIsWinner ? _kMarkerRecommend : _kCompareLoser).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(5),
-                        border: Border.all(color: (!detourIsWinner ? _kMarkerRecommend : _kCompareLoser).withOpacity(0.3)),
+                        border: Border.all(color: (!detourIsWinner ? _kMarkerRecommend : _kCompareLoser).withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -1369,9 +1369,9 @@ class _ComparisonTable extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
-                        color: (detourIsWinner ? _kMarkerRecommend : _kCompareLoser).withOpacity(0.1),
+                        color: (detourIsWinner ? _kMarkerRecommend : _kCompareLoser).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(5),
-                        border: Border.all(color: (detourIsWinner ? _kMarkerRecommend : _kCompareLoser).withOpacity(0.3)),
+                        border: Border.all(color: (detourIsWinner ? _kMarkerRecommend : _kCompareLoser).withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -1400,9 +1400,9 @@ class _ComparisonTable extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
-                        color: (!detourIsWinner ? _kMarkerRecommend : _kCompareLoser).withOpacity(0.1),
+                        color: (!detourIsWinner ? _kMarkerRecommend : _kCompareLoser).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(5),
-                        border: Border.all(color: (!detourIsWinner ? _kMarkerRecommend : _kCompareLoser).withOpacity(0.3)),
+                        border: Border.all(color: (!detourIsWinner ? _kMarkerRecommend : _kCompareLoser).withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -1431,9 +1431,9 @@ class _ComparisonTable extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
-                        color: (detourIsWinner ? _kMarkerRecommend : _kCompareLoser).withOpacity(0.1),
+                        color: (detourIsWinner ? _kMarkerRecommend : _kCompareLoser).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(5),
-                        border: Border.all(color: (detourIsWinner ? _kMarkerRecommend : _kCompareLoser).withOpacity(0.3)),
+                        border: Border.all(color: (detourIsWinner ? _kMarkerRecommend : _kCompareLoser).withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -2352,7 +2352,7 @@ class CompareResultBody extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: _kCompareWinner.withOpacity(0.1),
+                  color: _kCompareWinner.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Row(
@@ -2453,7 +2453,7 @@ class _CompareMessageBanner extends StatelessWidget {
             width: 20, height: 20,
             margin: const EdgeInsets.only(top: 1),
             decoration: BoxDecoration(
-              color: _kCompareWinner.withOpacity(0.12),
+              color: _kCompareWinner.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(6),
             ),
             child: const Icon(Icons.auto_awesome_rounded, size: 12, color: _kCompareWinner),
@@ -2598,7 +2598,7 @@ class _CompareCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: borderColor, width: isWinner ? 1.5 : 1),
         boxShadow: isWinner
-            ? [BoxShadow(color: _kCompareWinner.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 2))]
+            ? [BoxShadow(color: _kCompareWinner.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 2))]
             : [],
       ),
       child: Column(
@@ -2654,7 +2654,7 @@ class _CompareCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(vertical: 10),
             decoration: BoxDecoration(
-              color: isWinner ? Colors.white.withOpacity(0.7) : const Color(0xFFF8F8F8),
+              color: isWinner ? Colors.white.withValues(alpha: 0.7) : const Color(0xFFF8F8F8),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
@@ -3140,9 +3140,9 @@ class _UserComparisonTable extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
-                        color: (aIsWinner ? _kMarkerRecommend : _kCompareLoser).withOpacity(0.1),
+                        color: (aIsWinner ? _kMarkerRecommend : _kCompareLoser).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(5),
-                        border: Border.all(color: (aIsWinner ? _kMarkerRecommend : _kCompareLoser).withOpacity(0.3)),
+                        border: Border.all(color: (aIsWinner ? _kMarkerRecommend : _kCompareLoser).withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -3161,9 +3161,9 @@ class _UserComparisonTable extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
-                        color: (bIsWinner ? _kMarkerRecommend : _kCompareLoser).withOpacity(0.1),
+                        color: (bIsWinner ? _kMarkerRecommend : _kCompareLoser).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(5),
-                        border: Border.all(color: (bIsWinner ? _kMarkerRecommend : _kCompareLoser).withOpacity(0.3)),
+                        border: Border.all(color: (bIsWinner ? _kMarkerRecommend : _kCompareLoser).withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -3192,9 +3192,9 @@ class _UserComparisonTable extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
-                        color: (aIsWinner ? _kMarkerRecommend : _kCompareLoser).withOpacity(0.1),
+                        color: (aIsWinner ? _kMarkerRecommend : _kCompareLoser).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(5),
-                        border: Border.all(color: (aIsWinner ? _kMarkerRecommend : _kCompareLoser).withOpacity(0.3)),
+                        border: Border.all(color: (aIsWinner ? _kMarkerRecommend : _kCompareLoser).withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -3223,9 +3223,9 @@ class _UserComparisonTable extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
-                        color: (bIsWinner ? _kMarkerRecommend : _kCompareLoser).withOpacity(0.1),
+                        color: (bIsWinner ? _kMarkerRecommend : _kCompareLoser).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(5),
-                        border: Border.all(color: (bIsWinner ? _kMarkerRecommend : _kCompareLoser).withOpacity(0.3)),
+                        border: Border.all(color: (bIsWinner ? _kMarkerRecommend : _kCompareLoser).withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,

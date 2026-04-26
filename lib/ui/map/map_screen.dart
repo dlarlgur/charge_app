@@ -302,7 +302,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             ListTile(
               leading: Container(
                 width: 36, height: 36,
-                decoration: BoxDecoration(color: AppColors.gasBlue.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: AppColors.gasBlue.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
                 child: Icon(Icons.local_gas_station_rounded, color: AppColors.gasBlue, size: 20),
               ),
               title: const Text('주유소 필터'),
@@ -311,7 +311,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             ListTile(
               leading: Container(
                 width: 36, height: 36,
-                decoration: BoxDecoration(color: AppColors.evGreen.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: AppColors.evGreen.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
                 child: Icon(Icons.ev_station_rounded, color: AppColors.evGreen, size: 20),
               ),
               title: const Text('충전소 필터'),
@@ -452,7 +452,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       ? AppColors.evGreen
                       : (isDark ? AppColors.darkBg : Colors.white),
                   shape: BoxShape.circle,
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 8, offset: const Offset(0, 2))],
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 2))],
                 ),
                 child: _isLocating
                     ? const SizedBox(
@@ -497,7 +497,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         decoration: BoxDecoration(
           color: isDark ? AppColors.darkBg : Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 8, offset: const Offset(0, 2))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 8, offset: const Offset(0, 2))],
         ),
         child: Row(
           children: [
@@ -561,7 +561,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             decoration: BoxDecoration(
               color: isDark ? AppColors.darkBg : Colors.white,
               borderRadius: BorderRadius.circular(20),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.10), blurRadius: 6, offset: const Offset(0, 2))],
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.10), blurRadius: 6, offset: const Offset(0, 2))],
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -603,7 +603,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         decoration: BoxDecoration(
           color: active ? color : (isDark ? AppColors.darkBg : Colors.white),
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.10), blurRadius: 6, offset: const Offset(0, 2))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.10), blurRadius: 6, offset: const Offset(0, 2))],
           border: active ? null : Border.all(
               color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder, width: 0.8),
         ),
@@ -628,7 +628,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkBg : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: _isSearchLoading
           ? const Padding(
@@ -809,8 +809,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1E293B) : Colors.white,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 10)],
-          border: Border.all(color: AppColors.gasBlue.withOpacity(0.4)),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 10)],
+          border: Border.all(color: AppColors.gasBlue.withValues(alpha: 0.4)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

@@ -373,7 +373,7 @@ class _StationCardState extends State<_StationCard> {
                       : Icons.notifications_none_rounded,
                   iconColor: gsWatchDecision == true ? accentColor : _kGrey,
                   fillColor: gsWatchDecision == true
-                      ? accentColor.withOpacity(0.1)
+                      ? accentColor.withValues(alpha: 0.1)
                       : const Color(0xFFEEEEEE),
                   onTap: () async {
                     final existingSession = WatchService().session;
@@ -492,7 +492,7 @@ class _StationCardState extends State<_StationCard> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -777,7 +777,7 @@ class _StationCardState extends State<_StationCard> {
 
 /// 일관된 액션 버튼.
 /// - primary=true → filled (accent bg, 흰 글자) — 메인 CTA
-/// - primary=false → tonal (accent.withOpacity(0.08), accent 글자) — 보조
+/// - primary=false → tonal (accent.withValues(alpha: 0.08), accent 글자) — 보조
 /// 최소 높이 44pt (Apple HIG 터치 타깃), Material InkWell 리플 포함.
 class _ActionBtn extends StatelessWidget {
   final IconData icon;
@@ -799,7 +799,7 @@ class _ActionBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fg = primary ? Colors.white : color;
-    final bg = primary ? color : color.withOpacity(0.10);
+    final bg = primary ? color : color.withValues(alpha: 0.10);
     final btn = Material(
       color: bg,
       borderRadius: BorderRadius.circular(10),
@@ -978,9 +978,9 @@ class _HeadingBadgeState extends State<_HeadingBadge> with SingleTickerProviderS
     return Container(
       padding: const EdgeInsets.fromLTRB(10, 7, 12, 7),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.25), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.25), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -991,9 +991,9 @@ class _HeadingBadgeState extends State<_HeadingBadge> with SingleTickerProviderS
             builder: (_, __) => Container(
               width: 7, height: 7,
               decoration: BoxDecoration(
-                color: color.withOpacity(_pulse.value),
+                color: color.withValues(alpha: _pulse.value),
                 shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: color.withOpacity(_pulse.value * 0.5), blurRadius: 4, spreadRadius: 1)],
+                boxShadow: [BoxShadow(color: color.withValues(alpha: _pulse.value * 0.5), blurRadius: 4, spreadRadius: 1)],
               ),
             ),
           ),
@@ -1104,9 +1104,9 @@ class EvSelectList extends StatelessWidget {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: isOnRoute ? accentColor.withOpacity(0.4) : const Color(0xFFE5E5E5),
+                      color: isOnRoute ? accentColor.withValues(alpha: 0.4) : const Color(0xFFE5E5E5),
                     ),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2))],
                   ),
                   child: Row(
                     children: [
@@ -1269,7 +1269,7 @@ class _WatchDialog extends StatelessWidget {
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                color: accentColor.withOpacity(0.1),
+                color: accentColor.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(Icons.radar_rounded, size: 32, color: accentColor),

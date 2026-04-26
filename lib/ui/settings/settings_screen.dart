@@ -331,7 +331,7 @@ class _SectionCard extends StatelessWidget {
                 Container(
                   width: 32, height: 32,
                   decoration: BoxDecoration(
-                    color: accent.withOpacity(isDark ? 0.18 : 0.12),
+                    color: accent.withValues(alpha: isDark ? 0.18 : 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(icon, size: 18, color: accent),
@@ -363,7 +363,7 @@ class _SectionCard extends StatelessWidget {
               ],
             ),
           ),
-          Divider(height: 1, color: mutedColor.withOpacity(0.15)),
+          Divider(height: 1, color: mutedColor.withValues(alpha: 0.15)),
           const SizedBox(height: 4),
           ...children,
           const SizedBox(height: 6),
@@ -486,7 +486,7 @@ class _AlertSettingTileState extends State<_AlertSettingTile> {
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     margin: const EdgeInsets.only(right: 4),
                     decoration: BoxDecoration(
-                      color: AppColors.gasBlue.withOpacity(0.1),
+                      color: AppColors.gasBlue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -659,7 +659,7 @@ class _EvAlarmSettingTileState extends State<_EvAlarmSettingTile> {
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
                           color: selected
-                              ? AppColors.evGreen.withOpacity(0.15)
+                              ? AppColors.evGreen.withValues(alpha: 0.15)
                               : (isDark ? const Color(0x0AFFFFFF) : const Color(0xFFF1F5F9)),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(

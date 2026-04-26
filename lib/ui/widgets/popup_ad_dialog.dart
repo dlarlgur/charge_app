@@ -23,7 +23,7 @@ class PopupAdDialog extends StatelessWidget {
     await showDialog(
       context: context,
       barrierDismissible: true,
-      barrierColor: Colors.black.withOpacity(0.7),
+      barrierColor: Colors.black.withValues(alpha: 0.7),
       builder: (_) => PopupAdDialog(ad: ad),
     );
   }
@@ -97,7 +97,7 @@ class PopupAdDialog extends StatelessWidget {
                         width: 36,
                         height: 36,
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.55),
+                          color: Colors.black.withValues(alpha: 0.55),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
@@ -112,7 +112,7 @@ class PopupAdDialog extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.55),
+                color: Colors.black.withValues(alpha: 0.55),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(

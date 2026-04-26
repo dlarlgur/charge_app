@@ -220,7 +220,7 @@ class _GasFilterSheetState extends ConsumerState<GasFilterSheet> {
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: _options.brands.isEmpty ? accent.withOpacity(0.12) : Colors.transparent,
+                                color: _options.brands.isEmpty ? accent.withValues(alpha: 0.12) : Colors.transparent,
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text('전체',
@@ -243,7 +243,7 @@ class _GasFilterSheetState extends ConsumerState<GasFilterSheet> {
                               duration: const Duration(milliseconds: 150),
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                               decoration: BoxDecoration(
-                                color: active ? accent.withOpacity(0.1) : (isDark ? const Color(0x08FFFFFF) : const Color(0xFFF5F6F8)),
+                                color: active ? accent.withValues(alpha: 0.1) : (isDark ? const Color(0x08FFFFFF) : const Color(0xFFF5F6F8)),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
                                   color: active ? accent : (isDark ? AppColors.darkCardBorder : const Color(0xFFDEE1E6)),

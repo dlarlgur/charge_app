@@ -307,7 +307,7 @@ class _VehicleCard extends StatelessWidget {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: _accent.withOpacity(0.08),
+                    color: _accent.withValues(alpha: 0.08),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   )
@@ -328,7 +328,7 @@ class _VehicleCard extends StatelessWidget {
               height: 48,
               decoration: BoxDecoration(
                 color: isSelected
-                    ? _accent.withOpacity(0.15)
+                    ? _accent.withValues(alpha: 0.15)
                     : const Color(0xFFF0F0F0),
                 borderRadius: BorderRadius.circular(12),
               ),

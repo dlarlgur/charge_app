@@ -2270,7 +2270,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             color: active ? Colors.white : Colors.transparent,
             borderRadius: BorderRadius.circular(9),
             boxShadow: active
-                ? [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 6, offset: const Offset(0, 1))]
+                ? [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 6, offset: const Offset(0, 1))]
                 : [],
           ),
           child: Row(
@@ -2307,13 +2307,13 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: enabled ? color : color.withOpacity(0.5),
+          color: enabled ? color : color.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(11),
         ),
         child: loading
             ? SizedBox(
                 width: 18, height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white.withOpacity(0.9)),
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white.withValues(alpha: 0.9)),
               )
             : Row(
                 mainAxisSize: MainAxisSize.min,
@@ -3256,7 +3256,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(14),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 12)],
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 12)],
                     ),
                     child: Row(
                       children: [
@@ -3289,7 +3289,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 16)],
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 16)],
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -3405,7 +3405,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(10),
-                                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8)],
+                                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8)],
                               ),
                               child: const Icon(Icons.directions_car_rounded, color: Color(0xFF666666), size: 18),
                             ),
@@ -3452,7 +3452,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           decoration: BoxDecoration(
                             color: const Color(0xFFFFF0F0),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: _kDanger.withOpacity(0.3)),
+                            border: Border.all(color: _kDanger.withValues(alpha: 0.3)),
                           ),
                           child: Row(
                             children: [
@@ -3497,7 +3497,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
                                   color: isEvVehicle
-                                      ? const Color(0xFF1D6FE0).withOpacity(0.4)
+                                      ? const Color(0xFF1D6FE0).withValues(alpha: 0.4)
                                       : const Color(0xFFEEEEEE),
                                 ),
                               ),
@@ -3594,12 +3594,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                                         decoration: BoxDecoration(
                                           color: _evHighwayOnly
-                                              ? _kCompareBlue.withOpacity(0.08)
+                                              ? _kCompareBlue.withValues(alpha: 0.08)
                                               : const Color(0xFFF5F7FA),
                                           borderRadius: BorderRadius.circular(8),
                                           border: Border.all(
                                             color: _evHighwayOnly
-                                                ? _kCompareBlue.withOpacity(0.6)
+                                                ? _kCompareBlue.withValues(alpha: 0.6)
                                                 : const Color(0xFFE0E0E0),
                                           ),
                                         ),
@@ -3660,7 +3660,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: _kPrimary,
                                   foregroundColor: Colors.white,
-                                  disabledBackgroundColor: _kPrimary.withOpacity(0.55),
+                                  disabledBackgroundColor: _kPrimary.withValues(alpha: 0.55),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                                   elevation: 0,
                                 ),
@@ -3687,7 +3687,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: _kCompareBlue,
                                   foregroundColor: Colors.white,
-                                  disabledBackgroundColor: _kCompareBlue.withOpacity(0.55),
+                                  disabledBackgroundColor: _kCompareBlue.withValues(alpha: 0.55),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                                   elevation: 0,
                                 ),
@@ -3731,7 +3731,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             color: Colors.white,
                             shape: BoxShape.circle,
                             boxShadow: [BoxShadow(
-                              color: Colors.black.withOpacity(0.12),
+                              color: Colors.black.withValues(alpha: 0.12),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             )],
@@ -3749,7 +3749,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: [BoxShadow(
-                              color: Colors.black.withOpacity(0.08),
+                              color: Colors.black.withValues(alpha: 0.08),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             )],
@@ -3788,7 +3788,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                       const BorderRadius.vertical(top: Radius.circular(20)),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
+                      color: Colors.black.withValues(alpha: 0.15),
                       blurRadius: 20,
                       offset: const Offset(0, -2),
                     ),
@@ -3846,7 +3846,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 20, offset: const Offset(0, -2))],
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 20, offset: const Offset(0, -2))],
                   ),
                   child: EvSelectList(
                     candidates: _evSelectCandidates,
@@ -3875,7 +3875,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                         : Colors.white,
                     shape: BoxShape.circle,
                     boxShadow: [BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
+                      color: Colors.black.withValues(alpha: 0.15),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     )],
@@ -3954,7 +3954,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.15),
+                        color: Colors.black.withValues(alpha: 0.15),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -3980,7 +3980,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             Positioned.fill(
               child: IgnorePointer(
                 child: Container(
-                  color: Colors.black.withOpacity(0.18),
+                  color: Colors.black.withValues(alpha: 0.18),
                   child: Center(
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
@@ -3989,7 +3989,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.12),
+                            color: Colors.black.withValues(alpha: 0.12),
                             blurRadius: 10,
                             offset: const Offset(0, 2),
                           ),
@@ -4028,7 +4028,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             Positioned.fill(
               child: IgnorePointer(
                 child: Container(
-                  color: Colors.black.withOpacity(0.18),
+                  color: Colors.black.withValues(alpha: 0.18),
                   child: Center(
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
@@ -4037,7 +4037,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.12),
+                            color: Colors.black.withValues(alpha: 0.12),
                             blurRadius: 10,
                             offset: const Offset(0, 2),
                           ),
@@ -4150,7 +4150,7 @@ class _StationSelectInlineSheetState extends State<_StationSelectInlineSheet> {
           color: Colors.white,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 20, offset: const Offset(0, -2)),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.18), blurRadius: 20, offset: const Offset(0, -2)),
           ],
         ),
         child: LayoutBuilder(
@@ -4379,7 +4379,7 @@ class _StationSelectInlineSheetState extends State<_StationSelectInlineSheet> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _kCompareBlue,
                         foregroundColor: Colors.white,
-                        disabledBackgroundColor: _kCompareBlue.withOpacity(0.4),
+                        disabledBackgroundColor: _kCompareBlue.withValues(alpha: 0.4),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         elevation: 0,
                       ),
@@ -4416,9 +4416,9 @@ class _SelectBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: filled ? color.withOpacity(0.12) : Colors.grey[100],
+        color: filled ? color.withValues(alpha: 0.12) : Colors.grey[100],
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: filled ? color.withOpacity(0.5) : Colors.grey[300]!),
+        border: Border.all(color: filled ? color.withValues(alpha: 0.5) : Colors.grey[300]!),
       ),
       child: Text(label,
           style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: filled ? color : Colors.grey[500])),
@@ -4458,7 +4458,7 @@ class _RouteCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 12, offset: const Offset(0, 4))
+          BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 12, offset: const Offset(0, 4))
         ],
       ),
       child: Row(
@@ -4915,9 +4915,9 @@ class _ThinChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.06),
+          color: color.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withOpacity(0.18)),
+          border: Border.all(color: color.withValues(alpha: 0.18)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -4983,7 +4983,7 @@ class _LevelSummaryCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isEv ? const Color(0xFF1D6FE0).withOpacity(0.3) : const Color(0xFFEEEEEE),
+          color: isEv ? const Color(0xFF1D6FE0).withValues(alpha: 0.3) : const Color(0xFFEEEEEE),
         ),
       ),
       child: Column(
@@ -5136,7 +5136,7 @@ class _LevelEditSheetState extends State<_LevelEditSheet> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: _useDte ? _kPrimary.withOpacity(0.1) : const Color(0xFFF5F5F5),
+                        color: _useDte ? _kPrimary.withValues(alpha: 0.1) : const Color(0xFFF5F5F5),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: _useDte ? _kPrimary : const Color(0xFFDDDDDD)),
                       ),
@@ -5187,7 +5187,7 @@ class _LevelEditSheetState extends State<_LevelEditSheet> {
                           activeTrackColor: _thumbColor,
                           inactiveTrackColor: const Color(0xFFF0F0F0),
                           thumbColor: _thumbColor,
-                          overlayColor: _thumbColor.withOpacity(0.12),
+                          overlayColor: _thumbColor.withValues(alpha: 0.12),
                           trackHeight: 8,
                           thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
                         ),
@@ -5447,7 +5447,7 @@ class _EvStationDetailSheetState extends State<_EvStationDetailSheet> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: _alarmEnabled ? accentColor.withOpacity(0.12) : const Color(0xFFF1F5F9),
+                          color: _alarmEnabled ? accentColor.withValues(alpha: 0.12) : const Color(0xFFF1F5F9),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(color: _alarmEnabled ? accentColor : Colors.transparent),
                         ),
@@ -5479,7 +5479,7 @@ class _EvStationDetailSheetState extends State<_EvStationDetailSheet> {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: accentColor.withOpacity(0.07),
+                    color: accentColor.withValues(alpha: 0.07),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -5718,7 +5718,7 @@ class _ChargerRow extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              color: speedColor.withOpacity(0.12),
+              color: speedColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(speedLabel,
@@ -5761,7 +5761,7 @@ class _WatchProposalDialog extends StatelessWidget {
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                color: accentColor.withOpacity(0.1),
+                color: accentColor.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(Icons.radar_rounded, size: 32, color: accentColor),

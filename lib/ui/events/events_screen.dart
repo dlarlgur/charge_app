@@ -93,7 +93,7 @@ class _EventCard extends StatelessWidget {
                 aspectRatio: 16 / 9,
                 child: Image.network(event.imageUrl!,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(color: muted.withOpacity(0.1))),
+                    errorBuilder: (_, __, ___) => Container(color: muted.withValues(alpha: 0.1))),
               ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),

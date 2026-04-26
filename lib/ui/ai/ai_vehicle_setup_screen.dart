@@ -495,7 +495,7 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
         if (_targetMode != 'PRICE')
           _PreviewBox(
             color: _kPrimaryLight,
-            borderColor: _kPrimary.withOpacity(0.3),
+            borderColor: _kPrimary.withValues(alpha: 0.3),
             icon: Icons.local_gas_station_rounded,
             iconColor: _kPrimary,
             text: '예상 주유량:  약 ${_gasGoalLiters.toStringAsFixed(1)} L',
@@ -569,7 +569,7 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
         // 예상 충전량 미리보기
         _PreviewBox(
           color: _kEvBlueLight,
-          borderColor: _kEvBlue.withOpacity(0.3),
+          borderColor: _kEvBlue.withValues(alpha: 0.3),
           icon: Icons.bolt_rounded,
           iconColor: _kEvBlue,
           text: '예상 충전량:  ${chargeGoal.toStringAsFixed(0)} %',
@@ -680,7 +680,7 @@ class _TypeCard extends StatelessWidget {
               height: 40,
               decoration: BoxDecoration(
                 color: selected
-                    ? activeColor.withOpacity(0.15)
+                    ? activeColor.withValues(alpha: 0.15)
                     : const Color(0xFFEEEEEE),
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -705,7 +705,7 @@ class _TypeCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11,
                 color: selected
-                    ? activeColor.withOpacity(0.7)
+                    ? activeColor.withValues(alpha: 0.7)
                     : const Color(0xFFBBBBBB),
               ),
             ),
@@ -908,7 +908,7 @@ class _GaugeSlider extends StatelessWidget {
               activeTrackColor: _thumbColor,
               inactiveTrackColor: const Color(0xFFF0F0F0),
               thumbColor: _thumbColor,
-              overlayColor: _thumbColor.withOpacity(0.12),
+              overlayColor: _thumbColor.withValues(alpha: 0.12),
               trackHeight: 8,
               thumbShape:
                   const RoundSliderThumbShape(enabledThumbRadius: 10),

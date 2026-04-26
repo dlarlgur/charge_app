@@ -26,7 +26,7 @@ class UpdateDialog extends StatefulWidget {
     await showDialog(
       context: context,
       barrierDismissible: false,
-      barrierColor: Colors.black.withOpacity(0.6),
+      barrierColor: Colors.black.withValues(alpha: 0.6),
       builder: (_) => UpdateDialog(policy: policy),
     );
   }
@@ -93,7 +93,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.25),
+                  color: Colors.black.withValues(alpha: 0.25),
                   blurRadius: 40,
                   offset: const Offset(0, 12),
                 ),
@@ -126,7 +126,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                             width: 44,
                             height: 44,
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
+                              color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Icon(
@@ -154,7 +154,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                                   '${AppConstants.appName} $latestVersion',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: Colors.white.withOpacity(0.85),
+                                    color: Colors.white.withValues(alpha: 0.85),
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -187,10 +187,10 @@ class _UpdateDialogState extends State<UpdateDialog> {
                         Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF8FAFB),
+                            color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF8FAFB),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: isDark ? Colors.white.withOpacity(0.06) : const Color(0xFFE8ECF0),
+                              color: isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFE8ECF0),
                             ),
                           ),
                           child: Text(
@@ -327,13 +327,13 @@ class _SkipTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             color: selected
-                ? accent.withOpacity(isDark ? 0.15 : 0.08)
-                : (isDark ? Colors.white.withOpacity(0.03) : const Color(0xFFF8FAFB)),
+                ? accent.withValues(alpha: isDark ? 0.15 : 0.08)
+                : (isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF8FAFB)),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: selected
-                  ? accent.withOpacity(0.5)
-                  : (isDark ? Colors.white.withOpacity(0.06) : const Color(0xFFE8ECF0)),
+                  ? accent.withValues(alpha: 0.5)
+                  : (isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFE8ECF0)),
             ),
           ),
           child: Row(

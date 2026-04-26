@@ -375,13 +375,13 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: isDark
-              ? Colors.white.withOpacity(0.06)
+              ? Colors.white.withValues(alpha: 0.06)
               : const Color(0xFFECEFF3),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.25 : 0.05),
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
             blurRadius: 20,
             spreadRadius: -4,
             offset: const Offset(0, 8),
@@ -477,7 +477,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                     ),
                     const SizedBox(width: 4),
                     Icon(Icons.copy_rounded,
-                        size: 13, color: subColor.withOpacity(0.6)),
+                        size: 13, color: subColor.withValues(alpha: 0.6)),
                   ],
                   if (s.distanceText.isNotEmpty) ...[
                     const SizedBox(width: 8),
@@ -527,7 +527,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                   width: 1, height: 12,
                   margin: const EdgeInsets.symmetric(horizontal: 8),
                   color: isDark
-                      ? Colors.white.withOpacity(0.12)
+                      ? Colors.white.withValues(alpha: 0.12)
                       : const Color(0xFFD8DEE6),
                 ),
                 _availTag('완속', slowAvail, const Color(0xFF16A34A), isDark),
@@ -555,7 +555,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
             Container(
               height: 1,
               color: isDark
-                  ? Colors.white.withOpacity(0.07)
+                  ? Colors.white.withValues(alpha: 0.07)
                   : const Color(0xFFEEF1F5),
             ),
             const SizedBox(height: 10),
@@ -676,14 +676,14 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
         ? color
         : (isDark ? Colors.white24 : const Color(0xFFCBD5E1));
     final bg = active
-        ? color.withOpacity(isDark ? 0.16 : 0.09)
+        ? color.withValues(alpha: isDark ? 0.16 : 0.09)
         : (isDark
-            ? Colors.white.withOpacity(0.05)
+            ? Colors.white.withValues(alpha: 0.05)
             : const Color(0xFFF1F5F9));
     final ringColor = active
-        ? color.withOpacity(0.32)
+        ? color.withValues(alpha: 0.32)
         : (isDark
-            ? Colors.white.withOpacity(0.08)
+            ? Colors.white.withValues(alpha: 0.08)
             : const Color(0xFFE2E8F0));
 
     return Column(
@@ -953,7 +953,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
       decoration: BoxDecoration(
-        color: (isDark ? Colors.white : Colors.black).withOpacity(0.04),
+        color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
@@ -1021,7 +1021,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
-            color: accent.withOpacity(isDark ? 0.18 : 0.12),
+            color: accent.withValues(alpha: isDark ? 0.18 : 0.12),
             borderRadius: BorderRadius.circular(999),
           ),
           child: Row(
@@ -1072,7 +1072,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
           Container(
             width: 40, height: 40,
             decoration: BoxDecoration(
-              color: accent.withOpacity(isDark ? 0.18 : 0.12),
+              color: accent.withValues(alpha: isDark ? 0.18 : 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             alignment: Alignment.center,
@@ -1450,7 +1450,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
       decoration: BoxDecoration(
-        color: (isDark ? Colors.white : Colors.black).withOpacity(0.04),
+        color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
@@ -1470,7 +1470,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: color.withOpacity(isDark ? 0.1 : 0.08),
+          color: color.withValues(alpha: isDark ? 0.1 : 0.08),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -1633,7 +1633,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: tierColor.withOpacity(0.14),
+              color: tierColor.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(tier,

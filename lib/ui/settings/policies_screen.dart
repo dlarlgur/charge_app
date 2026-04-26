@@ -117,7 +117,7 @@ class _PolicyTile extends StatelessWidget {
               Container(
                 width: 38, height: 38,
                 decoration: BoxDecoration(
-                  color: AppColors.gasBlue.withOpacity(isDark ? 0.18 : 0.12),
+                  color: AppColors.gasBlue.withValues(alpha: isDark ? 0.18 : 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, size: 20, color: AppColors.gasBlue),

@@ -228,7 +228,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               Container(
                 width: 44, height: 44,
                 decoration: BoxDecoration(
-                  color: tint.withOpacity(isSelected ? 0.18 : 0.10),
+                  color: tint.withValues(alpha: isSelected ? 0.18 : 0.10),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, size: 24, color: tint),
@@ -321,12 +321,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: isSelected
-              ? color.withOpacity(isDark ? 0.08 : 0.06)
+              ? color.withValues(alpha: isDark ? 0.08 : 0.06)
               : (isDark ? const Color(0x0AFFFFFF) : const Color(0xFFF8FAFC)),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected
-                ? color.withOpacity(0.4)
+                ? color.withValues(alpha: 0.4)
                 : (isDark ? const Color(0x0FFFFFFF) : const Color(0xFFE2E8F0)),
             width: 0.5,
           ),
@@ -370,7 +370,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         Container(
           width: 80, height: 80,
           decoration: BoxDecoration(
-            color: AppColors.gasBlue.withOpacity(0.12),
+            color: AppColors.gasBlue.withValues(alpha: 0.12),
             shape: BoxShape.circle,
           ),
           child: const Icon(Icons.notifications_rounded, size: 40, color: AppColors.gasBlue),
@@ -390,7 +390,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               Container(
                 width: 36, height: 36,
                 decoration: BoxDecoration(
-                  color: AppColors.gasBlue.withOpacity(0.10),
+                  color: AppColors.gasBlue.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(item.$1, size: 20, color: AppColors.gasBlue),

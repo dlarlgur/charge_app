@@ -91,11 +91,11 @@ class _WatchSessionBarState extends State<WatchSessionBar> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
           elevation: 4,
-          shadowColor: _kBlue.withOpacity(0.18),
+          shadowColor: _kBlue.withValues(alpha: 0.18),
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: _kBlue.withOpacity(0.25)),
+              border: Border.all(color: _kBlue.withValues(alpha: 0.25)),
             ),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
@@ -220,7 +220,7 @@ class _SmallBtn extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
         decoration: BoxDecoration(
-          color: filled ? color : color.withOpacity(0.08),
+          color: filled ? color : color.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(

@@ -7,7 +7,7 @@ Future<void> showWatchAlreadyActiveDialog(
 }) async {
   await showDialog<void>(
     context: context,
-    barrierColor: Colors.black.withOpacity(0.4),
+    barrierColor: Colors.black.withValues(alpha: 0.4),
     builder: (ctx) => _WatchAlreadyActiveDialog(stationName: stationName),
   );
 }
@@ -20,7 +20,7 @@ Future<bool> showWatchSwitchDialog(
 }) async {
   final result = await showDialog<bool>(
     context: context,
-    barrierColor: Colors.black.withOpacity(0.4),
+    barrierColor: Colors.black.withValues(alpha: 0.4),
     builder: (ctx) => _WatchSwitchDialog(currentStationName: currentStationName),
   );
   return result == true;

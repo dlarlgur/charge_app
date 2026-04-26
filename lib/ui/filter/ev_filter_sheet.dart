@@ -323,7 +323,7 @@ class _EvFilterSheetState extends ConsumerState<EvFilterSheet> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: _options.chargerTypes.isEmpty ? accent.withOpacity(0.12) : Colors.transparent,
+                  color: _options.chargerTypes.isEmpty ? accent.withValues(alpha: 0.12) : Colors.transparent,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text('전체',
@@ -347,7 +347,7 @@ class _EvFilterSheetState extends ConsumerState<EvFilterSheet> {
                 width: 70,
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
-                  color: active ? accent.withOpacity(0.1) : (isDark ? const Color(0x08FFFFFF) : const Color(0xFFF5F6F8)),
+                  color: active ? accent.withValues(alpha: 0.1) : (isDark ? const Color(0x08FFFFFF) : const Color(0xFFF5F6F8)),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: active ? accent : (isDark ? AppColors.darkCardBorder : const Color(0xFFDEE1E6)),
@@ -388,7 +388,7 @@ class _EvFilterSheetState extends ConsumerState<EvFilterSheet> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: _options.operators.isEmpty ? accent.withOpacity(0.12) : Colors.transparent,
+                  color: _options.operators.isEmpty ? accent.withValues(alpha: 0.12) : Colors.transparent,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text('전체',
@@ -425,7 +425,7 @@ class _EvFilterSheetState extends ConsumerState<EvFilterSheet> {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: active ? chipColor.withOpacity(0.1) : (isDark ? const Color(0x08FFFFFF) : const Color(0xFFF5F6F8)),
+          color: active ? chipColor.withValues(alpha: 0.1) : (isDark ? const Color(0x08FFFFFF) : const Color(0xFFF5F6F8)),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: active ? chipColor : (isDark ? AppColors.darkCardBorder : const Color(0xFFDEE1E6)),
@@ -468,7 +468,7 @@ class _EvFilterSheetState extends ConsumerState<EvFilterSheet> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: _options.kinds.isEmpty ? accent.withOpacity(0.12) : Colors.transparent,
+                  color: _options.kinds.isEmpty ? accent.withValues(alpha: 0.12) : Colors.transparent,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text('전체',
@@ -510,7 +510,7 @@ class _EvFilterSheetState extends ConsumerState<EvFilterSheet> {
                   duration: const Duration(milliseconds: 150),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: active ? accent.withOpacity(0.1) : (isDark ? const Color(0x08FFFFFF) : const Color(0xFFF5F6F8)),
+                    color: active ? accent.withValues(alpha: 0.1) : (isDark ? const Color(0x08FFFFFF) : const Color(0xFFF5F6F8)),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color: active ? accent : (isDark ? AppColors.darkCardBorder : const Color(0xFFDEE1E6)),

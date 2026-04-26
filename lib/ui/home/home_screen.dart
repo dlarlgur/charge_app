@@ -280,7 +280,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: bottomIndex,
-        onTap: (i) => ref.read(bottomNavIndexProvider.notifier).state = i,
+        onTap: (i) {
+          HapticFeedback.selectionClick();
+          ref.read(bottomNavIndexProvider.notifier).state = i;
+        },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: '홈'),
           BottomNavigationBarItem(icon: Icon(Icons.map_rounded), label: '지도'),
@@ -362,7 +365,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
                     padding: const EdgeInsets.only(right: 8),
                     child: Material(
                       color: hasUnread
-                          ? AppColors.gasBlue.withOpacity(0.10)
+                          ? AppColors.gasBlue.withValues(alpha: 0.10)
                           : (isDark
                               ? const Color(0x14FFFFFF)
                               : const Color(0xFFF1F5F9)),
@@ -1116,7 +1119,7 @@ class _AlertPageState extends State<_AlertPage> {
                       : () => _enterSelectionMode(id),
                   child: Container(
                     color: isSelected
-                        ? AppColors.gasBlue.withOpacity(0.07)
+                        ? AppColors.gasBlue.withValues(alpha: 0.07)
                         : (isDark ? AppColors.darkCard : Colors.white),
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 14),
@@ -1142,7 +1145,7 @@ class _AlertPageState extends State<_AlertPage> {
                             height: 40,
                             margin: const EdgeInsets.only(right: 12),
                             decoration: BoxDecoration(
-                              color: AppColors.gasBlue.withOpacity(0.1),
+                              color: AppColors.gasBlue.withValues(alpha: 0.1),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(Icons.local_gas_station_rounded,
@@ -1615,7 +1618,7 @@ class _AlertSettingTileEmbedState extends State<_AlertSettingTileEmbed> {
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     margin: const EdgeInsets.only(right: 4),
                     decoration: BoxDecoration(
-                      color: AppColors.gasBlue.withOpacity(0.1),
+                      color: AppColors.gasBlue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -1677,7 +1680,7 @@ class _AlertSettingTileEmbedState extends State<_AlertSettingTileEmbed> {
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
                           color: selected
-                              ? AppColors.gasBlue.withOpacity(0.15)
+                              ? AppColors.gasBlue.withValues(alpha: 0.15)
                               : (isDark ? const Color(0x0AFFFFFF) : const Color(0xFFF1F5F9)),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
@@ -1734,7 +1737,7 @@ class _AlertSettingTileEmbedState extends State<_AlertSettingTileEmbed> {
                                   children: fuelTypes.map((ft) => Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: AppColors.gasBlue.withOpacity(0.1),
+                                      color: AppColors.gasBlue.withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(AlertService.fuelLabel(ft),
@@ -1860,7 +1863,7 @@ class _EvAlarmSettingTileEmbedState extends State<_EvAlarmSettingTileEmbed> {
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
                           color: selected
-                              ? AppColors.evGreen.withOpacity(0.15)
+                              ? AppColors.evGreen.withValues(alpha: 0.15)
                               : (isDark ? const Color(0x0AFFFFFF) : const Color(0xFFF1F5F9)),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(

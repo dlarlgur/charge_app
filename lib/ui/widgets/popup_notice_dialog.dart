@@ -27,7 +27,7 @@ class PopupNoticeDialog extends StatelessWidget {
       await showDialog(
         context: context,
         barrierDismissible: true,
-        barrierColor: Colors.black.withOpacity(0.6),
+        barrierColor: Colors.black.withValues(alpha: 0.6),
         builder: (_) => PopupNoticeDialog(notice: n),
       );
       return;
