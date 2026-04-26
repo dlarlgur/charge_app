@@ -1,14 +1,21 @@
+import 'dart:async';
+
 import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/update/app_updater.dart';
+import '../../data/services/splash_ad_cache.dart';
 import '../../providers/providers.dart';
 import '../widgets/update_dialog.dart';
 
-/// 네이티브 스플래시는 다음 화면(광고/홈/권한) 첫 프레임이 커밋된 직후에만 내려간다.
-/// 그래야 흰색 갭 없이 로고 → 광고 또는 로고 → 홈 으로 자연스럽게 스냅.
+/// 흐름 (stale-while-revalidate):
+/// 1. 시작 시 디스크 캐시된 광고를 즉시 native splash 아래로 push.
+///    - 이미지 바이트는 미리 Flutter image cache 에 꽂아두므로 첫 프레임에 그려짐.
+/// 2. main.dart 의 0.5초 타이머가 native splash 를 내림 → 흰 갭 없이 광고 등장.
+/// 3. 동시에 bootstrap 호출 → 응답으로 캐시 갱신/삭제 (다음 실행 반영).
+/// 4. update / maintenance 결과는 ad 화면 위에 덮어써서 처리.
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
   @override
@@ -16,34 +23,68 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen> {
+  bool _adShownFromCache = false;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _runBootstrap());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _start());
   }
 
-  void _removeNativeSplashNextFrame() {
-    WidgetsBinding.instance.addPostFrameCallback((_) => FlutterNativeSplash.remove());
-  }
-
-  Future<void> _runBootstrap() async {
+  Future<void> _start() async {
     if (!mounted) return;
 
-    debugPrint('[SplashScreen] bootstrap 시작');
+    // 1단계: 캐시된 광고 즉시 노출.
+    final cached = SplashAdCache.read();
+    if (cached != null) {
+      final (ad, bytes) = cached;
+      final resolved = DkswCore.resolveAssetUrl(ad.imageUrl);
+      final ok = await SplashAdCache.installInImageCache(resolved, bytes);
+      if (ok && mounted) {
+        _adShownFromCache = true;
+        // SplashAdScreen 을 native splash 아래에 push — 0초 전환.
+        // pop 이후 흐름은 _afterAdOrSkip 에서 처리.
+        unawaited(
+          Navigator.of(context).push(
+            PageRouteBuilder(
+              pageBuilder: (_, __, ___) => SplashAdScreen(ad: ad),
+              transitionDuration: Duration.zero,
+              reverseTransitionDuration: Duration.zero,
+            ),
+          ).then((_) => _afterAdOrSkip()),
+        );
+      }
+    }
+
+    // 2단계: bootstrap 으로 캐시 갱신 + maintenance/update 처리.
+    debugPrint('[SplashScreen] bootstrap 시작 (cache=${cached != null})');
     final result = await DkswCore.bootstrap();
     debugPrint('[SplashScreen] bootstrap 결과: force=${result?.update.forceUpdate}, ad=${result?.ad != null}');
     if (!mounted) return;
 
+    // 캐시 갱신: 새 광고/없음/동일 광고 케이스.
+    final fresh = result?.ad;
+    if (fresh != null) {
+      if (!SplashAdCache.isSameAsCached(fresh)) {
+        unawaited(SplashAdCache.save(fresh));
+      }
+    } else {
+      unawaited(SplashAdCache.clear());
+    }
+
     if (result?.maintenance != null) {
       final m = result!.maintenance!;
       FlutterNativeSplash.remove();
-      await Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => _MaintenanceScreen(title: m.title, body: m.body)),
+      await Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+            builder: (_) => _MaintenanceScreen(title: m.title, body: m.body)),
+        (_) => false,
       );
       return;
     }
 
-    if (result != null && (result.update.forceUpdate || result.update.optionalUpdate)) {
+    if (result != null &&
+        (result.update.forceUpdate || result.update.optionalUpdate)) {
       FlutterNativeSplash.remove();
       final native = result.update.forceUpdate
           ? await AppUpdater.tryImmediateUpdate()
@@ -61,30 +102,27 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
     if (!mounted) return;
 
-    final ad = result?.ad;
-    if (ad != null) {
-      // 광고 이미지를 미리 디코드해 캐시에 올린 뒤 push → 첫 프레임에 즉시 그려짐.
-      try {
-        await precacheImage(NetworkImage(ad.imageUrl), context)
-            .timeout(const Duration(milliseconds: 1200));
-      } catch (_) {
-        // 캐시 실패해도 그냥 진행 — SplashAdScreen 의 loadingBuilder 가 받아준다.
-      }
-      if (!mounted) return;
+    // 광고를 캐시로 이미 보여줬다면 SplashAdScreen 의 displayMs 만료까지
+    // 후속 네비게이션은 _afterAdOrSkip 에서 일어남.
+    if (_adShownFromCache) return;
 
-      _removeNativeSplashNextFrame();
-      await Navigator.of(context).push(
-        PageRouteBuilder(
-          pageBuilder: (_, __, ___) => SplashAdScreen(ad: ad),
-          transitionDuration: Duration.zero,
-          reverseTransitionDuration: Duration.zero,
-        ),
-      );
-      if (!mounted) return;
-    } else {
-      _removeNativeSplashNextFrame();
-    }
+    // 캐시 없을 때(첫 실행 등): 광고 스킵, 바로 다음 화면.
+    _removeNativeSplashNextFrame();
+    _navigateNext();
+  }
 
+  void _afterAdOrSkip() {
+    if (!mounted) return;
+    _navigateNext();
+  }
+
+  void _removeNativeSplashNextFrame() {
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => FlutterNativeSplash.remove());
+  }
+
+  void _navigateNext() {
+    if (!mounted) return;
     final settings = ref.read(settingsProvider);
     if (settings.onboardingDone) {
       context.go('/home');
@@ -95,8 +133,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 네이티브 스플래시가 위를 덮고 있으므로 이 색상은 거의 보이지 않는다.
-    // 단 안전장치 타이머가 발동했을 때만 잠깐 보일 수 있으니 테마와 통일.
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0C0E13) : Colors.white,

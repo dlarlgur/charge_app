@@ -217,10 +217,11 @@ Future<void> _initLocalNotifications() async {
 
 void main() async {
   final binding = WidgetsFlutterBinding.ensureInitialized();
-  // 네이티브 스플래시 유지 — bootstrap+precache 완료 후 SplashScreen이 직접 내린다.
-  // 안전장치: 1.5초 안에 어떤 경로에서도 내리지 못하면 강제 제거.
+  // 네이티브 스플래시 0.5초 cap. SplashScreen이 캐시된 광고를 같은 시점에
+  // 그 아래로 push 해두기 때문에 내려가는 순간 흰 갭 없이 바로 광고가 보인다.
+  // 캐시가 없으면 그냥 0.5초 후 다음 화면으로 진행.
   FlutterNativeSplash.preserve(widgetsBinding: binding);
-  Timer(const Duration(milliseconds: 1500), FlutterNativeSplash.remove);
+  Timer(const Duration(milliseconds: 500), FlutterNativeSplash.remove);
 
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(
