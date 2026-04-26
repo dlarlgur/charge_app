@@ -13,8 +13,10 @@ class AppColors {
 
   // ─── Dark Theme ───
   static const darkBg = Color(0xFF0C0E13);
-  static const darkCard = Color(0x08FFFFFF);
-  static const darkCardBorder = Color(0x14FFFFFF);
+  // 카드: 흰색 7% 알파 (이전 3% → 7% 로 살짝 lift, OLED 가독성 ↑)
+  static const darkCard = Color(0x12FFFFFF);
+  // 보더: 흰색 14% 알파 (이전 8% → 14%, 카드 경계 명확)
+  static const darkCardBorder = Color(0x24FFFFFF);
   static const darkTextPrimary = Color(0xFFF1F5F9);
   static const darkTextSecondary = Color(0xFF94A3B8);
   static const darkTextMuted = Color(0xFF475569);

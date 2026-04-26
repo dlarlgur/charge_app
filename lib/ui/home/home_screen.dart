@@ -225,6 +225,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   Widget build(BuildContext context) {
     final bottomIndex = ref.watch(bottomNavIndexProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return PopScope(
       canPop: false,
@@ -277,20 +278,68 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: bottomIndex,
-        onTap: (i) {
-          HapticFeedback.selectionClick();
-          ref.read(bottomNavIndexProvider.notifier).state = i;
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: '홈'),
-          BottomNavigationBarItem(icon: Icon(Icons.map_rounded), label: '지도'),
-          BottomNavigationBarItem(icon: Icon(Icons.auto_awesome_rounded), label: 'AI'),
-          BottomNavigationBarItem(icon: Icon(Icons.favorite_rounded), label: '즐겨찾기'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings_rounded), label: '설정'),
-        ],
+      bottomNavigationBar: NavigationBarTheme(
+        data: NavigationBarThemeData(
+          height: 64,
+          backgroundColor: isDark ? AppColors.darkBg : AppColors.lightBg,
+          surfaceTintColor: Colors.transparent,
+          indicatorColor: (isDark ? AppColors.gasBlue : AppColors.gasBlueDark)
+              .withValues(alpha: 0.18),
+          labelTextStyle: WidgetStateProperty.resolveWith((states) {
+            final isSelected = states.contains(WidgetState.selected);
+            return TextStyle(
+              fontSize: 11,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              color: isSelected
+                  ? (isDark ? AppColors.gasBlue : AppColors.gasBlueDark)
+                  : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+            );
+          }),
+          iconTheme: WidgetStateProperty.resolveWith((states) {
+            final isSelected = states.contains(WidgetState.selected);
+            return IconThemeData(
+              size: 24,
+              color: isSelected
+                  ? (isDark ? AppColors.gasBlue : AppColors.gasBlueDark)
+                  : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+            );
+          }),
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        ),
+        child: NavigationBar(
+          selectedIndex: bottomIndex,
+          onDestinationSelected: (i) {
+            HapticFeedback.selectionClick();
+            ref.read(bottomNavIndexProvider.notifier).state = i;
+          },
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.dashboard_outlined),
+              selectedIcon: Icon(Icons.dashboard_rounded),
+              label: '홈',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.map_outlined),
+              selectedIcon: Icon(Icons.map_rounded),
+              label: '지도',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.auto_awesome_outlined),
+              selectedIcon: Icon(Icons.auto_awesome_rounded),
+              label: 'AI',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.favorite_outline_rounded),
+              selectedIcon: Icon(Icons.favorite_rounded),
+              label: '즐겨찾기',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.settings_outlined),
+              selectedIcon: Icon(Icons.settings_rounded),
+              label: '설정',
+            ),
+          ],
+        ),
       ),
     ),
     );

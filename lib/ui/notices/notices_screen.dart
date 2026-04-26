@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_colors.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/skeleton.dart';
 
 class NoticesScreen extends StatefulWidget {
   const NoticesScreen({super.key});
@@ -30,10 +32,16 @@ class _NoticesScreenState extends State<NoticesScreen> {
         initialData: cached.isNotEmpty ? cached : null,
         builder: (context, snap) {
           if (!snap.hasData) {
-            return const Center(child: CircularProgressIndicator());
+            return const SkeletonRowList(rowCount: 6);
           }
           final items = snap.data!;
-          if (items.isEmpty) return _empty(isDark);
+          if (items.isEmpty) {
+            return const EmptyState(
+              icon: Icons.notifications_none_rounded,
+              title: '등록된 공지가 없습니다',
+              description: '새 공지가 올라오면 여기서 확인할 수 있어요.',
+            );
+          }
           return RefreshIndicator(
             onRefresh: () async {
               final fresh = await DkswCore.fetchNotices();
@@ -55,16 +63,6 @@ class _NoticesScreenState extends State<NoticesScreen> {
     );
   }
 
-  Widget _empty(bool isDark) {
-    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    return Center(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.notifications_none_rounded, size: 48, color: muted),
-        const SizedBox(height: 12),
-        Text('등록된 공지가 없습니다', style: TextStyle(color: muted, fontSize: 14)),
-      ]),
-    );
-  }
 }
 
 class _NoticeRow extends StatelessWidget {

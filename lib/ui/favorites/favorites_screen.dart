@@ -4,7 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/services/favorite_service.dart';
 import '../../data/services/widget_service.dart';
-import '../../providers/providers.dart' show favoritesProvider, FavoritesNotifier;
+import '../../providers/providers.dart' show favoritesProvider, FavoritesNotifier, bottomNavIndexProvider;
+import '../widgets/empty_state.dart';
 
 /// 즐겨찾기 화면
 class FavoritesScreen extends ConsumerStatefulWidget {
@@ -80,18 +81,12 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> with SingleTi
 
   Widget _buildList(List<Map<String, dynamic>> items, bool isDark) {
     if (items.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.favorite_border_rounded, size: 56,
-                color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
-            const SizedBox(height: 12),
-            Text('즐겨찾기가 없습니다', style: Theme.of(context).textTheme.bodyMedium),
-            const SizedBox(height: 4),
-            Text('주유소/충전소 상세에서 하트를 눌러주세요', style: Theme.of(context).textTheme.labelSmall),
-          ],
-        ),
+      return EmptyState(
+        icon: Icons.favorite_outline_rounded,
+        title: '즐겨찾기가 없습니다',
+        description: '주유소/충전소 상세에서 하트를 누르거나\n지도에서 자주 가는 곳을 등록해보세요.',
+        actionLabel: '지도에서 찾아보기',
+        onAction: () => ref.read(bottomNavIndexProvider.notifier).state = 1,
       );
     }
 
