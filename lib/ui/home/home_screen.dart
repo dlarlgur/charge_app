@@ -343,12 +343,12 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
             child: Row(
               children: [
                 Image.asset(
-                  'assets/logo_final.png',
-                  width: 36,
-                  height: 36,
+                  'assets/logo_circles.png',
+                  width: 32,
+                  height: 32,
                   filterQuality: FilterQuality.medium,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 Text('모두의 주유충전', style: Theme.of(context).textTheme.headlineSmall),
                 const Spacer(),
                 Builder(builder: (_) {
