@@ -18,6 +18,9 @@ dependencies:
   # HTTP
   dio: ^5.4.0
 
+  # Image (network 이미지를 디스크에 캐싱 — 두 번째부터 즉시 표시)
+  cached_network_image: ^3.4.1
+
   # Local Storage
   hive: ^2.2.3
   hive_flutter: ^1.1.0
