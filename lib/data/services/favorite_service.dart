@@ -4,13 +4,14 @@ import '../../core/constants/api_constants.dart';
 class FavoriteService {
   static final _box = Hive.box(AppConstants.favoritesBox);
 
-  static void add({required String id, required String type, required String name, required String subtitle}) {
+  static void add({required String id, required String type, required String name, required String subtitle, Map<String, dynamic>? extra}) {
     _box.put('${type}_$id', {
       'id': id,
       'type': type,
       'name': name,
       'subtitle': subtitle,
       'addedAt': DateTime.now().toIso8601String(),
+      if (extra != null) ...extra,
     });
   }
 
@@ -22,14 +23,21 @@ class FavoriteService {
     return _box.containsKey('${type}_$id');
   }
 
-  static bool toggle({required String id, required String type, required String name, required String subtitle}) {
+  static bool toggle({required String id, required String type, required String name, required String subtitle, Map<String, dynamic>? extra}) {
     if (isFavorite(id, type)) {
       remove(id, type);
       return false;
     } else {
-      add(id: id, type: type, name: name, subtitle: subtitle);
+      add(id: id, type: type, name: name, subtitle: subtitle, extra: extra);
       return true;
     }
+  }
+
+  /// 단건 조회 — 캐시된 메타(예: brand) 폴백용
+  static Map<String, dynamic>? get(String id, String type) {
+    final v = _box.get('${type}_$id');
+    if (v == null) return null;
+    return Map<String, dynamic>.from(v as Map);
   }
 
   static List<Map<String, dynamic>> getAll() {

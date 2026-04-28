@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 
-/// 이미 같은 충전소 알림 중 안내 다이얼로그 (확인 후 다음 단계 진행)
-Future<void> showWatchAlreadyActiveDialog(
+/// 이미 같은 충전소 알림 중 동작 선택 다이얼로그
+/// returns true → 알림 끄기, false/null → 취소(유지)
+Future<bool> showWatchAlreadyActiveDialog(
   BuildContext context, {
   required String stationName,
 }) async {
-  await showDialog<void>(
+  final result = await showDialog<bool>(
     context: context,
     barrierColor: Colors.black.withValues(alpha: 0.4),
     builder: (ctx) => _WatchAlreadyActiveDialog(stationName: stationName),
   );
+  return result == true;
 }
 
 /// 자리 변동 알림 전환 확인 다이얼로그
@@ -189,28 +191,50 @@ class _WatchAlreadyActiveDialog extends StatelessWidget {
                       color: Color(0xFF1A1A1A),
                     ),
                   ),
-                  const TextSpan(text: '의\n자리 변동 알림을 이미 받고 있어요.'),
+                  const TextSpan(text: '의\n자리 변동 알림을 받고 있어요.\n알림을 끌까요?'),
                 ],
               ),
             ),
             const SizedBox(height: 24),
 
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                  backgroundColor: _kBlue,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      side: const BorderSide(color: Color(0xFFDDDDDD)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text(
+                      '유지',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF888888),
+                      ),
+                    ),
+                  ),
                 ),
-                child: const Text(
-                  '확인',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      backgroundColor: const Color(0xFFE24B4A),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text(
+                      '알림 끄기',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ],
         ),

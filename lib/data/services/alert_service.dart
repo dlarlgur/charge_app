@@ -388,7 +388,7 @@ class AlertService {
   static const _evAlarmEnabledKey = 'ev_alarm_enabled';      // bool
   static const _evAlarmSoundModeKey = 'ev_alarm_sound_mode'; // 0=소리, 1=진동, 2=무음
 
-  static const int evAlarmMaxCount = 3;
+  static const int evAlarmMaxCount = 50;
 
   bool get evAlarmEnabled =>
       Hive.box(_boxKey).get(_evAlarmEnabledKey, defaultValue: true) as bool;

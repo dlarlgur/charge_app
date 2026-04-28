@@ -183,8 +183,8 @@ class FavoritesNotifier extends StateNotifier<List<Map<String, dynamic>>> {
 
   void refresh() => state = FavoriteService.getAll();
 
-  bool toggle({required String id, required String type, required String name, required String subtitle}) {
-    final result = FavoriteService.toggle(id: id, type: type, name: name, subtitle: subtitle);
+  bool toggle({required String id, required String type, required String name, required String subtitle, Map<String, dynamic>? extra}) {
+    final result = FavoriteService.toggle(id: id, type: type, name: name, subtitle: subtitle, extra: extra);
     state = FavoriteService.getAll();
     if (type == 'gas') {
       WidgetService.updateGasWidget();
@@ -230,7 +230,20 @@ final favGasStationsProvider = FutureProvider<List<GasStation>>((ref) async {
   );
   return results
       .where((json) => json.isNotEmpty)
-      .map((json) => GasStation.fromJson(json))
+      .map((json) {
+        // detail API 응답에 brand 가 비어있는 경우(상위 Opinet API 필드 누락 등)
+        // 즐겨찾기 등록 시 캐시한 brand 로 폴백 → 로고가 '기타'로 떨어지지 않게.
+        final id = (json['id'] ?? json['UNI_ID'] ?? '').toString();
+        final brandFromJson = (json['brand'] ?? json['POLL_DIV_CD'] ?? '').toString();
+        if (id.isNotEmpty && brandFromJson.isEmpty) {
+          final cached = FavoriteService.get(id, 'gas');
+          final cachedBrand = (cached?['brand'] ?? '').toString();
+          if (cachedBrand.isNotEmpty) {
+            json = {...json, 'brand': cachedBrand};
+          }
+        }
+        return GasStation.fromJson(json);
+      })
       .toList();
 });
 

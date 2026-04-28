@@ -121,8 +121,10 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
     final d = _detail;
     final name = d?['OS_NM'] ?? d?['name'] ?? widget.station?.name ?? '주유소';
     final address = d?['NEW_ADR'] ?? d?['address'] ?? widget.station?.address ?? '';
+    final brand = (d?['brand'] ?? d?['POLL_DIV_CD'] ?? d?['POLL_DIV_CO'] ?? widget.station?.brand ?? '').toString();
     final result = FavoriteService.toggle(
       id: widget.stationId, type: 'gas', name: name, subtitle: address,
+      extra: brand.isNotEmpty ? {'brand': brand} : null,
     );
     setState(() => _isFavorite = result);
     ref.read(favoritesProvider.notifier).refresh();

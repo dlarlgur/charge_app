@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../core/constants/api_constants.dart';
 import '../../core/utils/navigation_util.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/models.dart';
@@ -74,7 +75,7 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
         if (!ids.contains(widget.stationId) && ids.length >= AlertService.evAlarmMaxCount) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('충전소 현황 알림은 최대 3개까지 설정할 수 있어요')),
+              const SnackBar(content: Text('충전소 현황 알림은 최대 50개까지 설정할 수 있어요')),
             );
           }
           return;
@@ -208,7 +209,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
         if (!ids.contains(sid) && ids.length >= AlertService.evAlarmMaxCount) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('충전소 현황 알림은 최대 3개까지 설정할 수 있어요')),
+              const SnackBar(content: Text('충전소 현황 알림은 최대 50개까지 설정할 수 있어요')),
             );
           }
           return;
@@ -1264,7 +1265,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
   Widget _nearbyTile(NearbyPoi p, EvStation s, bool isDark) {
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     return InkWell(
-      onTap: () => _openPoiInKakaoMap(p),
+      onTap: () => _openPoiInNaverMap(p),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
@@ -1340,18 +1341,26 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
     );
   }
 
-  Future<void> _openPoiInKakaoMap(NearbyPoi p) async {
-    // POI 이름 + 좌표로 카카오맵 검색 열기.
+  Future<void> _openPoiInNaverMap(NearbyPoi p) async {
+    // 우선 네이버지도 앱 딥링크 시도 (설치돼있으면 앱으로, 아니면 웹 폴백).
     final q = Uri.encodeComponent(p.name);
-    final uri = (p.lat != null && p.lng != null)
-        ? Uri.parse('https://map.kakao.com/?q=$q&urlX=${p.lng}&urlY=${p.lat}&urlLevel=3')
-        : Uri.parse('https://map.kakao.com/?q=$q');
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${p.name} 을(를) 열 수 없어요')),
-        );
-      }
+    final hasCoord = p.lat != null && p.lng != null;
+    final appUri = hasCoord
+        ? Uri.parse('nmap://place?lat=${p.lat}&lng=${p.lng}&name=$q&appname=${AppConstants.packageName}')
+        : Uri.parse('nmap://search?query=$q&appname=${AppConstants.packageName}');
+    final webUri = hasCoord
+        ? Uri.parse('https://map.naver.com/p/search/$q?c=${p.lng},${p.lat},15,0,0,0,dh')
+        : Uri.parse('https://map.naver.com/p/search/$q');
+
+    try {
+      if (await launchUrl(appUri, mode: LaunchMode.externalApplication)) return;
+    } catch (_) {}
+    if (await launchUrl(webUri, mode: LaunchMode.externalApplication)) return;
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${p.name} 을(를) 열 수 없어요')),
+      );
     }
   }
 

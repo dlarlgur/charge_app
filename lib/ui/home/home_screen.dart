@@ -612,6 +612,7 @@ class _GasListViewState extends ConsumerState<_GasListView> {
                             child: TextField(
                               controller: _searchController,
                               onChanged: (v) => setState(() { _searchQuery = v; _displayCount = _pageSize; }),
+                              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                               decoration: InputDecoration(
                                 hintText: '주유소 검색',
                                 border: InputBorder.none,
@@ -825,6 +826,7 @@ class _EvListViewState extends ConsumerState<_EvListView> {
                             child: TextField(
                               controller: _searchController,
                               onChanged: (v) => setState(() { _searchQuery = v; _displayCount = _pageSize; }),
+                              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                               decoration: InputDecoration(
                                 hintText: '충전소 검색',
                                 border: InputBorder.none,

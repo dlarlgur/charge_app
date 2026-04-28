@@ -23,6 +23,7 @@ import '../../providers/providers.dart';
 import 'ai_onboarding_screen.dart';
 import 'ai_result_screen.dart';
 import 'ai_vehicle_list_screen.dart';
+import 'ai_vehicle_setup_screen.dart';
 import 'ev_result_screen.dart';
 import '../widgets/gas_station_map_badge.dart';
 import '../widgets/watch_switch_dialog.dart';
@@ -34,6 +35,17 @@ const _kDanger = Color(0xFFE24B4A);
 
 // 사용자 선택 모드(A/B) 색상
 const _kCompareBlue = Color(0xFF1D6FE0);
+
+// ─── 모드별 액센트 컬러 ───
+// 앱 전체 컨벤션과 통일: AppColors.gasBlue (주유) / AppColors.evGreen (충전)
+// (값은 compile-time const 유지 위해 같은 RGB 그대로 복사)
+const _kFuelAccent = Color(0xFF3B82F6);      // = AppColors.gasBlue
+const _kFuelAccentLight = Color(0xFFEFF6FF);
+const _kEvAccent = Color(0xFF10B981);        // = AppColors.evGreen
+const _kEvAccentLight = Color(0xFFECFDF5);
+
+Color _modeAccent(bool isEv) => isEv ? _kEvAccent : _kFuelAccent;
+Color _modeAccentLight(bool isEv) => isEv ? _kEvAccentLight : _kFuelAccentLight;
 
 class AiMainScreen extends ConsumerStatefulWidget {
   const AiMainScreen({super.key});
@@ -111,6 +123,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   String _aiAnalysisType = 'gas'; // gas | ev
   String _evChargerType = 'FAST'; // FAST | SLOW
   bool _evHighwayOnly = false;   // 고속도로 충전소만
+
+  // EV 결과 시트의 카드 스크롤 제어용 (지도 마커 탭 → 해당 카드로 이동)
+  final GlobalKey<EvResultBodyState> _evResultBodyKey = GlobalKey<EvResultBodyState>();
 
   // ── 검색 기록 ──
   List<String> _searchHistory = [];
@@ -243,6 +258,53 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       return all.cast<VehicleProfile?>().firstWhere(
         (v) => v?.id == selectedId, orElse: () => all.isNotEmpty ? all.first : null);
     } catch (_) { return null; }
+  }
+
+  /// 상단 세그먼트 탭 → 모드 즉시 전환.
+  /// 해당 모드 차량 보유 시 → 선택 차량을 그 모드 차량으로 교체.
+  /// 없으면 → 차량 등록 페이지로 이동.
+  Future<void> _switchModeTo({required bool ev}) async {
+    final box = Hive.box(AppConstants.settingsBox);
+    final rawVehicles = box.get(AppConstants.keyAiVehicles);
+    List<VehicleProfile> all = [];
+    if (rawVehicles != null) {
+      try {
+        final List decoded = jsonDecode(rawVehicles as String);
+        all = decoded.map((e) => VehicleProfile.fromJson(e as Map<String, dynamic>)).toList();
+      } catch (_) {}
+    }
+
+    // 현재 선택 차량이 이미 그 모드면 noop
+    final current = _readSelectedVehicle(box);
+    if (current != null && current.isEV == ev) return;
+
+    // 해당 모드 차량 찾기
+    final candidate = all.cast<VehicleProfile?>().firstWhere(
+      (v) => v != null && v.isEV == ev,
+      orElse: () => null,
+    );
+
+    if (candidate != null) {
+      // 차량 있음 → 즉시 전환
+      await box.put(AppConstants.keyAiSelectedVehicleId, candidate.id);
+      if (mounted) {
+        setState(() {
+          _aiAnalysisType = ev ? 'ev' : 'gas';
+          _isResultMode = false;
+          _isEvResultMode = false;
+          _isEvSelectMode = false;
+        });
+        _loadSaved();
+      }
+    } else {
+      // 차량 없음 → 등록 페이지로
+      if (!mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const AiVehicleSetupScreen()),
+      );
+      if (mounted) setState(() {});
+    }
   }
 
   // 차량 프로필 currentLevelPercent / targetMode / targetValue 저장
@@ -1474,7 +1536,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     );
 
     // 출발 마커 (이미 _drawResultOnMap에서 그림 — EV 충전소 마커만 추가)
-    // 추천 충전소 마커 (파랑 강조)
+    // 추천 충전소 마커 (파랑 강조) — 탭하면 결과 시트의 해당 카드로 스크롤
     if (recommended != null) {
       final lat = (recommended['lat'] as num?)?.toDouble();
       final lng = (recommended['lng'] as num?)?.toDouble();
@@ -1482,6 +1544,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         final avail = (recommended['available_count'] as num?)?.toInt() ?? 0;
         final total = (recommended['total_count'] as num?)?.toInt() ?? 0;
         const color = Color(0xFF1D6FE0);
+        final recStatId = recommended['statId']?.toString();
         final marker = NMarker(
           id: 'ev_res_rec',
           position: NLatLng(lat, lng),
@@ -1495,11 +1558,17 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           ),
           anchor: const NPoint(0.5, 1.0),
         );
+        if (recStatId != null && recStatId.isNotEmpty) {
+          marker.setOnTapListener((_) async {
+            await _focusResultStation(recStatId);
+            return true;
+          });
+        }
         await _mapController!.addOverlay(marker);
       }
     }
 
-    // 대안 충전소 마커 (주황)
+    // 대안 충전소 마커 (주황) — 탭하면 결과 시트의 해당 카드로 스크롤
     for (int i = 0; i < alternatives.length; i++) {
       final alt = alternatives[i];
       final lat = (alt['lat'] as num?)?.toDouble();
@@ -1508,6 +1577,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       final avail = (alt['available_count'] as num?)?.toInt() ?? 0;
       final total = (alt['total_count'] as num?)?.toInt() ?? 0;
       const color = Color(0xFFE8700A);
+      final altStatId = alt['statId']?.toString();
       final marker = NMarker(
         id: 'ev_res_alt_$i',
         position: NLatLng(lat, lng),
@@ -1521,8 +1591,30 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         ),
         anchor: const NPoint(0.5, 1.0),
       );
+      if (altStatId != null && altStatId.isNotEmpty) {
+        marker.setOnTapListener((_) async {
+          await _focusResultStation(altStatId);
+          return true;
+        });
+      }
       await _mapController!.addOverlay(marker);
     }
+  }
+
+  /// 결과 시트를 펼치고 해당 충전소 카드로 스크롤 (지도 마커 탭 핸들러)
+  Future<void> _focusResultStation(String statId) async {
+    // 시트가 작게 collapse 되어 있으면 먼저 펼침
+    try {
+      if (_sheetController.isAttached && _sheetController.size < 0.4) {
+        await _sheetController.animateTo(
+          0.55,
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    } catch (_) {}
+    // EvResultBody 의 카드로 스크롤
+    await _evResultBodyKey.currentState?.scrollToStation(statId);
   }
 
   /// 서버 `path_points` JSON → 지도용 좌표열
@@ -2083,7 +2175,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     if (!mounted) return;
 
     if (_isEvSelectMode) {
-      // 직접선택 리스트에서 호출 → 선택된 충전소 카드만 표시하고 시트 올리기
+      // 직접선택 리스트에서 호출 → 결과 모드의 단일 카드로 전환.
+      // 사용자가 시트 collapse → 다시 펼치면 그 station 상세 카드 그대로 보이게.
+      // 50개 리스트는 _prevEvSelectCandidates 에 백업 → 뒤로가기로 복원 가능.
       setState(() {
         _prevEvSelectCandidates = List.of(_evSelectCandidates);
         _isEvSelectMode = false;
@@ -2098,10 +2192,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           'filtered_out_count': 0,
         };
       });
+      // 시트는 작게 collapse → 사용자가 지도 path 먼저 확인 → 펼치면 상세 카드 보임
       try {
         if (_sheetController.isAttached) {
           await _sheetController.animateTo(
-            0.45,
+            0.18,
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeOutCubic,
           );
@@ -2258,32 +2353,79 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     );
   }
 
+  // ── 현재위치 FAB (하단 패널 Column 내부에서 사용) ───────────────────────
+  Widget _buildMyLocationFab() {
+    return GestureDetector(
+      onTap: _moveToMyLocation,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 44, height: 44,
+        decoration: BoxDecoration(
+          color: (_isLocating || _isAtMyLocation) ? _kPrimary : Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: _isLocating
+            ? const Padding(
+                padding: EdgeInsets.all(11),
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              )
+            : Icon(Icons.my_location_rounded,
+                size: 22,
+                color: _isAtMyLocation ? Colors.white : const Color(0xFF666666)),
+      ),
+    );
+  }
+
   // ── EV UI 헬퍼 위젯 ──────────────────────────────────────────────────────
   Widget _evSegTab(String type, String label, IconData icon, Color activeColor) {
     final active = _evChargerType == type;
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => _evChargerType = type),
+        behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          height: double.infinity,
+          alignment: Alignment.center,
           decoration: BoxDecoration(
             color: active ? Colors.white : Colors.transparent,
-            borderRadius: BorderRadius.circular(9),
+            borderRadius: BorderRadius.circular(10),
             boxShadow: active
-                ? [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 6, offset: const Offset(0, 1))]
-                : [],
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                    BoxShadow(
+                      color: activeColor.withValues(alpha: 0.08),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
           ),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon, size: 16, color: active ? activeColor : const Color(0xFF9EA7B2)),
-              const SizedBox(width: 5),
+              const SizedBox(width: 6),
               Text(
                 label,
                 style: TextStyle(
                   fontSize: 14,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: active ? FontWeight.w800 : FontWeight.w600,
                   color: active ? activeColor : const Color(0xFF9EA7B2),
+                  letterSpacing: -0.2,
                 ),
               ),
             ],
@@ -2300,30 +2442,54 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     required bool loading,
     required bool enabled,
     required VoidCallback onTap,
+    bool primary = true,
+    bool expand = false,
   }) {
+    final fgColor = enabled ? color : color.withValues(alpha: 0.5);
+    final iconSize = expand ? 17.0 : 15.0;
+    final fontSize = expand ? 14.5 : 13.0;
+    final inner = loading
+        ? SizedBox(
+            width: 20, height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.2,
+              color: primary ? Colors.white.withValues(alpha: 0.9) : fgColor,
+            ),
+          )
+        : Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: iconSize, color: primary ? Colors.white : fgColor),
+              const SizedBox(width: 6),
+              Text(label,
+                style: TextStyle(
+                  fontSize: fontSize,
+                  fontWeight: FontWeight.w700,
+                  color: primary ? Colors.white : fgColor,
+                )),
+            ],
+          );
     return GestureDetector(
       onTap: enabled ? onTap : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        height: expand ? 50 : null,
+        width: expand ? double.infinity : null,
+        padding: expand
+            ? null
+            : const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: enabled ? color : color.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(11),
+          color: primary ? fgColor : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: primary
+              ? null
+              : Border.all(color: fgColor, width: 1.4),
+          boxShadow: primary && enabled
+              ? [BoxShadow(color: fgColor.withValues(alpha: 0.18), blurRadius: 8, offset: const Offset(0, 3))]
+              : null,
         ),
-        child: loading
-            ? SizedBox(
-                width: 18, height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white.withValues(alpha: 0.9)),
-              )
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon, size: 15, color: Colors.white),
-                  const SizedBox(width: 5),
-                  Text(label,
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
-                ],
-              ),
+        child: expand ? Center(child: inner) : inner,
       ),
     );
   }
@@ -3370,32 +3536,36 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // 상단 분석 레이블 + 차량 버튼
+                      // 상단: 모드 세그먼트 컨트롤 + 차량 버튼
                       Row(
                         children: [
                           Expanded(
                             child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 11),
+                              height: 44,
+                              padding: const EdgeInsets.all(3),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: const Color(0xFFF1F3F5),
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0xFFEEEEEE)),
                               ),
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  Icon(
-                                    isEvVehicle ? Icons.bolt_rounded : Icons.local_gas_station_rounded,
-                                    size: 15,
-                                    color: isEvVehicle ? _kCompareBlue : _kPrimary,
+                                  Expanded(
+                                    child: _ModeSegment(
+                                      icon: Icons.local_gas_station_rounded,
+                                      label: 'AI 주유 분석',
+                                      active: !isEvVehicle,
+                                      accent: _kFuelAccent,
+                                      onTap: () => _switchModeTo(ev: false),
+                                    ),
                                   ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    isEvVehicle ? 'AI 충전 분석' : 'AI 주유 분석',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w700,
-                                      color: isEvVehicle ? _kCompareBlue : _kPrimary,
+                                  Expanded(
+                                    child: _ModeSegment(
+                                      icon: Icons.bolt_rounded,
+                                      label: 'AI 충전 분석',
+                                      active: isEvVehicle,
+                                      accent: _kEvAccent,
+                                      onTap: () => _switchModeTo(ev: true),
                                     ),
                                   ),
                                 ],
@@ -3410,10 +3580,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                               setState(() {});
                             },
                             child: Container(
-                              width: 36, height: 36,
+                              width: 42, height: 42,
                               decoration: BoxDecoration(
                                 color: Colors.white,
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(11),
                                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8)],
                               ),
                               child: const Icon(Icons.directions_car_rounded, color: Color(0xFF666666), size: 18),
@@ -3451,7 +3621,16 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                   padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      // 현재 위치 버튼 — 카드 바로 위에 자연스럽게 위치 (우측 정렬)
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildMyLocationFab(),
+                        ),
+                      ),
                       // 에러 메시지
                       if (_errorMessage != null) ...[
                         Container(
@@ -3505,10 +3684,15 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: isEvVehicle
-                                      ? const Color(0xFF1D6FE0).withValues(alpha: 0.4)
-                                      : const Color(0xFFEEEEEE),
+                                  color: _modeAccent(isEvVehicle).withValues(alpha: 0.4),
                                 ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.04),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
                               ),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -3521,7 +3705,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                       Icon(
                                         isEvVehicle ? Icons.bolt_rounded : Icons.local_gas_station_rounded,
                                         size: 13,
-                                        color: isEvVehicle ? const Color(0xFF1D6FE0) : _kPrimary,
+                                        color: _modeAccent(isEvVehicle),
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
@@ -3531,7 +3715,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w700,
-                                          color: isEvVehicle ? const Color(0xFF1D6FE0) : _kPrimary,
+                                          color: _modeAccent(isEvVehicle),
                                         ),
                                       ),
                                     ],
@@ -3557,104 +3741,104 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                       ),
                       const SizedBox(height: 8),
                       if (isEvVehicle) ...[
-                        // ── EV 옵션 + 액션 통합 카드 ──
-                        Container(
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: const Color(0xFFE4ECF7)),
-                          ),
-                          child: Column(
+                        // ── EV: 필터 행 (고속도로 pill 좌측 + 급속/완속 세그먼트 우측 flex) ──
+                        SizedBox(
+                          height: 46,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              // 급속 / 완속 세그먼트
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
-                                child: Container(
-                                  height: 44,
-                                  padding: const EdgeInsets.all(3),
+                              // 고속도로 — 좌측 컴팩트 pill (활성 시 채움 스타일)
+                              GestureDetector(
+                                onTap: () => setState(() => _evHighwayOnly = !_evHighwayOnly),
+                                behavior: HitTestBehavior.opaque,
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 180),
+                                  curve: Curves.easeOut,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFF1F5FB),
-                                    borderRadius: BorderRadius.circular(11),
+                                    color: _evHighwayOnly ? _kEvAccent : Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: _evHighwayOnly ? _kEvAccent : const Color(0xFFE5E8EC),
+                                      width: 1.5,
+                                    ),
+                                    boxShadow: _evHighwayOnly
+                                        ? [
+                                            BoxShadow(
+                                              color: _kEvAccent.withValues(alpha: 0.28),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 3),
+                                            ),
+                                          ]
+                                        : null,
                                   ),
                                   child: Row(
+                                    mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      _evSegTab('FAST', '급속', Icons.bolt_rounded, _kCompareBlue),
-                                      _evSegTab('SLOW', '완속', Icons.electrical_services_rounded, _kPrimary),
+                                      Icon(Icons.add_road_rounded, size: 15,
+                                        color: _evHighwayOnly ? Colors.white : const Color(0xFFAAAAAA)),
+                                      const SizedBox(width: 5),
+                                      Text('고속도로',
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: _evHighwayOnly ? Colors.white : const Color(0xFF888888),
+                                        )),
                                     ],
                                   ),
                                 ),
                               ),
-                              // 구분선
-                              const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                child: Divider(height: 1, color: Color(0xFFF0F0F0)),
-                              ),
-                              // 고속도로만 칩 + 버튼들
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-                                child: Row(
-                                  children: [
-                                    // 고속도로만 토글칩
-                                    GestureDetector(
-                                      onTap: () => setState(() => _evHighwayOnly = !_evHighwayOnly),
-                                      child: AnimatedContainer(
-                                        duration: const Duration(milliseconds: 180),
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                                        decoration: BoxDecoration(
-                                          color: _evHighwayOnly
-                                              ? _kCompareBlue.withValues(alpha: 0.08)
-                                              : const Color(0xFFF5F7FA),
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(
-                                            color: _evHighwayOnly
-                                                ? _kCompareBlue.withValues(alpha: 0.6)
-                                                : const Color(0xFFE0E0E0),
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(Icons.add_road_rounded, size: 13,
-                                              color: _evHighwayOnly ? _kCompareBlue : const Color(0xFFAAAAAA)),
-                                            const SizedBox(width: 4),
-                                            Text('고속도로만',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w600,
-                                                color: _evHighwayOnly ? _kCompareBlue : const Color(0xFF999999),
-                                              )),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                    const Spacer(),
-                                    // AI 추천
-                                    _evActionBtn(
-                                      label: 'AI 추천',
-                                      icon: Icons.auto_awesome_rounded,
-                                      color: _kCompareBlue,
-                                      loading: _aiAnalyzing,
-                                      enabled: !_aiAnalyzing && !_userSelecting,
-                                      onTap: _runEvAnalyze,
-                                    ),
-                                    const SizedBox(width: 7),
-                                    // 직접 선택
-                                    _evActionBtn(
-                                      label: '직접 선택',
-                                      icon: Icons.format_list_bulleted_rounded,
-                                      color: const Color(0xFF3D8B6E),
-                                      loading: _userSelecting,
-                                      enabled: !_aiAnalyzing && !_userSelecting,
-                                      onTap: _runEvUserSelect,
-                                    ),
-                                  ],
+                              const SizedBox(width: 8),
+                              // 급속/완속 세그먼트 — Expanded 로 남은 폭 차지
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF1F3F5),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      _evSegTab('FAST', '급속', Icons.bolt_rounded, _kEvAccent),
+                                      _evSegTab('SLOW', '완속', Icons.electrical_services_rounded, _kEvAccent),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 10),
+                        // ── EV: 액션 행 (AI 추천 + 직접 선택) ──
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _evActionBtn(
+                                label: 'AI 추천',
+                                icon: Icons.auto_awesome_rounded,
+                                color: _kEvAccent,
+                                loading: _aiAnalyzing,
+                                enabled: !_aiAnalyzing && !_userSelecting,
+                                onTap: _runEvAnalyze,
+                                expand: true,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _evActionBtn(
+                                label: '직접 선택',
+                                icon: Icons.format_list_bulleted_rounded,
+                                color: _kEvAccent,
+                                loading: _userSelecting,
+                                enabled: !_aiAnalyzing && !_userSelecting,
+                                onTap: _runEvUserSelect,
+                                primary: false,
+                                expand: true,
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                       // AI 분석 / 사용자 선택 버튼 (주유 전용)
                       if (!isEvVehicle) Row(
@@ -3667,9 +3851,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                     ? null
                                     : _runAnalyze,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: _kPrimary,
+                                  backgroundColor: _kFuelAccent,
                                   foregroundColor: Colors.white,
-                                  disabledBackgroundColor: _kPrimary.withValues(alpha: 0.55),
+                                  disabledBackgroundColor: _kFuelAccent.withValues(alpha: 0.55),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                                   elevation: 0,
                                 ),
@@ -3689,20 +3873,24 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           Expanded(
                             child: SizedBox(
                               height: 52,
-                              child: ElevatedButton(
+                              child: OutlinedButton(
                                 onPressed: (_aiAnalyzing || _userSelecting)
                                     ? null
                                     : _runUserSelect,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: _kCompareBlue,
-                                  foregroundColor: Colors.white,
-                                  disabledBackgroundColor: _kCompareBlue.withValues(alpha: 0.55),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: _kFuelAccent,
+                                  backgroundColor: Colors.white,
+                                  side: BorderSide(
+                                    color: (_aiAnalyzing || _userSelecting)
+                                        ? _kFuelAccent.withValues(alpha: 0.4)
+                                        : _kFuelAccent,
+                                    width: 1.5,
+                                  ),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                  elevation: 0,
                                 ),
                                 child: _userSelecting
-                                    ? const SizedBox(height: 22, width: 22,
-                                        child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                                    ? SizedBox(height: 22, width: 22,
+                                        child: CircularProgressIndicator(strokeWidth: 2.5, color: _kFuelAccent))
                                     : const Row(
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
@@ -3805,6 +3993,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 ),
                 child: _isEvResultMode
                     ? EvResultBody(
+                        key: _evResultBodyKey,
                         data: _lastResultData!,
                         scrollController: sc,
                         onStationMapTap: _showEvStationRouteOnMap,
@@ -3947,43 +4136,6 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
               ),
             ),
 
-          // ── 일반 모드: 현재위치 버튼 (우하단) ──
-          if (!_isPickerMode && !_isResultMode && !_isEvResultMode && !_isEvSelectMode && !_isSelectMode)
-            Positioned(
-              right: 16,
-              bottom: MediaQuery.of(context).padding.bottom + (isEvVehicle ? 290 : 210),
-              child: GestureDetector(
-                onTap: _moveToMyLocation,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: (_isLocating || _isAtMyLocation) ? _kPrimary : Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.15),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: _isLocating
-                      ? const Padding(
-                          padding: EdgeInsets.all(11),
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
-                        )
-                      : Icon(Icons.my_location_rounded,
-                          size: 22,
-                          color: _isAtMyLocation
-                              ? Colors.white
-                              : const Color(0xFF666666)),
-                ),
-              ),
-            ),
-
           // ── AI 경로 추천 로딩 오버레이 ──
           if (_aiAnalyzing)
             Positioned.fill(
@@ -4012,7 +4164,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             height: 18,
                             child: CircularProgressIndicator(
                               strokeWidth: 2.2,
-                              color: _aiAnalysisType == 'ev' ? _kCompareBlue : _kPrimary,
+                              color: _modeAccent(_aiAnalysisType == 'ev'),
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -4948,6 +5100,77 @@ class _ThinChip extends StatelessWidget {
   }
 }
 
+// ─── 상단 모드 세그먼트 (주유 / 충전) ─────────────────────────────────────────
+
+class _ModeSegment extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool active;
+  final Color accent;
+  final VoidCallback? onTap;
+
+  const _ModeSegment({
+    required this.icon,
+    required this.label,
+    required this.active,
+    required this.accent,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          // 활성: 액센트 컬러로 꽉 채움 + 액센트 그림자
+          // 비활성: 투명
+          color: active ? accent : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: active
+              ? [
+                  BoxShadow(
+                    color: accent.withValues(alpha: 0.28),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 15,
+              color: active ? Colors.white : const Color(0xFF9AA3AC),
+            ),
+            const SizedBox(width: 5),
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                  color: active ? Colors.white : const Color(0xFF9AA3AC),
+                  letterSpacing: -0.2,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ─── 잔량 요약 카드 ────────────────────────────────────────────────────────────
 
 class _LevelSummaryCard extends StatelessWidget {
@@ -4987,60 +5210,76 @@ class _LevelSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isEv ? const Color(0xFF1D6FE0).withValues(alpha: 0.3) : const Color(0xFFEEEEEE),
+          color: isEv ? _kEvAccent.withValues(alpha: 0.25) : _kFuelAccent.withValues(alpha: 0.25),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text('${currentLevel.toStringAsFixed(0)}%',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: _levelColor)),
-              const SizedBox(width: 8),
+              Text(currentLevel.toStringAsFixed(0),
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: _levelColor,
+                    height: 1.0,
+                    letterSpacing: -0.5,
+                  )),
+              Padding(
+                padding: const EdgeInsets.only(left: 1, top: 4),
+                child: Text('%',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: _levelColor.withValues(alpha: 0.85),
+                  )),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: LayoutBuilder(builder: (_, c) {
                   final fillW = c.maxWidth * (currentLevel / 100);
                   return Stack(children: [
                     Container(
-                      height: 7,
+                      height: 6,
                       decoration: BoxDecoration(
-                          color: const Color(0xFFEEEEEE),
-                          borderRadius: BorderRadius.circular(4)),
+                          color: const Color(0xFFF1F3F5),
+                          borderRadius: BorderRadius.circular(3)),
                     ),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: Container(
-                        height: 7, width: fillW,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [
-                              Color(0xFFE24B4A),
-                              Color(0xFFEF9F27),
-                              Color(0xFFFFD60A),
-                              Color(0xFF22C55E),
-                            ],
-                            stops: [0.0, 0.2, 0.5, 1.0],
-                          ),
-                        ),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeOut,
+                      height: 6,
+                      width: fillW,
+                      decoration: BoxDecoration(
+                        color: _levelColor,
+                        borderRadius: BorderRadius.circular(3),
                       ),
                     ),
                   ]);
                 }),
               ),
               const SizedBox(width: 8),
-              const Icon(Icons.edit_rounded, size: 14, color: Color(0xFFCCCCCC)),
+              Icon(Icons.edit_rounded, size: 14, color: const Color(0xFF666666).withValues(alpha: 0.5)),
             ],
           ),
           const SizedBox(height: 6),
           Text(_targetLabel,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF666666))),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF6B7280))),
         ],
       ),
     );
@@ -5342,45 +5581,13 @@ class _EvStationDetailSheet extends StatefulWidget {
 }
 
 class _EvStationDetailSheetState extends State<_EvStationDetailSheet> {
-  bool _alarmEnabled = false;
-  bool _alarmLoading = false;
-
   static const _kGreen = Color(0xFF1D9E75);
   static const _kBlue = Color(0xFF1D6FE0);
   static const _kOrange = Color(0xFFE8700A);
   static const _kGrey = Color(0xFF888888);
 
-  @override
-  void initState() {
-    super.initState();
-    _alarmEnabled = AlertService().isEvAlarmSubscribed(widget.stationId);
-  }
-
-  Future<void> _toggleAlarm() async {
-    if (_alarmLoading) return;
-    final name = widget.station['name']?.toString() ?? '';
-    setState(() => _alarmLoading = true);
-    try {
-      if (_alarmEnabled) {
-        await AlertService().unsubscribeEvAlarm(widget.stationId);
-        if (mounted) setState(() => _alarmEnabled = false);
-      } else {
-        final ids = AlertService().evAlarmStationIds;
-        if (!ids.contains(widget.stationId) && ids.length >= AlertService.evAlarmMaxCount) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('충전소 현황 알림은 최대 3개까지 설정할 수 있어요')),
-            );
-          }
-          return;
-        }
-        final ok = await AlertService().subscribeEvAlarm(stationId: widget.stationId, stationName: name);
-        if (mounted) setState(() => _alarmEnabled = ok);
-      }
-    } finally {
-      if (mounted) setState(() => _alarmLoading = false);
-    }
-  }
+  // 자리 변동 알림은 길안내 워치(WatchService)에서 별도로 처리하므로
+  // 이 시트에선 알림 토글을 노출하지 않는다 (중복·혼란 방지).
 
   Color get _accentColor => widget.chargerType == 'FAST' ? _kBlue : _kGreen;
 
@@ -5397,7 +5604,17 @@ class _EvStationDetailSheetState extends State<_EvStationDetailSheet> {
     final detourMin = (s['detour_time_min'] as num?)?.toInt();
     final originDistM = (s['origin_distance_m'] as num?)?.toInt();
     final originEtaMin = (s['origin_eta_min'] as num?)?.toInt();
+    final statusMessage = s['status_message']?.toString();
+    final limitYn = (s['limitYn'] ?? '').toString();
+    final limitDetail = (s['limitDetail'] ?? '').toString();
+    final note = (s['note'] ?? '').toString();
     final accentColor = _accentColor;
+
+    // 예상 소요시간 (거리 기반 추정 — user-select 은 TMap 호출 안 함)
+    String? etaLabel;
+    if (originEtaMin != null && originEtaMin > 0) {
+      etaLabel = '약 ${fmtMin(originEtaMin)}';
+    }
 
     String? originDistLabel;
     if (originDistM != null && originDistM > 0) {
@@ -5406,243 +5623,416 @@ class _EvStationDetailSheetState extends State<_EvStationDetailSheet> {
           : '출발지에서 ${originDistM}m';
     }
 
-    return DraggableScrollableSheet(
-      initialChildSize: 0.6,
-      minChildSize: 0.4,
-      maxChildSize: 0.92,
-      expand: false,
-      builder: (_, sc) => Column(
-        children: [
-          // 핸들
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Center(
-              child: Container(
-                width: 36, height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 핸들
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Center(
+                child: Container(
+                  width: 36, height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
             ),
-          ),
-          Expanded(
-            child: ListView(
-              controller: sc,
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-              children: [
-                // ── 헤더 ──
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+            // ── 본문 (스크롤 잠금, 컨텐츠 자체 사이즈) ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 1. 헤더 — 이름 (큼) + 운영사 · 주소 (한 줄)
+                  Text(name,
+                    style: const TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF111827),
+                      height: 1.25,
+                      letterSpacing: -0.3,
+                    )),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      if (operator.isNotEmpty)
+                        Flexible(
+                          child: Text(operator,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF64748B),
+                            ),
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        ),
+                      if (operator.isNotEmpty && address.isNotEmpty) ...[
+                        const SizedBox(width: 6),
+                        const Text('·', style: TextStyle(color: _kGrey, fontSize: 13)),
+                        const SizedBox(width: 6),
+                      ],
+                      if (address.isNotEmpty)
+                        Expanded(
+                          child: Text(address,
+                            style: const TextStyle(fontSize: 12, color: _kGrey),
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  // 2. 핵심 메트릭 4-cell 그리드 (자리·거리·도착·우회)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: accentColor.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: accentColor.withValues(alpha: 0.18)),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+                    child: IntrinsicHeight(
+                      child: Row(
                         children: [
-                          Text(name,
-                            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A))),
-                          const SizedBox(height: 4),
-                          if (operator.isNotEmpty)
-                            Text(operator, style: const TextStyle(fontSize: 13, color: _kGrey)),
-                          if (address.isNotEmpty)
-                            Text(address, style: const TextStyle(fontSize: 12, color: _kGrey), maxLines: 2, overflow: TextOverflow.ellipsis),
+                          Expanded(child: _BigMetric(
+                            value: '$availCount',
+                            unit: '/$totalCount',
+                            label: '이용가능',
+                            color: availCount > 0 ? _kGreen : _kOrange,
+                          )),
+                          const _MetricDivider(),
+                          Expanded(child: _BigMetric(
+                            value: originDistM == null
+                                ? '-'
+                                : (originDistM >= 1000
+                                    ? (originDistM / 1000).toStringAsFixed(0)
+                                    : '$originDistM'),
+                            unit: originDistM == null
+                                ? ''
+                                : (originDistM >= 1000 ? 'km' : 'm'),
+                            label: '거리',
+                            color: const Color(0xFF111827),
+                          )),
+                          const _MetricDivider(),
+                          Expanded(child: _BigMetric(
+                            value: etaLabel ?? '-',
+                            unit: '',
+                            label: '예상 소요',
+                            color: accentColor,
+                          )),
+                          const _MetricDivider(),
+                          Expanded(child: _BigMetric(
+                            value: detourMin == null
+                                ? '-'
+                                : (detourMin == 0 ? '없음' : '+$detourMin'),
+                            unit: detourMin != null && detourMin > 0 ? '분' : '',
+                            label: '우회',
+                            color: detourMin != null && detourMin > 0 ? _kOrange : _kGreen,
+                          )),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    // 알림 토글
-                    GestureDetector(
-                      onTap: _alarmLoading ? null : _toggleAlarm,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: _alarmEnabled ? accentColor.withValues(alpha: 0.12) : const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: _alarmEnabled ? accentColor : Colors.transparent),
-                        ),
-                        child: _alarmLoading
-                            ? SizedBox(width: 16, height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: accentColor))
-                            : Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    _alarmEnabled ? Icons.notifications_active_rounded : Icons.notifications_none_rounded,
-                                    size: 15, color: _alarmEnabled ? accentColor : _kGrey,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    _alarmEnabled ? '알림 켜짐' : '상태 알림',
-                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
-                                      color: _alarmEnabled ? accentColor : _kGrey),
-                                  ),
-                                ],
-                              ),
+                  ),
+
+                  // 3. 친근 안내 + 단가 (한 라인)
+                  if ((statusMessage != null && statusMessage.isNotEmpty) || unitPrice != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8F9FA),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-
-                // ── 현황 요약 카드 ──
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: accentColor.withValues(alpha: 0.07),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      _StatusBadge(label: '이용가능', count: availCount, color: _kGreen),
-                      const SizedBox(width: 10),
-                      _StatusBadge(label: '충전중', count: chargingCount, color: _kOrange),
-                      const SizedBox(width: 10),
-                      _StatusBadge(label: '총 대수', count: totalCount, color: _kGrey),
-                      const Spacer(),
-                      if (unitPrice != null)
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text('${NumberFormat('#,###', 'ko_KR').format(unitPrice)}원',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: accentColor)),
-                            const Text('/kWh', style: TextStyle(fontSize: 10, color: _kGrey)),
-                          ],
-                        )
-                      else
-                        const Text('가격 미공개', style: TextStyle(fontSize: 12, color: _kGrey)),
-                    ],
-                  ),
-                ),
-
-                // ── 경로 정보 ──
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    children: [
-                      if (originDistLabel != null)
-                        _InfoTag(icon: Icons.near_me_rounded, label: originDistLabel, color: _kGrey),
-                      if (originEtaMin != null && originEtaMin > 0)
-                        _InfoTag(icon: Icons.schedule_rounded, label: '약 ${fmtMin(originEtaMin)} 소요', color: _kGrey),
-                      if (detourMin != null && detourMin == 0)
-                        _InfoTag(icon: Icons.check_circle_rounded, label: '경로 이탈 없음', color: _kGreen)
-                      else if (detourMin != null && detourMin > 0)
-                        _InfoTag(icon: Icons.u_turn_right_rounded, label: '+${fmtMin(detourMin)} 우회', color: _kOrange),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
-                const SizedBox(height: 16),
-
-                // ── 액션 버튼 (사용자 선택: 경유만 지도에 표시. AI 결과 모드로 전환하지 않음) ──
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: widget.onMapTap,
-                    icon: const Icon(Icons.route_rounded, size: 18),
-                    label: const Text('지도에서 경로 보기', style: TextStyle(fontWeight: FontWeight.w700)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: accentColor,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: widget.destLat != null ? () async {
-                          // 이미 활성 워치 세션이 있으면 분기
-                          final existingSession = WatchService().session;
-                          if (existingSession != null && existingSession.statId == widget.stationId) {
-                            // 같은 충전소 → 이미 알림 중 다이얼로그, 확인 후 계속 진행
-                            await showWatchAlreadyActiveDialog(
-                              context,
-                              stationName: existingSession.stationName,
-                            );
-                          } else {
-                            if (existingSession != null && context.mounted) {
-                              final switchOk = await showWatchSwitchDialog(
-                                context,
-                                currentStationName: existingSession.stationName,
-                              );
-                              if (!switchOk || !context.mounted) return;
-                              await WatchService().stop();
-                            }
-                            // 워치 제안 다이얼로그 (시트 팝 전에 표시)
-                            final accepted = await showDialog<bool>(
-                              context: context,
-                              builder: (dCtx) => _WatchProposalDialog(
-                                etaMin: originEtaMin,
-                                accentColor: accentColor,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          if (statusMessage != null && statusMessage.isNotEmpty) ...[
+                            Icon(Icons.tips_and_updates_rounded, size: 16, color: accentColor),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                statusMessage,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Color(0xFF374151),
+                                  fontWeight: FontWeight.w500,
+                                  height: 1.4,
+                                ),
                               ),
-                            );
-                            if (accepted == true) {
-                              WatchService().start(
-                                statId: widget.stationId,
-                                stationName: name,
-                                etaMin: originEtaMin ?? 0,
-                                currentAvail: availCount,
-                              );
-                            }
-                          }
-                          if (!context.mounted) return;
-                          Navigator.pop(context);
-                          if (!context.mounted) return;
-                          showViaWaypointNavigationSheet(
-                            context,
-                            originLat: widget.originLat,
-                            originLng: widget.originLng,
-                            waypointLat: (s['lat'] as num).toDouble(),
-                            waypointLng: (s['lng'] as num).toDouble(),
-                            waypointName: name,
-                            destinationLat: widget.destLat!,
-                            destinationLng: widget.destLng!,
-                            destinationName: widget.destName ?? '목적지',
-                          );
-                        } : null,
-                        icon: Icon(Icons.navigation_rounded, size: 16, color: accentColor),
-                        label: Text('길안내', style: TextStyle(color: accentColor, fontWeight: FontWeight.w600)),
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: accentColor),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          Navigator.of(context, rootNavigator: true).push(
-                            MaterialPageRoute(
-                              builder: (_) => EvDetailScreen(stationId: widget.stationId),
                             ),
-                          );
-                        },
-                        icon: Icon(Icons.info_outline_rounded, size: 16, color: accentColor),
-                        label: Text('충전소 상세보기', style: TextStyle(color: accentColor, fontWeight: FontWeight.w600)),
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: accentColor),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
+                          ] else
+                            const Spacer(),
+                          if (unitPrice != null) ...[
+                            const SizedBox(width: 10),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFFE5E7EB)),
+                              ),
+                              child: Text(
+                                '${NumberFormat('#,###', 'ko_KR').format(unitPrice)}원/kWh',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF111827),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   ],
-                ),
-              ],
+
+                  const SizedBox(height: 16),
+
+                  // 4. 메인 액션 — 지도에서 경로 보기
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      onPressed: widget.onMapTap,
+                      icon: const Icon(Icons.route_rounded, size: 18),
+                      label: const Text('지도에서 경로 보기',
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: accentColor,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shadowColor: accentColor.withValues(alpha: 0.25),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // 5. 보조 액션 — 상세보기 / 길안내
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SizedBox(
+                          height: 46,
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              Navigator.of(context, rootNavigator: true).push(
+                                MaterialPageRoute(
+                                  builder: (_) => EvDetailScreen(stationId: widget.stationId),
+                                ),
+                              );
+                            },
+                            icon: Icon(Icons.info_outline_rounded, size: 16, color: accentColor),
+                            label: Text('상세보기',
+                              style: TextStyle(color: accentColor, fontWeight: FontWeight.w700, fontSize: 13.5)),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: accentColor.withValues(alpha: 0.5), width: 1.3),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: SizedBox(
+                          height: 46,
+                          child: OutlinedButton.icon(
+                            onPressed: widget.destLat != null ? () async {
+                              final existingSession = WatchService().session;
+                              if (existingSession != null && existingSession.statId != widget.stationId) {
+                                final switchOk = await showWatchSwitchDialog(
+                                  context,
+                                  currentStationName: existingSession.stationName,
+                                );
+                                if (!switchOk || !context.mounted) return;
+                                await WatchService().stop();
+                                await WatchService().start(
+                                  statId: widget.stationId,
+                                  stationName: name,
+                                  etaMin: originEtaMin ?? 0,
+                                  currentAvail: availCount,
+                                );
+                              } else if (existingSession == null) {
+                                final accepted = await showDialog<bool>(
+                                  context: context,
+                                  builder: (dCtx) => _WatchProposalDialog(
+                                    etaMin: originEtaMin,
+                                    accentColor: accentColor,
+                                  ),
+                                );
+                                if (accepted == true) {
+                                  WatchService().start(
+                                    statId: widget.stationId,
+                                    stationName: name,
+                                    etaMin: originEtaMin ?? 0,
+                                    currentAvail: availCount,
+                                  );
+                                }
+                              }
+                              if (!context.mounted) return;
+                              Navigator.pop(context);
+                              if (!context.mounted) return;
+                              showViaWaypointNavigationSheet(
+                                context,
+                                originLat: widget.originLat,
+                                originLng: widget.originLng,
+                                waypointLat: (s['lat'] as num).toDouble(),
+                                waypointLng: (s['lng'] as num).toDouble(),
+                                waypointName: name,
+                                destinationLat: widget.destLat!,
+                                destinationLng: widget.destLng!,
+                                destinationName: widget.destName ?? '목적지',
+                              );
+                            } : null,
+                            icon: Icon(Icons.navigation_rounded, size: 16, color: accentColor),
+                            label: Text('길안내',
+                              style: TextStyle(color: accentColor, fontWeight: FontWeight.w700, fontSize: 13.5)),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: accentColor.withValues(alpha: 0.5), width: 1.3),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // 6. 이용 안내 (조건부)
+                  if (limitYn == 'Y' && limitDetail.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(11),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF7ED),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFFED7AA)),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.info_outline_rounded, size: 15, color: Color(0xFFC2410C)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '이용 제한: $limitDetail',
+                              style: const TextStyle(fontSize: 12, color: Color(0xFF9A3412), height: 1.4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  if (note.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(11),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.sticky_note_2_outlined, size: 15, color: _kGrey),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              note,
+                              style: const TextStyle(fontSize: 12, color: Color(0xFF475569), height: 1.4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
+
+// ─── 핵심 메트릭 셀 (이용가능 / 거리 / 도착 / 우회 4-cell 그리드) ───
+class _BigMetric extends StatelessWidget {
+  final String value;
+  final String unit;
+  final String label;
+  final Color color;
+  const _BigMetric({
+    required this.value,
+    required this.unit,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Flexible(
+              child: Text(
+                value,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                  letterSpacing: -0.5,
+                  height: 1,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (unit.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(left: 1),
+                child: Text(
+                  unit,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: color.withValues(alpha: 0.8),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600),
+        ),
+      ],
+    );
+  }
+}
+
+class _MetricDivider extends StatelessWidget {
+  const _MetricDivider();
+  @override
+  Widget build(BuildContext context) =>
+      Container(width: 1, color: const Color(0xFFE5E7EB));
 }
 
 class _StatusBadge extends StatelessWidget {

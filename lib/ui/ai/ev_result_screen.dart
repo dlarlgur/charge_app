@@ -31,7 +31,7 @@ const _kTeal = Color(0xFF00897B);
 
 final _wonFmt = NumberFormat('#,###', 'ko_KR');
 
-class EvResultBody extends StatelessWidget {
+class EvResultBody extends StatefulWidget {
   final Map<String, dynamic> data;
   final ScrollController scrollController;
   final void Function(Map<String, dynamic> station)? onStationMapTap;
@@ -54,7 +54,41 @@ class EvResultBody extends StatelessWidget {
   });
 
   @override
+  State<EvResultBody> createState() => EvResultBodyState();
+}
+
+class EvResultBodyState extends State<EvResultBody> {
+  // 충전소별 카드 키 (지도 마커 탭 → 해당 카드로 스크롤 이동용)
+  final Map<String, GlobalKey> _stationKeys = {};
+
+  /// 외부에서 호출 — 해당 statId 의 카드를 화면에 보이도록 스크롤.
+  Future<void> scrollToStation(String statId) async {
+    final key = _stationKeys[statId];
+    final ctx = key?.currentContext;
+    if (ctx == null) return;
+    await Scrollable.ensureVisible(
+      ctx,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutCubic,
+      alignment: 0.05,  // 카드를 시트 상단 부근에 위치
+    );
+  }
+
+  GlobalKey _keyFor(String? statId) {
+    if (statId == null || statId.isEmpty) return GlobalKey();
+    return _stationKeys.putIfAbsent(statId, () => GlobalKey());
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final data = widget.data;
+    final scrollController = widget.scrollController;
+    final onStationMapTap = widget.onStationMapTap;
+    final originLat = widget.originLat;
+    final originLng = widget.originLng;
+    final destLat = widget.destLat;
+    final destLng = widget.destLng;
+    final destName = widget.destName;
     final recommended = data['recommended'] is Map
         ? data['recommended'] as Map<String, dynamic>
         : null;
@@ -141,19 +175,22 @@ class EvResultBody extends StatelessWidget {
                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kGrey),
                   ),
                   const SizedBox(height: 8),
-                  _StationCard(
-                    station: recommended,
-                    isRecommended: true,
-                    chargerType: chargerType,
-                    accentColor: chargerType == 'FAST' ? _kBlue : _kGreen,
-                    accentLight: chargerType == 'FAST' ? _kBlueLight : _kGreenLight,
-                    onMapTap: onStationMapTap != null ? () => onStationMapTap!(recommended) : null,
-                    originLat: originLat,
-                    originLng: originLng,
-                    destLat: destLat,
-                    destLng: destLng,
-                    destName: destName,
-                    recommendationLabel: recommended['recommendation_label']?.toString(),
+                  KeyedSubtree(
+                    key: _keyFor(recommended['statId']?.toString()),
+                    child: _StationCard(
+                      station: recommended,
+                      isRecommended: true,
+                      chargerType: chargerType,
+                      accentColor: chargerType == 'FAST' ? _kBlue : _kGreen,
+                      accentLight: chargerType == 'FAST' ? _kBlueLight : _kGreenLight,
+                      onMapTap: onStationMapTap != null ? () => onStationMapTap!(recommended) : null,
+                      originLat: originLat,
+                      originLng: originLng,
+                      destLat: destLat,
+                      destLng: destLng,
+                      destName: destName,
+                      recommendationLabel: recommended['recommendation_label']?.toString(),
+                    ),
                   ),
                   if (alternatives.isNotEmpty) ...[
                     const SizedBox(height: 20),
@@ -168,19 +205,22 @@ class EvResultBody extends StatelessWidget {
                       final altLight = Color.lerp(altColor, Colors.white, 0.92) ?? _kOrangeLight;
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 10),
-                        child: _StationCard(
-                          station: alt,
-                          isRecommended: false,
-                          chargerType: chargerType,
-                          accentColor: altColor,
-                          accentLight: altLight,
-                          onMapTap: onStationMapTap != null ? () => onStationMapTap!(alt) : null,
-                          originLat: originLat,
-                          originLng: originLng,
-                          destLat: destLat,
-                          destLng: destLng,
-                          destName: destName,
-                          recommendationLabel: altLabel,
+                        child: KeyedSubtree(
+                          key: _keyFor(alt['statId']?.toString()),
+                          child: _StationCard(
+                            station: alt,
+                            isRecommended: false,
+                            chargerType: chargerType,
+                            accentColor: altColor,
+                            accentLight: altLight,
+                            onMapTap: onStationMapTap != null ? () => onStationMapTap!(alt) : null,
+                            originLat: originLat,
+                            originLng: originLng,
+                            destLat: destLat,
+                            destLng: destLng,
+                            destName: destName,
+                            recommendationLabel: altLabel,
+                          ),
                         ),
                       );
                     }),
@@ -273,10 +313,43 @@ class _StationCard extends StatefulWidget {
 }
 
 class _StationCardState extends State<_StationCard> {
-  // null=미결정, true=받기, false=나중에
-  bool? _watchDecision;
   bool _isExpanded = false;
-  final Map<String, bool?> _subWatchDecisions = {};
+
+  @override
+  void initState() {
+    super.initState();
+    WatchService().sessionChanged.addListener(_onWatchChanged);
+  }
+
+  @override
+  void dispose() {
+    WatchService().sessionChanged.removeListener(_onWatchChanged);
+    super.dispose();
+  }
+
+  void _onWatchChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// 글로벌 워치 세션이 해당 statId 를 가리키는지 (개별 충전소 정확 매치)
+  bool _isWatching(String? statId) {
+    if (statId == null) return false;
+    return WatchService().session?.statId == statId;
+  }
+
+  /// 이 카드의 대표 또는 sub-station 중 하나라도 워치 중인지 (그룹 단위 인디케이터)
+  bool _anyWatchingInThisCard() {
+    final sessionId = WatchService().session?.statId;
+    if (sessionId == null) return false;
+    if (widget.station['statId']?.toString() == sessionId) return true;
+    final grouped = widget.station['grouped_stations'];
+    if (grouped is List) {
+      for (final gs in grouped) {
+        if (gs is Map && gs['statId']?.toString() == sessionId) return true;
+      }
+    }
+    return false;
+  }
 
   String _buildStatusText(int availCount, int? detourMin, int? oldestMin) {
     String detourText = '';
@@ -302,7 +375,8 @@ class _StationCardState extends State<_StationCard> {
     final gsLat = (gs['lat'] as num?)?.toDouble();
     final gsLng = (gs['lng'] as num?)?.toDouble();
     final gsName = gs['name']?.toString() ?? '';
-    final gsWatchDecision = gsStatId != null ? _subWatchDecisions[gsStatId] : null;
+    // 정확 매치: 이 sub-station 에 알람이 등록된 경우만 활성 표시 (정직한 표시)
+    final gsIsWatching = _isWatching(gsStatId);
     final accentColor = widget.accentColor;
     final canNavigate = gsLat != null && gsLng != null &&
         widget.originLat != null && widget.destLat != null;
@@ -368,42 +442,51 @@ class _StationCardState extends State<_StationCard> {
             children: [
               if (gsStatId != null) ...[
                 Builder(builder: (ctx) => _ActionIconBtn(
-                  icon: gsWatchDecision == true
+                  icon: gsIsWatching
                       ? Icons.notifications_active_rounded
                       : Icons.notifications_none_rounded,
-                  iconColor: gsWatchDecision == true ? accentColor : _kGrey,
-                  fillColor: gsWatchDecision == true
+                  iconColor: gsIsWatching ? accentColor : _kGrey,
+                  fillColor: gsIsWatching
                       ? accentColor.withValues(alpha: 0.1)
                       : const Color(0xFFEEEEEE),
                   onTap: () async {
                     final existingSession = WatchService().session;
+                    // 이미 이 충전소 → 끄기 확인
                     if (existingSession != null && existingSession.statId == gsStatId) {
-                      if (ctx.mounted) {
-                        await showWatchAlreadyActiveDialog(ctx, stationName: existingSession.stationName);
-                      }
+                      if (!ctx.mounted) return;
+                      final shouldStop = await showWatchAlreadyActiveDialog(
+                          ctx, stationName: existingSession.stationName);
+                      if (shouldStop) await WatchService().stop();
                       return;
                     }
-                    if (existingSession != null && ctx.mounted) {
+                    // 다른 충전소 → 전환 확인 후 즉시 전환 (한 번만)
+                    if (existingSession != null) {
+                      if (!ctx.mounted) return;
                       final switchOk = await showWatchSwitchDialog(
-                        ctx, currentStationName: existingSession.stationName);
-                      if (!switchOk || !ctx.mounted) return;
+                          ctx, currentStationName: existingSession.stationName);
+                      if (!switchOk) return;
                       await WatchService().stop();
+                      await WatchService().start(
+                        statId: gsStatId,
+                        stationName: gsName,
+                        etaMin: 0,
+                        currentAvail: gsAvail,
+                      );
+                      return;
                     }
+                    // 새 알림 → 받을지 확인
                     if (!ctx.mounted) return;
                     final accepted = await showDialog<bool>(
                       context: ctx,
                       builder: (dCtx) => _WatchDialog(etaMin: null, accentColor: accentColor),
                     );
-                    if (accepted != null && mounted) {
-                      setState(() => _subWatchDecisions[gsStatId] = accepted);
-                      if (accepted) {
-                        WatchService().start(
-                          statId: gsStatId,
-                          stationName: gsName,
-                          etaMin: 0,
-                          currentAvail: gsAvail,
-                        );
-                      }
+                    if (accepted == true) {
+                      await WatchService().start(
+                        statId: gsStatId,
+                        stationName: gsName,
+                        etaMin: 0,
+                        currentAvail: gsAvail,
+                      );
                     }
                   },
                 )),
@@ -431,17 +514,56 @@ class _StationCardState extends State<_StationCard> {
                     label: '길안내',
                     color: accentColor,
                     primary: true,
-                    onTap: () => showViaWaypointNavigationSheet(
-                      ctx,
-                      originLat: widget.originLat!,
-                      originLng: widget.originLng!,
-                      waypointLat: gsLat,
-                      waypointLng: gsLng,
-                      waypointName: gsName,
-                      destinationLat: widget.destLat!,
-                      destinationLng: widget.destLng!,
-                      destinationName: widget.destName ?? '목적지',
-                    ),
+                    onTap: () async {
+                      if (gsStatId != null && ctx.mounted) {
+                        final existingSession = WatchService().session;
+                        // 이미 이 충전소면 알람 그대로 두고 길안내만 진행
+                        if (existingSession != null && existingSession.statId != gsStatId) {
+                          // 다른 충전소 → 전환 확인 후 즉시 전환
+                          final switchOk = await showWatchSwitchDialog(
+                            ctx,
+                            currentStationName: existingSession.stationName,
+                          );
+                          if (!switchOk || !ctx.mounted) return;
+                          await WatchService().stop();
+                          await WatchService().start(
+                            statId: gsStatId,
+                            stationName: gsName,
+                            etaMin: 0,
+                            currentAvail: gsAvail,
+                          );
+                        } else if (existingSession == null) {
+                          // 새 알림 받을지 확인
+                          final accepted = await showDialog<bool>(
+                            context: ctx,
+                            builder: (dCtx) => _WatchDialog(
+                              etaMin: null,
+                              accentColor: accentColor,
+                            ),
+                          );
+                          if (accepted == true) {
+                            await WatchService().start(
+                              statId: gsStatId,
+                              stationName: gsName,
+                              etaMin: 0,
+                              currentAvail: gsAvail,
+                            );
+                          }
+                        }
+                      }
+                      if (!ctx.mounted) return;
+                      showViaWaypointNavigationSheet(
+                        ctx,
+                        originLat: widget.originLat!,
+                        originLng: widget.originLng!,
+                        waypointLat: gsLat,
+                        waypointLng: gsLng,
+                        waypointName: gsName,
+                        destinationLat: widget.destLat!,
+                        destinationLng: widget.destLng!,
+                        destinationName: widget.destName ?? '목적지',
+                      );
+                    },
                   )),
                 ),
             ],
@@ -538,12 +660,12 @@ class _StationCardState extends State<_StationCard> {
                     ),
                   ),
                 ),
-                // 워치 벨 아이콘
-                if (_watchDecision != null) ...[
+                // 워치 벨 아이콘 — 글로벌 세션이 이 카드의 대표 statId 또는 어느 sub-station 을 가리키면 표시
+                if (_anyWatchingInThisCard()) ...[
                   Icon(
-                    _watchDecision! ? Icons.notifications_active_rounded : Icons.notifications_off_rounded,
+                    Icons.notifications_active_rounded,
                     size: 15,
-                    color: _watchDecision! ? accentColor : _kGrey,
+                    color: accentColor,
                   ),
                   const SizedBox(width: 8),
                 ],
@@ -717,20 +839,23 @@ class _StationCardState extends State<_StationCard> {
                         // 워치 제안 다이얼로그
                         if (statId != null && ctx.mounted) {
                           final existingSession = WatchService().session;
-                          if (existingSession != null && existingSession.statId == statId) {
-                            await showWatchAlreadyActiveDialog(
+                          // 이미 이 충전소면 알람 그대로 두고 길안내만 진행
+                          if (existingSession != null && existingSession.statId != statId) {
+                            // 다른 충전소 → 전환 확인 후 즉시 전환
+                            final switchOk = await showWatchSwitchDialog(
                               ctx,
-                              stationName: existingSession.stationName,
+                              currentStationName: existingSession.stationName,
                             );
-                          } else {
-                            if (existingSession != null && ctx.mounted) {
-                              final switchOk = await showWatchSwitchDialog(
-                                ctx,
-                                currentStationName: existingSession.stationName,
-                              );
-                              if (!switchOk || !ctx.mounted) return;
-                              await WatchService().stop();
-                            }
+                            if (!switchOk || !ctx.mounted) return;
+                            await WatchService().stop();
+                            await WatchService().start(
+                              statId: statId,
+                              stationName: stName,
+                              etaMin: originEtaMin ?? 0,
+                              currentAvail: availCount,
+                            );
+                          } else if (existingSession == null) {
+                            // 새 알림 받을지 확인
                             final accepted = await showDialog<bool>(
                               context: ctx,
                               builder: (dCtx) => _WatchDialog(
@@ -739,15 +864,12 @@ class _StationCardState extends State<_StationCard> {
                               ),
                             );
                             if (accepted == true) {
-                              WatchService().start(
+                              await WatchService().start(
                                 statId: statId,
                                 stationName: stName,
                                 etaMin: originEtaMin ?? 0,
                                 currentAvail: availCount,
                               );
-                            }
-                            if (accepted != null && mounted) {
-                              setState(() => _watchDecision = accepted);
                             }
                           }
                         }

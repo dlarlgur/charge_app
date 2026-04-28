@@ -199,6 +199,7 @@ class GasStationCard extends ConsumerWidget {
                 ref.read(favoritesProvider.notifier).toggle(
                   id: station.id, type: 'gas', name: station.name,
                   subtitle: '${station.brandName} · ${station.address}',
+                  extra: {'brand': station.brand},
                 );
               },
               child: Padding(
@@ -416,7 +417,7 @@ void showAlertLimitDialog(BuildContext context) {
             const SizedBox(height: 16),
             const Text('알림 한도 초과', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
-            Text('가격 알림은 최대 3개 주유소까지\n설정할 수 있어요.\n설정 화면에서 기존 알림을 해제한 후\n다시 시도해주세요.',
+            Text('가격 알림은 최대 50개 주유소까지\n설정할 수 있어요.\n설정 화면에서 기존 알림을 해제한 후\n다시 시도해주세요.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 14, height: 1.6,
                 color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
@@ -509,7 +510,16 @@ class EvOperatorLogo extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final code = _toCode(operator);
     final color = _brandColor[code] ?? AppColors.evGreen;
-    final label = _shortLabel[code] ?? code;
+    // 매핑된 브랜드(KEP, ENV 등)는 짧은 약칭 사용.
+    // 미매핑(ETC) 케이스는 필터에선 '기타'로 그룹핑되지만, 목록/카드에선
+    // 실제 운영사명을 그대로 노출 (FittedBox가 길이 자동 조정).
+    final String label;
+    if (code == 'ETC') {
+      final raw = operator.trim();
+      label = raw.isNotEmpty ? raw : '기타';
+    } else {
+      label = _shortLabel[code] ?? code;
+    }
 
     // 텍스트 타일 폴백 — 진한 단색 + 미세 그래디언트로 입체감, 작은 그림자.
     Widget tileFallback() => Container(
