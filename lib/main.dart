@@ -264,7 +264,7 @@ void main() async {
   // bootstrap 호출에 _serverUrl 필요 → 첫 프레임 전 필수
   await DkswCore.init(
     packageName: AppConstants.packageName,
-    serverUrl: 'https://dksw4.com/console',
+    serverUrl: 'https://console.dksw4.com/console',
   );
   DkswCore.trackSession();
 
