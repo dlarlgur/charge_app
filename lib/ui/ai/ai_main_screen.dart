@@ -17,6 +17,7 @@ import '../../core/utils/navigation_util.dart';
 import '../../data/models/models.dart';
 import '../../data/services/alert_service.dart';
 import '../../data/services/api_service.dart';
+import '../../data/services/notification_service.dart';
 import '../../data/services/watch_service.dart';
 import '../../data/services/location_service.dart';
 import '../../providers/providers.dart';
@@ -123,6 +124,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   String _aiAnalysisType = 'gas'; // gas | ev
   String _evChargerType = 'FAST'; // FAST | SLOW
   bool _evHighwayOnly = false;   // 고속도로 충전소만
+  bool _gasHighwayOnly = false;  // 고속도로 휴게소 주유소만
 
   // EV 결과 시트의 카드 스크롤 제어용 (지도 마커 탭 → 해당 카드로 이동)
   final GlobalKey<EvResultBodyState> _evResultBodyKey = GlobalKey<EvResultBodyState>();
@@ -192,6 +194,22 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     super.initState();
     _loadSaved();
     _sheetController.addListener(_onSheetChanged);
+    requestEvReplanNotifier.addListener(_onReplanRequested);
+  }
+
+  /// EV watch 만석 알림 "다른 충전소" 액션으로 재추천 신호 수신.
+  /// 출발/목적지 컨텍스트가 살아있고 EV 차량 모드면 즉시 _runEvAnalyze 트리거.
+  /// 컨텍스트 없거나 가스 모드면 사용자 입력 대기 (탭 전환만 발생).
+  void _onReplanRequested() {
+    if (!mounted) return;
+    // 살짝 지연 후 트리거 — 탭 전환 애니메이션 끝나고 실행되도록
+    Future.delayed(const Duration(milliseconds: 250), () {
+      if (!mounted) return;
+      final canReplan = _aiAnalysisType == 'ev'
+          && _destLat != null && _destLng != null
+          && !_aiAnalyzing && !_userSelecting;
+      if (canReplan) _runEvAnalyze();
+    });
   }
 
   void _onSheetChanged() {
@@ -244,6 +262,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     _literController.dispose();
     _reverseGeocodeDebounce?.cancel();
     _locationSub?.cancel();
+    requestEvReplanNotifier.removeListener(_onReplanRequested);
     super.dispose();
   }
 
@@ -861,6 +880,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'destination': {'lat': _destLat, 'lng': _destLng},
         'path_points': pathPoints,
         if (directDurationMs != null) 'duration_ms': directDurationMs,
+        'highway_only': _gasHighwayOnly,
       },
       'recommendation': {'top_n_candidates_returned': 3},
     };
@@ -2633,6 +2653,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'origin': {'lat': startLat, 'lng': startLng},
         'destination': {'lat': _destLat, 'lng': _destLng},
         'path_points': pathPoints,
+        'highway_only': _gasHighwayOnly,
       },
     };
 
@@ -3839,6 +3860,79 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             ),
                           ],
                         ),
+                      ],
+                      // ── 주유: 고속도로 휴게소 필터 pill ──
+                      if (!isEvVehicle) ...[
+                        SizedBox(
+                          height: 46,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              GestureDetector(
+                                onTap: () => setState(() => _gasHighwayOnly = !_gasHighwayOnly),
+                                behavior: HitTestBehavior.opaque,
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 180),
+                                  curve: Curves.easeOut,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  decoration: BoxDecoration(
+                                    color: _gasHighwayOnly ? _kFuelAccent : Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: _gasHighwayOnly ? _kFuelAccent : const Color(0xFFE5E8EC),
+                                      width: 1.5,
+                                    ),
+                                    boxShadow: _gasHighwayOnly
+                                        ? [
+                                            BoxShadow(
+                                              color: _kFuelAccent.withValues(alpha: 0.28),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 3),
+                                            ),
+                                          ]
+                                        : null,
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.add_road_rounded, size: 15,
+                                        color: _gasHighwayOnly ? Colors.white : const Color(0xFFAAAAAA)),
+                                      const SizedBox(width: 5),
+                                      Text('고속도로',
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: _gasHighwayOnly ? Colors.white : const Color(0xFF888888),
+                                        )),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Container(
+                                  alignment: Alignment.center,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF5F6F8),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: const Color(0xFFE5E8EC), width: 1),
+                                  ),
+                                  child: Text(
+                                    _gasHighwayOnly ? '휴게소 주유소만 비교' : '경로상 + 우회 모두 비교',
+                                    style: const TextStyle(
+                                      fontSize: 12.5,
+                                      color: Color(0xFF666666),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
                       ],
                       // AI 분석 / 사용자 선택 버튼 (주유 전용)
                       if (!isEvVehicle) Row(

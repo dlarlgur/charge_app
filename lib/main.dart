@@ -191,6 +191,11 @@ Future<void> _initLocalNotifications() async {
       final payload = details.payload ?? '';
       if (details.actionId == 'mark_read') {
         AlertService().markAllRead();
+      } else if (details.actionId == 'find_alt' && payload.startsWith('ev_watch:')) {
+        // "다른 충전소" 액션 — 만석 도달 시 AI 재추천 트리거
+        final stationId = payload.substring('ev_watch:'.length);
+        excludeStationOnReplanNotifier.value = stationId;
+        requestEvReplanNotifier.value++;
       } else if (payload.startsWith('ev_alarm:')) {
         // payload 형식: ev_alarm:stationId:encodedTitle:encodedBody
         final rest = payload.substring('ev_alarm:'.length);

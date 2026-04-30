@@ -13,6 +13,15 @@ final navigateToEvStationNotifier = ValueNotifier<String>('');
 /// 홈 위젯(주유소) 탭 시 stationId 전달 → HomeScreen에서 주유소 상세로 이동
 final navigateToGasStationNotifier = ValueNotifier<String>('');
 
+/// EV watch 만석 알림의 "다른 충전소" 액션 탭 시 increment.
+/// HomeScreen 이 listen → AI 탭 전환 + AiMainScreen 에 replan 트리거 전달.
+/// value 는 단조 증가하는 카운터 (값 자체는 의미 없음, 새 이벤트 알림 신호용).
+final requestEvReplanNotifier = ValueNotifier<int>(0);
+
+/// "다른 충전소" 재추천 시 제외할 stationId (만석 도달한 곳).
+/// AiMainScreen 이 분석 시 이 값을 읽어 후보에서 빼거나 표시 분기.
+final excludeStationOnReplanNotifier = ValueNotifier<String>('');
+
 const gasPriceChannel = AndroidNotificationChannel(
   'gas_price_alert',
   '주유 가격 알림 (소리)',
@@ -150,17 +159,31 @@ void showGasPriceNotification(Map<String, dynamic> data, {int soundMode = 0}) {
 
 /// EV 워치 세션 알림 표시 (ev_watch 타입)
 /// soundMode: 0=소리, 1=진동, 2=무음
+/// 만석(newAvail=0) 도달 시 "다른 충전소" 액션 버튼 노출 → AI 재추천 트리거
 void showEvWatchNotification(Map<String, dynamic> data, {int soundMode = 0}) {
   final title = data['title'] as String? ?? '⚡ 충전 현황 변동';
   final body = data['body'] as String? ?? '충전 자리 변동이 감지됐어요';
   final stationId = data['stationId'] as String? ?? '';
   final stationName = data['stationName'] as String? ?? '';
+  final newAvailStr = data['newAvail'] as String? ?? '';
 
   final channel = soundMode == 1
       ? evAlarmChannelVibrate
       : soundMode == 2
           ? evAlarmChannelSilent
           : evAlarmChannel;
+
+  // 만석 도달 시 "다른 충전소 찾기" 액션 추가
+  final actions = newAvailStr == '0'
+      ? <AndroidNotificationAction>[
+          const AndroidNotificationAction(
+            'find_alt',
+            '다른 충전소',
+            showsUserInterface: true,
+            cancelNotification: true,
+          ),
+        ]
+      : <AndroidNotificationAction>[];
 
   notificationPlugin.show(
     1003,
@@ -180,6 +203,7 @@ void showEvWatchNotification(Map<String, dynamic> data, {int soundMode = 0}) {
           contentTitle: title,
           summaryText: stationName.isNotEmpty ? stationName : null,
         ),
+        actions: actions.isEmpty ? null : actions,
       ),
     ),
     payload: 'ev_watch:$stationId',

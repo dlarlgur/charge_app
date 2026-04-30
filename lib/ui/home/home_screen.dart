@@ -73,6 +73,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     navigateToEvStationNotifier.addListener(_onNavigateToEvStation);
     // 홈 위젯(주유소) 탭 → 주유소 상세로 이동
     navigateToGasStationNotifier.addListener(_onNavigateToGasStation);
+    // EV watch 만석 알림 "다른 충전소" 액션 → AI 탭 전환 (AiMainScreen 자체가 replan 트리거 listen)
+    requestEvReplanNotifier.addListener(_onEvReplanRequested);
     // 앱 종료 상태에서 알림/위젯 탭 시: 리스너 등록 전에 이미 값이 세팅됐을 수 있으므로 초기값 체크
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (navigateToEvStationNotifier.value.isNotEmpty) {
@@ -164,6 +166,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     navigateToAlertsNotifier.removeListener(_onNavigateToAlerts);
     navigateToEvStationNotifier.removeListener(_onNavigateToEvStation);
     navigateToGasStationNotifier.removeListener(_onNavigateToGasStation);
+    requestEvReplanNotifier.removeListener(_onEvReplanRequested);
     super.dispose();
   }
 
@@ -203,6 +206,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
       builder: (_) => EvDetailScreen(stationId: stationId),
     ));
+  }
+
+  void _onEvReplanRequested() {
+    if (!mounted) return;
+    // 모든 모달 닫고 AI 탭(index 2) 으로 전환 — AiMainScreen 이 자체적으로 replan 신호 listen
+    Navigator.of(context, rootNavigator: true).popUntil((r) => r.isFirst);
+    ref.read(bottomNavIndexProvider.notifier).state = 2;
   }
 
   void _onNavigateToGasStation() {
@@ -583,6 +593,7 @@ class _GasListViewState extends ConsumerState<_GasListView> {
         setState(() { _displayCount = _pageSize; _searchQuery = ''; _searchController.clear(); });
         ref.invalidate(locationProvider);
         ref.invalidate(gasStationsRawProvider);
+        ref.invalidate(favGasStationsProvider);  // 즐겨찾기 detail 도 새로 fetch (stale "기타"/"상태확인불가" 방지)
       },
       child: CustomScrollView(
         controller: _scrollController,
@@ -797,6 +808,7 @@ class _EvListViewState extends ConsumerState<_EvListView> {
         setState(() { _displayCount = _pageSize; _searchQuery = ''; _searchController.clear(); });
         ref.invalidate(locationProvider);
         ref.invalidate(evStationsRawProvider);
+        ref.invalidate(favEvStationsProvider);  // 즐겨찾기 detail 도 새로 fetch (stale 표시 방지)
       },
       child: CustomScrollView(
         controller: _scrollController,
