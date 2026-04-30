@@ -204,39 +204,6 @@ class _EvFilterSheetState extends ConsumerState<EvFilterSheet> {
                         ],
                       ),
                       const SizedBox(height: 14),
-                      _sectionHeader('반경', isDark),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [3000, 5000, 10000, 20000].map((r) {
-                          final label = r >= 1000 ? '${r ~/ 1000}km' : '${r}m';
-                          final selected = _options.radius == r;
-                          return Expanded(
-                            child: Padding(
-                              padding: EdgeInsets.only(right: r == 20000 ? 0 : 8),
-                              child: GestureDetector(
-                                onTap: () => setState(() => _options = _options.copyWith(radius: r)),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 150),
-                                  padding: const EdgeInsets.symmetric(vertical: 10),
-                                  decoration: BoxDecoration(
-                                    color: selected ? accent : (isDark ? const Color(0x08FFFFFF) : const Color(0xFFF5F6F8)),
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
-                                      color: selected ? accent : (isDark ? AppColors.darkCardBorder : const Color(0xFFDEE1E6)),
-                                      width: selected ? 0 : 0.8,
-                                    ),
-                                  ),
-                                  child: Text(label, textAlign: TextAlign.center,
-                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
-                                      color: selected ? Colors.white
-                                        : (isDark ? AppColors.darkTextSecondary : const Color(0xFF6C757D)))),
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                      const SizedBox(height: 14),
                       _sectionHeader('이용 가능', isDark),
                       const SizedBox(height: 10),
                       Row(
