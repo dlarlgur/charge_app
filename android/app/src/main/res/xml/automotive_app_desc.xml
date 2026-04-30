@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android Auto messaging notification 자가 선언.
+  - "notification" use case: 메시지 카테고리 알림(MessagingStyle)을 차량 화면에
+    노출하고 액션 버튼/음성 readout 을 사용 가능하게 함.
+  - 별도 Google 승인 불필요 (CarAppService 풀 통합 시에만 심사 대상).
+-->
+<automotiveApp>
+    <uses name="notification" />
+</automotiveApp>
