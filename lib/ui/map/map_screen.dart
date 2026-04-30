@@ -34,6 +34,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   late bool _showGas;
   late bool _showEv;
   dynamic _selectedStation;
+  // 같은 GPS 에 여러 마커(아파트 단지 등) 클러스터 클릭 시 보여줄 목록.
+  // List<GasStation | EvStation> — 같은 (lat,lng) 좌표(소수점 4자리=약 11m 단위) 그룹.
+  List<dynamic>? _selectedCluster;
   bool _showSearchHere = false;
   bool _mapReady = false;
   int _markersGeneration = 0;
@@ -121,16 +124,51 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _sheetController?.dispose();
     _sheetController = DraggableScrollableController();
     mapSheetOpen.value = true;
-    setState(() => _selectedStation = station);
+    setState(() {
+      _selectedStation = station;
+      _selectedCluster = null;
+    });
+  }
+
+  /// 같은 GPS 에 여러 마커가 있을 때(아파트 단지 등) 클릭 시 호출.
+  /// 목록 시트로 전환 — 사용자가 1개 선택하면 _selectStation 으로 단일 상세 전환.
+  void _selectCluster(List<dynamic> stations) {
+    _sheetController?.dispose();
+    _sheetController = DraggableScrollableController();
+    mapSheetOpen.value = true;
+    setState(() {
+      _selectedStation = null;
+      _selectedCluster = stations;
+    });
   }
 
   Future<void> _dismissSheet() async {
     final prev = _selectedStation;
     mapSheetOpen.value = false;
-    setState(() => _selectedStation = null);
+    setState(() {
+      _selectedStation = null;
+      _selectedCluster = null;
+    });
     _sheetController?.dispose();
     _sheetController = null;
     await _restoreMarkerIcon(prev, _lastMinGasPrice);
+  }
+
+  /// 좌표 그룹화 키 — 소수점 4자리 일치(약 11m) 기준.
+  /// 환경부 EV API 가 같은 아파트 동을 같은 GPS 로 등록하는 케이스 커버.
+  String _clusterKey(double lat, double lng) =>
+      '${lat.toStringAsFixed(4)},${lng.toStringAsFixed(4)}';
+
+  /// 충전소/주유소 목록을 클러스터 그룹으로 묶음. 1개짜리는 그대로, 2개+ 는
+  /// 단일 클러스터 항목으로.
+  Map<String, List<T>> _groupByCluster<T>(List<T> items, NLatLng Function(T) coord) {
+    final map = <String, List<T>>{};
+    for (final it in items) {
+      final c = coord(it);
+      final key = _clusterKey(c.latitude, c.longitude);
+      map.putIfAbsent(key, () => <T>[]).add(it);
+    }
+    return map;
   }
 
   void _scheduleUpdateMarkers() {
@@ -472,6 +510,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           ),
 
           // ─── 하단 상세 시트 ───
+          if (_selectedCluster != null && _sheetController != null)
+            PopScope(
+              canPop: false,
+              onPopInvokedWithResult: (_, __) => _dismissSheet(),
+              child: _buildClusterListSheet(_selectedCluster!, isDark),
+            ),
           if (_selectedStation is GasStation && _sheetController != null)
             PopScope(
               canPop: false,
@@ -877,8 +921,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     await controller.clearOverlays(type: NOverlayType.marker);
     if (gen != _markersGeneration) return;
 
-    final gasStations = _spreadSample(ref.read(mapGasStationsProvider).valueOrNull ?? [], 150);
-    final evStations = _spreadSample(ref.read(mapEvStationsProvider).valueOrNull ?? [], 150);
+    final gasStations = _spreadSample<GasStation>(
+      ref.read(mapGasStationsProvider).valueOrNull ?? <GasStation>[], 150,
+    );
+    final evStations = _spreadSample<EvStation>(
+      ref.read(mapEvStationsProvider).valueOrNull ?? <EvStation>[], 150,
+    );
 
     // 필터 변경 등으로 선택된 스테이션이 결과에서 사라지면 선택 해제
     if (_selectedStation != null) {
@@ -896,65 +944,118 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _lastMinGasPrice = minGasPrice;
 
     if (_showGas) {
-      for (final s in gasStations) {
+      // 좌표 4자리 일치 그룹화 → 단일은 일반 마커, 2개+ 는 클러스터 마커
+      final gasGroups = _groupByCluster<GasStation>(
+        gasStations, (s) => NLatLng(s.lat, s.lng),
+      );
+      for (final entry in gasGroups.entries) {
         if (gen != _markersGeneration) return;
-        final isCheapest = minGasPrice != null && s.price == minGasPrice;
-        final isSelected = _selectedStation != null &&
-            _selectedStation is GasStation &&
-            (_selectedStation as GasStation).id == s.id;
-        final label = s.priceText;
-        final markerId = 'gas_${s.id}';
-        final displayName = StationAliasService.resolveGas(s.id, s.name);
-        final marker = NMarker(
-          id: markerId,
-          position: NLatLng(s.lat, s.lng),
-          icon: await _stationBadgeIcon(
-            label: label, brand: s.brand, stationName: displayName,
-            isHighlighted: isSelected, isCheapest: isCheapest,
-          ),
-        );
-        _markerRefs[markerId] = marker;
-        marker.setOnTapListener((_) async {
-          final prev = _selectedStation;
-          if (prev is GasStation && prev.id == s.id) {
-            await _dismissSheet();
-            return;
-          }
-          await _restoreMarkerIcon(prev, _lastMinGasPrice);
-          _selectStation(s);
-          await _highlightMarker(markerId, label, brand: s.brand, stationName: displayName);
-        });
-        await controller.addOverlay(marker);
+        final group = entry.value;
+        if (group.length == 1) {
+          final s = group.first;
+          final isCheapest = minGasPrice != null && s.price == minGasPrice;
+          final isSelected = _selectedStation != null &&
+              _selectedStation is GasStation &&
+              (_selectedStation as GasStation).id == s.id;
+          final label = s.priceText;
+          final markerId = 'gas_${s.id}';
+          final displayName = StationAliasService.resolveGas(s.id, s.name);
+          final marker = NMarker(
+            id: markerId,
+            position: NLatLng(s.lat, s.lng),
+            icon: await _stationBadgeIcon(
+              label: label, brand: s.brand, stationName: displayName,
+              isHighlighted: isSelected, isCheapest: isCheapest,
+            ),
+          );
+          _markerRefs[markerId] = marker;
+          marker.setOnTapListener((_) async {
+            final prev = _selectedStation;
+            if (prev is GasStation && prev.id == s.id) {
+              await _dismissSheet();
+              return;
+            }
+            await _restoreMarkerIcon(prev, _lastMinGasPrice);
+            _selectStation(s);
+            await _highlightMarker(markerId, label, brand: s.brand, stationName: displayName);
+          });
+          await controller.addOverlay(marker);
+        } else {
+          // 클러스터: 같은 GPS 의 주유소 N개
+          final first = group.first;
+          final markerId = 'gas_cluster_${entry.key}';
+          final marker = NMarker(
+            id: markerId,
+            position: NLatLng(first.lat, first.lng),
+            icon: await _stationBadgeIcon(
+              label: '+${group.length}',
+              brand: null,
+              stationName: '주유소 ${group.length}곳',
+              isCheapest: false,
+            ),
+          );
+          _markerRefs[markerId] = marker;
+          marker.setOnTapListener((_) async {
+            await _restoreMarkerIcon(_selectedStation, _lastMinGasPrice);
+            _selectCluster(group.cast<dynamic>());
+          });
+          await controller.addOverlay(marker);
+        }
       }
     }
 
     if (_showEv) {
-      for (final s in evStations) {
+      final evGroups = _groupByCluster<EvStation>(
+        evStations, (s) => NLatLng(s.lat, s.lng),
+      );
+      for (final entry in evGroups.entries) {
         if (gen != _markersGeneration) return;
-        final isSelected = _selectedStation != null &&
-            _selectedStation is EvStation &&
-            (_selectedStation as EvStation).statId == s.statId;
-        final markerLabel = s.isTesla ? 'Tesla' : '${s.availableCount}/${s.totalCount}';
-        final markerId = 'ev_${s.statId}';
-        final marker = NMarker(
-          id: markerId,
-          position: NLatLng(s.lat, s.lng),
-          icon: await _stationBadgeIcon(
-            label: markerLabel, isEv: true, isHighlighted: isSelected,
-          ),
-        );
-        _markerRefs[markerId] = marker;
-        marker.setOnTapListener((_) async {
-          final prev = _selectedStation;
-          if (prev is EvStation && prev.statId == s.statId) {
-            await _dismissSheet();
-            return;
-          }
-          await _restoreMarkerIcon(prev, _lastMinGasPrice);
-          _selectStation(s);
-          await _highlightMarker(markerId, markerLabel, isEv: true);
-        });
-        await controller.addOverlay(marker);
+        final group = entry.value;
+        if (group.length == 1) {
+          final s = group.first;
+          final isSelected = _selectedStation != null &&
+              _selectedStation is EvStation &&
+              (_selectedStation as EvStation).statId == s.statId;
+          final markerLabel = s.isTesla ? 'Tesla' : '${s.availableCount}/${s.totalCount}';
+          final markerId = 'ev_${s.statId}';
+          final marker = NMarker(
+            id: markerId,
+            position: NLatLng(s.lat, s.lng),
+            icon: await _stationBadgeIcon(
+              label: markerLabel, isEv: true, isHighlighted: isSelected,
+            ),
+          );
+          _markerRefs[markerId] = marker;
+          marker.setOnTapListener((_) async {
+            final prev = _selectedStation;
+            if (prev is EvStation && prev.statId == s.statId) {
+              await _dismissSheet();
+              return;
+            }
+            await _restoreMarkerIcon(prev, _lastMinGasPrice);
+            _selectStation(s);
+            await _highlightMarker(markerId, markerLabel, isEv: true);
+          });
+          await controller.addOverlay(marker);
+        } else {
+          // 클러스터: 같은 GPS 의 충전소 N개 (아파트 단지 케이스)
+          final first = group.first;
+          final markerId = 'ev_cluster_${entry.key}';
+          final marker = NMarker(
+            id: markerId,
+            position: NLatLng(first.lat, first.lng),
+            icon: await _stationBadgeIcon(
+              label: '+${group.length}',
+              isEv: true,
+            ),
+          );
+          _markerRefs[markerId] = marker;
+          marker.setOnTapListener((_) async {
+            await _restoreMarkerIcon(_selectedStation, _lastMinGasPrice);
+            _selectCluster(group.cast<dynamic>());
+          });
+          await controller.addOverlay(marker);
+        }
       }
     }
   }
@@ -990,6 +1091,173 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   void _openNavigation(double lat, double lng, String name) {
     showNavigationSheet(context, lat: lat, lng: lng, name: name);
+  }
+
+  // ─── 클러스터 목록 시트 (같은 GPS 마커 N개) ───
+  Widget _buildClusterListSheet(List<dynamic> stations, bool isDark) {
+    final isEv = stations.first is EvStation;
+    final accent = isEv ? AppColors.evGreen : AppColors.gasBlue;
+    final kindLabel = isEv ? '충전소' : '주유소';
+
+    return DraggableScrollableSheet(
+      key: ValueKey('cluster_sheet_${stations.length}_${stations.hashCode}'),
+      controller: _sheetController!,
+      initialChildSize: 0.55,
+      minChildSize: 0.2,
+      maxChildSize: 0.95,
+      snap: true,
+      snapSizes: const [0.55, 0.95],
+      builder: (ctx, scrollCtrl) {
+        return Material(
+          color: isDark ? AppColors.darkBg : Colors.white,
+          elevation: 12,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              // drag handle
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                width: 36, height: 4,
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.darkCardBorder : const Color(0xFFD0D5DA),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  const SizedBox(width: 16),
+                  Icon(Icons.location_on_rounded, size: 18, color: accent),
+                  const SizedBox(width: 6),
+                  Text('이 위치에 $kindLabel ${stations.length}곳',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                    onPressed: _dismissSheet,
+                  ),
+                  const SizedBox(width: 4),
+                ],
+              ),
+              const SizedBox(height: 4),
+              const Divider(height: 1, thickness: 0.5, color: Color(0xFFEEEEEE)),
+              Expanded(
+                child: ListView.separated(
+                  controller: scrollCtrl,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  itemCount: stations.length,
+                  separatorBuilder: (_, __) => Divider(
+                    height: 1, thickness: 0.5,
+                    color: isDark ? AppColors.darkCardBorder : const Color(0xFFEEEEEE),
+                    indent: 16, endIndent: 16,
+                  ),
+                  itemBuilder: (_, i) => _buildClusterItem(stations[i], isDark, accent),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildClusterItem(dynamic s, bool isDark, Color accent) {
+    String name;
+    String address;
+    String? subInfo;
+
+    if (s is EvStation) {
+      name = StationAliasService.resolveEv(s.statId, s.name);
+      address = s.address;
+      subInfo = '${s.availableCount}/${s.totalCount}대 사용 가능';
+    } else if (s is GasStation) {
+      name = StationAliasService.resolveGas(s.id, s.name);
+      address = s.address;
+      subInfo = s.priceText;
+    } else {
+      return const SizedBox.shrink();
+    }
+
+    return InkWell(
+      onTap: () async {
+        // 단일 상세 전환 + 카메라 이동 (살짝 줌인)
+        final controller = _mapController;
+        if (controller != null) {
+          double lat;
+          double lng;
+          if (s is EvStation) { lat = s.lat; lng = s.lng; }
+          else { lat = (s as GasStation).lat; lng = s.lng; }
+          await controller.updateCamera(
+            NCameraUpdate.scrollAndZoomTo(
+              target: NLatLng(lat, lng),
+              zoom: 16,
+            )..setAnimation(animation: NCameraAnimation.easing, duration: const Duration(milliseconds: 280)),
+          );
+        }
+        if (!mounted) return;
+        _selectStation(s);
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 32, height: 32,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                s is EvStation ? Icons.ev_station_rounded : Icons.local_gas_station_rounded,
+                size: 18, color: accent,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(name,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                    ),
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                  ),
+                  if (address.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(address,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                      ),
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                  if (subInfo != null && subInfo.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(subInfo,
+                      style: TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w600, color: accent,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, size: 20, color: Color(0xFFAAAAAA)),
+          ],
+        ),
+      ),
+    );
   }
 
   // ─── 주유소 상세 DraggableScrollableSheet ───
