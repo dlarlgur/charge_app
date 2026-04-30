@@ -1,4 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+
+/// 별칭이 변경될 때마다 increment — UI 가 listen 하면 rebuild 트리거.
+/// favoritesProvider 만으로는 list 의 name 필드는 안 바뀌어 Consumer 가
+/// 갱신 못 하는 케이스 발견 → 별도 notifier 로 명시적 invalidation.
+final ValueNotifier<int> stationAliasVersion = ValueNotifier<int>(0);
 
 /// 충전소/주유소 별칭 — 사용자가 직접 등록한 친근한 이름.
 ///
@@ -32,11 +38,20 @@ class StationAliasService {
       return;
     }
     final clipped = trimmed.length > _maxLength ? trimmed.substring(0, _maxLength) : trimmed;
-    await _box.put(_key(stationId, type), clipped);
+    final key = _key(stationId, type);
+    await _box.put(key, clipped);
+    // flush — Hive 디스크 동기화 (앱 즉시 종료 시에도 보존 보장)
+    await _box.flush();
+    debugPrint('[StationAlias] SET $key = "$clipped"');
+    stationAliasVersion.value++;
   }
 
   static Future<void> remove(String stationId, {required String type}) async {
-    await _box.delete(_key(stationId, type));
+    final key = _key(stationId, type);
+    await _box.delete(key);
+    await _box.flush();
+    debugPrint('[StationAlias] REMOVE $key');
+    stationAliasVersion.value++;
   }
 
   /// 표시용 이름 결정 — 별칭 있으면 별칭, 없으면 원본.

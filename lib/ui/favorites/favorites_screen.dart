@@ -37,6 +37,21 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> with SingleTi
     final gasList = favorites.where((f) => f['type'] == 'gas').toList();
     final evList = favorites.where((f) => f['type'] == 'ev').toList();
 
+    // 별칭 변경 시 rebuild — favoritesProvider 의 list 자체는 변화 없어도
+    // 표시 이름은 별칭 lookup 결과에 따라 바뀌어야 함.
+    return ValueListenableBuilder<int>(
+      valueListenable: stationAliasVersion,
+      builder: (context, _, __) => _buildBody(favorites, gasList, evList, isDark),
+    );
+  }
+
+  Widget _buildBody(
+    List<Map<String, dynamic>> favorites,
+    List<Map<String, dynamic>> gasList,
+    List<Map<String, dynamic>> evList,
+    bool isDark,
+  ) {
+
     return Column(
       children: [
         // 탭 바
