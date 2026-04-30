@@ -185,6 +185,13 @@ void showEvWatchNotification(Map<String, dynamic> data, {int soundMode = 0}) {
         ]
       : <AndroidNotificationAction>[];
 
+  // Android Auto 호환: MessagingStyleInformation + category=message 사용 시
+  // 차량 디스플레이에 메시지 카드로 노출되고 음성 readout 도 트리거됨.
+  // Person.bot=true 로 발신 주체를 "충전 도우미" 로 명시.
+  final messagingPerson = stationName.isNotEmpty
+      ? Person(name: stationName, bot: true, important: true)
+      : const Person(name: '충전 도우미', bot: true, important: true);
+
   notificationPlugin.show(
     1003,
     title,
@@ -198,10 +205,13 @@ void showEvWatchNotification(Map<String, dynamic> data, {int soundMode = 0}) {
         priority: soundMode == 2 ? Priority.low : Priority.high,
         playSound: soundMode == 0,
         enableVibration: soundMode != 2,
-        styleInformation: BigTextStyleInformation(
-          body,
-          contentTitle: title,
-          summaryText: stationName.isNotEmpty ? stationName : null,
+        category: AndroidNotificationCategory.message,
+        styleInformation: MessagingStyleInformation(
+          messagingPerson,
+          conversationTitle: stationName.isNotEmpty ? stationName : null,
+          messages: [
+            Message(body, DateTime.now(), messagingPerson),
+          ],
         ),
         actions: actions.isEmpty ? null : actions,
       ),
@@ -224,6 +234,11 @@ void showEvAlarmNotification(Map<String, dynamic> data, {int soundMode = 0}) {
           ? evAlarmChannelSilent
           : evAlarmChannel;
 
+  // Android Auto 호환: ev_watch 와 동일 패턴 (MessagingStyle + category=message)
+  final messagingPerson = stationName.isNotEmpty
+      ? Person(name: stationName, bot: true, important: true)
+      : const Person(name: '충전 도우미', bot: true, important: true);
+
   notificationPlugin.show(
     1002,
     title,
@@ -237,10 +252,13 @@ void showEvAlarmNotification(Map<String, dynamic> data, {int soundMode = 0}) {
         priority: soundMode == 2 ? Priority.low : Priority.high,
         playSound: soundMode == 0,
         enableVibration: soundMode != 2,
-        styleInformation: BigTextStyleInformation(
-          body,
-          contentTitle: title,
-          summaryText: stationName.isNotEmpty ? stationName : null,
+        category: AndroidNotificationCategory.message,
+        styleInformation: MessagingStyleInformation(
+          messagingPerson,
+          conversationTitle: stationName.isNotEmpty ? stationName : null,
+          messages: [
+            Message(body, DateTime.now(), messagingPerson),
+          ],
         ),
       ),
     ),
