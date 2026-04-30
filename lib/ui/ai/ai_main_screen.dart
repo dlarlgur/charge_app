@@ -959,17 +959,21 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         final onRouteVia = onRoute?['via_route'] is Map ? onRoute!['via_route'] as Map<String, dynamic> : null;
         final detourVia = bestDetour?['via_route'] is Map ? bestDetour!['via_route'] as Map<String, dynamic> : null;
         final primaryVia = choice == 'best_detour' ? detourVia : onRouteVia;
+        // primaryVia 와 짝이 맞는 추천 주유소 좌표 (suspicious 폴백·재길찾기에 쓰이는 waypoint).
+        // st = detour, st2 = on_route 이므로 choice 에 따라 골라야 한다.
+        final primaryStLat = choice == 'best_detour' ? stLat : st2Lat;
+        final primaryStLng = choice == 'best_detour' ? stLng : st2Lng;
         var usedServerPrimaryRoute = false;
         // 1순위: 추천 카드 자체의 via_route (on_route/best_detour)
         if (primaryVia != null) {
           final parsed = _pathPointsFromServerJson(primaryVia['path_points']);
           if (parsed != null) {
-            if (stLat != null && stLng != null) {
+            if (primaryStLat != null && primaryStLng != null) {
               await _maybeReplaceViaRouteFromClient(
                 serverPts: parsed,
                 serverSeg: _segmentsFromPayload(primaryVia),
-                stLat: stLat,
-                stLng: stLng,
+                stLat: primaryStLat,
+                stLng: primaryStLng,
                 serverViaRoute: primaryVia,
                 apply: (pts, seg) {
                   viaPathPoints = pts;
@@ -992,12 +996,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         if (!usedServerPrimaryRoute && vpr != null) {
           final parsed = _pathPointsFromServerJson(vpr['path_points']);
           if (parsed != null) {
-            if (stLat != null && stLng != null) {
+            if (primaryStLat != null && primaryStLng != null) {
               await _maybeReplaceViaRouteFromClient(
                 serverPts: parsed,
                 serverSeg: _segmentsFromPayload(vpr),
-                stLat: stLat,
-                stLng: stLng,
+                stLat: primaryStLat,
+                stLng: primaryStLng,
                 serverViaRoute: vpr,
                 apply: (pts, seg) {
                   viaPathPoints = pts;
@@ -1016,12 +1020,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             );
           }
         }
-        if (!usedServerPrimaryRoute && stLat != null && stLng != null) {
+        if (!usedServerPrimaryRoute && primaryStLat != null && primaryStLng != null) {
           try {
             final vr = await ApiService().getDrivingRoute(
               startLat: _lastStartLat, startLng: _lastStartLng,
               goalLat: _destLat!, goalLng: _destLng!,
-              waypointLat: stLat, waypointLng: stLng,
+              waypointLat: primaryStLat, waypointLng: primaryStLng,
             );
             if (vr['success'] == true) {
               final parsed = _pathPointsFromServerJson(vr['path_points']);

@@ -249,6 +249,10 @@ class _AiResultBodyState extends State<AiResultBody> {
     final choice = rec?['choice']?.toString() ?? 'on_route';
     final cardMode = rec?['card_mode']?.toString() ?? 'normal';
     final isDualDetour = cardMode == 'dual_detour';
+    // 서버가 경로상 후보 없을 때 최소 우회시간 후보를 가상 baseline 으로 승격
+    // → "경로상 최저가" 라벨을 "근거리 우회"로 분기
+    final isOnRouteVirtual = onRoute?['is_on_route_virtual'] == true;
+    final onRouteLabel = isOnRouteVirtual ? '근거리 우회' : '경로상 최저가';
     final uiMessage = _altAiMessage ?? rec?['ui_message']?.toString() ?? '';
 
     final onRouteSt = onRoute?['station'] is Map ? onRoute!['station'] as Map<String, dynamic> : null;
@@ -282,9 +286,9 @@ class _AiResultBodyState extends State<AiResultBody> {
     final dtTimeMinsBanner = _meaningfulDetourMinutes(dtDetourTimeMin);
     final dtSavings = _i(bestDetour?['savings_vs_on_route_won']);
 
-    // 우회가 경로상보다 비싸면 숨김 (dual_detour 모드에서는 항상 표시)
-    final showDetour = detourSt != null &&
-        (isDualDetour || dtPrice == null || orPrice == null || dtPrice <= orPrice);
+    // 서버가 best_detour를 보냈으면 비교표에 항상 노출 (가격 우열은 추천 로직이 결정).
+    // 우회가 더 비싸도 "왜 우회 칸이 비었지?" 혼동 방지 — 서버 commit 1dee302 의도와 정합.
+    final showDetour = detourSt != null;
 
     final hasOverride = _selectedAltItem != null;
     // 서버 choice가 누락/불일치여도 on_route가 비어 있고 detour가 있으면 detour를 메인으로 강제
@@ -343,7 +347,7 @@ class _AiResultBodyState extends State<AiResultBody> {
         detourM: orDetourM,
         detourTimeMin: orDetourTimeMin,
         savings: 0,
-        tag: '경로상 최저가',
+        tag: onRouteLabel,
         tagColor: const Color(0xFFE8700A),  // 주황
         isAiRec: true,
         isUserSelected: false,
@@ -400,7 +404,7 @@ class _AiResultBodyState extends State<AiResultBody> {
         detourM: orDetourM,
         detourTimeMin: orDetourTimeMin,
         savings: 0,
-        tag: isDualDetour ? '차선' : '경로상 최저가',
+        tag: isDualDetour ? '차선' : onRouteLabel,
         tagColor: isDualDetour ? const Color(0xFF888888) : const Color(0xFFE8700A),
         isAiRec: false,
         isUserSelected: false,
@@ -489,6 +493,7 @@ class _AiResultBodyState extends State<AiResultBody> {
             detourFuelType: detourSt?['fuel_type']?.toString(),
             aiRecIsDetour: aiRecIsDetour,
             isDualDetour: isDualDetour,
+            isOnRouteVirtual: isOnRouteVirtual,
             dtSavings: dtSavings,
             dtDetourMins: dtTimeMinsBanner,
             fuelLabel: widget.fuelLabel,
@@ -546,6 +551,17 @@ class _AiResultBodyState extends State<AiResultBody> {
             wonFmt: _wonFmt,
             onSelect: _selectAlt,
             selectedItem: _selectedAltItem,
+          ),
+          const SizedBox(height: 12),
+        ],
+
+        // ── 도착 후 주유 옵션 (Stage 6) ──
+        // 만땅 출발 등 잔량 충분 → 경로상 후보가 멀리 잡혔을 때
+        // 도착지 근처 주유소를 보조 카드로 노출
+        if (data['arrival_refuel'] is Map) ...[
+          _ArrivalRefuelCard(
+            arrival: data['arrival_refuel'] as Map<String, dynamic>,
+            wonFmt: _wonFmt,
           ),
           const SizedBox(height: 12),
         ],
@@ -836,6 +852,7 @@ class _StationComparisonSection extends StatelessWidget {
 
   final bool aiRecIsDetour;
   final bool isDualDetour;
+  final bool isOnRouteVirtual;
   final int dtSavings;
   final int? dtDetourMins;
   final String? fuelLabel;
@@ -869,6 +886,7 @@ class _StationComparisonSection extends StatelessWidget {
     required this.detourFuelType,
     required this.aiRecIsDetour,
     required this.isDualDetour,
+    required this.isOnRouteVirtual,
     required this.dtSavings,
     required this.dtDetourMins,
     required this.fuelLabel,
@@ -953,6 +971,7 @@ class _StationComparisonSection extends StatelessWidget {
             detourMins: dtDetourMins,
             aiRecIsDetour: aiRecIsDetour,
             isDualDetour: isDualDetour,
+            isOnRouteVirtual: isOnRouteVirtual,
             fuelLabel: fuelLabel,
             wonFmt: wonFmt,
             onViewOnMapRoute: onViewOnMapRoute,
@@ -1227,6 +1246,7 @@ class _ComparisonTable extends StatelessWidget {
   final int? detourMins;
   final bool aiRecIsDetour;
   final bool isDualDetour;
+  final bool isOnRouteVirtual;
   final String? fuelLabel;
   final NumberFormat wonFmt;
   final VoidCallback? onViewOnMapRoute;
@@ -1257,6 +1277,7 @@ class _ComparisonTable extends StatelessWidget {
     required this.detourMins,
     required this.aiRecIsDetour,
     this.isDualDetour = false,
+    this.isOnRouteVirtual = false,
     required this.fuelLabel,
     required this.wonFmt,
     this.onViewOnMapRoute,
@@ -1326,7 +1347,7 @@ class _ComparisonTable extends StatelessWidget {
           _TableRow(
             isHeader: true,
             left: '',
-            mid: isDualDetour ? '차선' : '경로상 최저가',
+            mid: isDualDetour ? '차선' : (isOnRouteVirtual ? '근거리 우회' : '경로상 최저가'),
             right: isDualDetour ? '추천' : '우회 최저가',
             midHighlight: midHi,
             rightHighlight: rightHi,
@@ -1991,6 +2012,88 @@ class _OptionCard extends StatelessWidget {
                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── 도착 후 주유 카드 ─────────────────────────────────────────────────────
+// 만땅/잔량 충분 시: 경로상 가까운 곳에 들러도 못 넣으므로 도착지 근처
+// 주유소를 별도 보조 카드로 보여줌. 서버가 arrival_refuel 채우면 표시.
+
+class _ArrivalRefuelCard extends StatelessWidget {
+  final Map<String, dynamic> arrival;
+  final NumberFormat wonFmt;
+
+  const _ArrivalRefuelCard({required this.arrival, required this.wonFmt});
+
+  @override
+  Widget build(BuildContext context) {
+    final st = arrival['station'] is Map ? arrival['station'] as Map<String, dynamic> : const {};
+    final name = (st['display_name'] ?? st['name'] ?? '').toString();
+    final brand = (st['brand'] ?? '').toString();
+    final price = st['price_won_per_liter'] is num ? (st['price_won_per_liter'] as num).toDouble() : null;
+    final distM = arrival['distance_from_destination_m'] is num
+        ? (arrival['distance_from_destination_m'] as num).toInt()
+        : null;
+    final cost = arrival['expected_cost_won'] is num
+        ? (arrival['expected_cost_won'] as num).toInt()
+        : null;
+    final distLabel = distM == null
+        ? null
+        : (distM < 1000 ? '${distM}m' : '${(distM / 1000).toStringAsFixed(1)}km');
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7FAFD),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFCFE0F5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.flag_rounded, size: 16, color: Color(0xFF1D6FE0)),
+              const SizedBox(width: 6),
+              const Text('도착 후 주유 옵션',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1D6FE0))),
+              const Spacer(),
+              if (distLabel != null)
+                Text('목적지에서 $distLabel',
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF666666))),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            name.isNotEmpty ? name : '도착지 근처 주유소',
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF222222)),
+            maxLines: 1, overflow: TextOverflow.ellipsis,
+          ),
+          if (brand.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(brand, style: const TextStyle(fontSize: 11, color: Color(0xFF888888))),
+          ],
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              if (price != null) ...[
+                Text('${price.toStringAsFixed(0)}원/L',
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1D6FE0))),
+              ],
+              const SizedBox(width: 12),
+              if (cost != null)
+                Text('예상 ${wonFmt.format(cost)}원',
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF666666))),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            '잔량이 충분해 경로상 주유보다 도착지 근처가 더 저렴할 수 있어요.',
+            style: TextStyle(fontSize: 11, color: Color(0xFF888888)),
           ),
         ],
       ),
