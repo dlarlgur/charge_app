@@ -12,6 +12,7 @@ import '../../core/theme/app_colors.dart';
 import '../../data/models/models.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/location_service.dart';
+import '../../data/services/station_alias_service.dart';
 import '../../providers/providers.dart';
 import '../detail/ev_detail_screen.dart';
 import '../detail/gas_detail_screen.dart';
@@ -903,11 +904,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             (_selectedStation as GasStation).id == s.id;
         final label = s.priceText;
         final markerId = 'gas_${s.id}';
+        final displayName = StationAliasService.resolveGas(s.id, s.name);
         final marker = NMarker(
           id: markerId,
           position: NLatLng(s.lat, s.lng),
           icon: await _stationBadgeIcon(
-            label: label, brand: s.brand, stationName: s.name,
+            label: label, brand: s.brand, stationName: displayName,
             isHighlighted: isSelected, isCheapest: isCheapest,
           ),
         );
@@ -920,7 +922,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           }
           await _restoreMarkerIcon(prev, _lastMinGasPrice);
           _selectStation(s);
-          await _highlightMarker(markerId, label, brand: s.brand, stationName: s.name);
+          await _highlightMarker(markerId, label, brand: s.brand, stationName: displayName);
         });
         await controller.addOverlay(marker);
       }

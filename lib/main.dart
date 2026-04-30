@@ -135,6 +135,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   );
   await Hive.initFlutter();
   final box = await Hive.openBox('settings');
+  // 알림 본문 별칭 치환용 — 백그라운드 isolate 에서도 box 필요
+  if (!Hive.isBoxOpen('station_aliases')) {
+    await Hive.openBox('station_aliases');
+  }
   if (message.data['type'] == 'gas_price_alert') {
     final soundMode = (box.get('alert_sound_mode', defaultValue: 0) as int?) ?? 0;
     showGasPriceNotification(message.data, soundMode: soundMode);
@@ -258,6 +262,7 @@ void main() async {
   await Hive.initFlutter();
   await Hive.openBox('settings');
   await Hive.openBox('favorites');
+  await Hive.openBox('station_aliases');
 
   // House ad: 디스크 캐시 즉시 로드 → 첫 프레임에 광고가 있으면 바로 보임.
   // 네트워크 fetch 는 백그라운드에서 갱신 (stale-while-revalidate).

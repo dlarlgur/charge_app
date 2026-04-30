@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/services/favorite_service.dart';
+import '../../data/services/station_alias_service.dart';
 import '../../data/services/widget_service.dart';
 import '../../providers/providers.dart' show favoritesProvider, FavoritesNotifier, bottomNavIndexProvider;
 import '../widgets/empty_state.dart';
@@ -151,14 +152,22 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> with SingleTi
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(item['name'] ?? '', style: Theme.of(context).textTheme.titleSmall),
-                        const SizedBox(height: 2),
-                        Text(item['subtitle'] ?? '', style: Theme.of(context).textTheme.labelSmall),
-                      ],
-                    ),
+                    child: Builder(builder: (_) {
+                      final originalName = (item['name'] ?? '').toString();
+                      final id = (item['id'] ?? '').toString();
+                      final type = (item['type'] ?? '').toString();
+                      final displayName = id.isEmpty
+                          ? originalName
+                          : StationAliasService.resolve(id, originalName, type: type);
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(displayName, style: Theme.of(context).textTheme.titleSmall),
+                          const SizedBox(height: 2),
+                          Text(item['subtitle'] ?? '', style: Theme.of(context).textTheme.labelSmall),
+                        ],
+                      );
+                    }),
                   ),
                   Icon(Icons.favorite_rounded, size: 20, color: accentColor),
                 ],

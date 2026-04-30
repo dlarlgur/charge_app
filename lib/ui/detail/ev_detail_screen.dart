@@ -10,6 +10,7 @@ import '../../data/services/api_service.dart';
 import '../../data/services/alert_service.dart';
 import '../widgets/shared_widgets.dart';
 import '../../data/services/favorite_service.dart';
+import '../../data/services/station_alias_service.dart';
 import '../../data/services/widget_service.dart';
 import '../../providers/providers.dart' show favoritesProvider;
 
@@ -193,6 +194,65 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
   void _onSubsChanged() {
     if (mounted) {
       setState(() => _isAlarm = AlertService().isEvAlarmSubscribed(widget.station.statId));
+    }
+  }
+
+  Future<void> _editAlias(String stationId, String originalName) async {
+    final current = StationAliasService.getEv(stationId) ?? '';
+    final controller = TextEditingController(text: current);
+    final result = await showDialog<String?>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('충전소 별칭'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '원본: $originalName',
+                style: const TextStyle(fontSize: 12, color: Color(0xFF888888)),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                maxLength: StationAliasService.maxLength,
+                decoration: const InputDecoration(
+                  hintText: '예: 우리집 충전소',
+                  border: OutlineInputBorder(),
+                ),
+                textInputAction: TextInputAction.done,
+                onSubmitted: (v) => Navigator.of(ctx).pop(v),
+              ),
+            ],
+          ),
+          actions: [
+            if (current.isNotEmpty)
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop('__delete__'),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('삭제'),
+              ),
+            TextButton(onPressed: () => Navigator.of(ctx).pop(null), child: const Text('취소')),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(controller.text),
+              child: const Text('저장'),
+            ),
+          ],
+        );
+      },
+    );
+    if (result == null) return; // 취소
+    if (result == '__delete__') {
+      await StationAliasService.removeEv(stationId);
+    } else {
+      await StationAliasService.setEv(stationId, result);
+    }
+    if (mounted) {
+      setState(() {});
+      ref.read(favoritesProvider.notifier).refresh();
+      WidgetService.updateEvWidget();
     }
   }
 
@@ -442,19 +502,60 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
               ],
             ),
             const SizedBox(height: 8),
-            // 2) 이름
-            Text(
-              s.name,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.6,
-                height: 1.22,
-                color: titleColor,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
+            // 2) 이름 (별칭 우선) + 편집 버튼
+            Builder(builder: (context) {
+              final alias = StationAliasService.getEv(s.statId);
+              final displayName = alias ?? s.name;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          displayName,
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.6,
+                            height: 1.22,
+                            color: titleColor,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      InkWell(
+                        onTap: () => _editAlias(s.statId, s.name),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: Icon(
+                            alias != null ? Icons.edit_rounded : Icons.edit_outlined,
+                            size: 18,
+                            color: alias != null ? AppColors.evGreen : titleColor.withValues(alpha: 0.55),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (alias != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      s.name,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: titleColor.withValues(alpha: 0.55),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              );
+            }),
             const SizedBox(height: 5),
             // 3) 주소 + 복사 + 거리
             InkWell(

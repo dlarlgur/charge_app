@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import 'station_alias_service.dart';
+
 final notificationPlugin = FlutterLocalNotificationsPlugin();
 
 /// 알림 "상세보기" 액션 탭 시 increment → HomeScreen에서 알림 페이지로 이동
@@ -91,7 +93,10 @@ void showGasPriceNotification(Map<String, dynamic> data, {int soundMode = 0}) {
 
   final buf = StringBuffer();
   for (final s in stations) {
-    final name = s['name'] as String;
+    final originalName = s['name'] as String;
+    final id = (s['id'] ?? '').toString();
+    // 사용자 등록 별칭 우선 (id 가 없는 구버전 페이로드는 원본 그대로)
+    final name = id.isEmpty ? originalName : StationAliasService.resolveGas(id, originalName);
     final prices = List<Map<String, dynamic>>.from(s['prices'] as List);
 
     final hasMin = prices.any((p) => (p['price'] as int) == minPrice);
@@ -161,10 +166,17 @@ void showGasPriceNotification(Map<String, dynamic> data, {int soundMode = 0}) {
 /// soundMode: 0=소리, 1=진동, 2=무음
 /// 만석(newAvail=0) 도달 시 "다른 충전소" 액션 버튼 노출 → AI 재추천 트리거
 void showEvWatchNotification(Map<String, dynamic> data, {int soundMode = 0}) {
-  final title = data['title'] as String? ?? '⚡ 충전 현황 변동';
-  final body = data['body'] as String? ?? '충전 자리 변동이 감지됐어요';
   final stationId = data['stationId'] as String? ?? '';
-  final stationName = data['stationName'] as String? ?? '';
+  final originalStationName = data['stationName'] as String? ?? '';
+  // 사용자가 등록한 별칭 우선 — 알림 title / MessagingStyle conversationTitle 모두 적용
+  final stationName = stationId.isEmpty
+      ? originalStationName
+      : StationAliasService.resolveEv(stationId, originalStationName);
+  final serverTitle = data['title'] as String? ?? '⚡ 충전 현황 변동';
+  final title = (originalStationName.isNotEmpty && stationName != originalStationName)
+      ? serverTitle.replaceAll(originalStationName, stationName)
+      : serverTitle;
+  final body = data['body'] as String? ?? '충전 자리 변동이 감지됐어요';
   final newAvailStr = data['newAvail'] as String? ?? '';
 
   final channel = soundMode == 1
@@ -223,10 +235,16 @@ void showEvWatchNotification(Map<String, dynamic> data, {int soundMode = 0}) {
 /// EV 충전소 자리 알림 표시
 /// soundMode: 0=소리, 1=진동, 2=무음
 void showEvAlarmNotification(Map<String, dynamic> data, {int soundMode = 0}) {
-  final title = data['title'] as String? ?? '⚡ 충전소 자리 변동';
-  final body = data['body'] as String? ?? '충전 가능 자리가 변경됐어요';
   final stationId = data['stationId'] as String? ?? '';
-  final stationName = data['stationName'] as String? ?? '';
+  final originalStationName = data['stationName'] as String? ?? '';
+  final stationName = stationId.isEmpty
+      ? originalStationName
+      : StationAliasService.resolveEv(stationId, originalStationName);
+  final serverTitle = data['title'] as String? ?? '⚡ 충전소 자리 변동';
+  final title = (originalStationName.isNotEmpty && stationName != originalStationName)
+      ? serverTitle.replaceAll(originalStationName, stationName)
+      : serverTitle;
+  final body = data['body'] as String? ?? '충전 가능 자리가 변경됐어요';
 
   final channel = soundMode == 1
       ? evAlarmChannelVibrate

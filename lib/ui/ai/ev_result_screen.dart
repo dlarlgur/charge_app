@@ -3,6 +3,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
 import '../../core/utils/helpers.dart';
 import '../../core/utils/navigation_util.dart';
+import '../../data/services/station_alias_service.dart';
 import '../../data/services/watch_service.dart';
 import '../detail/ev_detail_screen.dart';
 import '../widgets/watch_switch_dialog.dart';
@@ -1200,7 +1201,11 @@ class EvSelectList extends StatelessWidget {
           delegate: SliverChildBuilderDelegate(
             (context, i) {
               final s = candidates[i];
-              final name = s['name']?.toString() ?? '-';
+              final originalName = s['name']?.toString() ?? '-';
+              final stationId = s['stat_id']?.toString() ?? s['statId']?.toString() ?? '';
+              final name = stationId.isEmpty
+                  ? originalName
+                  : StationAliasService.resolveEv(stationId, originalName);
               final operator = s['operator']?.toString() ?? '';
               final avail = (s['available_count'] as num?)?.toInt() ?? 0;
               final total = (s['total_count'] as num?)?.toInt() ?? 0;
