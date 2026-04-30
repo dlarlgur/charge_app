@@ -146,6 +146,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   } else if (message.data['type'] == 'ev_watch') {
     final soundMode = (box.get('ev_alarm_sound_mode', defaultValue: 0) as int?) ?? 0;
     showEvWatchNotification(message.data, soundMode: soundMode);
+    await _saveEvAlarmToHive(box, message.data);
   }
 }
 
