@@ -7,6 +7,7 @@ import '../data/models/models.dart';
 import '../data/services/api_service.dart';
 import '../data/services/favorite_service.dart';
 import '../data/services/location_service.dart';
+import '../data/services/station_alias_service.dart';
 import '../data/services/widget_service.dart';
 
 /// 두 좌표 사이 거리(m) — 즐겨찾기처럼 distance가 서버에서 안 내려오는 경우
@@ -179,13 +180,43 @@ final favoritesProvider = StateNotifierProvider<FavoritesNotifier, List<Map<Stri
 });
 
 class FavoritesNotifier extends StateNotifier<List<Map<String, dynamic>>> {
-  FavoritesNotifier() : super(FavoriteService.getAll());
+  FavoritesNotifier() : super(_loadWithAliases()) {
+    // 별칭이 다른 화면에서 변경될 수 있음 → version 변경 시 list 재계산.
+    // ValueListenableBuilder 가 위젯 트리 일부에서 안 잡히는 케이스 방지하는 안전망:
+    // list 의 displayName 자체가 바뀌므로 ref.watch 한 모든 컨슈머가 자동 rebuild.
+    stationAliasVersion.addListener(_onAliasChanged);
+  }
 
-  void refresh() => state = FavoriteService.getAll();
+  void _onAliasChanged() {
+    state = _loadWithAliases();
+  }
+
+  @override
+  void dispose() {
+    stationAliasVersion.removeListener(_onAliasChanged);
+    super.dispose();
+  }
+
+  static List<Map<String, dynamic>> _loadWithAliases() {
+    final raw = FavoriteService.getAll();
+    return raw.map((item) {
+      final id = (item['id'] ?? '').toString();
+      final type = (item['type'] ?? '').toString();
+      final original = (item['name'] ?? '').toString();
+      final alias = id.isEmpty ? null : StationAliasService.get(id, type: type);
+      return {
+        ...item,
+        'name': alias ?? original,
+        'original_name': original,
+      };
+    }).toList();
+  }
+
+  void refresh() => state = _loadWithAliases();
 
   bool toggle({required String id, required String type, required String name, required String subtitle, Map<String, dynamic>? extra}) {
     final result = FavoriteService.toggle(id: id, type: type, name: name, subtitle: subtitle, extra: extra);
-    state = FavoriteService.getAll();
+    state = _loadWithAliases();
     if (type == 'gas') {
       WidgetService.updateGasWidget();
     } else if (type == 'ev') {

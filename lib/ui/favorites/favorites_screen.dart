@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
-import '../../data/services/favorite_service.dart';
-import '../../data/services/station_alias_service.dart';
 import '../../data/services/widget_service.dart';
-import '../../providers/providers.dart' show favoritesProvider, FavoritesNotifier, bottomNavIndexProvider;
+import '../../providers/providers.dart' show favoritesProvider, bottomNavIndexProvider;
 import '../widgets/empty_state.dart';
 
 /// 즐겨찾기 화면
@@ -32,25 +30,13 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> with SingleTi
 
   @override
   Widget build(BuildContext context) {
+    // favoritesProvider 가 별칭을 list 의 name 필드에 직접 반영해서 반환.
+    // 별칭 변경 시 stationAliasVersion listener 가 list 를 재계산해 state 갱신
+    // → ref.watch 로 자동 rebuild. 별도 ValueListenableBuilder 불필요.
     final favorites = ref.watch(favoritesProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final gasList = favorites.where((f) => f['type'] == 'gas').toList();
     final evList = favorites.where((f) => f['type'] == 'ev').toList();
-
-    // 별칭 변경 시 rebuild — favoritesProvider 의 list 자체는 변화 없어도
-    // 표시 이름은 별칭 lookup 결과에 따라 바뀌어야 함.
-    return ValueListenableBuilder<int>(
-      valueListenable: stationAliasVersion,
-      builder: (context, _, __) => _buildBody(favorites, gasList, evList, isDark),
-    );
-  }
-
-  Widget _buildBody(
-    List<Map<String, dynamic>> favorites,
-    List<Map<String, dynamic>> gasList,
-    List<Map<String, dynamic>> evList,
-    bool isDark,
-  ) {
 
     return Column(
       children: [
@@ -167,22 +153,14 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> with SingleTi
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Builder(builder: (_) {
-                      final originalName = (item['name'] ?? '').toString();
-                      final id = (item['id'] ?? '').toString();
-                      final type = (item['type'] ?? '').toString();
-                      final displayName = id.isEmpty
-                          ? originalName
-                          : StationAliasService.resolve(id, originalName, type: type);
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(displayName, style: Theme.of(context).textTheme.titleSmall),
-                          const SizedBox(height: 2),
-                          Text(item['subtitle'] ?? '', style: Theme.of(context).textTheme.labelSmall),
-                        ],
-                      );
-                    }),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text((item['name'] ?? '').toString(), style: Theme.of(context).textTheme.titleSmall),
+                        const SizedBox(height: 2),
+                        Text(item['subtitle'] ?? '', style: Theme.of(context).textTheme.labelSmall),
+                      ],
+                    ),
                   ),
                   Icon(Icons.favorite_rounded, size: 20, color: accentColor),
                 ],
