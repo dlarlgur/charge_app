@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../core/constants/api_constants.dart';
 import '../../data/models/models.dart';
 import '../services/api_service.dart';
+import '../services/station_alias_service.dart';
 
 /// 홈 위젯 데이터 갱신 서비스
 ///
@@ -55,7 +56,7 @@ class WidgetService {
           final station = GasStation.fromJson(detail);
           items.add({
             'id': id,
-            'name': station.name,
+            'name': StationAliasService.resolveGas(id, station.name),
             'brand': station.brand,
             'price': station.price.toInt(),
             'isSelf': station.isSelf,
@@ -63,9 +64,10 @@ class WidgetService {
           });
         } catch (_) {
           // API 실패 시 즐겨찾기 이름만 표시
+          final original = (fav['name'] ?? '').toString();
           items.add({
             'id': id,
-            'name': fav['name'] ?? '',
+            'name': StationAliasService.resolveGas(id, original),
             'brand': '',
             'price': 0,
             'isSelf': false,
@@ -125,7 +127,7 @@ class WidgetService {
 
           items.add({
             'id': id,
-            'name': station.name,
+            'name': StationAliasService.resolveEv(id, station.name),
             'available': station.availableCount,
             'total': station.totalCount,
             'broken': brokenCount,
@@ -134,9 +136,10 @@ class WidgetService {
             'statusCode': statusCode,
           });
         } catch (_) {
+          final original = (fav['name'] ?? '').toString();
           items.add({
             'id': id,
-            'name': fav['name'] ?? '',
+            'name': StationAliasService.resolveEv(id, original),
             'available': 0,
             'total': 0,
             'broken': 0,

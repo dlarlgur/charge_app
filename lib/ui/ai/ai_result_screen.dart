@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/utils/helpers.dart';
 import '../../core/utils/navigation_util.dart';
+import '../../data/services/station_alias_service.dart';
 import '../widgets/shared_widgets.dart';
 
 const _kPrimary = Color(0xFF1D9E75);
@@ -303,7 +304,7 @@ class _AiResultBodyState extends State<AiResultBody> {
           ? Map<String, dynamic>.from(_selectedAltItem!['station'] as Map)
           : <String, dynamic>{};
       primary = _CardInfo(
-        name: ovSt['name']?.toString() ?? '',
+        name: _stationNameFrom(ovSt),
         addr: ovSt['address']?.toString(),
         lat: _d(ovSt['lat']),
         lng: _d(ovSt['lng']),
@@ -703,8 +704,11 @@ String _resolveFuelLabel(dynamic rawFuel, {String? fallback}) {
 String _stationNameFrom(dynamic station) {
   if (station is! Map) return '';
   final dn = station['display_name']?.toString().trim();
-  if (dn != null && dn.isNotEmpty) return dn;
-  return station['name']?.toString() ?? '';
+  final original = (dn != null && dn.isNotEmpty) ? dn : (station['name']?.toString() ?? '');
+  // 사용자 별칭 우선 적용 — gas AI 추천 결과 카드에도 별칭 노출.
+  final id = (station['id'] ?? '').toString();
+  if (id.isEmpty) return original;
+  return StationAliasService.resolveGas(id, original);
 }
 
 // ─── 유종 칩 ──────────────────────────────────────────────────────────────────
@@ -2889,8 +2893,8 @@ class _UserCompareTable extends StatelessWidget {
     final stA = stationAData['station'] is Map ? stationAData['station'] as Map<String, dynamic> : {};
     final stB = stationBData['station'] is Map ? stationBData['station'] as Map<String, dynamic> : {};
     
-    final nameA = stA['name']?.toString() ?? '';
-    final nameB = stB['name']?.toString() ?? '';
+    final nameA = _stationNameFrom(stA);
+    final nameB = _stationNameFrom(stB);
     final fuelA = _resolveFuelLabel(stA['fuel_type'], fallback: fuelLabel);
     final fuelB = _resolveFuelLabel(stB['fuel_type'], fallback: fuelLabel);
     final priceA = _d(stA['price_won_per_liter']);

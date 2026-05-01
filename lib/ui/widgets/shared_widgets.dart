@@ -9,6 +9,7 @@ import '../../core/utils/helpers.dart';
 import '../../data/models/models.dart';
 import '../../data/services/alert_service.dart';
 import '../../data/services/api_service.dart';
+import '../../data/services/station_alias_service.dart';
 import '../../providers/providers.dart';
 import '../../data/services/favorite_service.dart';
 
@@ -153,11 +154,14 @@ class GasStationCard extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    station.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                  ValueListenableBuilder<int>(
+                    valueListenable: stationAliasVersion,
+                    builder: (_, __, ___) => Text(
+                      StationAliasService.resolveGas(station.id, station.name),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                    ),
                   ),
                   const SizedBox(height: 3),
                   Text(
@@ -675,12 +679,15 @@ class EvStationCard extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(
-                              station.name,
-                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w700, height: 1.2),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            ValueListenableBuilder<int>(
+                              valueListenable: stationAliasVersion,
+                              builder: (_, __, ___) => Text(
+                                StationAliasService.resolveEv(station.statId, station.name),
+                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w700, height: 1.2),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                             const SizedBox(height: 4),
                             Row(
