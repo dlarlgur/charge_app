@@ -49,7 +49,8 @@ class GasStation {
       brand: json['POLL_DIV_CD'] ?? json['brand'] ?? '',
       address: json['NEW_ADR'] ?? json['address'] ?? '',
       price: (json['PRICE'] ?? json['price'] ?? 0).toDouble(),
-      distance: (json['DISTANCE'] ?? json['distance'] ?? 0).toDouble(),
+      // 서버 가스 around: distance_m, OPINET 무료 API 시절: DISTANCE, 기타: distance
+      distance: (json['DISTANCE'] ?? json['distance_m'] ?? json['distance'] ?? 0).toDouble(),
       lat: (json['GIS_Y_COOR'] ?? json['lat'] ?? 0).toDouble(),
       lng: (json['GIS_X_COOR'] ?? json['lng'] ?? 0).toDouble(),
       phone: json['TEL'] ?? json['phone'],
