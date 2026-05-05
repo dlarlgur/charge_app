@@ -36,12 +36,14 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
     _isFavorite = FavoriteService.isFavorite(widget.stationId, 'ev');
     _isAlarm = AlertService().isEvAlarmSubscribed(widget.stationId);
     AlertService().subsChanged.addListener(_onSubsChanged);
+    // 미리 받은 station 객체가 있으면 즉시 표시(UX 부드러움), 항상 백그라운드로 fresh fetch.
+    // 이전엔 widget.station 받으면 _loadDetail() 호출 안 해서 around list / 즐겨찾기에서
+    // 진입 시 충전기 상태가 카드 캐시 시점 그대로 stale → 사용자 보고: 갱신 안 됨.
     if (widget.station != null) {
       _station = widget.station;
       _loading = false;
-    } else {
-      _loadDetail();
     }
+    _loadDetail();
   }
 
   @override

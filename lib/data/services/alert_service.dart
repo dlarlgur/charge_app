@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/constants/api_constants.dart';
+import 'station_alias_service.dart';
 
 class AlertService {
   static final AlertService _instance = AlertService._();
@@ -159,7 +160,11 @@ class AlertService {
       // 주유소별 모든 구독 유종 표시
       final lines = <String>[];
       for (final s in stations) {
-        final name = s['name'] as String;
+        final id = (s['id'] ?? '').toString();
+        final originalName = s['name'] as String;
+        // 사용자 별칭 우선 (알림 본문과 동일 — 히스토리 일관성)
+        final name = id.isEmpty ? originalName
+            : StationAliasService.resolveGas(id, originalName);
         final prices = List<Map<String, dynamic>>.from(s['prices'] as List);
 
         final hasMin = prices.any((p) => (p['price'] as int) == minPrice);
@@ -449,9 +454,20 @@ class AlertService {
   /// ev_alarm 데이터 메시지를 파싱해서 알림 내역에 저장
   void addEvAlarmMessage(Map<String, dynamic> data) {
     try {
-      final title = data['title'] as String? ?? '⚡ 충전소 자리 변동';
+      final origTitle = data['title'] as String? ?? '⚡ 충전소 자리 변동';
       final body = data['body'] as String? ?? '';
       if (body.isEmpty) return;
+      // 사용자 별칭 우선 (알림 본문과 동일 — 히스토리 일관성).
+      // 서버 payload 의 stationName 원본을 별칭으로 치환해서 title 재구성.
+      final stationId = (data['stationId'] ?? '').toString();
+      final stationName = (data['stationName'] ?? '').toString();
+      String title = origTitle;
+      if (stationId.isNotEmpty && stationName.isNotEmpty) {
+        final alias = StationAliasService.getEv(stationId);
+        if (alias != null && alias.isNotEmpty && alias != stationName) {
+          title = origTitle.replaceFirst(stationName, alias);
+        }
+      }
       // 중복 저장 방지: 최근 1분 내 동일 body가 있으면 skip
       final msgs = receivedMessages;
       if (msgs.isNotEmpty) {
