@@ -592,7 +592,7 @@ class EvStationCard extends ConsumerWidget {
   const EvStationCard({super.key, required this.station, this.isTop = false, this.onTap});
 
   /// 사용 가능 비율 → 좌측 컬러 스트립 / 상태 배지 컬러.
-  /// 여유: 50% 이상, 혼잡: 그 외(0 포함), 회색: total 0 / 테슬라.
+  /// 자리없음(빨강): avail=0, 혼잡(주황): avail이 부족, 여유(녹색): 50% 이상.
   ({Color color, Color bg, String label}) _statusOf(BuildContext context, bool isDark) {
     if (station.isTesla) {
       return (
@@ -610,24 +610,27 @@ class EvStationCard extends ConsumerWidget {
       );
     }
     final avail = station.availableCount;
-    if (avail >= 1 && avail >= (total / 2).ceil()) {
+    // 0대 = 만석 (자리 없음, 빨강) — '혼잡' 이라고 부르지 않음
+    if (avail == 0) {
+      return (
+        color: const Color(0xFFEF4444),
+        bg: isDark ? const Color(0x1AEF4444) : const Color(0x12EF4444),
+        label: '자리 없음',
+      );
+    }
+    // 50% 이상 여유 = 녹색
+    if (avail >= (total / 2).ceil()) {
       return (
         color: AppColors.evGreen,
         bg: isDark ? AppColors.darkBadgeAvailBg : AppColors.lightBadgeAvailBg,
         label: '$avail대 여유',
       );
     }
-    if (avail >= 1) {
-      return (
-        color: const Color(0xFFF59E0B),
-        bg: isDark ? const Color(0x1AF59E0B) : const Color(0x14F59E0B),
-        label: '$avail/$total',
-      );
-    }
+    // 그 외 (1대 남음 ~ 절반 미만) = 혼잡 (주황) — 사용자 정의: 가까스로 1대만 남으면 혼잡
     return (
-      color: const Color(0xFFEF4444),
-      bg: isDark ? const Color(0x1AEF4444) : const Color(0x12EF4444),
-      label: '혼잡',
+      color: const Color(0xFFF59E0B),
+      bg: isDark ? const Color(0x1AF59E0B) : const Color(0x14F59E0B),
+      label: avail == 1 ? '혼잡 (1대)' : '$avail/$total',
     );
   }
 
