@@ -6,14 +6,17 @@ import '../../data/models/models.dart';
 import '../../providers/providers.dart';
 
 class EvFilterSheet extends ConsumerStatefulWidget {
-  const EvFilterSheet({super.key});
+  /// 홈 목록 화면은 검색 반경을 직접 지정해야 가까운 충전소 위주로 좁혀볼 수 있음.
+  /// 지도 화면은 뷰포트(확대/축소 영역) 기준이라 반경 옵션 불필요.
+  final bool showRadius;
+  const EvFilterSheet({super.key, this.showRadius = false});
 
-  static Future<void> show(BuildContext context) {
+  static Future<void> show(BuildContext context, {bool showRadius = false}) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const EvFilterSheet(),
+      builder: (_) => EvFilterSheet(showRadius: showRadius),
     );
   }
 
@@ -203,6 +206,41 @@ class _EvFilterSheetState extends ConsumerState<EvFilterSheet> {
                             () => setState(() => _options = _options.copyWith(sort: 3))),
                         ],
                       ),
+                      if (widget.showRadius) ...[
+                        const SizedBox(height: 14),
+                        _sectionHeader('반경', isDark),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [3000, 5000, 10000, 20000].map((r) {
+                            final label = r >= 1000 ? '${r ~/ 1000}km' : '${r}m';
+                            final selected = _options.radius == r;
+                            return Expanded(
+                              child: Padding(
+                                padding: EdgeInsets.only(right: r == 20000 ? 0 : 8),
+                                child: GestureDetector(
+                                  onTap: () => setState(() => _options = _options.copyWith(radius: r)),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 150),
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: selected ? accent : (isDark ? const Color(0x08FFFFFF) : const Color(0xFFF5F6F8)),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: selected ? accent : (isDark ? AppColors.darkCardBorder : const Color(0xFFDEE1E6)),
+                                        width: selected ? 0 : 0.8,
+                                      ),
+                                    ),
+                                    child: Text(label, textAlign: TextAlign.center,
+                                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
+                                        color: selected ? Colors.white
+                                          : (isDark ? AppColors.darkTextSecondary : const Color(0xFF6C757D)))),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
                       const SizedBox(height: 14),
                       _sectionHeader('이용 가능', isDark),
                       const SizedBox(height: 10),

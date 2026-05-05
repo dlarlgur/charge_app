@@ -651,7 +651,7 @@ class _GasListViewState extends ConsumerState<_GasListView> {
                   ),
                   const SizedBox(width: 8),
                   GestureDetector(
-                    onTap: () => GasFilterSheet.show(context),
+                    onTap: () => GasFilterSheet.show(context, showRadius: true),
                     child: Container(
                       height: 40,
                       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -866,7 +866,7 @@ class _EvListViewState extends ConsumerState<_EvListView> {
                   ),
                   const SizedBox(width: 8),
                   GestureDetector(
-                    onTap: () => EvFilterSheet.show(context),
+                    onTap: () => EvFilterSheet.show(context, showRadius: true),
                     child: Container(
                       height: 40,
                       padding: const EdgeInsets.symmetric(horizontal: 12),
