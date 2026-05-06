@@ -414,7 +414,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
                   filterQuality: FilterQuality.medium,
                 ),
                 const SizedBox(width: 10),
-                Text('기름반전기반', style: Theme.of(context).textTheme.headlineSmall),
+                Text('기름반 전기반', style: Theme.of(context).textTheme.headlineSmall),
                 const Spacer(),
                 Builder(builder: (_) {
                   final hasUnread = _msgCount > 0;
