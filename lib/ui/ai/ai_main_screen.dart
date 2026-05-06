@@ -1922,8 +1922,6 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final price = priceRaw is num ? priceRaw.round() : 0;
     final detourMin = altItem['detour_time_min'] is num ? (altItem['detour_time_min'] as num).round() : null;
     final detourIsNone = altItem['detour_is_none'] == true || (detourMin != null && detourMin <= 0);
-    final isCurrentlySelected = id.isNotEmpty && id == _selectedAltStationId;
-
     if (!mounted) return;
     await showModalBottomSheet(
       context: context,
@@ -1956,23 +1954,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                   '우회', detourIsNone ? '우회 없음' : (detourMin != null ? '+$detourMin분' : '—'),
                 )),
               ]),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity, height: 46,
-                child: ElevatedButton(
-                  onPressed: isCurrentlySelected ? null : () {
-                    Navigator.pop(ctx);
-                    _showAltRouteOnMap(altItem);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF7C3AED),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: Text(isCurrentlySelected ? '이미 선택된 후보' : '이걸로 선택',
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                ),
-              ),
+              // "이걸로 선택" 버튼 제거 — 마커 탭은 정보 확인 용도. 후보 변경은 결과 화면의
+              // '다른 후보 → 확인' 버튼에서.
             ],
           ),
         );
@@ -2068,6 +2051,16 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       destLng: _destLng!,
       alternatives: _lastRecAlternatives,
     );
+
+    // 사용자 의도: 다른 후보 '확인' 누르면 해당 좌표로 카메라 이동 → 보라 마커 즉시 보임.
+    if (_mapController != null) {
+      await _mapController!.updateCamera(
+        NCameraUpdate.scrollAndZoomTo(
+          target: NLatLng(stLat, stLng),
+          zoom: 14,
+        )..setAnimation(animation: NCameraAnimation.easing, duration: const Duration(milliseconds: 500)),
+      );
+    }
   }
 
   // ── 비교 카드 탭 시 해당 경유 경로 지도에 그리기 ──
