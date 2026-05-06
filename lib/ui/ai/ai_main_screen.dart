@@ -4568,37 +4568,8 @@ class _StationSelectInlineSheetState extends State<_StationSelectInlineSheet> {
                         ],
                       ),
                     ),
-                  if (!compact)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 0, 18, 8),
-                      child: Row(
-                        children: [
-                          FilterChip(
-                            selected: _highwayOnly,
-                            onSelected: (v) {
-                              setState(() => _highwayOnly = v);
-                              widget.onHighwayFilterChanged?.call(v);
-                            },
-                            label: const Text('고속도로만', style: TextStyle(fontSize: 12)),
-                            showCheckmark: false,
-                            selectedColor: const Color(0xFFE7F0FF),
-                            backgroundColor: const Color(0xFFF5F5F5),
-                            side: BorderSide(
-                              color: _highwayOnly ? const Color(0xFF1D6FE0) : const Color(0xFFE0E0E0),
-                            ),
-                            labelStyle: TextStyle(
-                              color: _highwayOnly ? const Color(0xFF1D6FE0) : const Color(0xFF666666),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _highwayOnly ? '휴게소/고속도로 후보만 표시' : '전체 후보 표시',
-                            style: const TextStyle(fontSize: 11, color: Color(0xFF999999)),
-                          ),
-                        ],
-                      ),
-                    ),
+                  // '고속도로만' 토글 제거 — AI 추천 단계에서 이미 highway_only 필터 적용된 결과가
+                  // 들어오므로 직접선택 화면에서 다시 토글하는 건 중복 UI. 사용자 의도 그대로.
                   const Divider(height: 1),
                 ],
               ),
