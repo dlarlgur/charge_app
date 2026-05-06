@@ -408,7 +408,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
             child: Row(
               children: [
                 Image.asset(
-                  'assets/logo_circles.png',
+                  'assets/halfNhalf.png',
                   width: 32,
                   height: 32,
                   filterQuality: FilterQuality.medium,

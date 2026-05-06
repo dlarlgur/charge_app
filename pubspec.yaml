@@ -81,17 +81,19 @@ dev_dependencies:
 flutter_native_splash:
   color: "#FFFFFF"
   color_dark: "#0C0E13"
-  image: "assets/halfNhalf.png"
+  # 70% 축소 padding 적용본 — 시스템이 splash 화면에 더 작고 안정적으로 표시되도록
+  image: "assets/halfNhalf_launcher.png"
   android: true
   ios: true
 
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/halfNhalf.png"
+  # adaptive icon 의 원형 마스크 안으로 들어가도록 70% padding 적용본 사용
+  image_path: "assets/halfNhalf_launcher.png"
   min_sdk_android: 21
   adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: "assets/halfNhalf.png"
+  adaptive_icon_foreground: "assets/halfNhalf_launcher.png"
   remove_alpha_ios: true
 
 flutter:
