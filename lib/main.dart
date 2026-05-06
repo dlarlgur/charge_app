@@ -70,8 +70,20 @@ Future<void> _saveGasPriceToHive(Map<String, dynamic> data) async {
     final stations =
         List<Map<String, dynamic>>.from(jsonDecode(raw as String));
     if (stations.isEmpty) return;
+    // 별칭 lookup (background isolate) — 가스 알람 히스토리에도 별칭 표시.
+    Box? aliasBox;
+    try {
+      aliasBox = Hive.isBoxOpen('station_aliases')
+          ? Hive.box('station_aliases')
+          : await Hive.openBox('station_aliases');
+    } catch (_) {}
     final body = stations.map((s) {
-      final name = s['name'] as String;
+      final id = (s['id'] ?? '').toString().trim();
+      final originalName = s['name'] as String;
+      final alias = (id.isNotEmpty && aliasBox != null)
+          ? (aliasBox.get('gas_$id') as String?)?.trim()
+          : null;
+      final name = (alias != null && alias.isNotEmpty) ? alias : originalName;
       final price = s['price'] as int;
       final priceStr = price
           .toString()
@@ -156,9 +168,32 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 Future<void> _saveEvAlarmToHive(dynamic box, Map<String, dynamic> data) async {
   try {
-    final title = data['title'] as String? ?? '⚡ 충전소 자리 변동';
+    final origTitle = data['title'] as String? ?? '⚡ 충전소 자리 변동';
     final body = data['body'] as String? ?? '';
     if (body.isEmpty) return;
+
+    // 별칭 lookup (background isolate) — station_aliases 박스를 직접 열어 별칭 치환.
+    // 이 함수가 호출되는 isolate 에서 박스가 열려있는지 보장 안 되므로 명시적으로 open.
+    String title = origTitle;
+    try {
+      final stationId = (data['stationId'] ?? '').toString().trim();
+      final stationName = (data['stationName'] ?? '').toString().trim();
+      if (stationId.isNotEmpty) {
+        final aliasBox = Hive.isBoxOpen('station_aliases')
+            ? Hive.box('station_aliases')
+            : await Hive.openBox('station_aliases');
+        final alias = (aliasBox.get('ev_$stationId') as String?)?.trim();
+        if (alias != null && alias.isNotEmpty) {
+          // origTitle 의 stationName 부분을 alias 로 치환. 매칭 실패 시 ⚡ 접두 유지하고 alias 만 박음.
+          if (stationName.isNotEmpty && origTitle.contains(stationName)) {
+            title = origTitle.replaceFirst(stationName, alias);
+          } else {
+            title = '⚡ $alias';
+          }
+        }
+      }
+    } catch (_) {}
+
     final msgs = List<Map<String, dynamic>>.from(
       ((box.get('push_messages', defaultValue: <dynamic>[]) as List)
           .map((e) => Map<String, dynamic>.from(e as Map))),
