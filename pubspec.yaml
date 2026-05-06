@@ -81,17 +81,17 @@ dev_dependencies:
 flutter_native_splash:
   color: "#FFFFFF"
   color_dark: "#0C0E13"
-  image: "assets/logo_circles.png"
+  image: "assets/halfNhalf.png"
   android: true
   ios: true
 
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/logo_circles.png"
+  image_path: "assets/halfNhalf.png"
   min_sdk_android: 21
   adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: "assets/logo_circles_adaptive.png"
+  adaptive_icon_foreground: "assets/halfNhalf.png"
   remove_alpha_ios: true
 
 flutter:
