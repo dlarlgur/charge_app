@@ -18,9 +18,22 @@ class GasStationMapBadge {
   /// 고속도로 휴게소 EX(한국도로공사서비스) 로고.
   static const String _highwayLogo = 'assets/logo/oil/ex_log.png';
 
-  /// 주유소 이름에 '휴게소' 포함 시 EX 로고 우선, 그 외는 brand 매핑.
+  /// 고속도로 휴게소 식별 패턴 — BrandLogo.isHighwayRestArea 와 동일.
+  static final RegExp _highwayCityLabelRe = RegExp(
+    r'\((?:서울|부산|인천|대구|광주|대전|울산|세종|일산|하남|양평|춘천|강릉|속초|삼척|영덕|포항|서부산|창원|통영|함양|광양|순천|장수|전주|완주|익산|목포|영암|무안|논산|당진|서천|천안|공주|청주|제천|남이|평택|양양|경산)(?:방향)?\)',
+  );
+  static final RegExp _updownRe = RegExp(r'\((?:상|하)\)');
+
+  static bool _isHighwayRestArea(String? name) {
+    if (name == null) return false;
+    if (name.contains('휴게소')) return true;
+    if (_highwayCityLabelRe.hasMatch(name)) return true;
+    return _updownRe.hasMatch(name);
+  }
+
+  /// 휴게소(이름 패턴 매칭) → EX 로고, 그 외 → brand 매핑.
   static String? logoFor({String? brand, String? stationName}) {
-    if (stationName != null && stationName.contains('휴게소')) {
+    if (_isHighwayRestArea(stationName)) {
       return _highwayLogo;
     }
     if (brand != null && brand.isNotEmpty) return brandLogos[brand];

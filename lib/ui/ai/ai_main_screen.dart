@@ -1377,6 +1377,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           ? '${_wonFmt.format(stPrice)}원'
           : stName;
       const c = Color(0xFF1D6FE0);
+      // 사용자가 대안 선택 시 primary 마커를 보라색으로 (선택 강조)
+      final isAltSelected = _selectedAltStationId != null && _selectedAltStationId!.isNotEmpty;
+      const _kSelectedPurple = Color(0xFF7C3AED);
+      final markerColor = isAltSelected ? _kSelectedPurple : c;
       final stMarker = NMarker(
         id: 'result_station',
         position: NLatLng(stLat, stLng),
@@ -1385,8 +1389,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           label: stLabel,
           brand: stBrand,
           stationName: stName,
-          borderColor: c,
-          textColor: c,
+          borderColor: markerColor,
+          textColor: markerColor,
           emphasizeBorder: true,
         ),
         anchor: const NPoint(0.5, 1.0),
