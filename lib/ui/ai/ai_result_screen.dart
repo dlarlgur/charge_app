@@ -1512,7 +1512,7 @@ class _ComparisonTable extends StatelessWidget {
 
           // 추가 시간
           _TableRow(
-            label: '추가 시간',
+            label: '우회 시간',
             left: null,
             mid: hasOnRoute ? onRouteDetourLabel : '—',
             right: hasDetourCol ? (detourDetourLabel.trim().isEmpty ? '—' : detourDetourLabel) : '—',
@@ -2771,7 +2771,7 @@ class _CompareCard extends StatelessWidget {
                 _StatItem(label: '예상 주유비', value: '${wonFmt.format(cost)}원', color: accentColor),
                 Container(width: 1, height: 28, color: const Color(0xFFEEEEEE)),
                 _StatItem(
-                  label: '추가 시간',
+                  label: '우회 시간',
                   value: detourMin != null
                       ? (detourMin < _kDetourStartMinutes ? '거의 없음' : '약 ${detourMin}분')
                       : (totalMin != null ? '전체 ${totalMin}분' : '-'),
@@ -3386,7 +3386,7 @@ class _UserComparisonTable extends StatelessWidget {
 
           // 추가 시간
           _TableRow(
-            label: '추가 시간',
+            label: '우회 시간',
             left: null,
             mid: _detourLabel(detourMinA),
             right: _detourLabel(detourMinB),
