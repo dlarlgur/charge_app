@@ -18,6 +18,7 @@ import '../../data/models/models.dart';
 import '../../data/services/alert_service.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/notification_service.dart';
+import '../../data/services/station_alias_service.dart';
 import '../../data/services/watch_service.dart';
 import '../../data/services/location_service.dart';
 import '../../providers/providers.dart';
@@ -112,6 +113,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   List<Map<String, dynamic>>? _selectableStations;
   bool _highwayFilterActive = false;
   String? _selectedStationAId;
+  /// AI 결과 화면에서 사용자가 다른 후보를 선택한 경우 그 stationId.
+  /// _drawResultOnMap 가 alternative 마커 그릴 때 이 id 와 일치하면 보라색 강조.
+  String? _selectedAltStationId;
   String? _selectedStationBId;
   bool _isCompareResultMode = false;
   bool _isEvResultMode = false;
@@ -1420,7 +1424,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     );
     await _mapController!.addOverlay(destMarker);
 
-    // 대안 후보 마커 (회색) — primary/secondary 위치와 겹치면 스킵
+    // 대안 후보 마커 — 선택된 stationId 면 보라색 강조, 아니면 회색.
+    // 마커 탭 시 미니 sheet 표시 (이름·가격·우회·"이걸로 선택" 버튼).
+    const _kSelectedPurple = Color(0xFF7C3AED);  // 보라 강조 (사용자 선택 표시)
     final altLats = <double>[];
     final altLngs = <double>[];
     if (alternatives != null) {
@@ -1432,6 +1438,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         final altLat = altSt['lat'] is num ? (altSt['lat'] as num).toDouble() : null;
         final altLng = altSt['lng'] is num ? (altSt['lng'] as num).toDouble() : null;
         if (altLat == null || altLng == null) { altIdx++; continue; }
+        final altStationId = (altSt['id'] ?? '').toString();
         final isNearPrimary = stLat != null && stLng != null &&
             (stLat - altLat).abs() < 0.0002 && (stLng - altLng).abs() < 0.0002;
         final isNearSecondary = st2Lat != null && st2Lng != null &&
@@ -1440,8 +1447,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           final altPriceRaw = altSt['price_won_per_liter'];
           final altPriceVal = altPriceRaw is num ? altPriceRaw.round() : null;
           final altLabel = altPriceVal != null ? '${_wonFmt.format(altPriceVal)}원' : '후보${altIdx + 1}';
-          const altBorder = Color(0xFFDDDDDD);
-          const altText = Color(0xFF1a1a1a);
+          final isSelected = altStationId.isNotEmpty && altStationId == _selectedAltStationId;
+          final altBorder = isSelected ? _kSelectedPurple : const Color(0xFFDDDDDD);
+          final altText = isSelected ? _kSelectedPurple : const Color(0xFF1a1a1a);
           final altMarker = NMarker(
             id: 'result_alt_$altIdx',
             position: NLatLng(altLat, altLng),
@@ -1451,10 +1459,16 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
               brand: altSt['brand']?.toString(),
               borderColor: altBorder,
               textColor: altText,
-              emphasizeBorder: false,
+              emphasizeBorder: isSelected,
             ),
             anchor: const NPoint(0.5, 1.0),
           );
+          // 마커 탭 → 이 후보의 미니 카드 sheet
+          final captured = Map<String, dynamic>.from(alt);
+          altMarker.setOnTapListener((_) async {
+            if (!mounted) return;
+            await _showStationMiniSheet(captured);
+          });
           await _mapController!.addOverlay(altMarker);
           altLats.add(altLat);
           altLngs.add(altLng);
@@ -1895,6 +1909,86 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     apply(serverPts, serverSeg);
   }
 
+  /// 지도 마커 탭 시 표시되는 미니 카드 sheet — 이름·주소·가격·우회 정보 +
+  /// "이걸로 선택" 버튼 (선택 시 _showAltRouteOnMap 호출 → 보라색 강조 + 결과 카드 갱신).
+  Future<void> _showStationMiniSheet(Map<String, dynamic> altItem) async {
+    final st = altItem['station'] is Map ? Map<String, dynamic>.from(altItem['station'] as Map) : null;
+    if (st == null) return;
+    final id = (st['id'] ?? '').toString();
+    final origName = (st['name'] ?? '').toString();
+    final name = id.isEmpty ? origName : StationAliasService.resolveGas(id, origName);
+    final addr = (st['address'] ?? '').toString();
+    final priceRaw = st['price_won_per_liter'];
+    final price = priceRaw is num ? priceRaw.round() : 0;
+    final detourMin = altItem['detour_time_min'] is num ? (altItem['detour_time_min'] as num).round() : null;
+    final detourIsNone = altItem['detour_is_none'] == true || (detourMin != null && detourMin <= 0);
+    final isCurrentlySelected = id.isNotEmpty && id == _selectedAltStationId;
+
+    if (!mounted) return;
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(ctx).padding.bottom + 20),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(child: Container(
+                width: 36, height: 4,
+                decoration: BoxDecoration(color: const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(2)),
+              )),
+              const SizedBox(height: 14),
+              Text(name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              if (addr.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(addr, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+              ],
+              const SizedBox(height: 14),
+              Row(children: [
+                Expanded(child: _miniSheetMetric('리터당', '${_wonFmt.format(price)}원')),
+                Expanded(child: _miniSheetMetric(
+                  '우회', detourIsNone ? '우회 없음' : (detourMin != null ? '+$detourMin분' : '—'),
+                )),
+              ]),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity, height: 46,
+                child: ElevatedButton(
+                  onPressed: isCurrentlySelected ? null : () {
+                    Navigator.pop(ctx);
+                    _showAltRouteOnMap(altItem);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF7C3AED),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text(isCurrentlySelected ? '이미 선택된 후보' : '이걸로 선택',
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _miniSheetMetric(String label, String value) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+      const SizedBox(height: 2),
+      Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+    ],
+  );
+
   // ── 다른 후보 경로보기 ──
   Future<void> _showAltRouteOnMap(Map<String, dynamic> altItem) async {
     if (_destLat == null || _destLng == null) return;
@@ -1953,6 +2047,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       } catch (_) {}
     }
 
+    // 다른 후보로 선택 → 해당 station id 보라색 강조
+    _selectedAltStationId = (st['id'] ?? '').toString();
     _drawResultOnMap(
       pathPoints: pathPoints,
       pathSegments: pathSegments,
@@ -2548,6 +2644,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   // ── AI 추천 경로로 복원 ──
   void _resetToAiRec() {
     if (_destLat == null || _destLng == null) return;
+    _selectedAltStationId = null;  // 선택 초기화 → 모든 alt 마커 회색 복귀
     _drawResultOnMap(
       pathPoints: _lastRecPathPoints,
       pathSegments: _lastRecSegments,

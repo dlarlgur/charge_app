@@ -60,9 +60,19 @@ class BrandLogo extends StatelessWidget {
   static String assetName(String brand) =>
       _validBrands.contains(brand) ? brand : 'ETC';
 
-  /// 주유소가 고속도로 휴게소 소속인지 — 이름에 '휴게소' 포함하면 true.
-  static bool isHighwayRestArea(String? name) =>
-      name != null && name.contains('휴게소');
+  /// 주유소가 고속도로 휴게소 소속인지 판정.
+  /// OPINET osNm 표기 패턴 두 가지:
+  ///   1) "신탄진(서울)휴게소" — '휴게소' 글자 포함
+  ///   2) "안성(서울)주유소/충전소", "망향(부산)주유소" — 도시 라벨만 있고 '휴게소' 글자 없음
+  /// 두 케이스 모두 EX(한국도로공사서비스) 로고 표시 대상.
+  static final RegExp _highwayCityLabelRe = RegExp(
+    r'\((?:서울|부산|인천|대구|광주|대전|울산|세종|일산|하남|양평|춘천|강릉|속초|삼척|영덕|포항|서부산|창원|통영|함양|광양|순천|장수|전주|완주|익산|목포|영암|무안|논산|당진|서천|천안|공주|청주|제천|남이|평택|양양|경산)(?:방향)?\)',
+  );
+  static bool isHighwayRestArea(String? name) {
+    if (name == null) return false;
+    if (name.contains('휴게소')) return true;
+    return _highwayCityLabelRe.hasMatch(name);
+  }
 
   /// 주어진 브랜드/이름 조합에 해당하는 진짜 로고 자산 경로.
   /// 없으면 null (텍스트 타일 폴백).
