@@ -756,6 +756,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     _lastStartLng = startLng;
     _lastPathPoints = pathPoints;
     _lastPathSegments = pathSegments;
+    _selectedAltStationId = null; // 새 경로 그릴 때 이전 선택 초기화
 
     _drawResultOnMap(
       pathPoints: pathPoints,
@@ -1059,6 +1060,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         _lastRecStBrand = detourSt?['brand']?.toString();
         _lastRecSt2Brand = onRouteSt?['brand']?.toString();
         _lastRecAlternatives = recAlts;
+        _selectedAltStationId = null; // 새 분석 결과 그릴 때 이전 선택 초기화
 
         _drawResultOnMap(
           pathPoints: viaPathPoints,
@@ -1990,6 +1992,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     if (stLat == null || stLng == null) return;
     final stName = st['name']?.toString() ?? '';
     final priceL = st['price_won_per_liter'] is num ? (st['price_won_per_liter'] as num).round() : 0;
+    // 보라색 강조용 stationId — _drawResultOnMap 안 (await chain) 내부에서 사용되므로
+    // 가장 빨리 설정. await 후 set 하면 그 사이 다른 redraw 가 끼어들면 blue 로 그려진다.
+    _selectedAltStationId = (st['id'] ?? '').toString();
 
     var pathPoints = _lastPathPoints;
     List<Map<String, dynamic>>? pathSegments;
@@ -2037,8 +2042,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       } catch (_) {}
     }
 
-    // 다른 후보로 선택 → 해당 station id 보라색 강조
-    _selectedAltStationId = (st['id'] ?? '').toString();
+    // 다른 후보로 선택 → 해당 station id 보라색 강조 (이미 함수 시작 시 설정함)
     _drawResultOnMap(
       pathPoints: pathPoints,
       pathSegments: pathSegments,
