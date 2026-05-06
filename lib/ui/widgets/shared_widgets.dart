@@ -68,10 +68,13 @@ class BrandLogo extends StatelessWidget {
   static final RegExp _highwayCityLabelRe = RegExp(
     r'\((?:서울|부산|인천|대구|광주|대전|울산|세종|일산|하남|양평|춘천|강릉|속초|삼척|영덕|포항|서부산|창원|통영|함양|광양|순천|장수|전주|완주|익산|목포|영암|무안|논산|당진|서천|천안|공주|청주|제천|남이|평택|양양|경산)(?:방향)?\)',
   );
+  /// 한국 고속도로 휴게소 상행/하행 표기 — "서창산업㈜죽전(상)주유소", "(주)괴산(상)주유소" 등.
+  static final RegExp _updownRe = RegExp(r'\((?:상|하)\)');
   static bool isHighwayRestArea(String? name) {
     if (name == null) return false;
     if (name.contains('휴게소')) return true;
-    return _highwayCityLabelRe.hasMatch(name);
+    if (_highwayCityLabelRe.hasMatch(name)) return true;
+    return _updownRe.hasMatch(name);
   }
 
   /// 주어진 브랜드/이름 조합에 해당하는 진짜 로고 자산 경로.
