@@ -1621,7 +1621,8 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
         statusColor = AppColors.statusCharging;
         statusText = '충전중';
         final startDt = charger.chargingStarted ?? charger.lastStatusUpdate;
-        subText = startDt != null ? _chargingElapsed(startDt) : null;
+        final avgMin = (_analytics?['avgSessionMin'] as int?) ?? 0;
+        subText = startDt != null ? _chargingElapsedWithMarker(startDt, avgMin) : null;
         subTextColor = AppColors.statusCharging;
         break;
       case ChargerStatus.unknown:
@@ -1829,6 +1830,18 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
     final h = diff.inHours;
     final m = diff.inMinutes % 60;
     return m > 0 ? '$h시간 ${m}분 충전중' : '$h시간 충전중';
+  }
+
+  String _chargingElapsedWithMarker(DateTime startDt, int avgMin) {
+    final base = _chargingElapsed(startDt);
+    if (avgMin < 5) return base;
+    final elapsedMin = DateTime.now().difference(startDt).inMinutes;
+    // 임계 0.8 / 2.0 — charge_server services/evAnalyticsQuery.js buildSoonAvailCard 와 동기화 필수
+    // 평균의 80% ~ 200% 사이면 곧 빌 가능 (stuck 세션 추정 케이스 제외)
+    if (elapsedMin >= avgMin * 0.8 && elapsedMin < avgMin * 2) {
+      return '$base · 곧 빌 가능';
+    }
+    return base;
   }
 }
 
