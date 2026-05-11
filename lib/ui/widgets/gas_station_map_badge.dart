@@ -48,6 +48,10 @@ class GasStationMapBadge {
     await precacheImage(const AssetImage(_highwayLogo), context);
   }
 
+  /// 잔량 부족 마커 — 옅은 빨강 배경 + 진한 빨강 border + ⚠ 아이콘.
+  static const Color _unreachableBg = Color(0xFFFFECEC);
+  static const Color _unreachableAccent = Color(0xFFD32F2F);
+
   static Future<NOverlayImage> overlayImage(
     BuildContext context, {
     required String label,
@@ -57,22 +61,31 @@ class GasStationMapBadge {
     required Color borderColor,
     required Color textColor,
     bool emphasizeBorder = false,
+    bool unreachable = false,
   }) {
     final String? logoAsset = logoFor(brand: brand, stationName: stationName);
     final bool showLogo = logoAsset != null;
     const double logoSize = 20.0;
     const double logoGap = 4.0;
-    final bool highlighted = emphasizeBorder;
+    // 잔량 부족 마커 — 색만 빨강 톤으로 강제 오버라이드. emphasize 도 자동 true (border 굵게).
+    final Color effectiveBorder = unreachable ? _unreachableAccent : borderColor;
+    final Color effectiveText = unreachable ? _unreachableAccent : textColor;
+    final Color bgColor = unreachable ? _unreachableBg : Colors.white;
+    final bool highlighted = emphasizeBorder || unreachable;
     final double fontSize = highlighted ? 12.0 : 11.0;
     final double textW = label.length * (highlighted ? 8.5 : 7.5);
+    const double warningSize = 14.0;
+    const double warningGap = 3.0;
     final double contentW =
-        (showLogo ? logoSize + logoGap : (isEv ? 14.0 + logoGap : 0.0)) + textW;
+        (showLogo ? logoSize + logoGap : (isEv ? 14.0 + logoGap : 0.0))
+        + (unreachable ? warningSize + warningGap : 0.0)
+        + textW;
     final double w = contentW + 18.0;
     final double h = highlighted ? 30.0 : 26.0;
 
     const double tailW = 12.0;
     const double tailH = 10.0;
-    final double borderWidth = emphasizeBorder ? 2.0 : 1.0;
+    final double borderWidth = highlighted ? 2.0 : 1.0;
 
     return NOverlayImage.fromWidget(
       widget: Column(
@@ -83,7 +96,7 @@ class GasStationMapBadge {
             width: w,
             height: h,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: bgColor,
               borderRadius: BorderRadius.circular(h / 2),
               boxShadow: [
                 BoxShadow(
@@ -93,7 +106,7 @@ class GasStationMapBadge {
                 ),
               ],
               border: Border.all(
-                color: borderColor,
+                color: effectiveBorder,
                 width: borderWidth,
               ),
             ),
@@ -124,10 +137,15 @@ class GasStationMapBadge {
                   const Icon(Icons.bolt_rounded, size: 14, color: Color(0xFF22C55E)),
                   const SizedBox(width: logoGap),
                 ],
+                if (unreachable) ...[
+                  const Icon(Icons.warning_amber_rounded,
+                      size: warningSize, color: _unreachableAccent),
+                  const SizedBox(width: warningGap),
+                ],
                 Text(
                   label,
                   style: TextStyle(
-                    color: textColor,
+                    color: effectiveText,
                     fontSize: fontSize,
                     fontWeight: FontWeight.w800,
                     height: 1,
@@ -138,7 +156,7 @@ class GasStationMapBadge {
           ),
           CustomPaint(
             size: const Size(tailW, tailH),
-            painter: _GasBadgeTailPainter(borderColor, borderWidth),
+            painter: _GasBadgeTailPainter(effectiveBorder, borderWidth, bgColor),
           ),
         ],
       ),
@@ -149,21 +167,22 @@ class GasStationMapBadge {
 }
 
 class _GasBadgeTailPainter extends CustomPainter {
-  _GasBadgeTailPainter(this.borderColor, this.borderWidth);
+  _GasBadgeTailPainter(this.borderColor, this.borderWidth, [this.bgColor = Colors.white]);
   final Color borderColor;
   final double borderWidth;
+  final Color bgColor;
 
   @override
   void paint(Canvas canvas, Size size) {
     final cx = size.width / 2;
 
-    // 흰 배경 삼각형 (뱃지와 동일한 흰 배경)
+    // 배경 삼각형 — 뱃지 캡슐과 동일 색 (잔량 부족 마커는 옅은 빨강).
     final fillPath = Path()
       ..moveTo(cx, size.height)
       ..lineTo(0, 0)
       ..lineTo(size.width, 0)
       ..close();
-    canvas.drawPath(fillPath, Paint()..color = Colors.white);
+    canvas.drawPath(fillPath, Paint()..color = bgColor);
 
     // 테두리: 좌·우 두 사선만 (상단 edge는 뱃지 하단 border와 겹치므로 생략)
     final borderPaint = Paint()
@@ -180,5 +199,5 @@ class _GasBadgeTailPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _GasBadgeTailPainter old) =>
-      old.borderColor != borderColor || old.borderWidth != borderWidth;
+      old.borderColor != borderColor || old.borderWidth != borderWidth || old.bgColor != bgColor;
 }

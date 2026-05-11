@@ -1456,6 +1456,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           final altPriceVal = altPriceRaw is num ? altPriceRaw.round() : null;
           final altLabel = altPriceVal != null ? '${_wonFmt.format(altPriceVal)}원' : '후보${altIdx + 1}';
           final isSelected = altStationId.isNotEmpty && altStationId == _selectedAltStationId;
+          // 서버가 잔량 부족 후보로 표시한 휴게소 — 마커도 빨강 톤 + ⚠ 로 명확히 구분.
+          final isUnreachable = alt['unreachable'] == true;
           final altBorder = isSelected ? _kSelectedPurple : const Color(0xFFDDDDDD);
           final altText = isSelected ? _kSelectedPurple : const Color(0xFF1a1a1a);
           final altMarker = NMarker(
@@ -1469,6 +1471,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
               borderColor: altBorder,
               textColor: altText,
               emphasizeBorder: isSelected,
+              unreachable: isUnreachable,
             ),
             anchor: const NPoint(0.5, 1.0),
           );

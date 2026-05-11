@@ -11,6 +11,27 @@ const _kPrimary = Color(0xFF1D9E75);
 const _kPrimaryLight = Color(0xFFE1F5EE);
 const _kSelected = Color(0xFF7B61FF);
 const _kSelectedLight = Color(0xFFF5F2FF);
+// 다른 후보 섹션 — 추천(주황) 카드와 시각적으로 구분되는 옅은 보라 톤.
+const _kAltBg = Color(0xFFF7F4FF);          // 카드 컨테이너 배경
+const _kAltBorder = Color(0xFFE3DBF7);      // 카드 컨테이너 border
+const _kAltBadgeBg = Color(0xFFEDE7FF);     // 일반 alt 번호 배지 배경
+const _kAltBadgeText = Color(0xFF7B61FF);   // 일반 alt 번호 배지 글자
+// 잔량 부족 강조 — 한눈에 띄는 빨강 톤.
+const _kUnreachableBg = Color(0xFFFFECEC);     // row 배경 (옅은 빨강)
+const _kUnreachableChipBg = Color(0xFFFFD0D0); // 칩/배지 배경
+const _kUnreachableAccent = Color(0xFFD32F2F); // 진한 빨강 (아이콘·텍스트)
+
+/// CommonMark의 right-flanking 규칙상 `**X**` 의 닫는 `**` 뒤에 한글 음절이 오면
+/// emphasis 종료를 인식하지 못해 raw 마커가 그대로 노출된다 (예: `**22%**로`).
+/// 시각적 영향이 없는 ZWSP(U+200B)를 끼워 word boundary 역할을 부여 → flutter_markdown 이 정상 파싱.
+/// (직접 `**` 를 파싱하는 게 아니라 라이브러리가 인식할 수 있게 입력만 정규화.)
+String _normalizeMarkdownForKorean(String src) {
+  final zwsp = String.fromCharCode(0x200B);
+  return src.replaceAllMapped(
+    RegExp(r'(\*\*[^\n*][^\n*]*?\*\*)(?=[가-힣])'),
+    (m) => '${m.group(1)!}$zwsp',
+  );
+}
 // 통일된 색상 체계
 const _kMarkerRecommend = Color(0xFFE8700A);  // 추천 (주황)
 const _kMarkerRecommendLight = Color(0xFFFFF3E0);  // 추천 배경 (연한 주황)
@@ -779,7 +800,7 @@ class _AiMessageBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final normalized = message.replaceAll(r'\n', '\n');
+    final normalized = _normalizeMarkdownForKorean(message.replaceAll(r'\n', '\n'));
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -2154,9 +2175,11 @@ class _AltSection extends StatelessWidget {
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
+            color: _kAltBg,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFEEEEEE)),
+            border: Border.all(color: _kAltBorder),
           ),
+          clipBehavior: Clip.antiAlias,
           child: Column(
             children: List.generate(valid.length, (idx) {
               final item = valid[idx];
@@ -2187,12 +2210,12 @@ class _AltSection extends StatelessWidget {
               return Column(
                 children: [
                   Container(
-                    color: isUnreachable ? const Color(0xFFFFF7EC) : null,
+                    color: isUnreachable ? _kUnreachableBg : null,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       child: Row(
                         children: [
-                          // 번호 뱃지 (선택 → 체크, 도달불가 → ⚠, 그 외 → 번호)
+                          // 번호 뱃지 (선택 → 체크, 도달불가 → ⚠, 그 외 → 번호 보라톤)
                           Container(
                             width: 22, height: 22,
                             decoration: BoxDecoration(
@@ -2200,19 +2223,19 @@ class _AltSection extends StatelessWidget {
                               color: isSelected
                                   ? _kSelected
                                   : isUnreachable
-                                      ? const Color(0xFFFFE0B2)
-                                      : const Color(0xFFF0F0F0),
+                                      ? _kUnreachableChipBg
+                                      : _kAltBadgeBg,
                             ),
                             child: Center(
                               child: isSelected
                                   ? const Icon(Icons.check, size: 13, color: Colors.white)
                                   : isUnreachable
                                       ? const Icon(Icons.warning_amber_rounded,
-                                          size: 14, color: Color(0xFFB8651B))
+                                          size: 14, color: _kUnreachableAccent)
                                       : Text('${idx + 1}',
                                           style: const TextStyle(
-                                              fontSize: 11, fontWeight: FontWeight.w600,
-                                              color: Color(0xFF888888))),
+                                              fontSize: 11, fontWeight: FontWeight.w700,
+                                              color: _kAltBadgeText)),
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -2233,23 +2256,32 @@ class _AltSection extends StatelessWidget {
                                               color: isSelected
                                                   ? _kSelected
                                                   : isUnreachable
-                                                      ? const Color(0xFF8B6F47)
+                                                      ? _kUnreachableAccent
                                                       : const Color(0xFF1a1a1a))),
                                     ),
                                     if (isUnreachable) ...[
                                       const SizedBox(width: 6),
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFFFFE0B2),
+                                          color: _kUnreachableChipBg,
                                           borderRadius: BorderRadius.circular(4),
+                                          border: Border.all(color: _kUnreachableAccent.withValues(alpha: 0.35), width: 0.5),
                                         ),
-                                        child: const Text('잔량 부족',
-                                            style: TextStyle(
-                                              fontSize: 9,
-                                              fontWeight: FontWeight.w700,
-                                              color: Color(0xFFB8651B),
-                                            )),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.warning_amber_rounded,
+                                                size: 10, color: _kUnreachableAccent),
+                                            SizedBox(width: 3),
+                                            Text('잔량 부족',
+                                                style: TextStyle(
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: _kUnreachableAccent,
+                                                )),
+                                          ],
+                                        ),
                                       ),
                                     ],
                                   ],
@@ -2273,14 +2305,14 @@ class _AltSection extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 6),
-                          // 절약 금액 (도달불가면 안내 텍스트로 대체 — 절약액 의미 없음)
+                          // 절약 금액 (도달불가면 빨간 강조 안내)
                           isUnreachable
                               ? const Text(
                                   '도달 어려움',
                                   style: TextStyle(
                                     fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFFB8651B),
+                                    fontWeight: FontWeight.w800,
+                                    color: _kUnreachableAccent,
                                   ),
                                 )
                               : Text(
@@ -2296,26 +2328,25 @@ class _AltSection extends StatelessWidget {
                                   ),
                                 ),
                           const SizedBox(width: 8),
-                          // 확인 버튼 (선택됐으면 "선택됨")
+                          // 확인 버튼 — alt 섹션 톤(보라)으로 통일. 선택 상태는 강조 보라.
                           GestureDetector(
                             onTap: () => onSelect?.call(isSelected ? null : item),
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
-                                color: isSelected
-                                    ? _kSelectedLight
-                                    : const Color(0xFFEEF4FF),
+                                color: isSelected ? _kSelectedLight : _kAltBadgeBg,
                                 borderRadius: BorderRadius.circular(8),
-                                border: isSelected
-                                    ? Border.all(color: _kSelected, width: 1)
-                                    : null,
+                                border: Border.all(
+                                  color: isSelected ? _kSelected : _kAltBorder,
+                                  width: isSelected ? 1 : 0.5,
+                                ),
                               ),
                               child: Text(
                                 isSelected ? '선택됨' : '확인',
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: isSelected ? _kSelected : const Color(0xFF1D6FE0),
+                                  fontWeight: FontWeight.w700,
+                                  color: _kSelected,
                                 ),
                               ),
                             ),
@@ -2324,7 +2355,7 @@ class _AltSection extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (!isLast) const Divider(height: 1, color: Color(0xFFF0F0F0)),
+                  if (!isLast) Divider(height: 1, color: _kAltBorder),
                 ],
               );
             }),
@@ -2592,7 +2623,7 @@ class _CompareMessageBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final normalized = message.replaceAll(r'\n', '\n');
+    final normalized = _normalizeMarkdownForKorean(message.replaceAll(r'\n', '\n'));
 
     return Container(
       padding: const EdgeInsets.all(14),
