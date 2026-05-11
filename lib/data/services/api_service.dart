@@ -115,6 +115,20 @@ class ApiService {
     return Map<String, dynamic>.from(res.data['data'] ?? {});
   }
 
+  /// 가격 추이 — period: '1w' | '4w' | '3m' | '1y'. 1y 는 서버에서 주 단위 down-sample.
+  /// 응답: { period, fuels: [...], points: [{date: 'YYYYMMDD', prices: {B027:1700, ...}}], count }
+  Future<Map<String, dynamic>> getGasPriceHistory(
+    String id, {
+    String period = '4w',
+    List<String> fuels = const ['B027', 'D047', 'B034'],
+  }) async {
+    final res = await _dio.get(
+      '${ApiConstants.gasDetail}/$id/price-history',
+      queryParameters: {'period': period, 'fuels': fuels.join(',')},
+    );
+    return Map<String, dynamic>.from(res.data['data'] ?? {});
+  }
+
   /// 전국 평균 + (위치 기반) 시도 평균 둘 다 응답.
   /// 반환 키: 'data' (레거시 = 전국), 'national', 'local' (시도 매핑 성공 시).
   Future<Map<String, dynamic>> getGasAvgPrice({double? lat, double? lng}) async {
