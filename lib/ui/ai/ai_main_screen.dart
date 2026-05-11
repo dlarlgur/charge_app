@@ -3823,9 +3823,17 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                         highwayOnly: isEvVehicle ? _evHighwayOnly : _gasHighwayOnly,
                         chargerMode: isEvVehicle ? _evChargerType : null,
                         onTapLevel: () => _showLevelEditSheet(isEv: isEvVehicle),
+                        // 편집 아이콘 → 현재 차량 setup(편집) 화면 직접 진입.
+                        // 차량 미등록(selectedVehicle==null) 시에만 신규 추가 모드로.
                         onTapVehicle: () async {
-                          await Navigator.push(context,
-                              MaterialPageRoute(builder: (_) => const AiVehicleListScreen()));
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => selectedVehicle != null
+                                  ? AiVehicleSetupScreen(editVehicleId: selectedVehicle!.id)
+                                  : const AiVehicleSetupScreen(),
+                            ),
+                          );
                           if (mounted) setState(() {});
                         },
                         onToggleHighway: () => setState(() {
