@@ -8,10 +8,12 @@ import '../../core/constants/api_constants.dart';
 import '../../data/models/models.dart';
 import '../../providers/providers.dart';
 
-const _kPrimary = Color(0xFF1D9E75);
-const _kPrimaryLight = Color(0xFFE1F5EE);
-const _kEvBlue = Color(0xFF1D6FE0);
-const _kEvBlueLight = Color(0xFFEAF1FD);
+// 앱 컨벤션과 정합 — 내연기관(gas)은 파랑, 전기차(ev)는 초록.
+// ai_main_screen 의 _kFuelAccent(#3B82F6) / _kEvAccent(#10B981) 와 동일.
+const _kGasBlue = Color(0xFF3B82F6);
+const _kGasBlueLight = Color(0xFFEFF6FF);
+const _kEvGreen = Color(0xFF10B981);
+const _kEvGreenLight = Color(0xFFECFDF5);
 
 // ─── 차량 설정 화면 ────────────────────────────────────────────────────────────
 class AiVehicleSetupScreen extends ConsumerStatefulWidget {
@@ -387,7 +389,7 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
                   onPressed: _save,
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
-                        _vehicleType == 'gas' ? _kPrimary : _kEvBlue,
+                        _vehicleType == 'gas' ? _kGasBlue : _kEvGreen,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
@@ -418,8 +420,8 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
         _ChipRow(
           items: FuelType.values.map((f) => f.label).toList(),
           selected: _fuelType.label,
-          activeColor: _kPrimary,
-          activeLight: _kPrimaryLight,
+          activeColor: _kGasBlue,
+          activeLight: _kGasBlueLight,
           onSelect: (label) => setState(() {
             _fuelType = FuelType.values.firstWhere((f) => f.label == label);
           }),
@@ -441,7 +443,7 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
         const SizedBox(height: 8),
         _GaugeSlider(
           value: _currentLevelPercent,
-          accentColor: _kPrimary,
+          accentColor: _kGasBlue,
           onChanged: (v) => setState(() => _currentLevelPercent = v),
         ),
         const SizedBox(height: 4),
@@ -460,8 +462,8 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
               : _targetMode == 'PRICE'
                   ? '금액 지정'
                   : '리터 지정',
-          activeColor: _kPrimary,
-          activeLight: _kPrimaryLight,
+          activeColor: _kGasBlue,
+          activeLight: _kGasBlueLight,
           onSelect: (label) => setState(() {
             _targetMode = label == '가득'
                 ? 'FULL'
@@ -494,12 +496,12 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
         // 예상 주유량 미리보기
         if (_targetMode != 'PRICE')
           _PreviewBox(
-            color: _kPrimaryLight,
-            borderColor: _kPrimary.withValues(alpha: 0.3),
+            color: _kGasBlueLight,
+            borderColor: _kGasBlue.withValues(alpha: 0.3),
             icon: Icons.local_gas_station_rounded,
-            iconColor: _kPrimary,
+            iconColor: _kGasBlue,
             text: '예상 주유량:  약 ${_gasGoalLiters.toStringAsFixed(1)} L',
-            textColor: const Color(0xFF0F6E56),
+            textColor: const Color(0xFF1E40AF),
           ),
         const SizedBox(height: 8),
       ],
@@ -530,7 +532,7 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
         const SizedBox(height: 8),
         _GaugeSlider(
           value: _currentLevelPercent,
-          accentColor: _kEvBlue,
+          accentColor: _kEvGreen,
           onChanged: (v) {
             setState(() {
               _currentLevelPercent = v;
@@ -551,7 +553,7 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
         const SizedBox(height: 8),
         _GaugeSlider(
           value: _targetChargePercent,
-          accentColor: _kEvBlue,
+          accentColor: _kEvGreen,
           onChanged: (v) => setState(() {
             _targetChargePercent = v.clamp(
               (_currentLevelPercent + 1).clamp(0, 100),
@@ -568,12 +570,12 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
 
         // 예상 충전량 미리보기
         _PreviewBox(
-          color: _kEvBlueLight,
-          borderColor: _kEvBlue.withValues(alpha: 0.3),
+          color: _kEvGreenLight,
+          borderColor: _kEvGreen.withValues(alpha: 0.3),
           icon: Icons.bolt_rounded,
-          iconColor: _kEvBlue,
+          iconColor: _kEvGreen,
           text: '예상 충전량:  ${chargeGoal.toStringAsFixed(0)} %',
-          textColor: const Color(0xFF1D55A5),
+          textColor: const Color(0xFF047857),
         ),
         const SizedBox(height: 8),
       ],
@@ -612,8 +614,8 @@ class _VehicleTypeSelector extends StatelessWidget {
             icon: Icons.local_gas_station_rounded,
             label: '내연기관차',
             sub: '휘발유 · 경유 · LPG',
-            activeColor: _kPrimary,
-            activeBg: _kPrimaryLight,
+            activeColor: _kGasBlue,
+            activeBg: _kGasBlueLight,
             onTap: () => onSelect('gas'),
           ),
         ),
@@ -625,8 +627,8 @@ class _VehicleTypeSelector extends StatelessWidget {
             icon: Icons.bolt_rounded,
             label: '전기차',
             sub: '배터리 · 충전',
-            activeColor: _kEvBlue,
-            activeBg: _kEvBlueLight,
+            activeColor: _kEvGreen,
+            activeBg: _kEvGreenLight,
             onTap: () => onSelect('ev'),
           ),
         ),
