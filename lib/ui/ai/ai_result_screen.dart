@@ -2174,6 +2174,9 @@ class _AltSection extends StatelessWidget {
                   : (item['detour_time_min'] is num ? item['detour_time_min'] as num : null);
               final isLast = idx == valid.length - 1;
               final isSelected = selectedId != null && selectedId == itemId;
+              // 고속도로 필터 ON + 잔량으로 도달 어려운 휴게소 (서버 unreachable=true).
+              // primary 추천에선 이미 제외됐고, alt 풀에만 노출 — 사용자가 비교용으로 보되 시각적으로 명확히 구분.
+              final isUnreachable = item['unreachable'] == true;
 
               final detourText = _detourAltListSubtitle(
                 detourM: detourM,
@@ -2183,97 +2186,142 @@ class _AltSection extends StatelessWidget {
 
               return Column(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    child: Row(
-                      children: [
-                        // 번호 뱃지 (선택됨이면 체크)
-                        Container(
-                          width: 22, height: 22,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isSelected ? _kSelected : const Color(0xFFF0F0F0),
-                          ),
-                          child: Center(
-                            child: isSelected
-                                ? const Icon(Icons.check, size: 13, color: Colors.white)
-                                : Text('${idx + 1}',
-                                    style: const TextStyle(
-                                        fontSize: 11, fontWeight: FontWeight.w600,
-                                        color: Color(0xFF888888))),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        // 이름 + 주소 + 정보
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: isSelected ? _kSelected : const Color(0xFF1a1a1a))),
-                              if (addr.isNotEmpty) ...[
-                                const SizedBox(height: 1),
-                                Text(addr,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 10, color: Color(0xFF888888))),
-                              ],
-                              const SizedBox(height: 2),
-                              Text(
-                                [
-                                  if (price != null) '${wonFmt.format(price.round())}원/L',
-                                  detourText,
-                                ].join(' · '),
-                                style: const TextStyle(fontSize: 11, color: Color(0xFF999999)),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        // 절약 금액
-                        Text(
-                          savings >= 0
-                              ? '${wonFmt.format(savings)}원 절약'
-                              : '+${wonFmt.format(-savings)}원',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: savings >= 0
-                                ? const Color(0xFF1D9E75)
-                                : const Color(0xFFE24B4A),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        // 확인 버튼 (선택됐으면 "선택됨")
-                        GestureDetector(
-                          onTap: () => onSelect?.call(isSelected ? null : item),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  Container(
+                    color: isUnreachable ? const Color(0xFFFFF7EC) : null,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      child: Row(
+                        children: [
+                          // 번호 뱃지 (선택 → 체크, 도달불가 → ⚠, 그 외 → 번호)
+                          Container(
+                            width: 22, height: 22,
                             decoration: BoxDecoration(
+                              shape: BoxShape.circle,
                               color: isSelected
-                                  ? _kSelectedLight
-                                  : const Color(0xFFEEF4FF),
-                              borderRadius: BorderRadius.circular(8),
-                              border: isSelected
-                                  ? Border.all(color: _kSelected, width: 1)
-                                  : null,
+                                  ? _kSelected
+                                  : isUnreachable
+                                      ? const Color(0xFFFFE0B2)
+                                      : const Color(0xFFF0F0F0),
                             ),
-                            child: Text(
-                              isSelected ? '선택됨' : '확인',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: isSelected ? _kSelected : const Color(0xFF1D6FE0),
+                            child: Center(
+                              child: isSelected
+                                  ? const Icon(Icons.check, size: 13, color: Colors.white)
+                                  : isUnreachable
+                                      ? const Icon(Icons.warning_amber_rounded,
+                                          size: 14, color: Color(0xFFB8651B))
+                                      : Text('${idx + 1}',
+                                          style: const TextStyle(
+                                              fontSize: 11, fontWeight: FontWeight.w600,
+                                              color: Color(0xFF888888))),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          // 이름 + 주소 + 정보
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(name,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                              color: isSelected
+                                                  ? _kSelected
+                                                  : isUnreachable
+                                                      ? const Color(0xFF8B6F47)
+                                                      : const Color(0xFF1a1a1a))),
+                                    ),
+                                    if (isUnreachable) ...[
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFFFE0B2),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: const Text('잔량 부족',
+                                            style: TextStyle(
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFFB8651B),
+                                            )),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                if (addr.isNotEmpty) ...[
+                                  const SizedBox(height: 1),
+                                  Text(addr,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 10, color: Color(0xFF888888))),
+                                ],
+                                const SizedBox(height: 2),
+                                Text(
+                                  [
+                                    if (price != null) '${wonFmt.format(price.round())}원/L',
+                                    detourText,
+                                  ].join(' · '),
+                                  style: const TextStyle(fontSize: 11, color: Color(0xFF999999)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          // 절약 금액 (도달불가면 안내 텍스트로 대체 — 절약액 의미 없음)
+                          isUnreachable
+                              ? const Text(
+                                  '도달 어려움',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFFB8651B),
+                                  ),
+                                )
+                              : Text(
+                                  savings >= 0
+                                      ? '${wonFmt.format(savings)}원 절약'
+                                      : '+${wonFmt.format(-savings)}원',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: savings >= 0
+                                        ? const Color(0xFF1D9E75)
+                                        : const Color(0xFFE24B4A),
+                                  ),
+                                ),
+                          const SizedBox(width: 8),
+                          // 확인 버튼 (선택됐으면 "선택됨")
+                          GestureDetector(
+                            onTap: () => onSelect?.call(isSelected ? null : item),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? _kSelectedLight
+                                    : const Color(0xFFEEF4FF),
+                                borderRadius: BorderRadius.circular(8),
+                                border: isSelected
+                                    ? Border.all(color: _kSelected, width: 1)
+                                    : null,
+                              ),
+                              child: Text(
+                                isSelected ? '선택됨' : '확인',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: isSelected ? _kSelected : const Color(0xFF1D6FE0),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                   if (!isLast) const Divider(height: 1, color: Color(0xFFF0F0F0)),
