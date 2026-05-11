@@ -45,6 +45,18 @@ const _kFuelAccent = Color(0xFF3B82F6);      // = AppColors.gasBlue
 const _kFuelAccentLight = Color(0xFFEFF6FF);
 const _kEvAccent = Color(0xFF10B981);        // = AppColors.evGreen
 const _kEvAccentLight = Color(0xFFECFDF5);
+// ai_reco_main.html 그라데이션 — primary gradient end (toggle/CTA 진한 톤)
+const _kFuelAccentDeep = Color(0xFF2563EB);
+const _kEvAccentDeep = Color(0xFF059669);
+Color _modeAccentDeep(bool isEv) => isEv ? _kEvAccentDeep : _kFuelAccentDeep;
+// ai_reco_main.html 디자인 토큰 — ink/muted/line/bg 통일
+const _kInk = Color(0xFF0F172A);
+const _kInk2 = Color(0xFF334155);
+const _kMuted = Color(0xFF64748B);
+const _kMute2 = Color(0xFF94A3B8);
+const _kLine = Color(0xFFE2E8F0);
+const _kLineSoft = Color(0xFFF1F5F9);
+const _kReco = Color(0xFFF5F6F8); // 추천 화면 배경
 
 Color _modeAccent(bool isEv) => isEv ? _kEvAccent : _kFuelAccent;
 Color _modeAccentLight(bool isEv) => isEv ? _kEvAccentLight : _kFuelAccentLight;
@@ -3669,11 +3681,17 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                         children: [
                           Expanded(
                             child: Container(
-                              height: 44,
-                              padding: const EdgeInsets.all(3),
+                              height: 46,
+                              padding: const EdgeInsets.all(4),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF1F3F5),
-                                borderRadius: BorderRadius.circular(12),
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.08),
+                                    blurRadius: 18, offset: const Offset(0, 6),
+                                  ),
+                                ],
                               ),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -3782,323 +3800,127 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           ),
                         ),
                       ],
-                      // 잔량 + 차량 미니 카드
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () => _showLevelEditSheet(isEv: isEvVehicle),
-                              child: _LevelSummaryCard(
-                                currentLevel: _currentLevelPercent,
-                                targetMode: _targetMode,
-                                priceController: _priceController,
-                                literController: _literController,
-                                wonFmt: _wonFmt,
-                                isEv: isEvVehicle,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          GestureDetector(
-                            onTap: () async {
-                              await Navigator.push(context,
-                                  MaterialPageRoute(builder: (_) => const AiVehicleListScreen()));
-                              setState(() {});
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: _modeAccent(isEvVehicle).withValues(alpha: 0.4),
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.04),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        isEvVehicle ? Icons.bolt_rounded : Icons.local_gas_station_rounded,
-                                        size: 13,
-                                        color: _modeAccent(isEvVehicle),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        selectedVehicle?.name.isNotEmpty == true
-                                            ? selectedVehicle!.name
-                                            : (isEvVehicle ? '차량 선택' : fuelLabel),
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: _modeAccent(isEvVehicle),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    isEvVehicle
-                                        ? '· ${(selectedVehicle?.evEfficiency ?? efficiency).toStringAsFixed(1)}km/kWh'
-                                        : '· ${efficiency.toStringAsFixed(1)}km/L',
-                                    style: const TextStyle(fontSize: 11, color: Color(0xFF666666)),
-                                  ),
-                                  Text(
-                                    isEvVehicle
-                                        ? '· ${(selectedVehicle?.batteryCapacity ?? tankCapacity).toStringAsFixed(0)}kWh'
-                                        : '· ${tankCapacity.toStringAsFixed(0)}L',
-                                    style: const TextStyle(fontSize: 11, color: Color(0xFF999999)),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
+                      // ─── HTML hero 양식: 게이지 + 차량 정보 + stat + 선호 조건 chip 통합 ───
+                      _HeroCard(
+                        currentLevel: _currentLevelPercent,
+                        isEv: isEvVehicle,
+                        reachableKm: _currentLevelPercent / 100 *
+                            (isEvVehicle
+                                ? (selectedVehicle?.batteryCapacity ?? tankCapacity)
+                                : tankCapacity) *
+                            (isEvVehicle
+                                ? (selectedVehicle?.evEfficiency ?? efficiency)
+                                : efficiency),
+                        vehicleName: selectedVehicle?.name.isNotEmpty == true
+                            ? selectedVehicle!.name
+                            : (isEvVehicle ? '차량 선택' : fuelLabel),
+                        efficiency: isEvVehicle
+                            ? (selectedVehicle?.evEfficiency ?? efficiency)
+                            : efficiency,
+                        tankCapacity: isEvVehicle
+                            ? (selectedVehicle?.batteryCapacity ?? tankCapacity)
+                            : tankCapacity,
+                        highwayOnly: isEvVehicle ? _evHighwayOnly : _gasHighwayOnly,
+                        chargerMode: isEvVehicle ? _evChargerType : null,
+                        onTapLevel: () => _showLevelEditSheet(isEv: isEvVehicle),
+                        onTapVehicle: () async {
+                          await Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => const AiVehicleListScreen()));
+                          if (mounted) setState(() {});
+                        },
+                        onToggleHighway: () => setState(() {
+                          if (isEvVehicle) {
+                            _evHighwayOnly = !_evHighwayOnly;
+                          } else {
+                            _gasHighwayOnly = !_gasHighwayOnly;
+                          }
+                        }),
+                        onChangeChargerMode: isEvVehicle
+                            ? (m) => setState(() => _evChargerType = m)
+                            : null,
                       ),
-                      const SizedBox(height: 8),
-                      if (isEvVehicle) ...[
-                        // ── EV: 필터 행 (고속도로 pill 좌측 + 급속/완속 세그먼트 우측 flex) ──
-                        SizedBox(
-                          height: 46,
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              // 고속도로 — 좌측 컴팩트 pill (활성 시 채움 스타일)
-                              GestureDetector(
-                                onTap: () => setState(() => _evHighwayOnly = !_evHighwayOnly),
-                                behavior: HitTestBehavior.opaque,
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 180),
-                                  curve: Curves.easeOut,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                                  decoration: BoxDecoration(
-                                    color: _evHighwayOnly ? _kEvAccent : Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: _evHighwayOnly ? _kEvAccent : const Color(0xFFE5E8EC),
-                                      width: 1.5,
-                                    ),
-                                    boxShadow: _evHighwayOnly
-                                        ? [
-                                            BoxShadow(
-                                              color: _kEvAccent.withValues(alpha: 0.28),
-                                              blurRadius: 8,
-                                              offset: const Offset(0, 3),
-                                            ),
-                                          ]
-                                        : null,
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.add_road_rounded, size: 15,
-                                        color: _evHighwayOnly ? Colors.white : const Color(0xFFAAAAAA)),
-                                      const SizedBox(width: 5),
-                                      Text('고속도로',
-                                        style: TextStyle(
-                                          fontSize: 12.5,
-                                          fontWeight: FontWeight.w700,
-                                          color: _evHighwayOnly ? Colors.white : const Color(0xFF888888),
-                                        )),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              // 급속/완속 세그먼트 — Expanded 로 남은 폭 차지
-                              Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.all(3),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF1F3F5),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                                    children: [
-                                      _evSegTab('FAST', '급속', Icons.bolt_rounded, _kEvAccent),
-                                      _evSegTab('SLOW', '완속', Icons.electrical_services_rounded, _kEvAccent),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        // ── EV: 액션 행 (AI 추천 + 직접 선택) ──
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _evActionBtn(
-                                label: 'AI 추천',
-                                icon: Icons.auto_awesome_rounded,
-                                color: _kEvAccent,
-                                loading: _aiAnalyzing,
-                                enabled: !_aiAnalyzing && !_userSelecting,
-                                onTap: _runEvAnalyze,
-                                expand: true,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _evActionBtn(
-                                label: '직접 선택',
-                                icon: Icons.format_list_bulleted_rounded,
-                                color: _kEvAccent,
-                                loading: _userSelecting,
-                                enabled: !_aiAnalyzing && !_userSelecting,
-                                onTap: _runEvUserSelect,
-                                primary: false,
-                                expand: true,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                      // ── 주유: 고속도로 휴게소 필터 pill ──
-                      if (!isEvVehicle) ...[
-                        SizedBox(
-                          height: 46,
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              GestureDetector(
-                                onTap: () => setState(() => _gasHighwayOnly = !_gasHighwayOnly),
-                                behavior: HitTestBehavior.opaque,
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 180),
-                                  curve: Curves.easeOut,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                                  decoration: BoxDecoration(
-                                    color: _gasHighwayOnly ? _kFuelAccent : Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: _gasHighwayOnly ? _kFuelAccent : const Color(0xFFE5E8EC),
-                                      width: 1.5,
-                                    ),
-                                    boxShadow: _gasHighwayOnly
-                                        ? [
-                                            BoxShadow(
-                                              color: _kFuelAccent.withValues(alpha: 0.28),
-                                              blurRadius: 8,
-                                              offset: const Offset(0, 3),
-                                            ),
-                                          ]
-                                        : null,
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.add_road_rounded, size: 15,
-                                        color: _gasHighwayOnly ? Colors.white : const Color(0xFFAAAAAA)),
-                                      const SizedBox(width: 5),
-                                      Text('고속도로',
-                                        style: TextStyle(
-                                          fontSize: 12.5,
-                                          fontWeight: FontWeight.w700,
-                                          color: _gasHighwayOnly ? Colors.white : const Color(0xFF888888),
-                                        )),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Container(
-                                  alignment: Alignment.center,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF5F6F8),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: const Color(0xFFE5E8EC), width: 1),
-                                  ),
-                                  child: Text(
-                                    _gasHighwayOnly ? '휴게소 주유소만 비교' : '경로상 + 우회 모두 비교',
-                                    style: const TextStyle(
-                                      fontSize: 12.5,
-                                      color: Color(0xFF666666),
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                      ],
-                      // AI 분석 / 사용자 선택 버튼 (주유 전용)
-                      if (!isEvVehicle) Row(
+                      const SizedBox(height: 12),
+                      // ─── HTML CTA row: gradient primary + 흰 secondary ───
+                      Row(
                         children: [
+                          // primary — AI 추천 (gradient + shadow)
                           Expanded(
-                            child: SizedBox(
-                              height: 52,
-                              child: ElevatedButton(
-                                onPressed: (_aiAnalyzing || _userSelecting)
-                                    ? null
-                                    : _runAnalyze,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: _kFuelAccent,
-                                  foregroundColor: Colors.white,
-                                  disabledBackgroundColor: _kFuelAccent.withValues(alpha: 0.55),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                  elevation: 0,
+                            flex: 13,
+                            child: GestureDetector(
+                              onTap: (_aiAnalyzing || _userSelecting)
+                                  ? null
+                                  : (isEvVehicle ? _runEvAnalyze : _runAnalyze),
+                              child: Container(
+                                height: 54,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft, end: Alignment.bottomRight,
+                                    colors: [
+                                      _modeAccentDeep(isEvVehicle),
+                                      _modeAccent(isEvVehicle),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: _modeAccent(isEvVehicle).withValues(alpha: 0.30),
+                                      blurRadius: 18, offset: const Offset(0, 8),
+                                    ),
+                                  ],
                                 ),
-                                child: const Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
+                                alignment: Alignment.center,
+                                child: _aiAnalyzing
+                                    ? const SizedBox(width: 24, height: 24,
+                                        child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                                    : Row(
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Icon(Icons.auto_awesome_rounded, size: 18),
-                                          SizedBox(width: 6),
-                                          Text('AI 주유소 추천',
-                                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                                          const Icon(Icons.auto_awesome_rounded, size: 18, color: Colors.white),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            isEvVehicle ? 'AI 충전소 추천' : 'AI 주유소 추천',
+                                            style: const TextStyle(
+                                              fontSize: 16, fontWeight: FontWeight.w800,
+                                              color: Colors.white, letterSpacing: -0.3,
+                                            ),
+                                          ),
                                         ],
                                       ),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 10),
+                          // secondary — 직접 선택 (흰 + border)
                           Expanded(
-                            child: SizedBox(
-                              height: 52,
-                              child: OutlinedButton(
-                                onPressed: (_aiAnalyzing || _userSelecting)
-                                    ? null
-                                    : _runUserSelect,
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: _kFuelAccent,
-                                  backgroundColor: Colors.white,
-                                  side: BorderSide(
-                                    color: (_aiAnalyzing || _userSelecting)
-                                        ? _kFuelAccent.withValues(alpha: 0.4)
-                                        : _kFuelAccent,
-                                    width: 1.5,
-                                  ),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            flex: 10,
+                            child: GestureDetector(
+                              onTap: (_aiAnalyzing || _userSelecting)
+                                  ? null
+                                  : (isEvVehicle ? _runEvUserSelect : _runUserSelect),
+                              child: Container(
+                                height: 54,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: _kLine, width: 1.5),
                                 ),
+                                alignment: Alignment.center,
                                 child: _userSelecting
-                                    ? SizedBox(height: 22, width: 22,
-                                        child: CircularProgressIndicator(strokeWidth: 2.5, color: _kFuelAccent))
-                                    : const Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
+                                    ? SizedBox(width: 22, height: 22,
+                                        child: CircularProgressIndicator(strokeWidth: 2.5,
+                                            color: _modeAccent(isEvVehicle)))
+                                    : Row(
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Icon(Icons.compare_arrows_rounded, size: 18),
-                                          SizedBox(width: 6),
-                                          Text('사용자 선택',
-                                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                                          const Icon(Icons.format_list_bulleted_rounded, size: 16, color: _kInk),
+                                          const SizedBox(width: 6),
+                                          const Text(
+                                            '직접 선택',
+                                            style: TextStyle(
+                                              fontSize: 14, fontWeight: FontWeight.w800,
+                                              color: _kInk, letterSpacing: -0.3,
+                                            ),
+                                          ),
                                         ],
                                       ),
                               ),
@@ -5291,24 +5113,32 @@ class _ModeSegment extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ai_reco_main.html mode-toggle 양식 — 활성은 액센트 → deep 그라데이션, 비활성은 투명/회색.
+    final accentDeep = accent == _kEvAccent ? _kEvAccentDeep
+                     : accent == _kFuelAccent ? _kFuelAccentDeep
+                     : accent;
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
+        duration: const Duration(milliseconds: 200),
         curve: Curves.easeOut,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          // 활성: 액센트 컬러로 꽉 채움 + 액센트 그림자
-          // 비활성: 투명
-          color: active ? accent : Colors.transparent,
+          gradient: active
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [accentDeep, accent],
+                )
+              : null,
           borderRadius: BorderRadius.circular(10),
           boxShadow: active
               ? [
                   BoxShadow(
                     color: accent.withValues(alpha: 0.28),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
                 ]
               : null,
@@ -5320,16 +5150,16 @@ class _ModeSegment extends StatelessWidget {
             Icon(
               icon,
               size: 15,
-              color: active ? Colors.white : const Color(0xFF9AA3AC),
+              color: active ? Colors.white : _kMuted,
             ),
-            const SizedBox(width: 5),
+            const SizedBox(width: 6),
             Flexible(
               child: Text(
                 label,
                 style: TextStyle(
-                  fontSize: 12.5,
+                  fontSize: 13,
                   fontWeight: FontWeight.w800,
-                  color: active ? Colors.white : const Color(0xFF9AA3AC),
+                  color: active ? Colors.white : _kMuted,
                   letterSpacing: -0.2,
                 ),
                 maxLines: 1,
@@ -5456,6 +5286,357 @@ class _LevelSummaryCard extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─── Hero 카드 (ai_reco_main.html 양식) ─────────────────────────────────────
+// 큰 원형 게이지 (잔량 %) + 가능 km + 차량 정보 + 효율/탱크 stat + 선호 조건 chip.
+// 사용자 입력: tap → 잔량 편집 시트, 차량 편집 → 차량 선택, chip 토글.
+
+class _HeroCard extends StatelessWidget {
+  final double currentLevel;
+  final bool isEv;
+  final double reachableKm;
+  final String vehicleName;
+  final double efficiency;          // km/L or km/kWh
+  final double tankCapacity;        // L or kWh
+  final bool highwayOnly;
+  final String? chargerMode;        // 'FAST' | 'SLOW' (EV 전용)
+  final VoidCallback onTapLevel;
+  final VoidCallback onTapVehicle;
+  final VoidCallback onToggleHighway;
+  final ValueChanged<String>? onChangeChargerMode;
+
+  const _HeroCard({
+    required this.currentLevel,
+    required this.isEv,
+    required this.reachableKm,
+    required this.vehicleName,
+    required this.efficiency,
+    required this.tankCapacity,
+    required this.highwayOnly,
+    required this.chargerMode,
+    required this.onTapLevel,
+    required this.onTapVehicle,
+    required this.onToggleHighway,
+    this.onChangeChargerMode,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = _modeAccent(isEv);
+    final accentDeep = _modeAccentDeep(isEv);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 24, offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 1) 상단 row — 게이지 + 차량 정보
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // 큰 원형 게이지 (108x108)
+                GestureDetector(
+                  onTap: onTapLevel,
+                  child: _GaugeRing(
+                    percent: currentLevel,
+                    reachableKm: reachableKm,
+                    color: accent,
+                    colorDeep: accentDeep,
+                    isEv: isEv,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                // 차량 정보 + stat
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              vehicleName.isEmpty ? (isEv ? 'EV' : '차량') : vehicleName,
+                              style: const TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.w800,
+                                letterSpacing: -0.4, color: _kInk,
+                              ),
+                              maxLines: 1, overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: onTapVehicle,
+                            child: Container(
+                              width: 28, height: 28,
+                              decoration: BoxDecoration(
+                                color: _kLineSoft,
+                                borderRadius: BorderRadius.circular(7),
+                              ),
+                              alignment: Alignment.center,
+                              child: const Icon(Icons.edit_outlined, size: 14, color: _kMute2),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        isEv ? '현재 배터리 · 잔량 편집' : '현재 잔유량 · 잔량 편집',
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _kMuted),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(child: _statBox(
+                            label: isEv ? '효율' : '연비',
+                            value: isEv
+                                ? '${efficiency.toStringAsFixed(1)} km/kWh'
+                                : '${efficiency.toStringAsFixed(1)} km/L',
+                          )),
+                          const SizedBox(width: 8),
+                          Expanded(child: _statBox(
+                            label: isEv ? '배터리' : '연료탱크',
+                            value: isEv
+                                ? '${tankCapacity.toStringAsFixed(0)} kWh'
+                                : '${tankCapacity.toStringAsFixed(0)} L',
+                          )),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // 2) divider
+          Container(
+            height: 1, color: _kLineSoft,
+            margin: const EdgeInsets.fromLTRB(0, 16, 0, 14),
+          ),
+          // 3) 선호 조건 타이틀 + chip
+          Row(
+            children: [
+              Icon(Icons.tune_rounded, size: 13, color: _kMuted),
+              const SizedBox(width: 6),
+              Text(isEv ? '충전 선호 조건' : '주유 선호 조건',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _kMuted)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8, runSpacing: 8,
+            children: [
+              _prefChip(
+                icon: Icons.add_road_rounded,
+                label: '고속도로',
+                active: highwayOnly,
+                accent: accent,
+                accentLight: _modeAccentLight(isEv),
+                onTap: onToggleHighway,
+              ),
+              if (isEv) ...[
+                _prefChip(
+                  icon: Icons.bolt_rounded,
+                  label: '급속',
+                  active: chargerMode == 'FAST',
+                  accent: accent,
+                  accentLight: _modeAccentLight(isEv),
+                  onTap: () => onChangeChargerMode?.call('FAST'),
+                ),
+                _prefChip(
+                  icon: Icons.electrical_services_rounded,
+                  label: '완속',
+                  active: chargerMode == 'SLOW',
+                  accent: accent,
+                  accentLight: _modeAccentLight(isEv),
+                  onTap: () => onChangeChargerMode?.call('SLOW'),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statBox({required String label, required String value}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: _kLineSoft,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label,
+              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: _kMuted)),
+          const SizedBox(height: 2),
+          Text(value,
+              style: const TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w800,
+                color: _kInk, letterSpacing: -0.2,
+              ),
+              maxLines: 1, overflow: TextOverflow.ellipsis),
+        ],
+      ),
+    );
+  }
+
+  Widget _prefChip({
+    required IconData icon, required String label,
+    required bool active, required Color accent, required Color accentLight,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? accentLight : _kLineSoft,
+          borderRadius: BorderRadius.circular(99),
+          border: Border.all(
+            color: active ? accent.withValues(alpha: 0.22) : Colors.transparent,
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: active ? accent : _kInk2),
+            const SizedBox(width: 5),
+            Text(label,
+                style: TextStyle(
+                  fontSize: 12.5, fontWeight: FontWeight.w700,
+                  color: active ? accent : _kInk2, letterSpacing: -0.1,
+                )),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// 큰 원형 게이지 — CustomPaint 로 그라데이션 + rounded cap.
+class _GaugeRing extends StatelessWidget {
+  final double percent;        // 0-100
+  final double reachableKm;
+  final Color color;
+  final Color colorDeep;
+  final bool isEv;
+  const _GaugeRing({
+    required this.percent, required this.reachableKm,
+    required this.color, required this.colorDeep, required this.isEv,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const size = 108.0;
+    return SizedBox(
+      width: size, height: size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          CustomPaint(
+            size: const Size(size, size),
+            painter: _GaugeRingPainter(
+              percent: percent.clamp(0, 100) / 100,
+              color: color, colorDeep: colorDeep,
+              bgColor: isEv ? _kEvAccentLight : _kFuelAccentLight,
+            ),
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              RichText(
+                text: TextSpan(children: [
+                  TextSpan(
+                    text: percent.round().toString(),
+                    style: TextStyle(
+                      fontSize: 32, fontWeight: FontWeight.w800,
+                      color: colorDeep, height: 1, letterSpacing: -1.2,
+                    ),
+                  ),
+                  TextSpan(
+                    text: '%',
+                    style: TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w700,
+                      color: _kMuted, height: 1,
+                    ),
+                  ),
+                ]),
+              ),
+              const SizedBox(height: 3),
+              RichText(
+                text: TextSpan(children: [
+                  const TextSpan(
+                    text: '≈ ',
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: _kMuted),
+                  ),
+                  TextSpan(
+                    text: '${reachableKm.round()} km',
+                    style: const TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w800, color: _kInk2,
+                    ),
+                  ),
+                ]),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GaugeRingPainter extends CustomPainter {
+  final double percent;
+  final Color color;
+  final Color colorDeep;
+  final Color bgColor;
+  _GaugeRingPainter({required this.percent, required this.color, required this.colorDeep, required this.bgColor});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const stroke = 12.0;
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width - stroke) / 2;
+    // 배경 원
+    canvas.drawCircle(
+      center, radius,
+      Paint()..color = bgColor..style = PaintingStyle.stroke..strokeWidth = stroke,
+    );
+    // 진행 호 (12시부터 시계방향)
+    if (percent > 0) {
+      final rect = Rect.fromCircle(center: center, radius: radius);
+      final paint = Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topLeft, end: Alignment.bottomRight,
+          colors: [color, colorDeep],
+        ).createShader(rect)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke
+        ..strokeCap = StrokeCap.round;
+      canvas.drawArc(rect, -1.5708, percent * 2 * 3.14159, false, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _GaugeRingPainter old) =>
+      old.percent != percent || old.color != color || old.bgColor != bgColor;
 }
 
 // ─── 잔량/목표 편집 바텀 시트 ──────────────────────────────────────────────────
