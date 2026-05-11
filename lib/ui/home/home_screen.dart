@@ -25,6 +25,7 @@ import '../../data/services/watch_service.dart';
 import '../filter/gas_filter_sheet.dart';
 import '../filter/ev_filter_sheet.dart';
 import '../../data/services/favorite_service.dart';
+import '../../data/services/station_alias_service.dart';
 import '../favorites/favorites_screen.dart';
 import '../detail/ev_detail_screen.dart';
 import '../detail/gas_detail_screen.dart';
@@ -682,21 +683,36 @@ class _GasListViewState extends ConsumerState<_GasListView> {
               loading: () => const GasSummaryCard(avgPrice: 0, priceDiff: 0),
               error: (_, __) => const GasSummaryCard(avgPrice: 0, priceDiff: 0),
               data: (stations) {
-                final avgPrice = stations.isEmpty ? 0.0
+                final stationAvg = stations.isEmpty ? 0.0
                     : stations.map((s) => s.price).reduce((a, b) => a + b) / stations.length;
                 final avgAsync = ref.watch(gasAvgPriceProvider);
                 final fuelCode = filter.fuelTypes.isNotEmpty ? filter.fuelTypes.first : 'B027';
                 final fuelLabel = FuelType.fromCode(fuelCode).label;
-                final priceDiff = avgAsync.when(
-                  data: (m) {
-                    final row = m[fuelCode];
-                    if (row is! Map) return 0.0;
-                    return parseApiDouble(row['diff']);
-                  },
-                  loading: () => 0.0,
-                  error: (_, __) => 0.0,
-                );
-                return GasSummaryCard(avgPrice: avgPrice, priceDiff: priceDiff, fuelLabel: fuelLabel);
+                // 응답 우선순위: local(시도) > national(전국) > 레거시 m[fuelCode]
+                final m = avgAsync.maybeWhen<Map<String, dynamic>?>(data: (v) => v, orElse: () => null);
+                double serverAvg = 0;
+                double priceDiff = 0;
+                String? sidoName;
+                if (m != null) {
+                  final local = m['local'];
+                  Map? prices;
+                  if (local is Map && local['prices'] is Map) {
+                    prices = local['prices'] as Map;
+                    sidoName = local['sido_name']?.toString();
+                  } else if (m['national'] is Map) {
+                    prices = m['national'] as Map;
+                  } else if (m[fuelCode] is Map) {
+                    prices = m;
+                  }
+                  final row = prices?[fuelCode];
+                  if (row is Map) {
+                    serverAvg = parseApiDouble(row['price']);
+                    priceDiff = parseApiDouble(row['diff']);
+                  }
+                }
+                final showLabel = sidoName != null ? '$sidoName $fuelLabel' : fuelLabel;
+                final showAvg = serverAvg > 0 ? serverAvg : stationAvg;
+                return GasSummaryCard(avgPrice: showAvg, priceDiff: priceDiff, fuelLabel: showLabel);
               },
             ),
           ),
@@ -719,9 +735,11 @@ class _GasListViewState extends ConsumerState<_GasListView> {
             ),
             data: (stations) {
               var filtered = _searchQuery.isEmpty ? stations
-                  : stations.where((s) =>
-                      s.name.contains(_searchQuery) ||
-                      s.address.contains(_searchQuery)).toList();
+                  : stations.where((s) {
+                      if (s.name.contains(_searchQuery) || s.address.contains(_searchQuery)) return true;
+                      final alias = StationAliasService.get(s.id, type: 'gas');
+                      return alias != null && alias.contains(_searchQuery);
+                    }).toList();
               if (filtered.isEmpty) {
                 return SliverToBoxAdapter(
                   child: Center(child: Padding(
@@ -921,10 +939,13 @@ class _EvListViewState extends ConsumerState<_EvListView> {
             ),
             data: (stations) {
               var filtered = _searchQuery.isEmpty ? stations
-                  : stations.where((s) =>
-                      s.name.contains(_searchQuery) ||
-                      s.address.contains(_searchQuery) ||
-                      s.operator.contains(_searchQuery)).toList();
+                  : stations.where((s) {
+                      if (s.name.contains(_searchQuery) ||
+                          s.address.contains(_searchQuery) ||
+                          s.operator.contains(_searchQuery)) return true;
+                      final alias = StationAliasService.get(s.statId, type: 'ev');
+                      return alias != null && alias.contains(_searchQuery);
+                    }).toList();
               if (filtered.isEmpty) {
                 return SliverToBoxAdapter(
                   child: Center(child: Padding(
@@ -1851,7 +1872,7 @@ class _AlertSettingTileEmbedState extends State<_AlertSettingTileEmbed> {
                   ),
                   child: Column(
                     children: _ids.map((id) {
-                      final name = AlertService().stationName(id);
+                      final name = StationAliasService.resolve(id, AlertService().stationName(id), type: 'gas');
                       final fuelTypes = AlertService().subscribedFuelTypes(id);
                       return ListTile(
                         dense: true,
@@ -2032,7 +2053,7 @@ class _EvAlarmSettingTileEmbedState extends State<_EvAlarmSettingTileEmbed> {
                   ),
                   child: Column(
                     children: _ids.map((id) {
-                      final name = AlertService().evAlarmStationName(id);
+                      final name = StationAliasService.resolve(id, AlertService().evAlarmStationName(id), type: 'ev');
                       return ListTile(
                         dense: true,
                         contentPadding: const EdgeInsets.fromLTRB(14, 0, 4, 0),

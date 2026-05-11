@@ -72,6 +72,26 @@ const evAlarmChannelSilent = AndroidNotificationChannel(
   enableVibration: false,
 );
 
+/// Android Auto 차량 표시 필수 액션 (Google 정책) — RemoteInput 답장 + 읽음.
+/// 액션 자체 동작은 noop. main.dart 의 backgroundResponse 에서 reply/mark_read 둘 다 무시.
+List<AndroidNotificationAction> _autoActions() => <AndroidNotificationAction>[
+      AndroidNotificationAction(
+        'reply',
+        '답장',
+        inputs: <AndroidNotificationActionInput>[
+          AndroidNotificationActionInput(label: '메시지'),
+        ],
+        showsUserInterface: false,
+        cancelNotification: false,
+      ),
+      const AndroidNotificationAction(
+        'mark_read',
+        '읽음',
+        showsUserInterface: false,
+        cancelNotification: true,
+      ),
+    ];
+
 /// 서버에서 보낸 data payload 파싱 후 스타일 알림 표시
 /// soundMode: 0=소리, 1=진동, 2=무음
 void showGasPriceNotification(Map<String, dynamic> data, {int soundMode = 0}) {
@@ -185,24 +205,24 @@ void showEvWatchNotification(Map<String, dynamic> data, {int soundMode = 0}) {
           ? evAlarmChannelSilent
           : evAlarmChannel;
 
-  // 만석 도달 시 "다른 충전소 찾기" 액션 추가
-  final actions = newAvailStr == '0'
-      ? <AndroidNotificationAction>[
-          const AndroidNotificationAction(
-            'find_alt',
-            '다른 충전소',
-            showsUserInterface: true,
-            cancelNotification: true,
-          ),
-        ]
-      : <AndroidNotificationAction>[];
+  // Android Auto 호환 필수 액션 (reply + markAsRead) + 만석시 "다른 충전소"
+  final actions = <AndroidNotificationAction>[
+    ..._autoActions(),
+    if (newAvailStr == '0')
+      const AndroidNotificationAction(
+        'find_alt',
+        '다른 충전소',
+        showsUserInterface: true,
+        cancelNotification: true,
+      ),
+  ];
 
   // Android Auto 호환: MessagingStyleInformation + category=message 사용 시
   // 차량 디스플레이에 메시지 카드로 노출되고 음성 readout 도 트리거됨.
   // Person.bot=true 로 발신 주체를 "충전 도우미" 로 명시.
   final messagingPerson = stationName.isNotEmpty
-      ? Person(name: stationName, bot: true, important: true)
-      : const Person(name: '충전 도우미', bot: true, important: true);
+      ? Person(name: stationName, important: true)
+      : const Person(name: '충전 도우미', important: true);
 
   notificationPlugin.show(
     1003,
@@ -254,8 +274,8 @@ void showEvAlarmNotification(Map<String, dynamic> data, {int soundMode = 0}) {
 
   // Android Auto 호환: ev_watch 와 동일 패턴 (MessagingStyle + category=message)
   final messagingPerson = stationName.isNotEmpty
-      ? Person(name: stationName, bot: true, important: true)
-      : const Person(name: '충전 도우미', bot: true, important: true);
+      ? Person(name: stationName, important: true)
+      : const Person(name: '충전 도우미', important: true);
 
   notificationPlugin.show(
     1002,
@@ -278,6 +298,7 @@ void showEvAlarmNotification(Map<String, dynamic> data, {int soundMode = 0}) {
             Message(body, DateTime.now(), messagingPerson),
           ],
         ),
+        actions: _autoActions(),
       ),
     ),
     payload: 'ev_alarm:$stationId:${Uri.encodeComponent(title)}:${Uri.encodeComponent(body)}',

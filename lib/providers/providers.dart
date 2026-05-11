@@ -450,8 +450,10 @@ final evStationsProvider = Provider<AsyncValue<List<EvStation>>>((ref) {
 });
 
 // ─── Gas Avg Price Provider ───
+// 위치 있으면 lat/lng 전달 → 응답에 시도 평균(local) 포함. 없으면 전국만.
 final gasAvgPriceProvider = FutureProvider<Map<String, dynamic>>((ref) async {
-  return await ApiService().getGasAvgPrice();
+  final loc = await ref.watch(locationProvider.future);
+  return await ApiService().getGasAvgPrice(lat: loc?.lat, lng: loc?.lng);
 });
 
 // ─── Bottom Nav Provider ───

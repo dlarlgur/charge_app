@@ -1083,21 +1083,17 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         );
       } else {
         final err = data['error'];
-        final msg = err is Map ? err['message']?.toString() : null;
-        setState(() => _errorMessage = msg ?? '분석 응답이 올바르지 않습니다.');
+        debugPrint('[AI] 분석 응답 오류: $err');
+        setState(() => _errorMessage = '서버와 통신이 원활하지 않아요. 잠시 후 다시 시도해주세요.');
       }
     } on DioException catch (e) {
       if (!mounted) return;
-      final raw = e.response?.data;
-      String msg = '서버와 통신에 실패했습니다.';
-      if (raw is Map) {
-        final err = raw['error'];
-        if (err is Map && err['message'] != null) msg = err['message'].toString();
-      }
-      setState(() => _errorMessage = msg);
+      debugPrint('[AI] 분석 통신 오류: ${e.message} / ${e.response?.data}');
+      setState(() => _errorMessage = '서버와 통신이 원활하지 않아요. 잠시 후 다시 시도해주세요.');
     } catch (e) {
       if (!mounted) return;
-      setState(() => _errorMessage = e.toString());
+      debugPrint('[AI] 분석 예외: $e');
+      setState(() => _errorMessage = '서버와 통신이 원활하지 않아요. 잠시 후 다시 시도해주세요.');
     } finally {
       if (mounted) setState(() => _aiAnalyzing = false);
     }

@@ -66,7 +66,7 @@ class BrandLogo extends StatelessWidget {
   ///   2) "안성(서울)주유소/충전소", "망향(부산)주유소" — 도시 라벨만 있고 '휴게소' 글자 없음
   /// 두 케이스 모두 EX(한국도로공사서비스) 로고 표시 대상.
   static final RegExp _highwayCityLabelRe = RegExp(
-    r'\((?:서울|부산|인천|대구|광주|대전|울산|세종|일산|하남|양평|춘천|강릉|속초|삼척|영덕|포항|서부산|창원|통영|함양|광양|순천|장수|전주|완주|익산|목포|영암|무안|논산|당진|서천|천안|공주|청주|제천|남이|평택|양양|경산)(?:방향)?\)',
+    r'\((?:서울|부산|인천|대구|광주|대전|울산|세종|일산|하남|양평|춘천|강릉|속초|삼척|영덕|포항|서부산|창원|통영|함양|광양|순천|장수|전주|완주|익산|목포|영암|무안|논산|당진|서천|천안|공주|청주|제천|남이|평택|양양|경산|마산|영천|상주|판교|충주|안동|경주|보령|군위|처인|산청|진영|포천|원주|동해|여주|횡성|평창|대관령)(?:방향)?\)',
   );
   /// 한국 고속도로 휴게소 상행/하행 표기 — "서창산업㈜죽전(상)주유소", "(주)괴산(상)주유소" 등.
   static final RegExp _updownRe = RegExp(r'\((?:상|하)\)');
@@ -974,7 +974,8 @@ class GasSummaryCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '${diffSafe >= 0 ? "▲" : "▼"} ${formatThousandsInt(diffSafe.abs())}원',
+                // OPINET 일별 평균 변동이 소수점 단위(0.04원 등) → toStringAsFixed(2) 로 미세 변동도 노출
+                '${diffSafe >= 0 ? "▲" : "▼"} ${diffSafe.abs().toStringAsFixed(2)}원',
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
                   color: diffSafe >= 0 ? AppColors.error : AppColors.success),
               ),

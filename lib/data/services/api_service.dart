@@ -115,9 +115,14 @@ class ApiService {
     return Map<String, dynamic>.from(res.data['data'] ?? {});
   }
 
-  Future<Map<String, dynamic>> getGasAvgPrice() async {
-    final res = await _dio.get(ApiConstants.gasAvgPrice);
-    return Map<String, dynamic>.from(res.data['data'] ?? {});
+  /// 전국 평균 + (위치 기반) 시도 평균 둘 다 응답.
+  /// 반환 키: 'data' (레거시 = 전국), 'national', 'local' (시도 매핑 성공 시).
+  Future<Map<String, dynamic>> getGasAvgPrice({double? lat, double? lng}) async {
+    final res = await _dio.get(ApiConstants.gasAvgPrice, queryParameters: {
+      if (lat != null) 'lat': lat,
+      if (lng != null) 'lng': lng,
+    });
+    return Map<String, dynamic>.from(res.data ?? {});
   }
 
   // ─── 충전소 ───
