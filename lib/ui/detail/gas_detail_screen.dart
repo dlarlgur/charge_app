@@ -749,8 +749,8 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                       letterSpacing: -0.3,
                       color: isDark ? Colors.white : _kInk)),
               const SizedBox(width: 8),
-              Text('${_fuelLabelByCode[_userFuelCode] ?? '휘발유'} 기준 · 어제 대비',
-                  style: const TextStyle(fontSize: 11, color: _kMute2, fontWeight: FontWeight.w600)),
+              const Text('단위 원/L · 어제 대비',
+                  style: TextStyle(fontSize: 11, color: _kMute2, fontWeight: FontWeight.w600)),
             ],
           ),
           const SizedBox(height: 8),
@@ -773,8 +773,38 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                 isDark: isDark,
               );
             }),
-          const SizedBox(height: 14),
-          // today chips — 사용자 등록 유종 기준. server 가 region_rank 도 동일 유종으로 계산.
+          const SizedBox(height: 16),
+          // today chips 위 — 사용자 차량 유종 기준임을 컬러 chip 으로 명확히 표시.
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _fuelBg(_userFuelCode),
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6, height: 6,
+                      decoration: BoxDecoration(color: _fuelColor(_userFuelCode), shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      '내 차량 ${_fuelLabelByCode[_userFuelCode] ?? '휘발유'} 기준',
+                      style: TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.w800,
+                        color: _fuelColor(_userFuelCode), letterSpacing: -0.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // today chips — server 가 region_rank/avg 를 사용자 유종 기준으로 계산.
           Row(
             children: [
               _todayChip(
@@ -943,14 +973,19 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 14, fontWeight: FontWeight.w800,
-                letterSpacing: -0.3, color: valColor,
-                fontFeatures: const [FontFeature.tabularFigures()],
+            // 텍스트가 길면(예: '1,332위/2,000') chip 폭 안에 맞춰 자동 축소.
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                value,
+                style: TextStyle(
+                  fontSize: 14, fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3, color: valColor,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+                maxLines: 1,
               ),
-              maxLines: 1, overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -986,7 +1021,12 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
     if (rank == null) return '─';
     final r = rank['rank'];
     final t = rank['total'];
-    if (r is num && t is num && t > 0) return '${r.toInt()}위 / ${t.toInt()}곳';
+    if (r is num && t is num && t > 0) {
+      // chip 폭 좁아서 '위'/'곳' 단어 제거 — 직관적 'N위/M' 양식 (수치는 천단위 콤마).
+      String fmt(int n) => n.toString().replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
+      return '${fmt(r.toInt())}위/${fmt(t.toInt())}';
+    }
     return '─';
   }
 
