@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import '../../core/constants/api_constants.dart' show AppConstants;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -14,7 +12,7 @@ import '../../data/services/alert_service.dart';
 import '../../data/services/favorite_service.dart';
 import '../../data/services/station_alias_service.dart';
 import '../../data/services/widget_service.dart';
-import '../../providers/providers.dart' show favoritesProvider;
+import '../../providers/providers.dart' show favoritesProvider, settingsProvider;
 import '../widgets/shared_widgets.dart' show showFuelTypeAlertSheet, BrandLogo;
 
 // gas_detail.html 디자인 토큰 — 헤더/가격/그래프 카드 공용.
@@ -209,14 +207,11 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
     }
   }
 
-  // 사용자가 온보딩에서 설정한 차량 유종 — today chips/순위 기준.
-  // Hive box `keyAiFuelType` 에 'B027'/'D047'/'B034'/'C004'/'K015' 양식으로 저장.
+  // 사용자가 설정 화면(SettingsScreenEmbed)에서 변경한 유종이 master — settingsProvider.fuelType.
+  // (이전엔 keyAiFuelType 만 봤는데 그건 AI 차량 setup 전용 키라 설정 화면 변경 반영 안 됨)
   String get _userFuelCode {
     try {
-      final box = Hive.box(AppConstants.settingsBox);
-      final raw = box.get(AppConstants.keyAiFuelType, defaultValue: 'B027');
-      final code = raw?.toString() ?? 'B027';
-      return ['B027', 'D047', 'B034', 'C004', 'K015'].contains(code) ? code : 'B027';
+      return ref.read(settingsProvider).fuelType.code;
     } catch (_) {
       return 'B027';
     }
