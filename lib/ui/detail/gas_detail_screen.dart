@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import '../../core/constants/api_constants.dart' show AppConstants;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -207,9 +209,27 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
     }
   }
 
+  // 사용자가 온보딩에서 설정한 차량 유종 — today chips/순위 기준.
+  // Hive box `keyAiFuelType` 에 'B027'/'D047'/'B034'/'C004'/'K015' 양식으로 저장.
+  String get _userFuelCode {
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      final raw = box.get(AppConstants.keyAiFuelType, defaultValue: 'B027');
+      final code = raw?.toString() ?? 'B027';
+      return ['B027', 'D047', 'B034', 'C004', 'K015'].contains(code) ? code : 'B027';
+    } catch (_) {
+      return 'B027';
+    }
+  }
+
+  static const Map<String, String> _fuelLabelByCode = {
+    'B027': '휘발유', 'B034': '고급휘발유', 'D047': '경유', 'C004': 'LPG', 'K015': '등유',
+  };
+
   Future<void> _loadDetail() async {
     try {
-      final data = await ApiService().getGasStationDetail(widget.stationId);
+      // 사용자 유종을 fuelType 쿼리로 전달 → 서버가 region_rank/price 를 그 유종 기준으로 산출.
+      final data = await ApiService().getGasStationDetail(widget.stationId, fuelType: _userFuelCode);
       if (mounted) setState(() { _detail = data; _loading = false; });
       // detail 로드 후 차트 미리 fetch (4w 기본)
       _loadChart(_chartPeriod);
@@ -729,8 +749,8 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                       letterSpacing: -0.3,
                       color: isDark ? Colors.white : _kInk)),
               const SizedBox(width: 8),
-              const Text('단위 원/L · 어제 대비',
-                  style: TextStyle(fontSize: 11, color: _kMute2, fontWeight: FontWeight.w600)),
+              Text('${_fuelLabelByCode[_userFuelCode] ?? '휘발유'} 기준 · 어제 대비',
+                  style: const TextStyle(fontSize: 11, color: _kMute2, fontWeight: FontWeight.w600)),
             ],
           ),
           const SizedBox(height: 8),
@@ -754,19 +774,19 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
               );
             }),
           const SizedBox(height: 14),
-          // today chips — 지역 평균 / 지역 대비 / 최저가 순위 (휘발유 기준)
+          // today chips — 사용자 등록 유종 기준. server 가 region_rank 도 동일 유종으로 계산.
           Row(
             children: [
               _todayChip(
                 label: '지역 평균',
-                value: _regionAvgText(regionAvg, 'B027'),
+                value: _regionAvgText(regionAvg, _userFuelCode),
                 isDark: isDark,
               ),
               const SizedBox(width: 8),
               _todayChip(
                 label: '지역 대비',
-                value: _vsRegionText(vsRegion, 'B027'),
-                tone: _vsRegionTone(vsRegion, 'B027'),
+                value: _vsRegionText(vsRegion, _userFuelCode),
+                tone: _vsRegionTone(vsRegion, _userFuelCode),
                 isDark: isDark,
               ),
               const SizedBox(width: 8),
@@ -1153,10 +1173,12 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
         maxX: (points.length - 1).toDouble(),
         minY: yMin,
         maxY: yMax,
+        // y interval — 라벨 4-5개 분포로 강제. (yMax-yMin)/4 가 너무 작으면 라벨이 위아래로 겹침.
+        // 100원 단위 floor 로 정렬해서 깔끔한 숫자(2200/2300/...).
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          horizontalInterval: ((yMax - yMin) / 4).clamp(50, 5000),
+          horizontalInterval: _niceYInterval(yMax - yMin),
           getDrawingHorizontalLine: (_) =>
               const FlLine(color: _kLine, strokeWidth: 1, dashArray: [2, 4]),
         ),
@@ -1164,12 +1186,20 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 40,
-              interval: ((yMax - yMin) / 4).clamp(50, 5000),
-              getTitlesWidget: (v, _) => Text(
-                _formatPrice(v),
-                style: const TextStyle(fontSize: 9, color: _kMute2, fontWeight: FontWeight.w600),
-              ),
+              reservedSize: 52,
+              interval: _niceYInterval(yMax - yMin),
+              getTitlesWidget: (v, meta) {
+                // 최상단/최하단 라벨은 그리지 않음 (border 와 겹쳐서 잘리는 시각 문제).
+                if (v <= yMin + 0.5 || v >= yMax - 0.5) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: Text(
+                    _formatPrice(v),
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(fontSize: 10, color: _kMute2, fontWeight: FontWeight.w600),
+                  ),
+                );
+              },
             ),
           ),
           bottomTitles: AxisTitles(
@@ -1294,6 +1324,17 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
 
   String _formatPrice(double price) => price.toInt().toString()
       .replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
+
+  // y축 간격을 깔끔한 100/200/500/1000 단위로. 라벨 4-5개 분포 + 겹침 방지.
+  double _niceYInterval(double span) {
+    if (span <= 0) return 100;
+    final rough = span / 4;
+    if (rough <= 50) return 50;
+    if (rough <= 100) return 100;
+    if (rough <= 200) return 200;
+    if (rough <= 500) return 500;
+    return 1000;
+  }
 }
 
 // ─── 액션 아이콘 버튼 ───
