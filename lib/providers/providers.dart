@@ -58,7 +58,7 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
 
 // ─── Settings Provider (Hive) ───
 final settingsProvider = StateNotifierProvider<SettingsNotifier, SettingsState>((ref) {
-  return SettingsNotifier();
+  return SettingsNotifier(ref);
 });
 
 class SettingsState {
@@ -97,9 +97,10 @@ class SettingsState {
 }
 
 class SettingsNotifier extends StateNotifier<SettingsState> {
+  final Ref _ref;
   final _box = Hive.box(AppConstants.settingsBox);
 
-  SettingsNotifier() : super(const SettingsState()) {
+  SettingsNotifier(this._ref) : super(const SettingsState()) {
     _load();
   }
 
@@ -127,6 +128,9 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   void setFuelType(FuelType type) {
     state = state.copyWith(fuelType: type);
     _box.put(AppConstants.keyFuelType, type.code);
+    // 홈 목록 gas filter 도 동일 유종으로 동기 — 사용자가 설정에서 유종 바꿨다면 목록도 그 유종.
+    // filter 측에서 사용자가 직접 필터를 변경한 건 그대로 (단방향 동기 only).
+    _ref.read(gasFilterProvider.notifier).setFuelTypes([type.code]);
   }
 
   void setChargerTypes(List<String> types) {
@@ -566,6 +570,17 @@ class GasFilterNotifier extends StateNotifier<GasFilterOptions> {
     _box.put(AppConstants.keyGasFilterRadius, options.radius);
     _box.put(AppConstants.keyGasFilterFuelTypes, options.fuelTypes);
     _box.put(AppConstants.keyGasFilterBrands, options.brands);
+  }
+
+  // 설정 화면에서 유종 변경 시 filter 도 동기 (단방향: settings→filter).
+  // 다른 옵션(sort/radius/brands)은 보존.
+  void setFuelTypes(List<String> types) {
+    update(GasFilterOptions(
+      sort: state.sort,
+      radius: state.radius,
+      fuelTypes: types,
+      brands: state.brands,
+    ));
   }
 }
 
