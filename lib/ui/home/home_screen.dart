@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/helpers.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/constants/api_constants.dart';
 import '../../data/models/models.dart';
 import '../../data/services/ad_service.dart';
@@ -686,7 +687,19 @@ class _GasListViewState extends ConsumerState<_GasListView> {
                 final stationAvg = stations.isEmpty ? 0.0
                     : stations.map((s) => s.price).reduce((a, b) => a + b) / stations.length;
                 final avgAsync = ref.watch(gasAvgPriceProvider);
-                final fuelCode = filter.fuelTypes.isNotEmpty ? filter.fuelTypes.first : 'B027';
+                // 사용자 차량 유종(온보딩 설정) 우선. 없을 때만 filter 또는 'B027' 폴백.
+                // → 사용자가 본 평균/전일대비가 본인 차량 기준이 되도록 자연스럽게 표시.
+                final vehicleFuel = (() {
+                  try {
+                    final raw = Hive.box(AppConstants.settingsBox).get(AppConstants.keyAiFuelType);
+                    if (raw is String && const ['B027','D047','B034','C004','K015'].contains(raw)) {
+                      return raw;
+                    }
+                  } catch (_) {}
+                  return null;
+                })();
+                final fuelCode = vehicleFuel
+                    ?? (filter.fuelTypes.isNotEmpty ? filter.fuelTypes.first : 'B027');
                 final fuelLabel = FuelType.fromCode(fuelCode).label;
                 // 응답 우선순위: local(시도) > national(전국) > 레거시 m[fuelCode]
                 final m = avgAsync.maybeWhen<Map<String, dynamic>?>(data: (v) => v, orElse: () => null);
