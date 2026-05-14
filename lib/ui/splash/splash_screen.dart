@@ -53,6 +53,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             ),
           ).then((_) => _afterAdOrSkip()),
         );
+        // 광고 첫 frame 그려진 뒤 native splash 제거 — 두 화면 사이 흰 갭 차단.
+        WidgetsBinding.instance.addPostFrameCallback((_) => FlutterNativeSplash.remove());
       }
     }
 

@@ -265,11 +265,11 @@ Future<void> _initLocalNotifications() async {
 
 void main() async {
   final binding = WidgetsFlutterBinding.ensureInitialized();
-  // 네이티브 스플래시 0.3초 cap. 로고는 잠깐만 보이도록 최소화.
-  // 캐시된 광고가 같은 시점에 그 아래로 push 돼있어 내려가는 순간 흰 갭 없이
-  // 바로 광고가 보인다. 캐시 없으면 0.3초 후 다음 화면으로 진행.
+  // 네이티브 스플래시는 SplashScreen 이 광고 push 시점 또는 _navigateNext 직전에 직접 제거.
+  // (이전 300ms 고정 타이머가 광고 push 전에 splash 를 떼서 빈 SplashScreen Scaffold(흰색)가 노출되던 갭 차단)
+  // 안전 타임아웃 — 어떤 이유로 SplashScreen 이 remove 못 부르면 5초 후 강제 해제.
   FlutterNativeSplash.preserve(widgetsBinding: binding);
-  Timer(const Duration(milliseconds: 300), FlutterNativeSplash.remove);
+  Timer(const Duration(seconds: 5), FlutterNativeSplash.remove);
 
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(
