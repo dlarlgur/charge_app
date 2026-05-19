@@ -43,18 +43,18 @@ class EvWidgetProvider : AppWidgetProvider() {
             )
 
             data class RowIds(
-                val row: Int, val brand: Int, val name: Int, val star: Int,
+                val row: Int, val brand: Int, val name: Int,
                 val pill: Int, val sub: Int, val avail: Int, val total: Int,
                 val status: Int, val bestBg: Int
             )
             val rows = listOf(
                 RowIds(
-                    R.id.ev_row1, R.id.ev_brand1, R.id.ev_name1, R.id.ev_star1,
+                    R.id.ev_row1, R.id.ev_brand1, R.id.ev_name1,
                     R.id.ev_pill1, R.id.ev_sub1, R.id.ev_avail1, R.id.ev_total1,
                     R.id.ev_status1, R.drawable.bg_row_best_ev
                 ),
                 RowIds(
-                    R.id.ev_row2, R.id.ev_brand2, R.id.ev_name2, R.id.ev_star2,
+                    R.id.ev_row2, R.id.ev_brand2, R.id.ev_name2,
                     R.id.ev_pill2, R.id.ev_sub2, R.id.ev_avail2, R.id.ev_total2,
                     R.id.ev_status2, R.drawable.bg_row_normal
                 ),
@@ -87,7 +87,6 @@ class EvWidgetProvider : AppWidgetProvider() {
                     )
 
                     views.setTextViewText(row.name, name)
-                    views.setViewVisibility(row.star, View.VISIBLE)
 
                     views.setViewVisibility(row.pill, View.VISIBLE)
                     views.setTextViewText(row.pill, if (hasFast) "급속" else "완속")
@@ -157,7 +156,6 @@ class EvWidgetProvider : AppWidgetProvider() {
                     views.setTextViewText(r0.brand, "+")
                     views.setInt(r0.brand, "setBackgroundResource", R.drawable.bg_badge_default)
                     views.setTextViewText(r0.name, "즐겨찾기 충전소를 추가하세요")
-                    views.setViewVisibility(r0.star, View.GONE)
                     views.setViewVisibility(r0.pill, View.GONE)
                     views.setTextViewText(r0.sub, "앱을 열어 추가")
                     views.setTextViewText(r0.avail, "0")
@@ -172,7 +170,6 @@ class EvWidgetProvider : AppWidgetProvider() {
                 views.setTextViewText(r0.brand, "+")
                 views.setInt(r0.brand, "setBackgroundResource", R.drawable.bg_badge_default)
                 views.setTextViewText(r0.name, "데이터 로드 중...")
-                views.setViewVisibility(r0.star, View.GONE)
                 views.setViewVisibility(r0.pill, View.GONE)
                 views.setTextViewText(r0.sub, "")
                 views.setTextViewText(r0.avail, "0")

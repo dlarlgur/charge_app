@@ -23,7 +23,7 @@
             <ImageView
                 android:layout_width="22dp"
                 android:layout_height="22dp"
-                android:background="@drawable/ic_widget_mark_combined"
+                android:src="@mipmap/ic_launcher"
                 android:contentDescription="@null"/>
             <TextView
                 android:layout_width="wrap_content"
@@ -106,29 +106,15 @@
                 android:layout_weight="1"
                 android:orientation="vertical"
                 android:layout_marginStart="10dp">
-                <LinearLayout
+                <TextView
+                    android:id="@+id/cg_name1"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
-                    <TextView
-                        android:id="@+id/cg_name1"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:textSize="13sp"
-                        android:textColor="@color/widget_ink"
-                        android:fontFamily="@font/pretendard_extrabold"
-                        android:singleLine="true"
-                        android:ellipsize="end"/>
-                    <ImageView
-                        android:id="@+id/cg_star1"
-                        android:layout_width="11dp"
-                        android:layout_height="11dp"
-                        android:layout_marginStart="5dp"
-                        android:src="@drawable/ic_star_filled"
-                        android:contentDescription="@null"/>
-                </LinearLayout>
+                    android:textSize="13sp"
+                    android:textColor="@color/widget_ink"
+                    android:fontFamily="@font/pretendard_extrabold"
+                    android:singleLine="true"
+                    android:ellipsize="end"/>
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -215,29 +201,15 @@
                 android:layout_weight="1"
                 android:orientation="vertical"
                 android:layout_marginStart="10dp">
-                <LinearLayout
+                <TextView
+                    android:id="@+id/cg_name2"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
-                    <TextView
-                        android:id="@+id/cg_name2"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:textSize="13sp"
-                        android:textColor="@color/widget_ink"
-                        android:fontFamily="@font/pretendard_extrabold"
-                        android:singleLine="true"
-                        android:ellipsize="end"/>
-                    <ImageView
-                        android:id="@+id/cg_star2"
-                        android:layout_width="11dp"
-                        android:layout_height="11dp"
-                        android:layout_marginStart="5dp"
-                        android:src="@drawable/ic_star_filled"
-                        android:contentDescription="@null"/>
-                </LinearLayout>
+                    android:textSize="13sp"
+                    android:textColor="@color/widget_ink"
+                    android:fontFamily="@font/pretendard_extrabold"
+                    android:singleLine="true"
+                    android:ellipsize="end"/>
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -355,29 +327,15 @@
                 android:layout_weight="1"
                 android:orientation="vertical"
                 android:layout_marginStart="10dp">
-                <LinearLayout
+                <TextView
+                    android:id="@+id/ce_name1"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
-                    <TextView
-                        android:id="@+id/ce_name1"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:textSize="13sp"
-                        android:textColor="@color/widget_ink"
-                        android:fontFamily="@font/pretendard_extrabold"
-                        android:singleLine="true"
-                        android:ellipsize="end"/>
-                    <ImageView
-                        android:id="@+id/ce_star1"
-                        android:layout_width="11dp"
-                        android:layout_height="11dp"
-                        android:layout_marginStart="5dp"
-                        android:src="@drawable/ic_star_filled"
-                        android:contentDescription="@null"/>
-                </LinearLayout>
+                    android:textSize="13sp"
+                    android:textColor="@color/widget_ink"
+                    android:fontFamily="@font/pretendard_extrabold"
+                    android:singleLine="true"
+                    android:ellipsize="end"/>
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -492,29 +450,15 @@
                 android:layout_weight="1"
                 android:orientation="vertical"
                 android:layout_marginStart="10dp">
-                <LinearLayout
+                <TextView
+                    android:id="@+id/ce_name2"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
-                    <TextView
-                        android:id="@+id/ce_name2"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:textSize="13sp"
-                        android:textColor="@color/widget_ink"
-                        android:fontFamily="@font/pretendard_extrabold"
-                        android:singleLine="true"
-                        android:ellipsize="end"/>
-                    <ImageView
-                        android:id="@+id/ce_star2"
-                        android:layout_width="11dp"
-                        android:layout_height="11dp"
-                        android:layout_marginStart="5dp"
-                        android:src="@drawable/ic_star_filled"
-                        android:contentDescription="@null"/>
-                </LinearLayout>
+                    android:textSize="13sp"
+                    android:textColor="@color/widget_ink"
+                    android:fontFamily="@font/pretendard_extrabold"
+                    android:singleLine="true"
+                    android:ellipsize="end"/>
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"

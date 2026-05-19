@@ -43,18 +43,18 @@ class GasWidgetProvider : AppWidgetProvider() {
             )
 
             data class RowIds(
-                val row: Int, val brand: Int, val name: Int, val star: Int,
+                val row: Int, val brand: Int, val name: Int,
                 val pill: Int, val sub: Int, val price: Int, val unit: Int,
                 val bestBg: Int
             )
             val rows = listOf(
                 RowIds(
-                    R.id.gas_row1, R.id.gas_brand1, R.id.gas_name1, R.id.gas_star1,
+                    R.id.gas_row1, R.id.gas_brand1, R.id.gas_name1,
                     R.id.gas_pill1, R.id.gas_sub1, R.id.gas_price1, R.id.gas_unit1,
                     R.drawable.bg_row_best_gas
                 ),
                 RowIds(
-                    R.id.gas_row2, R.id.gas_brand2, R.id.gas_name2, R.id.gas_star2,
+                    R.id.gas_row2, R.id.gas_brand2, R.id.gas_name2,
                     R.id.gas_pill2, R.id.gas_sub2, R.id.gas_price2, R.id.gas_unit2,
                     R.drawable.bg_row_normal
                 ),
@@ -81,7 +81,6 @@ class GasWidgetProvider : AppWidgetProvider() {
                     views.setInt(row.brand, "setBackgroundResource", brandDrawable(brand))
 
                     views.setTextViewText(row.name, name)
-                    views.setViewVisibility(row.star, View.VISIBLE)
 
                     views.setViewVisibility(row.pill, View.VISIBLE)
                     views.setTextViewText(row.pill, if (isSelf) "셀프" else "일반")
@@ -115,7 +114,6 @@ class GasWidgetProvider : AppWidgetProvider() {
                     views.setTextViewText(r0.brand, "+")
                     views.setInt(r0.brand, "setBackgroundResource", R.drawable.bg_badge_default)
                     views.setTextViewText(r0.name, "즐겨찾기 주유소를 추가하세요")
-                    views.setViewVisibility(r0.star, View.GONE)
                     views.setViewVisibility(r0.pill, View.GONE)
                     views.setTextViewText(r0.sub, "앱을 열어 추가")
                     views.setTextViewText(r0.price, "")
@@ -129,7 +127,6 @@ class GasWidgetProvider : AppWidgetProvider() {
                 views.setTextViewText(r0.brand, "+")
                 views.setInt(r0.brand, "setBackgroundResource", R.drawable.bg_badge_default)
                 views.setTextViewText(r0.name, "데이터 로드 중...")
-                views.setViewVisibility(r0.star, View.GONE)
                 views.setViewVisibility(r0.pill, View.GONE)
                 views.setTextViewText(r0.sub, "")
                 views.setTextViewText(r0.price, "")

@@ -85,30 +85,16 @@
                 android:orientation="vertical"
                 android:layout_marginStart="10dp">
 
-                <LinearLayout
+                <TextView
+                    android:id="@+id/gas_name1"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
-                    <TextView
-                        android:id="@+id/gas_name1"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:textSize="13sp"
-                        android:textColor="@color/widget_ink"
-                        android:fontFamily="@font/pretendard_extrabold"
-                        android:letterSpacing="-0.02"
-                        android:singleLine="true"
-                        android:ellipsize="end"/>
-                    <ImageView
-                        android:id="@+id/gas_star1"
-                        android:layout_width="11dp"
-                        android:layout_height="11dp"
-                        android:layout_marginStart="5dp"
-                        android:src="@drawable/ic_star_filled"
-                        android:contentDescription="@null"/>
-                </LinearLayout>
+                    android:textSize="13sp"
+                    android:textColor="@color/widget_ink"
+                    android:fontFamily="@font/pretendard_extrabold"
+                    android:letterSpacing="-0.02"
+                    android:singleLine="true"
+                    android:ellipsize="end"/>
 
                 <LinearLayout
                     android:layout_width="wrap_content"
@@ -200,30 +186,16 @@
                 android:orientation="vertical"
                 android:layout_marginStart="10dp">
 
-                <LinearLayout
+                <TextView
+                    android:id="@+id/gas_name2"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
-                    <TextView
-                        android:id="@+id/gas_name2"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:textSize="13sp"
-                        android:textColor="@color/widget_ink"
-                        android:fontFamily="@font/pretendard_extrabold"
-                        android:letterSpacing="-0.02"
-                        android:singleLine="true"
-                        android:ellipsize="end"/>
-                    <ImageView
-                        android:id="@+id/gas_star2"
-                        android:layout_width="11dp"
-                        android:layout_height="11dp"
-                        android:layout_marginStart="5dp"
-                        android:src="@drawable/ic_star_filled"
-                        android:contentDescription="@null"/>
-                </LinearLayout>
+                    android:textSize="13sp"
+                    android:textColor="@color/widget_ink"
+                    android:fontFamily="@font/pretendard_extrabold"
+                    android:letterSpacing="-0.02"
+                    android:singleLine="true"
+                    android:ellipsize="end"/>
 
                 <LinearLayout
                     android:layout_width="wrap_content"

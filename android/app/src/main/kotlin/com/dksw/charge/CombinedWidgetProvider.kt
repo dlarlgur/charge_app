@@ -23,13 +23,13 @@ class CombinedWidgetProvider : AppWidgetProvider() {
     companion object {
 
         private data class GasRow(
-            val row: Int, val brand: Int, val name: Int, val star: Int,
+            val row: Int, val brand: Int, val name: Int,
             val pill: Int, val sub: Int, val price: Int, val unit: Int,
             val bestBg: Int
         )
 
         private data class EvRow(
-            val row: Int, val brand: Int, val name: Int, val star: Int,
+            val row: Int, val brand: Int, val name: Int,
             val pill: Int, val sub: Int, val avail: Int, val total: Int,
             val status: Int, val bestBg: Int
         )
@@ -56,24 +56,24 @@ class CombinedWidgetProvider : AppWidgetProvider() {
 
             val gasRows = listOf(
                 GasRow(
-                    R.id.cg_row1, R.id.cg_brand1, R.id.cg_name1, R.id.cg_star1,
+                    R.id.cg_row1, R.id.cg_brand1, R.id.cg_name1,
                     R.id.cg_pill1, R.id.cg_sub1, R.id.cg_price1, R.id.cg_unit1,
                     R.drawable.bg_row_best_gas
                 ),
                 GasRow(
-                    R.id.cg_row2, R.id.cg_brand2, R.id.cg_name2, R.id.cg_star2,
+                    R.id.cg_row2, R.id.cg_brand2, R.id.cg_name2,
                     R.id.cg_pill2, R.id.cg_sub2, R.id.cg_price2, R.id.cg_unit2,
                     R.drawable.bg_row_normal
                 ),
             )
             val evRows = listOf(
                 EvRow(
-                    R.id.ce_row1, R.id.ce_brand1, R.id.ce_name1, R.id.ce_star1,
+                    R.id.ce_row1, R.id.ce_brand1, R.id.ce_name1,
                     R.id.ce_pill1, R.id.ce_sub1, R.id.ce_avail1, R.id.ce_total1,
                     R.id.ce_status1, R.drawable.bg_row_best_ev
                 ),
                 EvRow(
-                    R.id.ce_row2, R.id.ce_brand2, R.id.ce_name2, R.id.ce_star2,
+                    R.id.ce_row2, R.id.ce_brand2, R.id.ce_name2,
                     R.id.ce_pill2, R.id.ce_sub2, R.id.ce_avail2, R.id.ce_total2,
                     R.id.ce_status2, R.drawable.bg_row_normal
                 ),
@@ -107,7 +107,6 @@ class CombinedWidgetProvider : AppWidgetProvider() {
                     views.setTextViewText(row.brand, brandShort(brand))
                     views.setInt(row.brand, "setBackgroundResource", brandDrawable(brand))
                     views.setTextViewText(row.name, name)
-                    views.setViewVisibility(row.star, View.VISIBLE)
                     views.setViewVisibility(row.pill, View.VISIBLE)
                     views.setTextViewText(row.pill, if (isSelf) "셀프" else "일반")
                     views.setTextViewText(row.sub, fuelLabel)
@@ -139,7 +138,6 @@ class CombinedWidgetProvider : AppWidgetProvider() {
             views.setTextViewText(r0.brand, "+")
             views.setInt(r0.brand, "setBackgroundResource", R.drawable.bg_badge_default)
             views.setTextViewText(r0.name, "즐겨찾기 주유소를 추가하세요")
-            views.setViewVisibility(r0.star, View.GONE)
             views.setViewVisibility(r0.pill, View.GONE)
             views.setTextViewText(r0.sub, "")
             views.setTextViewText(r0.price, "")
@@ -173,7 +171,6 @@ class CombinedWidgetProvider : AppWidgetProvider() {
                         if (hasFast) R.drawable.bg_badge_ev_fast else R.drawable.bg_badge_ev_slow
                     )
                     views.setTextViewText(row.name, name)
-                    views.setViewVisibility(row.star, View.VISIBLE)
 
                     views.setViewVisibility(row.pill, View.VISIBLE)
                     views.setTextViewText(row.pill, if (hasFast) "급속" else "완속")
@@ -241,7 +238,6 @@ class CombinedWidgetProvider : AppWidgetProvider() {
             views.setTextViewText(r0.brand, "+")
             views.setInt(r0.brand, "setBackgroundResource", R.drawable.bg_badge_default)
             views.setTextViewText(r0.name, "즐겨찾기 충전소를 추가하세요")
-            views.setViewVisibility(r0.star, View.GONE)
             views.setViewVisibility(r0.pill, View.GONE)
             views.setTextViewText(r0.sub, "")
             views.setTextViewText(r0.avail, "0")
