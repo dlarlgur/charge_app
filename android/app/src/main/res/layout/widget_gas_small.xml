@@ -45,7 +45,8 @@
             android:textSize="13sp"
             android:textColor="@color/widget_ink"
             android:fontFamily="@font/pretendard_extrabold"
-            android:lineSpacingMultiplier="1.1"/>
+            android:lineSpacingMultiplier="1.1"
+            android:text="HD현대오일뱅크 효진주유소"/>
 
         <TextView
             android:id="@+id/gas_small_sub"
@@ -54,7 +55,8 @@
             android:layout_marginTop="3dp"
             android:textSize="10sp"
             android:textColor="@color/widget_muted"
-            android:fontFamily="@font/pretendard_bold"/>
+            android:fontFamily="@font/pretendard_bold"
+            android:text="휘발유 · 셀프"/>
 
         <LinearLayout
             android:layout_width="0dp"
@@ -77,7 +79,8 @@
                 android:fontFamily="@font/pretendard_extrabold"
                 android:letterSpacing="-0.04"
                 android:fontFeatureSettings="tnum"
-                android:includeFontPadding="false"/>
+                android:includeFontPadding="false"
+                android:text="1,712"/>
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -101,7 +104,8 @@
             android:background="@drawable/bg_pill_neutral"
             android:textSize="10sp"
             android:textColor="@color/widget_ink_2"
-            android:fontFamily="@font/pretendard_bold"/>
+            android:fontFamily="@font/pretendard_bold"
+            android:text="휘발유"/>
 
     </LinearLayout>
 </FrameLayout>

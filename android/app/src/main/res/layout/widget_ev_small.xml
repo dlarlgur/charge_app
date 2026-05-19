@@ -45,7 +45,8 @@
             android:textSize="13sp"
             android:textColor="@color/widget_ink"
             android:fontFamily="@font/pretendard_extrabold"
-            android:lineSpacingMultiplier="1.1"/>
+            android:lineSpacingMultiplier="1.1"
+            android:text="동천자이아파트4"/>
 
         <TextView
             android:id="@+id/ev_small_sub"
@@ -54,7 +55,8 @@
             android:layout_marginTop="3dp"
             android:textSize="10sp"
             android:textColor="@color/widget_muted"
-            android:fontFamily="@font/pretendard_bold"/>
+            android:fontFamily="@font/pretendard_bold"
+            android:text="완속 7kW"/>
 
         <LinearLayout
             android:layout_width="0dp"
@@ -77,7 +79,8 @@
                 android:fontFamily="@font/pretendard_extrabold"
                 android:letterSpacing="-0.04"
                 android:fontFeatureSettings="tnum"
-                android:includeFontPadding="false"/>
+                android:includeFontPadding="false"
+                android:text="3"/>
             <TextView
                 android:id="@+id/ev_small_total_label"
                 android:layout_width="wrap_content"
@@ -86,7 +89,8 @@
                 android:layout_marginBottom="3dp"
                 android:textSize="11sp"
                 android:textColor="@color/widget_muted"
-                android:fontFamily="@font/pretendard_bold"/>
+                android:fontFamily="@font/pretendard_bold"
+                android:text="/ 6 자리"/>
         </LinearLayout>
 
         <TextView
