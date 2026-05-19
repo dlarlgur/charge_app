@@ -12,4 +12,29 @@
     <color name="ad_brand_blue_light">#1A3B82F6</color>
     <color name="ad_label_bg">#FFE8ECF0</color>
     <color name="ad_label_text">#FF64748B</color>
+
+    <!-- Widget V2 (Bold) design tokens — widget.html mapping -->
+    <color name="widget_ink">#0F172A</color>
+    <color name="widget_ink_2">#334155</color>
+    <color name="widget_muted">#64748B</color>
+    <color name="widget_mute_2">#94A3B8</color>
+    <color name="widget_line">#E2E8F0</color>
+    <color name="widget_line_soft">#F1F5F9</color>
+    <color name="widget_blue">#2563EB</color>
+    <color name="widget_blue_2">#3B82F6</color>
+    <color name="widget_blue_soft">#EFF6FF</color>
+    <color name="widget_blue_text">#1E40AF</color>
+    <color name="widget_green">#10B981</color>
+    <color name="widget_green_2">#059669</color>
+    <color name="widget_green_soft">#ECFDF5</color>
+    <color name="widget_green_text">#047857</color>
+    <color name="widget_amber">#F59E0B</color>
+    <color name="widget_amber_soft">#FEF3C7</color>
+    <color name="widget_amber_text">#92400E</color>
+    <color name="widget_red">#EF4444</color>
+    <color name="widget_red_soft">#FEE2E2</color>
+    <color name="widget_red_text">#B91C1C</color>
+    <color name="widget_card_bg">#FAFFFFFF</color>
+    <color name="widget_best_gas_tint">#0F2563EB</color>
+    <color name="widget_best_ev_tint">#0F10B981</color>
 </resources>
