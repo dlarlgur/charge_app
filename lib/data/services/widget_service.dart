@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:intl/intl.dart';
@@ -11,14 +12,16 @@ import '../services/station_alias_service.dart';
 
 /// 홈 위젯 데이터 갱신 서비스
 ///
-/// Flutter → SharedPreferences → Android AppWidgetProvider 순으로 데이터 전달.
-/// home_widget 패키지가 "flutter." 접두사로 SharedPreferences에 저장함.
+/// Flutter → SharedPreferences("HomeWidgetPreferences") → Android AppWidgetProvider.
+/// home_widget 0.6.x 는 키에 접두사를 붙이지 않고 그대로 저장한다.
 class WidgetService {
   WidgetService._();
 
   static const _appGroupId = 'group.com.dksw.charge'; // iOS App Group (필요 시)
 
-  static final _timeFmt = DateFormat('HH:mm', 'ko_KR');
+  // locale 미지정 — 'HH:mm' 는 locale 영향 없고, 'ko_KR' 명시 시 initializeDateFormatting()
+  // 호출 안 된 환경(WorkManager isolate 포함) 에서 LocaleDataException 으로 throw 됨.
+  static final _timeFmt = DateFormat('HH:mm');
 
   /// 앱 초기화 시 한 번 호출
   static Future<void> init() async {
@@ -28,16 +31,18 @@ class WidgetService {
   /// 즐겨찾기 주유소 위젯 데이터를 갱신하고 위젯을 업데이트
   static Future<void> updateGasWidget() async {
     try {
+      debugPrint('[Widget][gas] start');
       final box = Hive.isBoxOpen(AppConstants.favoritesBox)
           ? Hive.box(AppConstants.favoritesBox)
           : await Hive.openBox(AppConstants.favoritesBox);
+      debugPrint('[Widget][gas] favoritesBox size=${box.length}');
 
-      // 즐겨찾기 주유소 최대 3개 (gas 타입)
       final gasFavs = box.values
           .map((v) => Map<String, dynamic>.from(v as Map))
           .where((f) => f['type'] == 'gas')
           .toList()
         ..sort((a, b) => (b['addedAt'] ?? '').compareTo(a['addedAt'] ?? ''));
+      debugPrint('[Widget][gas] gasFavs=${gasFavs.length} ids=${gasFavs.map((f) => f['id']).toList()}');
 
       final settingsBox = Hive.isBoxOpen(AppConstants.settingsBox)
           ? Hive.box(AppConstants.settingsBox)
@@ -49,114 +54,147 @@ class WidgetService {
       final items = <Map<String, dynamic>>[];
 
       for (final fav in gasFavs.take(2)) {
-        final id = fav['id'] as String? ?? '';
-        if (id.isEmpty) continue;
+        final id = (fav['id'] as String? ?? '').trim();
+        final favName = (fav['name'] ?? '').toString();
+        final favBrand = (fav['brand'] ?? '').toString();
+        if (id.isEmpty) {
+          // id 빈 항목도 fallback 표시 — 위젯이 빈 상태로 빠지지 않도록
+          debugPrint('[Widget][gas] empty id, fallback name="$favName"');
+          items.add({
+            'id': '', 'name': favName, 'brand': favBrand,
+            'price': 0, 'isSelf': false, 'fuelLabel': fuelLabel,
+          });
+          continue;
+        }
         try {
           final detail = await ApiService().getGasStationDetail(id);
           final station = GasStation.fromJson(detail);
+          String resolvedName;
+          try {
+            resolvedName = StationAliasService.resolveGas(id, station.name);
+          } catch (e) {
+            debugPrint('[Widget][gas] resolveGas throw: $e — use raw name');
+            resolvedName = station.name;
+          }
           items.add({
-            'id': id,
-            'name': StationAliasService.resolveGas(id, station.name),
-            'brand': station.brand,
-            'price': station.price.toInt(),
-            'isSelf': station.isSelf,
+            'id': id, 'name': resolvedName, 'brand': station.brand,
+            'price': station.price.toInt(), 'isSelf': station.isSelf,
             'fuelLabel': fuelLabel,
           });
-        } catch (_) {
-          // API 실패 시 즐겨찾기 이름만 표시
-          final original = (fav['name'] ?? '').toString();
+        } catch (e) {
+          debugPrint('[Widget][gas] detail API fail id=$id: $e — fallback to fav name');
+          String resolvedName;
+          try {
+            resolvedName = StationAliasService.resolveGas(id, favName);
+          } catch (_) {
+            resolvedName = favName;
+          }
           items.add({
-            'id': id,
-            'name': StationAliasService.resolveGas(id, original),
-            'brand': '',
-            'price': 0,
-            'isSelf': false,
-            'fuelLabel': fuelLabel,
+            'id': id, 'name': resolvedName, 'brand': favBrand,
+            'price': 0, 'isSelf': false, 'fuelLabel': fuelLabel,
           });
         }
       }
 
       final updatedAt = _timeFmt.format(DateTime.now());
+      final json = jsonEncode(items);
+      debugPrint('[Widget][gas] items=${items.length} payload=$json');
 
-      await HomeWidget.saveWidgetData('widget_gas_list', jsonEncode(items));
+      await HomeWidget.saveWidgetData('widget_gas_list', json);
       await HomeWidget.saveWidgetData('widget_gas_updated', updatedAt);
       await HomeWidget.updateWidget(androidName: 'GasWidgetProvider');
-    } catch (e) {
-      // 위젯 업데이트 실패는 무시 (앱 동작에 영향 없음)
+      debugPrint('[Widget][gas] save+update OK');
+    } catch (e, st) {
+      debugPrint('[Widget][gas] FAIL $e\n$st');
     }
   }
 
   /// 즐겨찾기 충전소 위젯 데이터를 갱신하고 위젯을 업데이트
   static Future<void> updateEvWidget() async {
     try {
+      debugPrint('[Widget][ev] start');
       final box = Hive.isBoxOpen(AppConstants.favoritesBox)
           ? Hive.box(AppConstants.favoritesBox)
           : await Hive.openBox(AppConstants.favoritesBox);
+      debugPrint('[Widget][ev] favoritesBox size=${box.length}');
 
-      // 즐겨찾기 충전소 최대 3개 (ev 타입)
       final evFavs = box.values
           .map((v) => Map<String, dynamic>.from(v as Map))
           .where((f) => f['type'] == 'ev')
           .toList()
         ..sort((a, b) => (b['addedAt'] ?? '').compareTo(a['addedAt'] ?? ''));
+      debugPrint('[Widget][ev] evFavs=${evFavs.length} ids=${evFavs.map((f) => f['id']).toList()}');
 
       final items = <Map<String, dynamic>>[];
 
       for (final fav in evFavs.take(2)) {
-        final id = fav['id'] as String? ?? '';
-        if (id.isEmpty) continue;
+        final id = (fav['id'] as String? ?? '').trim();
+        final favName = (fav['name'] ?? '').toString();
+        if (id.isEmpty) {
+          debugPrint('[Widget][ev] empty id, fallback name="$favName"');
+          items.add({
+            'id': '', 'name': favName,
+            'available': 0, 'total': 0, 'broken': 0,
+            'hasFast': false, 'maxKw': 0, 'statusCode': 0,
+          });
+          continue;
+        }
         try {
           final detail = await ApiService().getEvStationDetail(id);
           final station = EvStation.fromJson(detail);
 
-          final hasFast = station.chargers.any((c) {
-            final out = c.output;
-            return out >= 50;
-          });
+          final hasFast = station.chargers.any((c) => c.output >= 50);
           final maxKw = station.chargers.isEmpty
               ? 0
               : station.chargers.map((c) => c.output).reduce((a, b) => a > b ? a : b);
           final brokenCount = station.offlineCount;
 
-          // statusCode: 0=available, 1=busy(no slots), 2=broken
           final statusCode = brokenCount >= station.totalCount && station.totalCount > 0
               ? 2
               : station.availableCount == 0
                   ? 1
                   : 0;
 
+          String resolvedName;
+          try {
+            resolvedName = StationAliasService.resolveEv(id, station.name);
+          } catch (e) {
+            debugPrint('[Widget][ev] resolveEv throw: $e — use raw name');
+            resolvedName = station.name;
+          }
+
           items.add({
-            'id': id,
-            'name': StationAliasService.resolveEv(id, station.name),
-            'available': station.availableCount,
-            'total': station.totalCount,
-            'broken': brokenCount,
-            'hasFast': hasFast,
-            'maxKw': maxKw,
+            'id': id, 'name': resolvedName,
+            'available': station.availableCount, 'total': station.totalCount,
+            'broken': brokenCount, 'hasFast': hasFast, 'maxKw': maxKw,
             'statusCode': statusCode,
           });
-        } catch (_) {
-          final original = (fav['name'] ?? '').toString();
+        } catch (e) {
+          debugPrint('[Widget][ev] detail API fail id=$id: $e — fallback to fav name');
+          String resolvedName;
+          try {
+            resolvedName = StationAliasService.resolveEv(id, favName);
+          } catch (_) {
+            resolvedName = favName;
+          }
           items.add({
-            'id': id,
-            'name': StationAliasService.resolveEv(id, original),
-            'available': 0,
-            'total': 0,
-            'broken': 0,
-            'hasFast': false,
-            'maxKw': 0,
-            'statusCode': 0,
+            'id': id, 'name': resolvedName,
+            'available': 0, 'total': 0, 'broken': 0,
+            'hasFast': false, 'maxKw': 0, 'statusCode': 0,
           });
         }
       }
 
       final updatedAt = _timeFmt.format(DateTime.now());
+      final json = jsonEncode(items);
+      debugPrint('[Widget][ev] items=${items.length} payload=$json');
 
-      await HomeWidget.saveWidgetData('widget_ev_list', jsonEncode(items));
+      await HomeWidget.saveWidgetData('widget_ev_list', json);
       await HomeWidget.saveWidgetData('widget_ev_updated', updatedAt);
       await HomeWidget.updateWidget(androidName: 'EvWidgetProvider');
-    } catch (e) {
-      // 위젯 업데이트 실패는 무시
+      debugPrint('[Widget][ev] save+update OK');
+    } catch (e, st) {
+      debugPrint('[Widget][ev] FAIL $e\n$st');
     }
   }
 

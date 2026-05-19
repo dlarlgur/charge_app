@@ -101,13 +101,19 @@ class SplashAdCache {
     } catch (_) {}
   }
 
-  /// 캐시된 광고와 새 광고가 동일한지 — id 기준.
+  /// 캐시된 광고와 새 광고가 동일한지 — id 뿐 아니라 표시에 영향 주는 모든
+  /// 메타(imageUrl, ctaUrl, displayMs, skippableAfterMs)도 비교.
+  /// 콘솔에서 광고 id 그대로 두고 displayMs 만 바꿔도 다음 부팅부터 반영되도록.
   static bool isSameAsCached(SplashAd fresh) {
     try {
       final cached = Hive.box(_box).get(_kAdJson);
       if (cached is! Map) return false;
-      final cachedId = (cached['id'] as num?)?.toInt();
-      return cachedId == fresh.id;
+      if ((cached['id'] as num?)?.toInt() != fresh.id) return false;
+      if (cached['imageUrl']?.toString() != fresh.imageUrl) return false;
+      if (cached['ctaUrl']?.toString() != fresh.ctaUrl) return false;
+      if ((cached['displayMs'] as num?)?.toInt() != fresh.displayMs) return false;
+      if ((cached['skippableAfterMs'] as num?)?.toInt() != fresh.skippableAfterMs) return false;
+      return true;
     } catch (_) {
       return false;
     }

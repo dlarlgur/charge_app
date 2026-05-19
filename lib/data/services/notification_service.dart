@@ -73,8 +73,11 @@ const evAlarmChannelSilent = AndroidNotificationChannel(
 );
 
 /// Android Auto 차량 표시 필수 액션 (Google 정책) — RemoteInput 답장 + 읽음.
+/// semanticAction(SEMANTIC_ACTION_REPLY / MARK_AS_READ) 부착 안 하면 안드로이드 오토가
+/// 메시징 액션으로 인식 못 해 차량 HMI 에 알림 자체가 안 뜬다. flutter_local_notifications
+/// 19.x 부터 semanticAction 파라미터 지원.
 /// 액션 자체 동작은 noop. main.dart 의 backgroundResponse 에서 reply/mark_read 둘 다 무시.
-List<AndroidNotificationAction> _autoActions() => <AndroidNotificationAction>[
+List<AndroidNotificationAction> _autoActions() => const <AndroidNotificationAction>[
       AndroidNotificationAction(
         'reply',
         '답장',
@@ -83,12 +86,14 @@ List<AndroidNotificationAction> _autoActions() => <AndroidNotificationAction>[
         ],
         showsUserInterface: false,
         cancelNotification: false,
+        semanticAction: SemanticAction.reply,
       ),
-      const AndroidNotificationAction(
+      AndroidNotificationAction(
         'mark_read',
         '읽음',
         showsUserInterface: false,
         cancelNotification: true,
+        semanticAction: SemanticAction.markAsRead,
       ),
     ];
 
@@ -220,9 +225,11 @@ void showEvWatchNotification(Map<String, dynamic> data, {int soundMode = 0}) {
   // Android Auto 호환: MessagingStyleInformation + category=message 사용 시
   // 차량 디스플레이에 메시지 카드로 노출되고 음성 readout 도 트리거됨.
   // Person.bot=true 로 발신 주체를 "충전 도우미" 로 명시.
+  // icon: 미지정 시 안드로이드가 이름 첫 글자로 자동 아바타를 그려서 앱 로고로 통일.
+  const personIcon = FlutterBitmapAssetAndroidIcon('assets/halfNhalf_launcher.png');
   final messagingPerson = stationName.isNotEmpty
-      ? Person(name: stationName, important: true)
-      : const Person(name: '충전 도우미', important: true);
+      ? Person(name: stationName, important: true, icon: personIcon)
+      : const Person(name: '충전 도우미', important: true, icon: personIcon);
 
   notificationPlugin.show(
     1003,
@@ -238,6 +245,7 @@ void showEvWatchNotification(Map<String, dynamic> data, {int soundMode = 0}) {
         playSound: soundMode == 0,
         enableVibration: soundMode != 2,
         category: AndroidNotificationCategory.message,
+        visibility: NotificationVisibility.public,
         styleInformation: MessagingStyleInformation(
           messagingPerson,
           conversationTitle: stationName.isNotEmpty ? stationName : null,
@@ -273,9 +281,10 @@ void showEvAlarmNotification(Map<String, dynamic> data, {int soundMode = 0}) {
           : evAlarmChannel;
 
   // Android Auto 호환: ev_watch 와 동일 패턴 (MessagingStyle + category=message)
+  const personIcon = FlutterBitmapAssetAndroidIcon('assets/halfNhalf_launcher.png');
   final messagingPerson = stationName.isNotEmpty
-      ? Person(name: stationName, important: true)
-      : const Person(name: '충전 도우미', important: true);
+      ? Person(name: stationName, important: true, icon: personIcon)
+      : const Person(name: '충전 도우미', important: true, icon: personIcon);
 
   notificationPlugin.show(
     1002,
@@ -291,6 +300,7 @@ void showEvAlarmNotification(Map<String, dynamic> data, {int soundMode = 0}) {
         playSound: soundMode == 0,
         enableVibration: soundMode != 2,
         category: AndroidNotificationCategory.message,
+        visibility: NotificationVisibility.public,
         styleInformation: MessagingStyleInformation(
           messagingPerson,
           conversationTitle: stationName.isNotEmpty ? stationName : null,
