@@ -5,7 +5,6 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
 import android.view.View
 import android.widget.RemoteViews
 import org.json.JSONArray
@@ -35,22 +34,30 @@ class GasWidgetProvider : AppWidgetProvider() {
                 "HomeWidgetPreferences", Context.MODE_PRIVATE
             )
             val listJson = prefs.getString("widget_gas_list", "[]") ?: "[]"
-            val updatedAt = prefs.getString("widget_gas_updated", "") ?: ""
-
-            data class RowIds(
-                val row: Int, val brand: Int, val name: Int, val sub: Int,
-                val price: Int, val unit: Int
-            )
-            val rows = listOf(
-                RowIds(R.id.gas_row1, R.id.gas_brand1, R.id.gas_name1, R.id.gas_sub1,
-                    R.id.gas_price1, R.id.gas_unit1),
-                RowIds(R.id.gas_row2, R.id.gas_brand2, R.id.gas_name2, R.id.gas_sub2,
-                    R.id.gas_price2, R.id.gas_unit2),
-            )
+            val updatedAt = prefs.getString("widget_gas_updated", "--:--") ?: "--:--"
+            views.setTextViewText(R.id.gas_time, updatedAt)
 
             views.setOnClickPendingIntent(
                 R.id.gas_widget_root,
                 buildLaunchIntent(context, appWidgetId, "gas", null)
+            )
+
+            data class RowIds(
+                val row: Int, val brand: Int, val name: Int, val star: Int,
+                val pill: Int, val sub: Int, val price: Int, val unit: Int,
+                val bestBg: Int
+            )
+            val rows = listOf(
+                RowIds(
+                    R.id.gas_row1, R.id.gas_brand1, R.id.gas_name1, R.id.gas_star1,
+                    R.id.gas_pill1, R.id.gas_sub1, R.id.gas_price1, R.id.gas_unit1,
+                    R.drawable.bg_row_best_gas
+                ),
+                RowIds(
+                    R.id.gas_row2, R.id.gas_brand2, R.id.gas_name2, R.id.gas_star2,
+                    R.id.gas_pill2, R.id.gas_sub2, R.id.gas_price2, R.id.gas_unit2,
+                    R.drawable.bg_row_normal
+                ),
             )
 
             try {
@@ -65,35 +72,35 @@ class GasWidgetProvider : AppWidgetProvider() {
                     val price = item.optInt("price", 0)
                     val isSelf = item.optBoolean("isSelf", false)
                     val fuelLabel = item.optString("fuelLabel", "")
-
                     val row = rows[i]
+
                     views.setViewVisibility(row.row, View.VISIBLE)
+                    views.setInt(row.row, "setBackgroundResource", row.bestBg)
 
                     views.setTextViewText(row.brand, brandShort(brand))
                     views.setInt(row.brand, "setBackgroundResource", brandDrawable(brand))
-                    views.setTextColor(row.brand, Color.WHITE)
 
                     views.setTextViewText(row.name, name)
+                    views.setViewVisibility(row.star, View.VISIBLE)
 
-                    val subParts = mutableListOf<String>()
-                    if (fuelLabel.isNotEmpty()) subParts.add(fuelLabel)
-                    if (isSelf) subParts.add("셀프")
-                    views.setTextViewText(row.sub, subParts.joinToString(" · "))
+                    views.setViewVisibility(row.pill, View.VISIBLE)
+                    views.setTextViewText(row.pill, if (isSelf) "셀프" else "일반")
+                    views.setTextViewText(row.sub, fuelLabel)
 
                     if (price > 0) {
                         views.setTextViewText(row.price, formatPrice(price))
                         views.setTextViewText(row.unit, "원")
-                        views.setTextColor(row.price, Color.parseColor("#111827"))
-                        views.setTextColor(row.unit, Color.parseColor("#9CA3AF"))
                     } else {
                         views.setTextViewText(row.price, "—")
                         views.setTextViewText(row.unit, "")
-                        views.setTextColor(row.price, Color.parseColor("#CBD5E1"))
                     }
 
                     views.setOnClickPendingIntent(
                         row.row,
-                        buildLaunchIntent(context, appWidgetId, "gas", stationId.takeIf { it.isNotEmpty() })
+                        buildLaunchIntent(
+                            context, appWidgetId, "gas",
+                            stationId.takeIf { it.isNotEmpty() }
+                        )
                     )
                 }
 
@@ -102,25 +109,33 @@ class GasWidgetProvider : AppWidgetProvider() {
                 }
 
                 if (count == 0) {
-                    views.setViewVisibility(rows[0].row, View.VISIBLE)
-                    views.setTextViewText(rows[0].brand, "+")
-                    views.setInt(rows[0].brand, "setBackgroundResource", R.drawable.badge_default)
-                    views.setTextColor(rows[0].brand, Color.WHITE)
-                    views.setTextViewText(rows[0].name, "즐겨찾기 주유소를 추가하세요")
-                    views.setTextViewText(rows[0].sub, "앱을 열어 추가")
-                    views.setTextViewText(rows[0].price, "")
-                    views.setTextViewText(rows[0].unit, "")
+                    val r0 = rows[0]
+                    views.setViewVisibility(r0.row, View.VISIBLE)
+                    views.setInt(r0.row, "setBackgroundResource", R.drawable.bg_row_normal)
+                    views.setTextViewText(r0.brand, "+")
+                    views.setInt(r0.brand, "setBackgroundResource", R.drawable.bg_badge_default)
+                    views.setTextViewText(r0.name, "즐겨찾기 주유소를 추가하세요")
+                    views.setViewVisibility(r0.star, View.GONE)
+                    views.setViewVisibility(r0.pill, View.GONE)
+                    views.setTextViewText(r0.sub, "앱을 열어 추가")
+                    views.setTextViewText(r0.price, "")
+                    views.setTextViewText(r0.unit, "")
+                    views.setViewVisibility(rows[1].row, View.GONE)
                 }
-
             } catch (e: JSONException) {
-                views.setViewVisibility(rows[0].row, View.VISIBLE)
-                views.setTextViewText(rows[0].name, "데이터 로드 중...")
-                views.setTextViewText(rows[0].price, "")
-                views.setTextViewText(rows[0].unit, "")
+                val r0 = rows[0]
+                views.setViewVisibility(r0.row, View.VISIBLE)
+                views.setInt(r0.row, "setBackgroundResource", R.drawable.bg_row_normal)
+                views.setTextViewText(r0.brand, "+")
+                views.setInt(r0.brand, "setBackgroundResource", R.drawable.bg_badge_default)
+                views.setTextViewText(r0.name, "데이터 로드 중...")
+                views.setViewVisibility(r0.star, View.GONE)
+                views.setViewVisibility(r0.pill, View.GONE)
+                views.setTextViewText(r0.sub, "")
+                views.setTextViewText(r0.price, "")
+                views.setTextViewText(r0.unit, "")
                 views.setViewVisibility(rows[1].row, View.GONE)
             }
-
-            views.setTextViewText(R.id.gas_time, updatedAt)
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
@@ -156,13 +171,11 @@ class GasWidgetProvider : AppWidgetProvider() {
         }
 
         private fun brandDrawable(brand: String): Int = when (brand) {
-            "GSC" -> R.drawable.badge_gs
-            "SKE" -> R.drawable.badge_sk
-            "HDO" -> R.drawable.badge_hd
-            "SOL" -> R.drawable.badge_so
-            "NHO" -> R.drawable.badge_nh
-            "RTO", "RTX" -> R.drawable.badge_rto
-            else -> R.drawable.badge_default
+            "GSC" -> R.drawable.bg_badge_gs
+            "SKE" -> R.drawable.bg_badge_skn
+            "HDO" -> R.drawable.bg_badge_hd
+            "SOL" -> R.drawable.bg_badge_soil
+            else -> R.drawable.bg_badge_default
         }
 
         private fun formatPrice(price: Int): String {

@@ -1,194 +1,291 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/gas_widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="#FFFFFF"
-    android:padding="14dp">
+    android:padding="6dp">
 
-    <!-- Header -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingBottom="6dp">
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="즐겨찾기 주유소"
-            android:textSize="12sp"
-            android:textColor="#111827"
-            android:textStyle="bold"
-            android:letterSpacing="-0.01" />
-        <TextView
-            android:id="@+id/gas_time"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text=""
-            android:textSize="10sp"
-            android:textColor="#9CA3AF" />
-    </LinearLayout>
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="@drawable/bg_widget_card"
+        android:elevation="6dp"
+        android:padding="16dp">
 
-    <!-- Row 1 -->
-    <LinearLayout
-        android:id="@+id/gas_row1"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
-        <TextView
-            android:id="@+id/gas_brand1"
-            android:layout_width="34dp"
-            android:layout_height="34dp"
-            android:gravity="center"
-            android:text="GS"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:textColor="#FFFFFF"
-            android:background="@drawable/badge_gs"
-            android:letterSpacing="-0.02" />
+        <!-- Header -->
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:paddingLeft="11dp"
-            android:paddingRight="8dp">
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="10dp">
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_widget_mark_gas"
+                android:contentDescription="@null"/>
             <TextView
-                android:id="@+id/gas_name1"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
                 android:text="즐겨찾기 주유소"
                 android:textSize="13sp"
-                android:textColor="#111827"
-                android:textStyle="bold"
-                android:maxLines="1"
-                android:ellipsize="end"
-                android:letterSpacing="-0.02" />
+                android:textColor="@color/widget_ink"
+                android:fontFamily="@font/pretendard_extrabold"
+                android:letterSpacing="-0.02"/>
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1"/>
+            <ImageView
+                android:layout_width="5dp"
+                android:layout_height="5dp"
+                android:src="@drawable/ic_live_dot"
+                android:layout_marginEnd="4dp"
+                android:contentDescription="@null"/>
             <TextView
-                android:id="@+id/gas_sub1"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="휘발유 · 셀프"
-                android:textSize="10sp"
-                android:textColor="#9CA3AF"
-                android:maxLines="1"
-                android:ellipsize="end"
-                android:paddingTop="2dp" />
-        </LinearLayout>
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical|end"
-            android:baselineAligned="false">
-            <TextView
-                android:id="@+id/gas_price1"
+                android:id="@+id/gas_time"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="1,680"
-                android:textSize="16sp"
-                android:textColor="#111827"
-                android:textStyle="bold"
-                android:letterSpacing="-0.03" />
-            <TextView
-                android:id="@+id/gas_unit1"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="원"
                 android:textSize="11sp"
-                android:textColor="#9CA3AF"
-                android:paddingLeft="2dp"
-                android:paddingBottom="1dp" />
+                android:textColor="@color/widget_mute_2"
+                android:fontFamily="@font/pretendard_bold"
+                android:fontFeatureSettings="tnum"
+                android:text="--:--"/>
         </LinearLayout>
-    </LinearLayout>
 
-    <!-- Divider -->
-    <ImageView
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginTop="4dp"
-        android:layout_marginBottom="4dp"
-        android:background="#F1F5F9"
-        android:scaleType="fitXY" />
-
-    <!-- Row 2 -->
-    <LinearLayout
-        android:id="@+id/gas_row2"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
-        <TextView
-            android:id="@+id/gas_brand2"
-            android:layout_width="34dp"
-            android:layout_height="34dp"
-            android:gravity="center"
-            android:text="SK"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:textColor="#FFFFFF"
-            android:background="@drawable/badge_sk"
-            android:letterSpacing="-0.02" />
+        <!-- Row 1 -->
         <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:id="@+id/gas_row1"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
             android:layout_weight="1"
-            android:orientation="vertical"
-            android:paddingLeft="11dp"
-            android:paddingRight="8dp">
-            <TextView
-                android:id="@+id/gas_name2"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="앱에서 설정하기"
-                android:textSize="13sp"
-                android:textColor="#111827"
-                android:textStyle="bold"
-                android:maxLines="1"
-                android:ellipsize="end"
-                android:letterSpacing="-0.02" />
-            <TextView
-                android:id="@+id/gas_sub2"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="경유 · 셀프"
-                android:textSize="10sp"
-                android:textColor="#9CA3AF"
-                android:maxLines="1"
-                android:ellipsize="end"
-                android:paddingTop="2dp" />
-        </LinearLayout>
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="center_vertical|end"
-            android:baselineAligned="false">
-            <TextView
-                android:id="@+id/gas_price2"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="1,580"
-                android:textSize="16sp"
-                android:textColor="#111827"
-                android:textStyle="bold"
-                android:letterSpacing="-0.03" />
-            <TextView
-                android:id="@+id/gas_unit2"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="원"
-                android:textSize="11sp"
-                android:textColor="#9CA3AF"
-                android:paddingLeft="2dp"
-                android:paddingBottom="1dp" />
-        </LinearLayout>
-    </LinearLayout>
+            android:gravity="center_vertical"
+            android:padding="6dp"
+            android:background="@drawable/bg_row_best_gas">
 
-</LinearLayout>
+            <TextView
+                android:id="@+id/gas_brand1"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:gravity="center"
+                android:textSize="11sp"
+                android:textColor="#FFFFFF"
+                android:fontFamily="@font/pretendard_extrabold"
+                android:letterSpacing="-0.04"
+                android:background="@drawable/bg_badge_default"/>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginStart="10dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    <TextView
+                        android:id="@+id/gas_name1"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:textSize="13sp"
+                        android:textColor="@color/widget_ink"
+                        android:fontFamily="@font/pretendard_extrabold"
+                        android:letterSpacing="-0.02"
+                        android:singleLine="true"
+                        android:ellipsize="end"/>
+                    <ImageView
+                        android:id="@+id/gas_star1"
+                        android:layout_width="11dp"
+                        android:layout_height="11dp"
+                        android:layout_marginStart="5dp"
+                        android:src="@drawable/ic_star_filled"
+                        android:contentDescription="@null"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="2dp">
+                    <TextView
+                        android:id="@+id/gas_pill1"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="6dp"
+                        android:paddingEnd="6dp"
+                        android:paddingTop="1dp"
+                        android:paddingBottom="1dp"
+                        android:background="@drawable/bg_pill_neutral"
+                        android:textSize="10sp"
+                        android:textColor="@color/widget_ink_2"
+                        android:fontFamily="@font/pretendard_bold"
+                        android:text="셀프"/>
+                    <TextView
+                        android:id="@+id/gas_sub1"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="5dp"
+                        android:textSize="10sp"
+                        android:textColor="@color/widget_muted"
+                        android:fontFamily="@font/pretendard_semibold"/>
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="bottom"
+                android:layout_marginStart="10dp"
+                android:baselineAligned="false">
+                <TextView
+                    android:id="@+id/gas_price1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="20sp"
+                    android:textColor="@color/widget_ink"
+                    android:fontFamily="@font/pretendard_extrabold"
+                    android:letterSpacing="-0.04"
+                    android:fontFeatureSettings="tnum"
+                    android:includeFontPadding="false"/>
+                <TextView
+                    android:id="@+id/gas_unit1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="11sp"
+                    android:textColor="@color/widget_muted"
+                    android:fontFamily="@font/pretendard_bold"
+                    android:paddingBottom="2dp"
+                    android:paddingStart="1dp"
+                    android:text="원"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="4dp"/>
+
+        <!-- Row 2 -->
+        <LinearLayout
+            android:id="@+id/gas_row2"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="6dp"
+            android:background="@drawable/bg_row_normal">
+
+            <TextView
+                android:id="@+id/gas_brand2"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:gravity="center"
+                android:textSize="11sp"
+                android:textColor="#FFFFFF"
+                android:fontFamily="@font/pretendard_extrabold"
+                android:letterSpacing="-0.04"
+                android:background="@drawable/bg_badge_default"/>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginStart="10dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    <TextView
+                        android:id="@+id/gas_name2"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:textSize="13sp"
+                        android:textColor="@color/widget_ink"
+                        android:fontFamily="@font/pretendard_extrabold"
+                        android:letterSpacing="-0.02"
+                        android:singleLine="true"
+                        android:ellipsize="end"/>
+                    <ImageView
+                        android:id="@+id/gas_star2"
+                        android:layout_width="11dp"
+                        android:layout_height="11dp"
+                        android:layout_marginStart="5dp"
+                        android:src="@drawable/ic_star_filled"
+                        android:contentDescription="@null"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="2dp">
+                    <TextView
+                        android:id="@+id/gas_pill2"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="6dp"
+                        android:paddingEnd="6dp"
+                        android:paddingTop="1dp"
+                        android:paddingBottom="1dp"
+                        android:background="@drawable/bg_pill_neutral"
+                        android:textSize="10sp"
+                        android:textColor="@color/widget_ink_2"
+                        android:fontFamily="@font/pretendard_bold"
+                        android:text="셀프"/>
+                    <TextView
+                        android:id="@+id/gas_sub2"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="5dp"
+                        android:textSize="10sp"
+                        android:textColor="@color/widget_muted"
+                        android:fontFamily="@font/pretendard_semibold"/>
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="bottom"
+                android:layout_marginStart="10dp"
+                android:baselineAligned="false">
+                <TextView
+                    android:id="@+id/gas_price2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="20sp"
+                    android:textColor="@color/widget_ink"
+                    android:fontFamily="@font/pretendard_extrabold"
+                    android:letterSpacing="-0.04"
+                    android:fontFeatureSettings="tnum"
+                    android:includeFontPadding="false"/>
+                <TextView
+                    android:id="@+id/gas_unit2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="11sp"
+                    android:textColor="@color/widget_muted"
+                    android:fontFamily="@font/pretendard_bold"
+                    android:paddingBottom="2dp"
+                    android:paddingStart="1dp"
+                    android:text="원"/>
+            </LinearLayout>
+        </LinearLayout>
+
+    </LinearLayout>
+</FrameLayout>
