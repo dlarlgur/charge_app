@@ -96,6 +96,17 @@ class WidgetService {
         }
       }
 
+      // 가스: price 오름차순 (저렴한 순) — row1 이 항상 best
+      // price=0(데이터 없음) 은 뒤로
+      items.sort((a, b) {
+        final pa = (a['price'] as int? ?? 0);
+        final pb = (b['price'] as int? ?? 0);
+        if (pa == 0 && pb == 0) return 0;
+        if (pa == 0) return 1;
+        if (pb == 0) return -1;
+        return pa.compareTo(pb);
+      });
+
       final updatedAt = _timeFmt.format(DateTime.now());
       final json = jsonEncode(items);
       debugPrint('[Widget][gas] items=${items.length} payload=$json');
@@ -103,6 +114,8 @@ class WidgetService {
       await HomeWidget.saveWidgetData('widget_gas_list', json);
       await HomeWidget.saveWidgetData('widget_gas_updated', updatedAt);
       await HomeWidget.updateWidget(androidName: 'GasWidgetProvider');
+      await HomeWidget.updateWidget(androidName: 'CombinedWidgetProvider');
+      await HomeWidget.updateWidget(androidName: 'GasSmallWidgetProvider');
       debugPrint('[Widget][gas] save+update OK');
     } catch (e, st) {
       debugPrint('[Widget][gas] FAIL $e\n$st');
@@ -185,6 +198,13 @@ class WidgetService {
         }
       }
 
+      // EV: available 내림차순 (가용 많은 순) — row1 이 항상 best
+      items.sort((a, b) {
+        final aa = (a['available'] as int? ?? 0);
+        final ab = (b['available'] as int? ?? 0);
+        return ab.compareTo(aa);
+      });
+
       final updatedAt = _timeFmt.format(DateTime.now());
       final json = jsonEncode(items);
       debugPrint('[Widget][ev] items=${items.length} payload=$json');
@@ -192,6 +212,8 @@ class WidgetService {
       await HomeWidget.saveWidgetData('widget_ev_list', json);
       await HomeWidget.saveWidgetData('widget_ev_updated', updatedAt);
       await HomeWidget.updateWidget(androidName: 'EvWidgetProvider');
+      await HomeWidget.updateWidget(androidName: 'CombinedWidgetProvider');
+      await HomeWidget.updateWidget(androidName: 'EvSmallWidgetProvider');
       debugPrint('[Widget][ev] save+update OK');
     } catch (e, st) {
       debugPrint('[Widget][ev] FAIL $e\n$st');
