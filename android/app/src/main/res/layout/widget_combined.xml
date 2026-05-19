@@ -20,10 +20,11 @@
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:layout_marginBottom="10dp">
-            <View
+            <ImageView
                 android:layout_width="22dp"
                 android:layout_height="22dp"
-                android:background="@drawable/ic_widget_mark_combined"/>
+                android:background="@drawable/ic_widget_mark_combined"
+                android:contentDescription="@null"/>
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -33,10 +34,11 @@
                 android:textColor="@color/widget_ink"
                 android:fontFamily="@font/pretendard_extrabold"
                 android:letterSpacing="-0.02"/>
-            <Space
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="0dp"
-                android:layout_weight="1"/>
+                android:layout_weight="1"
+                android:orientation="horizontal"/>
             <ImageView
                 android:layout_width="5dp"
                 android:layout_height="5dp"
@@ -61,11 +63,12 @@
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:layout_marginBottom="6dp">
-            <View
+            <ImageView
                 android:layout_width="9dp"
                 android:layout_height="9dp"
                 android:background="@drawable/bg_badge_gs"
-                android:layout_marginEnd="6dp"/>
+                android:layout_marginEnd="6dp"
+                android:contentDescription="@null"/>
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -183,7 +186,6 @@
             </LinearLayout>
         </LinearLayout>
 
-        <Space android:layout_width="match_parent" android:layout_height="4dp"/>
 
         <!-- Gas Row 2 -->
         <LinearLayout
@@ -191,6 +193,7 @@
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
+            android:layout_marginTop="4dp"
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:padding="6dp"
@@ -293,12 +296,13 @@
         </LinearLayout>
 
         <!-- Divider -->
-        <View
+        <ImageView
             android:layout_width="match_parent"
             android:layout_height="1dp"
             android:layout_marginTop="10dp"
             android:layout_marginBottom="10dp"
-            android:background="@color/widget_line_soft"/>
+            android:background="@color/widget_line_soft"
+            android:contentDescription="@null"/>
 
         <!-- EV SECTION -->
         <LinearLayout
@@ -307,11 +311,12 @@
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:layout_marginBottom="6dp">
-            <View
+            <ImageView
                 android:layout_width="9dp"
                 android:layout_height="9dp"
                 android:background="@drawable/bg_badge_ev_slow"
-                android:layout_marginEnd="6dp"/>
+                android:layout_marginEnd="6dp"
+                android:contentDescription="@null"/>
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -457,7 +462,6 @@
             </LinearLayout>
         </LinearLayout>
 
-        <Space android:layout_width="match_parent" android:layout_height="4dp"/>
 
         <!-- EV Row 2 -->
         <LinearLayout
@@ -465,6 +469,7 @@
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
+            android:layout_marginTop="4dp"
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:padding="6dp"
