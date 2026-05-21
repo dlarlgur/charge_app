@@ -14,6 +14,10 @@ import '../services/station_alias_service.dart';
 ///
 /// Flutter → SharedPreferences("HomeWidgetPreferences") → Android AppWidgetProvider.
 /// home_widget 0.6.x 는 키에 접두사를 붙이지 않고 그대로 저장한다.
+///
+/// `@pragma('vm:entry-point')` — 위젯 새로고침 버튼이 백그라운드 isolate 에서
+/// `backgroundCallback` 을 호출하려면 메서드뿐 아니라 소유 클래스도 annotate 돼야 한다.
+@pragma('vm:entry-point')
 class WidgetService {
   WidgetService._();
 
@@ -78,10 +82,16 @@ class WidgetService {
             debugPrint('[Widget][gas] resolveGas throw: $e — use raw name');
             resolvedName = station.name;
           }
+          // 전일 대비 변동 — 선택 유종 기준 (API 응답에 포함됨)
+          int change = 0;
+          final delta = detail['price_delta_vs_yesterday'];
+          if (delta is Map) {
+            change = (delta[fuelCode] as num?)?.toInt() ?? 0;
+          }
           items.add({
             'id': id, 'name': resolvedName, 'brand': station.brand,
             'price': station.price.toInt(), 'isSelf': station.isSelf,
-            'fuelLabel': fuelLabel,
+            'fuelLabel': fuelLabel, 'change': change,
           });
         } catch (e) {
           debugPrint('[Widget][gas] detail API fail id=$id: $e — fallback to fav name');
@@ -93,7 +103,7 @@ class WidgetService {
           }
           items.add({
             'id': id, 'name': resolvedName, 'brand': favBrand,
-            'price': 0, 'isSelf': false, 'fuelLabel': fuelLabel,
+            'price': 0, 'isSelf': false, 'fuelLabel': fuelLabel, 'change': 0,
           });
         }
       }

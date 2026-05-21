@@ -73,28 +73,28 @@ class GasWidgetProvider : AppWidgetProvider() {
             data class RowIds(
                 val row: Int, val brand: Int, val name: Int,
                 val pill: Int, val sub: Int, val price: Int, val unit: Int,
-                val bestBg: Int
+                val delta: Int, val bestBg: Int
             )
             val rows = listOf(
                 RowIds(
                     R.id.gas_row1, R.id.gas_brand1, R.id.gas_name1,
                     R.id.gas_pill1, R.id.gas_sub1, R.id.gas_price1, R.id.gas_unit1,
-                    R.drawable.bg_row_best_gas
+                    R.id.gas_delta1, R.drawable.bg_row_best_gas
                 ),
                 RowIds(
                     R.id.gas_row2, R.id.gas_brand2, R.id.gas_name2,
                     R.id.gas_pill2, R.id.gas_sub2, R.id.gas_price2, R.id.gas_unit2,
-                    R.drawable.bg_row_normal
+                    R.id.gas_delta2, R.drawable.bg_row_normal
                 ),
                 RowIds(
                     R.id.gas_row3, R.id.gas_brand3, R.id.gas_name3,
                     R.id.gas_pill3, R.id.gas_sub3, R.id.gas_price3, R.id.gas_unit3,
-                    R.drawable.bg_row_normal
+                    R.id.gas_delta3, R.drawable.bg_row_normal
                 ),
                 RowIds(
                     R.id.gas_row4, R.id.gas_brand4, R.id.gas_name4,
                     R.id.gas_pill4, R.id.gas_sub4, R.id.gas_price4, R.id.gas_unit4,
-                    R.drawable.bg_row_normal
+                    R.id.gas_delta4, R.drawable.bg_row_normal
                 ),
             )
             val maxRows = rowCountFor(appWidgetManager, appWidgetId)
@@ -133,6 +133,21 @@ class GasWidgetProvider : AppWidgetProvider() {
                         views.setTextViewText(row.unit, "")
                     }
 
+                    val change = item.optInt("change", 0)
+                    when {
+                        change > 0 -> {
+                            views.setViewVisibility(row.delta, View.VISIBLE)
+                            views.setTextViewText(row.delta, "▲ $change")
+                            views.setTextColor(row.delta, context.getColor(R.color.widget_red))
+                        }
+                        change < 0 -> {
+                            views.setViewVisibility(row.delta, View.VISIBLE)
+                            views.setTextViewText(row.delta, "▼ ${-change}")
+                            views.setTextColor(row.delta, context.getColor(R.color.widget_green_2))
+                        }
+                        else -> views.setViewVisibility(row.delta, View.GONE)
+                    }
+
                     views.setOnClickPendingIntent(
                         row.row,
                         buildLaunchIntent(
@@ -157,6 +172,7 @@ class GasWidgetProvider : AppWidgetProvider() {
                     views.setTextViewText(r0.sub, "앱을 열어 추가")
                     views.setTextViewText(r0.price, "")
                     views.setTextViewText(r0.unit, "")
+                    views.setViewVisibility(r0.delta, View.GONE)
                 }
             } catch (e: JSONException) {
                 val r0 = rows[0]
@@ -169,6 +185,7 @@ class GasWidgetProvider : AppWidgetProvider() {
                 views.setTextViewText(r0.sub, "")
                 views.setTextViewText(r0.price, "")
                 views.setTextViewText(r0.unit, "")
+                views.setViewVisibility(r0.delta, View.GONE)
                 for (i in 1 until rows.size) {
                     views.setViewVisibility(rows[i].row, View.GONE)
                 }

@@ -37,7 +37,7 @@ class CombinedWidgetProvider : AppWidgetProvider() {
         private data class GasRow(
             val row: Int, val brand: Int, val name: Int,
             val pill: Int, val sub: Int, val price: Int, val unit: Int,
-            val bestBg: Int
+            val delta: Int, val bestBg: Int
         )
 
         private data class EvRow(
@@ -82,17 +82,17 @@ class CombinedWidgetProvider : AppWidgetProvider() {
                 GasRow(
                     R.id.cg_row1, R.id.cg_brand1, R.id.cg_name1,
                     R.id.cg_pill1, R.id.cg_sub1, R.id.cg_price1, R.id.cg_unit1,
-                    R.drawable.bg_row_best_gas
+                    R.id.cg_delta1, R.drawable.bg_row_best_gas
                 ),
                 GasRow(
                     R.id.cg_row2, R.id.cg_brand2, R.id.cg_name2,
                     R.id.cg_pill2, R.id.cg_sub2, R.id.cg_price2, R.id.cg_unit2,
-                    R.drawable.bg_row_normal
+                    R.id.cg_delta2, R.drawable.bg_row_normal
                 ),
                 GasRow(
                     R.id.cg_row3, R.id.cg_brand3, R.id.cg_name3,
                     R.id.cg_pill3, R.id.cg_sub3, R.id.cg_price3, R.id.cg_unit3,
-                    R.drawable.bg_row_normal
+                    R.id.cg_delta3, R.drawable.bg_row_normal
                 ),
             )
             val evRows = listOf(
@@ -152,6 +152,20 @@ class CombinedWidgetProvider : AppWidgetProvider() {
                         views.setTextViewText(row.price, "—")
                         views.setTextViewText(row.unit, "")
                     }
+                    val change = item.optInt("change", 0)
+                    when {
+                        change > 0 -> {
+                            views.setViewVisibility(row.delta, View.VISIBLE)
+                            views.setTextViewText(row.delta, "▲ $change")
+                            views.setTextColor(row.delta, context.getColor(R.color.widget_red))
+                        }
+                        change < 0 -> {
+                            views.setViewVisibility(row.delta, View.VISIBLE)
+                            views.setTextViewText(row.delta, "▼ ${-change}")
+                            views.setTextColor(row.delta, context.getColor(R.color.widget_green_2))
+                        }
+                        else -> views.setViewVisibility(row.delta, View.GONE)
+                    }
                     views.setOnClickPendingIntent(
                         row.row,
                         buildLaunchIntent(
@@ -177,6 +191,7 @@ class CombinedWidgetProvider : AppWidgetProvider() {
             views.setTextViewText(r0.sub, "")
             views.setTextViewText(r0.price, "")
             views.setTextViewText(r0.unit, "")
+            views.setViewVisibility(r0.delta, View.GONE)
         }
 
         private fun renderEvSection(
