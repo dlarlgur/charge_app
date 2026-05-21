@@ -5,8 +5,10 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.view.View
 import android.widget.RemoteViews
+import es.antonborri.home_widget.HomeWidgetBackgroundIntent
 import org.json.JSONArray
 
 class EvSmallWidgetProvider : AppWidgetProvider() {
@@ -26,6 +28,12 @@ class EvSmallWidgetProvider : AppWidgetProvider() {
         val listJson = prefs.getString("widget_ev_list", "[]") ?: "[]"
 
         views.setOnClickPendingIntent(R.id.ev_small_root, buildLaunch(context, widgetId))
+        views.setOnClickPendingIntent(
+            R.id.ev_small_refresh,
+            HomeWidgetBackgroundIntent.getBroadcast(
+                context, Uri.parse("chargehelper://refresh_ev")
+            )
+        )
 
         try {
             val list = JSONArray(listJson)

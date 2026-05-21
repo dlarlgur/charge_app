@@ -5,7 +5,9 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.widget.RemoteViews
+import es.antonborri.home_widget.HomeWidgetBackgroundIntent
 import org.json.JSONArray
 
 class GasSmallWidgetProvider : AppWidgetProvider() {
@@ -25,6 +27,12 @@ class GasSmallWidgetProvider : AppWidgetProvider() {
         val listJson = prefs.getString("widget_gas_list", "[]") ?: "[]"
 
         views.setOnClickPendingIntent(R.id.gas_small_root, buildLaunch(context, widgetId))
+        views.setOnClickPendingIntent(
+            R.id.gas_small_refresh,
+            HomeWidgetBackgroundIntent.getBroadcast(
+                context, Uri.parse("chargehelper://refresh_gas")
+            )
+        )
 
         try {
             val list = JSONArray(listJson)

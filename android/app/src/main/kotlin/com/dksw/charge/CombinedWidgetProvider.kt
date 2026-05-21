@@ -5,8 +5,11 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
+import es.antonborri.home_widget.HomeWidgetBackgroundIntent
 import org.json.JSONArray
 import org.json.JSONException
 
@@ -18,6 +21,15 @@ class CombinedWidgetProvider : AppWidgetProvider() {
         appWidgetIds: IntArray
     ) {
         for (appWidgetId in appWidgetIds) updateWidget(context, appWidgetManager, appWidgetId)
+    }
+
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle
+    ) {
+        updateWidget(context, appWidgetManager, appWidgetId)
     }
 
     companion object {
@@ -33,6 +45,12 @@ class CombinedWidgetProvider : AppWidgetProvider() {
             val pill: Int, val sub: Int, val avail: Int, val total: Int,
             val status: Int, val bestBg: Int
         )
+
+        private fun rowsPerSection(mgr: AppWidgetManager, widgetId: Int): Int {
+            val minH = mgr.getAppWidgetOptions(widgetId)
+                .getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
+            return if (minH in 1..319) 2 else 3
+        }
 
         fun updateWidget(
             context: Context,
@@ -53,6 +71,12 @@ class CombinedWidgetProvider : AppWidgetProvider() {
                 R.id.combined_widget_root,
                 buildLaunchIntent(context, appWidgetId, "combined", null)
             )
+            views.setOnClickPendingIntent(
+                R.id.combined_refresh,
+                HomeWidgetBackgroundIntent.getBroadcast(
+                    context, Uri.parse("chargehelper://refresh_all")
+                )
+            )
 
             val gasRows = listOf(
                 GasRow(
@@ -63,6 +87,11 @@ class CombinedWidgetProvider : AppWidgetProvider() {
                 GasRow(
                     R.id.cg_row2, R.id.cg_brand2, R.id.cg_name2,
                     R.id.cg_pill2, R.id.cg_sub2, R.id.cg_price2, R.id.cg_unit2,
+                    R.drawable.bg_row_normal
+                ),
+                GasRow(
+                    R.id.cg_row3, R.id.cg_brand3, R.id.cg_name3,
+                    R.id.cg_pill3, R.id.cg_sub3, R.id.cg_price3, R.id.cg_unit3,
                     R.drawable.bg_row_normal
                 ),
             )
@@ -77,21 +106,27 @@ class CombinedWidgetProvider : AppWidgetProvider() {
                     R.id.ce_pill2, R.id.ce_sub2, R.id.ce_avail2, R.id.ce_total2,
                     R.id.ce_status2, R.drawable.bg_row_normal
                 ),
+                EvRow(
+                    R.id.ce_row3, R.id.ce_brand3, R.id.ce_name3,
+                    R.id.ce_pill3, R.id.ce_sub3, R.id.ce_avail3, R.id.ce_total3,
+                    R.id.ce_status3, R.drawable.bg_row_normal
+                ),
             )
 
-            renderGasSection(context, views, gasJson, gasRows, appWidgetId)
-            renderEvSection(context, views, evJson, evRows, appWidgetId)
+            val maxRows = rowsPerSection(appWidgetManager, appWidgetId)
+            renderGasSection(context, views, gasJson, gasRows, appWidgetId, maxRows)
+            renderEvSection(context, views, evJson, evRows, appWidgetId, maxRows)
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
 
         private fun renderGasSection(
             context: Context, views: RemoteViews, listJson: String,
-            rows: List<GasRow>, widgetId: Int
+            rows: List<GasRow>, widgetId: Int, maxRows: Int
         ) {
             try {
                 val list = JSONArray(listJson)
-                val count = minOf(list.length(), 2)
+                val count = minOf(list.length(), maxRows)
                 for (i in 0 until count) {
                     val item = list.getJSONObject(i)
                     val brand = item.optString("brand", "")
@@ -128,7 +163,7 @@ class CombinedWidgetProvider : AppWidgetProvider() {
                 if (count == 0) renderGasEmpty(views, rows[0])
             } catch (e: JSONException) {
                 renderGasEmpty(views, rows[0])
-                views.setViewVisibility(rows[1].row, View.GONE)
+                for (i in 1 until rows.size) views.setViewVisibility(rows[i].row, View.GONE)
             }
         }
 
@@ -146,11 +181,11 @@ class CombinedWidgetProvider : AppWidgetProvider() {
 
         private fun renderEvSection(
             context: Context, views: RemoteViews, listJson: String,
-            rows: List<EvRow>, widgetId: Int
+            rows: List<EvRow>, widgetId: Int, maxRows: Int
         ) {
             try {
                 val list = JSONArray(listJson)
-                val count = minOf(list.length(), 2)
+                val count = minOf(list.length(), maxRows)
                 for (i in 0 until count) {
                     val item = list.getJSONObject(i)
                     val name = item.optString("name", "—")
@@ -228,7 +263,7 @@ class CombinedWidgetProvider : AppWidgetProvider() {
                 if (count == 0) renderEvEmpty(views, rows[0])
             } catch (e: JSONException) {
                 renderEvEmpty(views, rows[0])
-                views.setViewVisibility(rows[1].row, View.GONE)
+                for (i in 1 until rows.size) views.setViewVisibility(rows[i].row, View.GONE)
             }
         }
 
