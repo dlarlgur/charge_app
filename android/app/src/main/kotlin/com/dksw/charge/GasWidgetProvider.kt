@@ -3,6 +3,7 @@ package com.dksw.charge
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -34,7 +35,33 @@ class GasWidgetProvider : AppWidgetProvider() {
         updateWidget(context, appWidgetManager, appWidgetId)
     }
 
+    override fun onReceive(context: Context, intent: Intent) {
+        super.onReceive(context, intent)
+        if (intent.action == ACTION_REFRESH) {
+            // 즉시 스피너 표시 (백그라운드 isolate cold-start 와 무관하게 빠른 피드백)
+            val mgr = AppWidgetManager.getInstance(context)
+            val ids = mgr.getAppWidgetIds(ComponentName(context, GasWidgetProvider::class.java))
+            for (id in ids) {
+                val v = RemoteViews(context.packageName, R.layout.widget_gas)
+                v.setViewVisibility(R.id.gas_progress, View.VISIBLE)
+                v.setViewVisibility(R.id.gas_live_dot, View.GONE)
+                v.setViewVisibility(R.id.gas_time, View.GONE)
+                mgr.partiallyUpdateAppWidget(id, v)
+            }
+            // 백그라운드 갱신 트리거
+            try {
+                HomeWidgetBackgroundIntent.getBroadcast(
+                    context, Uri.parse("chargehelper://refresh_gas")
+                ).send()
+            } catch (e: Exception) {
+                // ignore
+            }
+        }
+    }
+
     companion object {
+        const val ACTION_REFRESH = "com.dksw.charge.WIDGET_REFRESH"
+
         private fun rowCountFor(mgr: AppWidgetManager, widgetId: Int): Int {
             val minH = mgr.getAppWidgetOptions(widgetId)
                 .getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
@@ -58,15 +85,23 @@ class GasWidgetProvider : AppWidgetProvider() {
             val listJson = prefs.getString("widget_gas_list", "[]") ?: "[]"
             val updatedAt = prefs.getString("widget_gas_updated", "--:--") ?: "--:--"
             views.setTextViewText(R.id.gas_time, updatedAt)
+            // 정상 상태 — 스피너 숨김, 시각 표시
+            views.setViewVisibility(R.id.gas_progress, View.GONE)
+            views.setViewVisibility(R.id.gas_live_dot, View.VISIBLE)
+            views.setViewVisibility(R.id.gas_time, View.VISIBLE)
 
             views.setOnClickPendingIntent(
                 R.id.gas_widget_root,
                 buildLaunchIntent(context, appWidgetId, "gas", null)
             )
+            val refreshIntent = Intent(context, GasWidgetProvider::class.java).apply {
+                action = ACTION_REFRESH
+            }
             views.setOnClickPendingIntent(
                 R.id.gas_refresh,
-                HomeWidgetBackgroundIntent.getBroadcast(
-                    context, Uri.parse("chargehelper://refresh_gas")
+                PendingIntent.getBroadcast(
+                    context, 91000, refreshIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
             )
 

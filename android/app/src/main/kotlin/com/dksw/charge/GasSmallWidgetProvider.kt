@@ -3,9 +3,11 @@ package com.dksw.charge
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.view.View
 import android.widget.RemoteViews
 import es.antonborri.home_widget.HomeWidgetBackgroundIntent
 import org.json.JSONArray
@@ -20,17 +22,42 @@ class GasSmallWidgetProvider : AppWidgetProvider() {
         for (id in appWidgetIds) update(context, appWidgetManager, id)
     }
 
+    override fun onReceive(context: Context, intent: Intent) {
+        super.onReceive(context, intent)
+        if (intent.action == GasWidgetProvider.ACTION_REFRESH) {
+            val mgr = AppWidgetManager.getInstance(context)
+            val ids = mgr.getAppWidgetIds(ComponentName(context, GasSmallWidgetProvider::class.java))
+            for (id in ids) {
+                val v = RemoteViews(context.packageName, R.layout.widget_gas_small)
+                v.setViewVisibility(R.id.gas_small_progress, View.VISIBLE)
+                mgr.partiallyUpdateAppWidget(id, v)
+            }
+            try {
+                HomeWidgetBackgroundIntent.getBroadcast(
+                    context, Uri.parse("chargehelper://refresh_gas")
+                ).send()
+            } catch (e: Exception) {
+                // ignore
+            }
+        }
+    }
+
     private fun update(context: Context, mgr: AppWidgetManager, widgetId: Int) {
         val views = RemoteViews(context.packageName, R.layout.widget_gas_small)
 
         val prefs = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
         val listJson = prefs.getString("widget_gas_list", "[]") ?: "[]"
 
+        views.setViewVisibility(R.id.gas_small_progress, View.GONE)
         views.setOnClickPendingIntent(R.id.gas_small_root, buildLaunch(context, widgetId))
+        val refreshIntent = Intent(context, GasSmallWidgetProvider::class.java).apply {
+            action = GasWidgetProvider.ACTION_REFRESH
+        }
         views.setOnClickPendingIntent(
             R.id.gas_small_refresh,
-            HomeWidgetBackgroundIntent.getBroadcast(
-                context, Uri.parse("chargehelper://refresh_gas")
+            PendingIntent.getBroadcast(
+                context, 94000, refreshIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
         )
 

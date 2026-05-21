@@ -3,6 +3,7 @@ package com.dksw.charge
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -21,17 +22,42 @@ class EvSmallWidgetProvider : AppWidgetProvider() {
         for (id in appWidgetIds) update(context, appWidgetManager, id)
     }
 
+    override fun onReceive(context: Context, intent: Intent) {
+        super.onReceive(context, intent)
+        if (intent.action == GasWidgetProvider.ACTION_REFRESH) {
+            val mgr = AppWidgetManager.getInstance(context)
+            val ids = mgr.getAppWidgetIds(ComponentName(context, EvSmallWidgetProvider::class.java))
+            for (id in ids) {
+                val v = RemoteViews(context.packageName, R.layout.widget_ev_small)
+                v.setViewVisibility(R.id.ev_small_progress, View.VISIBLE)
+                mgr.partiallyUpdateAppWidget(id, v)
+            }
+            try {
+                HomeWidgetBackgroundIntent.getBroadcast(
+                    context, Uri.parse("chargehelper://refresh_ev")
+                ).send()
+            } catch (e: Exception) {
+                // ignore
+            }
+        }
+    }
+
     private fun update(context: Context, mgr: AppWidgetManager, widgetId: Int) {
         val views = RemoteViews(context.packageName, R.layout.widget_ev_small)
 
         val prefs = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
         val listJson = prefs.getString("widget_ev_list", "[]") ?: "[]"
 
+        views.setViewVisibility(R.id.ev_small_progress, View.GONE)
         views.setOnClickPendingIntent(R.id.ev_small_root, buildLaunch(context, widgetId))
+        val refreshIntent = Intent(context, EvSmallWidgetProvider::class.java).apply {
+            action = GasWidgetProvider.ACTION_REFRESH
+        }
         views.setOnClickPendingIntent(
             R.id.ev_small_refresh,
-            HomeWidgetBackgroundIntent.getBroadcast(
-                context, Uri.parse("chargehelper://refresh_ev")
+            PendingIntent.getBroadcast(
+                context, 95000, refreshIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
         )
 

@@ -3,6 +3,7 @@ package com.dksw.charge
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -30,6 +31,28 @@ class CombinedWidgetProvider : AppWidgetProvider() {
         newOptions: Bundle
     ) {
         updateWidget(context, appWidgetManager, appWidgetId)
+    }
+
+    override fun onReceive(context: Context, intent: Intent) {
+        super.onReceive(context, intent)
+        if (intent.action == GasWidgetProvider.ACTION_REFRESH) {
+            val mgr = AppWidgetManager.getInstance(context)
+            val ids = mgr.getAppWidgetIds(ComponentName(context, CombinedWidgetProvider::class.java))
+            for (id in ids) {
+                val v = RemoteViews(context.packageName, R.layout.widget_combined)
+                v.setViewVisibility(R.id.combined_progress, View.VISIBLE)
+                v.setViewVisibility(R.id.combined_live_dot, View.GONE)
+                v.setViewVisibility(R.id.combined_time, View.GONE)
+                mgr.partiallyUpdateAppWidget(id, v)
+            }
+            try {
+                HomeWidgetBackgroundIntent.getBroadcast(
+                    context, Uri.parse("chargehelper://refresh_all")
+                ).send()
+            } catch (e: Exception) {
+                // ignore
+            }
+        }
     }
 
     companion object {
@@ -66,15 +89,22 @@ class CombinedWidgetProvider : AppWidgetProvider() {
             val evJson = prefs.getString("widget_ev_list", "[]") ?: "[]"
             val updatedAt = prefs.getString("widget_gas_updated", "--:--") ?: "--:--"
             views.setTextViewText(R.id.combined_time, updatedAt)
+            views.setViewVisibility(R.id.combined_progress, View.GONE)
+            views.setViewVisibility(R.id.combined_live_dot, View.VISIBLE)
+            views.setViewVisibility(R.id.combined_time, View.VISIBLE)
 
             views.setOnClickPendingIntent(
                 R.id.combined_widget_root,
                 buildLaunchIntent(context, appWidgetId, "combined", null)
             )
+            val refreshIntent = Intent(context, CombinedWidgetProvider::class.java).apply {
+                action = GasWidgetProvider.ACTION_REFRESH
+            }
             views.setOnClickPendingIntent(
                 R.id.combined_refresh,
-                HomeWidgetBackgroundIntent.getBroadcast(
-                    context, Uri.parse("chargehelper://refresh_all")
+                PendingIntent.getBroadcast(
+                    context, 93000, refreshIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
             )
 

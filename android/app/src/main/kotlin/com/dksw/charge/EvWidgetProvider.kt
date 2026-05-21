@@ -3,6 +3,7 @@ package com.dksw.charge
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -34,6 +35,28 @@ class EvWidgetProvider : AppWidgetProvider() {
         updateWidget(context, appWidgetManager, appWidgetId)
     }
 
+    override fun onReceive(context: Context, intent: Intent) {
+        super.onReceive(context, intent)
+        if (intent.action == GasWidgetProvider.ACTION_REFRESH) {
+            val mgr = AppWidgetManager.getInstance(context)
+            val ids = mgr.getAppWidgetIds(ComponentName(context, EvWidgetProvider::class.java))
+            for (id in ids) {
+                val v = RemoteViews(context.packageName, R.layout.widget_ev)
+                v.setViewVisibility(R.id.ev_progress, View.VISIBLE)
+                v.setViewVisibility(R.id.ev_live_dot, View.GONE)
+                v.setViewVisibility(R.id.ev_time, View.GONE)
+                mgr.partiallyUpdateAppWidget(id, v)
+            }
+            try {
+                HomeWidgetBackgroundIntent.getBroadcast(
+                    context, Uri.parse("chargehelper://refresh_ev")
+                ).send()
+            } catch (e: Exception) {
+                // ignore
+            }
+        }
+    }
+
     companion object {
         private fun rowCountFor(mgr: AppWidgetManager, widgetId: Int): Int {
             val minH = mgr.getAppWidgetOptions(widgetId)
@@ -58,15 +81,22 @@ class EvWidgetProvider : AppWidgetProvider() {
             val listJson = prefs.getString("widget_ev_list", "[]") ?: "[]"
             val updatedAt = prefs.getString("widget_ev_updated", "--:--") ?: "--:--"
             views.setTextViewText(R.id.ev_time, updatedAt)
+            views.setViewVisibility(R.id.ev_progress, View.GONE)
+            views.setViewVisibility(R.id.ev_live_dot, View.VISIBLE)
+            views.setViewVisibility(R.id.ev_time, View.VISIBLE)
 
             views.setOnClickPendingIntent(
                 R.id.ev_widget_root,
                 buildLaunchIntent(context, appWidgetId, "ev", null)
             )
+            val refreshIntent = Intent(context, EvWidgetProvider::class.java).apply {
+                action = GasWidgetProvider.ACTION_REFRESH
+            }
             views.setOnClickPendingIntent(
                 R.id.ev_refresh,
-                HomeWidgetBackgroundIntent.getBroadcast(
-                    context, Uri.parse("chargehelper://refresh_ev")
+                PendingIntent.getBroadcast(
+                    context, 92000, refreshIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
             )
 
