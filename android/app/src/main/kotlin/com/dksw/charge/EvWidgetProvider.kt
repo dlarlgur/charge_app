@@ -5,8 +5,11 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
+import es.antonborri.home_widget.HomeWidgetBackgroundIntent
 import org.json.JSONArray
 import org.json.JSONException
 
@@ -22,7 +25,26 @@ class EvWidgetProvider : AppWidgetProvider() {
         }
     }
 
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle
+    ) {
+        updateWidget(context, appWidgetManager, appWidgetId)
+    }
+
     companion object {
+        private fun rowCountFor(mgr: AppWidgetManager, widgetId: Int): Int {
+            val minH = mgr.getAppWidgetOptions(widgetId)
+                .getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
+            return when {
+                minH in 1..129 -> 2
+                minH < 200 -> 3
+                else -> 4
+            }
+        }
+
         fun updateWidget(
             context: Context,
             appWidgetManager: AppWidgetManager,
@@ -41,6 +63,12 @@ class EvWidgetProvider : AppWidgetProvider() {
                 R.id.ev_widget_root,
                 buildLaunchIntent(context, appWidgetId, "ev", null)
             )
+            views.setOnClickPendingIntent(
+                R.id.ev_refresh,
+                HomeWidgetBackgroundIntent.getBroadcast(
+                    context, Uri.parse("chargehelper://refresh_ev")
+                )
+            )
 
             data class RowIds(
                 val row: Int, val brand: Int, val name: Int,
@@ -58,11 +86,22 @@ class EvWidgetProvider : AppWidgetProvider() {
                     R.id.ev_pill2, R.id.ev_sub2, R.id.ev_avail2, R.id.ev_total2,
                     R.id.ev_status2, R.drawable.bg_row_normal
                 ),
+                RowIds(
+                    R.id.ev_row3, R.id.ev_brand3, R.id.ev_name3,
+                    R.id.ev_pill3, R.id.ev_sub3, R.id.ev_avail3, R.id.ev_total3,
+                    R.id.ev_status3, R.drawable.bg_row_normal
+                ),
+                RowIds(
+                    R.id.ev_row4, R.id.ev_brand4, R.id.ev_name4,
+                    R.id.ev_pill4, R.id.ev_sub4, R.id.ev_avail4, R.id.ev_total4,
+                    R.id.ev_status4, R.drawable.bg_row_normal
+                ),
             )
+            val maxRows = rowCountFor(appWidgetManager, appWidgetId)
 
             try {
                 val list = JSONArray(listJson)
-                val count = minOf(list.length(), 2)
+                val count = minOf(list.length(), maxRows)
 
                 for (i in 0 until count) {
                     val item = list.getJSONObject(i)
@@ -161,7 +200,6 @@ class EvWidgetProvider : AppWidgetProvider() {
                     views.setTextViewText(r0.avail, "0")
                     views.setTextViewText(r0.total, "0")
                     views.setViewVisibility(r0.status, View.GONE)
-                    views.setViewVisibility(rows[1].row, View.GONE)
                 }
             } catch (e: JSONException) {
                 val r0 = rows[0]
@@ -175,7 +213,9 @@ class EvWidgetProvider : AppWidgetProvider() {
                 views.setTextViewText(r0.avail, "0")
                 views.setTextViewText(r0.total, "0")
                 views.setViewVisibility(r0.status, View.GONE)
-                views.setViewVisibility(rows[1].row, View.GONE)
+                for (i in 1 until rows.size) {
+                    views.setViewVisibility(rows[i].row, View.GONE)
+                }
             }
 
             appWidgetManager.updateAppWidget(appWidgetId, views)

@@ -5,8 +5,11 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
+import es.antonborri.home_widget.HomeWidgetBackgroundIntent
 import org.json.JSONArray
 import org.json.JSONException
 
@@ -22,7 +25,26 @@ class GasWidgetProvider : AppWidgetProvider() {
         }
     }
 
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle
+    ) {
+        updateWidget(context, appWidgetManager, appWidgetId)
+    }
+
     companion object {
+        private fun rowCountFor(mgr: AppWidgetManager, widgetId: Int): Int {
+            val minH = mgr.getAppWidgetOptions(widgetId)
+                .getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
+            return when {
+                minH in 1..129 -> 2
+                minH < 200 -> 3
+                else -> 4
+            }
+        }
+
         fun updateWidget(
             context: Context,
             appWidgetManager: AppWidgetManager,
@@ -41,6 +63,12 @@ class GasWidgetProvider : AppWidgetProvider() {
                 R.id.gas_widget_root,
                 buildLaunchIntent(context, appWidgetId, "gas", null)
             )
+            views.setOnClickPendingIntent(
+                R.id.gas_refresh,
+                HomeWidgetBackgroundIntent.getBroadcast(
+                    context, Uri.parse("chargehelper://refresh_gas")
+                )
+            )
 
             data class RowIds(
                 val row: Int, val brand: Int, val name: Int,
@@ -58,11 +86,22 @@ class GasWidgetProvider : AppWidgetProvider() {
                     R.id.gas_pill2, R.id.gas_sub2, R.id.gas_price2, R.id.gas_unit2,
                     R.drawable.bg_row_normal
                 ),
+                RowIds(
+                    R.id.gas_row3, R.id.gas_brand3, R.id.gas_name3,
+                    R.id.gas_pill3, R.id.gas_sub3, R.id.gas_price3, R.id.gas_unit3,
+                    R.drawable.bg_row_normal
+                ),
+                RowIds(
+                    R.id.gas_row4, R.id.gas_brand4, R.id.gas_name4,
+                    R.id.gas_pill4, R.id.gas_sub4, R.id.gas_price4, R.id.gas_unit4,
+                    R.drawable.bg_row_normal
+                ),
             )
+            val maxRows = rowCountFor(appWidgetManager, appWidgetId)
 
             try {
                 val list = JSONArray(listJson)
-                val count = minOf(list.length(), 2)
+                val count = minOf(list.length(), maxRows)
 
                 for (i in 0 until count) {
                     val item = list.getJSONObject(i)
@@ -118,7 +157,6 @@ class GasWidgetProvider : AppWidgetProvider() {
                     views.setTextViewText(r0.sub, "앱을 열어 추가")
                     views.setTextViewText(r0.price, "")
                     views.setTextViewText(r0.unit, "")
-                    views.setViewVisibility(rows[1].row, View.GONE)
                 }
             } catch (e: JSONException) {
                 val r0 = rows[0]
@@ -131,7 +169,9 @@ class GasWidgetProvider : AppWidgetProvider() {
                 views.setTextViewText(r0.sub, "")
                 views.setTextViewText(r0.price, "")
                 views.setTextViewText(r0.unit, "")
-                views.setViewVisibility(rows[1].row, View.GONE)
+                for (i in 1 until rows.size) {
+                    views.setViewVisibility(rows[i].row, View.GONE)
+                }
             }
 
             appWidgetManager.updateAppWidget(appWidgetId, views)

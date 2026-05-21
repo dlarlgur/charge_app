@@ -26,6 +26,8 @@ class WidgetService {
   /// 앱 초기화 시 한 번 호출
   static Future<void> init() async {
     await HomeWidget.setAppGroupId(_appGroupId);
+    // 위젯 새로고침 버튼 → 백그라운드 isolate 콜백 등록
+    await HomeWidget.registerInteractivityCallback(backgroundCallback);
   }
 
   /// 즐겨찾기 주유소 위젯 데이터를 갱신하고 위젯을 업데이트
@@ -53,7 +55,7 @@ class WidgetService {
 
       final items = <Map<String, dynamic>>[];
 
-      for (final fav in gasFavs.take(2)) {
+      for (final fav in gasFavs.take(4)) {
         final id = (fav['id'] as String? ?? '').trim();
         final favName = (fav['name'] ?? '').toString();
         final favBrand = (fav['brand'] ?? '').toString();
@@ -140,7 +142,7 @@ class WidgetService {
 
       final items = <Map<String, dynamic>>[];
 
-      for (final fav in evFavs.take(2)) {
+      for (final fav in evFavs.take(4)) {
         final id = (fav['id'] as String? ?? '').trim();
         final favName = (fav['name'] ?? '').toString();
         if (id.isEmpty) {
@@ -223,6 +225,43 @@ class WidgetService {
   /// 두 위젯 모두 갱신
   static Future<void> updateAll() async {
     await Future.wait([updateGasWidget(), updateEvWidget()]);
+  }
+
+  /// home_widget 위젯 새로고침 버튼 클릭 시 백그라운드 isolate 에서 호출.
+  /// uri host: refresh_gas | refresh_ev | refresh_all
+  @pragma('vm:entry-point')
+  static Future<void> backgroundCallback(Uri? uri) async {
+    try {
+      await Hive.initFlutter();
+      for (final box in [AppConstants.settingsBox, AppConstants.favoritesBox]) {
+        if (!Hive.isBoxOpen(box)) await Hive.openBox(box);
+      }
+      final host = uri?.host ?? '';
+      final touchGas = host == 'refresh_gas' || host != 'refresh_ev';
+      final touchEv = host == 'refresh_ev' || host != 'refresh_gas';
+
+      // 즉시 피드백 — 시간 칸을 "갱신 중…" 으로
+      if (touchGas) {
+        await HomeWidget.saveWidgetData('widget_gas_updated', '갱신 중…');
+        await HomeWidget.updateWidget(androidName: 'GasWidgetProvider');
+        await HomeWidget.updateWidget(androidName: 'CombinedWidgetProvider');
+      }
+      if (touchEv) {
+        await HomeWidget.saveWidgetData('widget_ev_updated', '갱신 중…');
+        await HomeWidget.updateWidget(androidName: 'EvWidgetProvider');
+      }
+
+      // 실제 재요청
+      if (host == 'refresh_gas') {
+        await updateGasWidget();
+      } else if (host == 'refresh_ev') {
+        await updateEvWidget();
+      } else {
+        await updateAll();
+      }
+    } catch (e, st) {
+      debugPrint('[Widget][refresh] FAIL $e\n$st');
+    }
   }
 
   /// WorkManager 백그라운드 태스크에서 호출
