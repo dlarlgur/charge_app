@@ -232,8 +232,13 @@ class WidgetService {
   @pragma('vm:entry-point')
   static Future<void> backgroundCallback(Uri? uri) async {
     try {
+      debugPrint('[Widget][refresh] callback host=${uri?.host} uri=$uri');
       await Hive.initFlutter();
-      for (final box in [AppConstants.settingsBox, AppConstants.favoritesBox]) {
+      for (final box in [
+        AppConstants.settingsBox,
+        AppConstants.favoritesBox,
+        'station_aliases',
+      ]) {
         if (!Hive.isBoxOpen(box)) await Hive.openBox(box);
       }
       final host = uri?.host ?? '';
