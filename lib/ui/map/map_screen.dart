@@ -39,6 +39,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   List<dynamic>? _selectedCluster;
   bool _showSearchHere = false;
   bool _mapReady = false;
+  // NaverMap(PlatformView)을 한 번만 생성해 캐시 — 부모 setState 가 잦아도
+  // 동일 위젯 인스턴스라 NaverMap 이 rebuild 되지 않아 제스처/줌이 끊기지 않음.
+  Widget? _cachedMap;
   int _markersGeneration = 0;
   final Map<String, NMarker> _markerRefs = {};
   Timer? _markerDebounce;
@@ -362,6 +365,52 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     );
   }
 
+  // ─── NaverMap 콜백 (위젯 캐시용 — 메서드 참조라 인스턴스가 안정적) ───
+  void _onMapReady(NaverMapController controller) {
+    _mapController = controller;
+    const defaultZoom = 14.0;
+    ref.read(mapRadiusProvider.notifier).state = _zoomToRadius(defaultZoom);
+    ref.read(locationProvider.future).then((loc) {
+      if (loc != null) {
+        controller.updateCamera(NCameraUpdate.withParams(
+          target: NLatLng(loc.lat, loc.lng),
+          zoom: defaultZoom,
+        ));
+        ref.read(mapCenterProvider.notifier).state = (lat: loc.lat, lng: loc.lng);
+        final overlay = controller.getLocationOverlay();
+        overlay.setIsVisible(true);
+        overlay.setPosition(NLatLng(loc.lat, loc.lng));
+        _updateMarkers();
+      }
+    });
+    _mapReady = true;
+    _precacheBrandLogos();
+    _updateMarkers();
+  }
+
+  void _onCameraChange(NCameraUpdateReason reason, bool animated) {
+    if (_suppressCameraChange) return;
+    // 값이 이미 원하는 상태면 setState 스킵 — 카메라 이동 중 rebuild 폭주 방지
+    if (_mapReady && !_isSearchMode && (!_showSearchHere || _isAtMyLocation)) {
+      setState(() {
+        _showSearchHere = true;
+        _isAtMyLocation = false;
+      });
+    }
+  }
+
+  void _onMapTapped(NPoint point, NLatLng latLng) {
+    if (_isSearchMode) {
+      setState(() {
+        _isSearchMode = false;
+        _searchResults = [];
+        _searchController.clear();
+      });
+    } else if (_selectedStation != null) {
+      _dismissSheet();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -398,58 +447,27 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       }
     });
 
+    // NaverMap 은 첫 build 에 한 번만 생성해 캐시 → setState 가 잦아도 rebuild 안 됨
+    _cachedMap ??= NaverMap(
+      options: NaverMapViewOptions(
+        initialCameraPosition: const NCameraPosition(
+          target: NLatLng(37.5665, 126.9780),
+          zoom: 14,
+        ),
+        nightModeEnable: isDark,
+        locationButtonEnable: false,
+        consumeSymbolTapEvents: false,
+      ),
+      onMapReady: _onMapReady,
+      onCameraChange: _onCameraChange,
+      onMapTapped: _onMapTapped,
+    );
+
     return Scaffold(
       body: Stack(
         children: [
           // ─── 네이버 지도 ───
-          NaverMap(
-            options: NaverMapViewOptions(
-              initialCameraPosition: const NCameraPosition(
-                target: NLatLng(37.5665, 126.9780),
-                zoom: 14,
-              ),
-              nightModeEnable: isDark,
-              locationButtonEnable: false,
-              consumeSymbolTapEvents: false,
-            ),
-            onMapReady: (controller) {
-              _mapController = controller;
-              const defaultZoom = 14.0;
-              ref.read(mapRadiusProvider.notifier).state = _zoomToRadius(defaultZoom);
-              ref.read(locationProvider.future).then((loc) {
-                if (loc != null) {
-                  controller.updateCamera(NCameraUpdate.withParams(
-                    target: NLatLng(loc.lat, loc.lng),
-                    zoom: defaultZoom,
-                  ));
-                  ref.read(mapCenterProvider.notifier).state = (lat: loc.lat, lng: loc.lng);
-                  final overlay = controller.getLocationOverlay();
-                  overlay.setIsVisible(true);
-                  overlay.setPosition(NLatLng(loc.lat, loc.lng));
-                  _updateMarkers();
-                }
-              });
-              _mapReady = true;
-              _precacheBrandLogos();
-              _updateMarkers();
-            },
-            onCameraChange: (_, __) {
-              if (_suppressCameraChange) return;
-              if (_mapReady && !_isSearchMode) {
-                setState(() {
-                  _showSearchHere = true;
-                  _isAtMyLocation = false;
-                });
-              }
-            },
-            onMapTapped: (_, __) {
-              if (_isSearchMode) {
-                setState(() { _isSearchMode = false; _searchResults = []; _searchController.clear(); });
-              } else if (_selectedStation != null) {
-                _dismissSheet();
-              }
-            },
-          ),
+          _cachedMap!,
 
           // ─── 상단 오버레이 ───
           Positioned(

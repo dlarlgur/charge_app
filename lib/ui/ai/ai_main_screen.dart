@@ -77,6 +77,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   bool _isAtMyLocation = false;
   bool _suppressCameraChange = false;
   bool _addressLoaded = false;
+  // NaverMap(PlatformView) 캐시 — setState 가 잦아도 rebuild 안 돼 제스처/줌 안 끊김.
+  // consumeSymbolTapEvents 가 _isSelectMode 에 따라 바뀌므로 그 값이 변할 때만 재생성.
+  Widget? _cachedMap;
+  bool? _cachedMapSelectMode;
 
   // ── 피커 모드 (지도에서 위치 선택) ──
   bool _isPickerMode = false;
@@ -572,6 +576,52 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     } finally {
       if (mounted) setState(() => _isLocating = false);
     }
+  }
+
+  // ── 카메라 이동 중 ──
+  void _onCameraChange(NCameraUpdateReason reason, bool animated) {
+    if (_suppressCameraChange) return;
+    if (!_isPickerMode) {
+      // 일반 모드: 카메라 이동 시 내 위치 표시 해제
+      if (_isAtMyLocation) setState(() => _isAtMyLocation = false);
+      return;
+    }
+    // 피커 모드: 드래그 중 역지오코딩 준비 표시 (이미 표시 중이면 setState 스킵)
+    if (!_isReverseGeocoding) setState(() => _isReverseGeocoding = true);
+    _reverseGeocodeDebounce?.cancel();
+    _reverseGeocodeDebounce = Timer(const Duration(milliseconds: 500), () async {
+      if (_mapController == null || !mounted) return;
+      final camPos = await _mapController!.getCameraPosition();
+      if (!mounted) return;
+      setState(() => _pickerLatLng = camPos.target);
+      final addr = await ApiService()
+          .reverseGeocode(camPos.target.latitude, camPos.target.longitude);
+      if (mounted) {
+        setState(() {
+          _pickerAddress = addr ?? '주소를 가져올 수 없습니다';
+          _isReverseGeocoding = false;
+        });
+      }
+    });
+  }
+
+  /// 배경 NaverMap — 한 번 생성 후 캐시. _isSelectMode 가 바뀔 때만 재생성.
+  Widget _buildMap() {
+    if (_cachedMapSelectMode != _isSelectMode) {
+      _cachedMap = null;
+      _cachedMapSelectMode = _isSelectMode;
+    }
+    return _cachedMap ??= NaverMap(
+      options: NaverMapViewOptions(
+        mapType: NMapType.basic,
+        locationButtonEnable: false,
+        consumeSymbolTapEvents: _isSelectMode,
+      ),
+      onMapReady: _onMapReady,
+      onCameraIdle: _onCameraIdle,
+      onSymbolTapped: _onSymbolTapped,
+      onCameraChange: _onCameraChange,
+    );
   }
 
   // ── 카메라 정지 → 피커 모드에서 역지오코딩 ──
@@ -3505,45 +3555,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       child: Scaffold(
       body: Stack(
         children: [
-          // ── 배경 지도 ──
-          NaverMap(
-            options: NaverMapViewOptions(
-              mapType: NMapType.basic,
-              locationButtonEnable: false,
-              // 사용자 선택 모드에서는 심볼(주유소 마커) 탭을 잡아서
-              // 리스트 A/B 선택과 동기화한다.
-              consumeSymbolTapEvents: _isSelectMode,
-            ),
-            onMapReady: _onMapReady,
-            onCameraIdle: _onCameraIdle,
-            onSymbolTapped: _onSymbolTapped,
-            onCameraChange: (_, __) {
-              if (_suppressCameraChange) return;
-              // 일반 모드: 카메라 이동 시 내 위치 표시 해제
-              if (!_isPickerMode) {
-                if (_isAtMyLocation) setState(() => _isAtMyLocation = false);
-                return;
-              }
-              // 피커 모드에서 드래그 중 역지오코딩 준비 표시
-              setState(() => _isReverseGeocoding = true);
-              _reverseGeocodeDebounce?.cancel();
-              // 디바운스 후 controller에서 현재 카메라 위치 읽어 역지오코딩
-              _reverseGeocodeDebounce = Timer(const Duration(milliseconds: 500), () async {
-                if (_mapController == null || !mounted) return;
-                final camPos = await _mapController!.getCameraPosition();
-                if (!mounted) return;
-                setState(() => _pickerLatLng = camPos.target);
-                final addr = await ApiService().reverseGeocode(
-                    camPos.target.latitude, camPos.target.longitude);
-                if (mounted) {
-                  setState(() {
-                    _pickerAddress = addr ?? '주소를 가져올 수 없습니다';
-                    _isReverseGeocoding = false;
-                  });
-                }
-              });
-            },
-          ),
+          // ── 배경 지도 (캐시된 NaverMap — 제스처 격리) ──
+          _buildMap(),
 
           // ── 피커 모드: 가운데 핀 ──
           if (_isPickerMode)
