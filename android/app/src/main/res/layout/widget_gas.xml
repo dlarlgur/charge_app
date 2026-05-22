@@ -86,8 +86,10 @@
                 android:id="@+id/gas_brand1"
                 android:layout_width="34dp"
                 android:layout_height="34dp"
+                android:background="@drawable/bg_brand_card"
+                android:padding="5dp"
                 android:scaleType="fitCenter"
-                android:src="@drawable/brand_hdo"
+                android:src="@drawable/oil_hd"
                 android:contentDescription="@null"/>
 
             <LinearLayout
@@ -203,8 +205,10 @@
                 android:id="@+id/gas_brand2"
                 android:layout_width="34dp"
                 android:layout_height="34dp"
+                android:background="@drawable/bg_brand_card"
+                android:padding="5dp"
                 android:scaleType="fitCenter"
-                android:src="@drawable/brand_sol"
+                android:src="@drawable/oil_soil"
                 android:contentDescription="@null"/>
 
             <LinearLayout
@@ -321,8 +325,10 @@
                 android:id="@+id/gas_brand3"
                 android:layout_width="34dp"
                 android:layout_height="34dp"
+                android:background="@drawable/bg_brand_card"
+                android:padding="5dp"
                 android:scaleType="fitCenter"
-                android:src="@drawable/brand_etc"
+                android:src="@drawable/oil_gs"
                 android:contentDescription="@null"/>
 
             <LinearLayout
@@ -435,8 +441,10 @@
                 android:id="@+id/gas_brand4"
                 android:layout_width="34dp"
                 android:layout_height="34dp"
+                android:background="@drawable/bg_brand_card"
+                android:padding="5dp"
                 android:scaleType="fitCenter"
-                android:src="@drawable/brand_etc"
+                android:src="@drawable/oil_sk"
                 android:contentDescription="@null"/>
 
             <LinearLayout

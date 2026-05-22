@@ -249,15 +249,13 @@ class GasWidgetProvider : AppWidgetProvider() {
             )
         }
 
+        // 앱 주유 목록과 동일한 브랜드 심볼 아이콘 (assets/logo/oil 기반)
         private fun brandLogo(brand: String): Int = when (brand) {
-            "GSC" -> R.drawable.brand_gsc
-            "SKE" -> R.drawable.brand_ske
-            "HDO" -> R.drawable.brand_hdo
-            "SOL" -> R.drawable.brand_sol
-            "NHO" -> R.drawable.brand_nho
-            "RTO" -> R.drawable.brand_rto
-            "RTX" -> R.drawable.brand_rtx
-            "E1G" -> R.drawable.brand_e1g
+            "GSC" -> R.drawable.oil_gs
+            "SKE" -> R.drawable.oil_sk
+            "HDO" -> R.drawable.oil_hd
+            "SOL" -> R.drawable.oil_soil
+            "NHO" -> R.drawable.oil_nh
             else -> R.drawable.brand_etc
         }
 
