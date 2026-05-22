@@ -105,7 +105,7 @@
             android:padding="6dp"
             android:background="@drawable/bg_row_best_gas">
 
-            <TextView
+            <ImageView
                 android:id="@+id/cg_brand1"
                 android:layout_width="34dp"
                 android:layout_height="34dp"
@@ -217,7 +217,7 @@
             android:padding="6dp"
             android:background="@drawable/bg_row_normal">
 
-            <TextView
+            <ImageView
                 android:id="@+id/cg_brand2"
                 android:layout_width="34dp"
                 android:layout_height="34dp"
@@ -329,7 +329,7 @@
             android:background="@drawable/bg_row_normal"
             android:visibility="gone">
 
-            <TextView
+            <ImageView
                 android:id="@+id/cg_brand3"
                 android:layout_width="34dp"
                 android:layout_height="34dp"
