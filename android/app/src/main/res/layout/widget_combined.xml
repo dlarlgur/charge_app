@@ -109,12 +109,9 @@
                 android:id="@+id/cg_brand1"
                 android:layout_width="34dp"
                 android:layout_height="34dp"
-                android:gravity="center"
-                android:textSize="11sp"
-                android:textColor="#FFFFFF"
-                android:fontFamily="@font/pretendard_extrabold"
-                android:background="@drawable/bg_badge_hd"
-                android:text="HD"/>
+                android:scaleType="fitCenter"
+                android:src="@drawable/brand_hdo"
+                android:contentDescription="@null"/>
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -224,12 +221,9 @@
                 android:id="@+id/cg_brand2"
                 android:layout_width="34dp"
                 android:layout_height="34dp"
-                android:gravity="center"
-                android:textSize="11sp"
-                android:textColor="#FFFFFF"
-                android:fontFamily="@font/pretendard_extrabold"
-                android:background="@drawable/bg_badge_soil"
-                android:text="S"/>
+                android:scaleType="fitCenter"
+                android:src="@drawable/brand_sol"
+                android:contentDescription="@null"/>
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -339,11 +333,9 @@
                 android:id="@+id/cg_brand3"
                 android:layout_width="34dp"
                 android:layout_height="34dp"
-                android:gravity="center"
-                android:textSize="11sp"
-                android:textColor="#FFFFFF"
-                android:fontFamily="@font/pretendard_extrabold"
-                android:background="@drawable/bg_badge_default"/>
+                android:scaleType="fitCenter"
+                android:src="@drawable/brand_etc"
+                android:contentDescription="@null"/>
 
             <LinearLayout
                 android:layout_width="0dp"

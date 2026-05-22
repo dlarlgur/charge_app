@@ -169,8 +169,7 @@ class CombinedWidgetProvider : AppWidgetProvider() {
 
                     views.setViewVisibility(row.row, View.VISIBLE)
                     views.setInt(row.row, "setBackgroundResource", row.bestBg)
-                    views.setTextViewText(row.brand, brandShort(brand))
-                    views.setInt(row.brand, "setBackgroundResource", brandDrawable(brand))
+                    views.setImageViewResource(row.brand, brandLogo(brand))
                     views.setTextViewText(row.name, name)
                     views.setViewVisibility(row.pill, View.VISIBLE)
                     views.setTextViewText(row.pill, if (isSelf) "셀프" else "일반")
@@ -214,8 +213,7 @@ class CombinedWidgetProvider : AppWidgetProvider() {
         private fun renderGasEmpty(views: RemoteViews, r0: GasRow) {
             views.setViewVisibility(r0.row, View.VISIBLE)
             views.setInt(r0.row, "setBackgroundResource", R.drawable.bg_row_normal)
-            views.setTextViewText(r0.brand, "+")
-            views.setInt(r0.brand, "setBackgroundResource", R.drawable.bg_badge_default)
+            views.setImageViewResource(r0.brand, R.drawable.ic_widget_mark_gas)
             views.setTextViewText(r0.name, "즐겨찾기 주유소를 추가하세요")
             views.setViewVisibility(r0.pill, View.GONE)
             views.setTextViewText(r0.sub, "")
@@ -340,18 +338,16 @@ class CombinedWidgetProvider : AppWidgetProvider() {
             )
         }
 
-        private fun brandShort(brand: String): String = when (brand) {
-            "GSC" -> "GS"; "SKE" -> "SK"; "HDO" -> "HD"; "SOL" -> "S"
-            "RTO", "RTX" -> "알"; "NHO" -> "NH"
-            else -> if (brand.length >= 2) brand.take(2) else brand.ifEmpty { "?" }
-        }
-
-        private fun brandDrawable(brand: String): Int = when (brand) {
-            "GSC" -> R.drawable.bg_badge_gs
-            "SKE" -> R.drawable.bg_badge_skn
-            "HDO" -> R.drawable.bg_badge_hd
-            "SOL" -> R.drawable.bg_badge_soil
-            else -> R.drawable.bg_badge_default
+        private fun brandLogo(brand: String): Int = when (brand) {
+            "GSC" -> R.drawable.brand_gsc
+            "SKE" -> R.drawable.brand_ske
+            "HDO" -> R.drawable.brand_hdo
+            "SOL" -> R.drawable.brand_sol
+            "NHO" -> R.drawable.brand_nho
+            "RTO" -> R.drawable.brand_rto
+            "RTX" -> R.drawable.brand_rtx
+            "E1G" -> R.drawable.brand_e1g
+            else -> R.drawable.brand_etc
         }
 
         private fun formatPrice(price: Int): String =

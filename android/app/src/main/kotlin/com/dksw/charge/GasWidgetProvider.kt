@@ -37,10 +37,12 @@ class GasWidgetProvider : AppWidgetProvider() {
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
+        android.util.Log.i("WidgetRefresh", "GasWidgetProvider.onReceive action=${intent.action}")
         if (intent.action == ACTION_REFRESH) {
             // 즉시 스피너 표시 (백그라운드 isolate cold-start 와 무관하게 빠른 피드백)
             val mgr = AppWidgetManager.getInstance(context)
             val ids = mgr.getAppWidgetIds(ComponentName(context, GasWidgetProvider::class.java))
+            android.util.Log.i("WidgetRefresh", "gas widget ids=${ids.size}")
             for (id in ids) {
                 val v = RemoteViews(context.packageName, R.layout.widget_gas)
                 v.setViewVisibility(R.id.gas_progress, View.VISIBLE)
@@ -53,8 +55,9 @@ class GasWidgetProvider : AppWidgetProvider() {
                 HomeWidgetBackgroundIntent.getBroadcast(
                     context, Uri.parse("chargehelper://refresh_gas")
                 ).send()
+                android.util.Log.i("WidgetRefresh", "HomeWidgetBackgroundIntent sent")
             } catch (e: Exception) {
-                // ignore
+                android.util.Log.e("WidgetRefresh", "send failed: $e")
             }
         }
     }
@@ -151,8 +154,7 @@ class GasWidgetProvider : AppWidgetProvider() {
                     views.setViewVisibility(row.row, View.VISIBLE)
                     views.setInt(row.row, "setBackgroundResource", row.bestBg)
 
-                    views.setTextViewText(row.brand, brandShort(brand))
-                    views.setInt(row.brand, "setBackgroundResource", brandDrawable(brand))
+                    views.setImageViewResource(row.brand, brandLogo(brand))
 
                     views.setTextViewText(row.name, name)
 
@@ -200,8 +202,7 @@ class GasWidgetProvider : AppWidgetProvider() {
                     val r0 = rows[0]
                     views.setViewVisibility(r0.row, View.VISIBLE)
                     views.setInt(r0.row, "setBackgroundResource", R.drawable.bg_row_normal)
-                    views.setTextViewText(r0.brand, "+")
-                    views.setInt(r0.brand, "setBackgroundResource", R.drawable.bg_badge_default)
+                    views.setImageViewResource(r0.brand, R.drawable.ic_widget_mark_gas)
                     views.setTextViewText(r0.name, "즐겨찾기 주유소를 추가하세요")
                     views.setViewVisibility(r0.pill, View.GONE)
                     views.setTextViewText(r0.sub, "앱을 열어 추가")
@@ -213,8 +214,7 @@ class GasWidgetProvider : AppWidgetProvider() {
                 val r0 = rows[0]
                 views.setViewVisibility(r0.row, View.VISIBLE)
                 views.setInt(r0.row, "setBackgroundResource", R.drawable.bg_row_normal)
-                views.setTextViewText(r0.brand, "+")
-                views.setInt(r0.brand, "setBackgroundResource", R.drawable.bg_badge_default)
+                views.setImageViewResource(r0.brand, R.drawable.ic_widget_mark_gas)
                 views.setTextViewText(r0.name, "데이터 로드 중...")
                 views.setViewVisibility(r0.pill, View.GONE)
                 views.setTextViewText(r0.sub, "")
@@ -249,22 +249,16 @@ class GasWidgetProvider : AppWidgetProvider() {
             )
         }
 
-        private fun brandShort(brand: String): String = when (brand) {
-            "GSC" -> "GS"
-            "SKE" -> "SK"
-            "HDO" -> "HD"
-            "SOL" -> "S"
-            "RTO", "RTX" -> "알"
-            "NHO" -> "NH"
-            else -> if (brand.length >= 2) brand.take(2) else brand.ifEmpty { "?" }
-        }
-
-        private fun brandDrawable(brand: String): Int = when (brand) {
-            "GSC" -> R.drawable.bg_badge_gs
-            "SKE" -> R.drawable.bg_badge_skn
-            "HDO" -> R.drawable.bg_badge_hd
-            "SOL" -> R.drawable.bg_badge_soil
-            else -> R.drawable.bg_badge_default
+        private fun brandLogo(brand: String): Int = when (brand) {
+            "GSC" -> R.drawable.brand_gsc
+            "SKE" -> R.drawable.brand_ske
+            "HDO" -> R.drawable.brand_hdo
+            "SOL" -> R.drawable.brand_sol
+            "NHO" -> R.drawable.brand_nho
+            "RTO" -> R.drawable.brand_rto
+            "RTX" -> R.drawable.brand_rtx
+            "E1G" -> R.drawable.brand_e1g
+            else -> R.drawable.brand_etc
         }
 
         private fun formatPrice(price: Int): String {
