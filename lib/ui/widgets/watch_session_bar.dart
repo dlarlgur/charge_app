@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/utils/helpers.dart';
 import '../../data/services/watch_service.dart';
 import '../detail/ev_detail_screen.dart';
@@ -79,6 +80,13 @@ class _WatchSessionBarState extends State<WatchSessionBar> {
     final session = WatchService().session;
     if (session == null) return const SizedBox.shrink();
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF1A1F2C) : Colors.white;
+    final iconBg = isDark ? _kBlue.withValues(alpha: 0.18) : _kBlueLight;
+    final primary = isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A1A);
+    final muted = isDark ? AppColors.darkTextSecondary : const Color(0xFF888888);
+    final offColor = isDark ? AppColors.darkTextSecondary : const Color(0xFF888888);
+
     final remaining = session.remaining;
     final timeStr = _formatRemaining(remaining);
     final avail = session.currentAvail;
@@ -88,14 +96,14 @@ class _WatchSessionBarState extends State<WatchSessionBar> {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
         child: Material(
-          color: Colors.white,
+          color: bg,
           borderRadius: BorderRadius.circular(14),
           elevation: 4,
           shadowColor: _kBlue.withValues(alpha: 0.18),
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: _kBlue.withValues(alpha: 0.25)),
+              border: Border.all(color: _kBlue.withValues(alpha: isDark ? 0.4 : 0.25)),
             ),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
@@ -105,8 +113,8 @@ class _WatchSessionBarState extends State<WatchSessionBar> {
                   Container(
                     width: 36,
                     height: 36,
-                    decoration: const BoxDecoration(
-                      color: _kBlueLight,
+                    decoration: BoxDecoration(
+                      color: iconBg,
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.radar_rounded, size: 18, color: _kBlue),
@@ -140,10 +148,10 @@ class _WatchSessionBarState extends State<WatchSessionBar> {
                         const SizedBox(height: 3),
                         Text(
                           session.stationName,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF1A1A1A),
+                            color: primary,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -152,7 +160,7 @@ class _WatchSessionBarState extends State<WatchSessionBar> {
                           avail != null
                               ? '$timeStr 남음  ·  현재 ${avail}자리'
                               : '$timeStr 남음',
-                          style: const TextStyle(fontSize: 11, color: Color(0xFF888888)),
+                          style: TextStyle(fontSize: 11, color: muted),
                         ),
                       ],
                     ),
@@ -170,6 +178,7 @@ class _WatchSessionBarState extends State<WatchSessionBar> {
                             label: _extending ? '...' : '+30분',
                             color: _kBlue,
                             filled: false,
+                            isDark: isDark,
                             onTap: _extending ? null : _extend,
                           ),
                           const SizedBox(width: 5),
@@ -177,13 +186,15 @@ class _WatchSessionBarState extends State<WatchSessionBar> {
                             label: '상세',
                             color: _kBlue,
                             filled: false,
+                            isDark: isDark,
                             onTap: _openDetail,
                           ),
                           const SizedBox(width: 5),
                           _SmallBtn(
                             label: '끄기',
-                            color: const Color(0xFF888888),
+                            color: offColor,
                             filled: false,
+                            isDark: isDark,
                             onTap: () => WatchService().stop(),
                           ),
                         ],
@@ -204,12 +215,14 @@ class _SmallBtn extends StatelessWidget {
   final String label;
   final Color color;
   final bool filled;
+  final bool isDark;
   final VoidCallback? onTap;
 
   const _SmallBtn({
     required this.label,
     required this.color,
     required this.filled,
+    required this.isDark,
     required this.onTap,
   });
 
@@ -220,7 +233,7 @@ class _SmallBtn extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
         decoration: BoxDecoration(
-          color: filled ? color : color.withValues(alpha: 0.08),
+          color: filled ? color : color.withValues(alpha: isDark ? 0.16 : 0.08),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(

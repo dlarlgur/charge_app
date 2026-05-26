@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/theme/app_colors.dart';
 import '../../core/utils/helpers.dart';
 import '../../core/utils/navigation_util.dart';
 import '../../data/services/station_alias_service.dart';
@@ -80,15 +81,16 @@ class _PinnedSheetHandleDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return ColoredBox(
-      color: Colors.white,
+      color: isDark ? AppColors.darkBg : Colors.white,
       child: Align(
         alignment: Alignment.center,
         child: Container(
           width: 36,
           height: 4,
           decoration: BoxDecoration(
-            color: Colors.grey[300],
+            color: isDark ? AppColors.darkTextMuted : Colors.grey[300],
             borderRadius: BorderRadius.circular(2),
           ),
         ),
@@ -122,24 +124,28 @@ class AiResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? AppColors.darkBg : Colors.white;
+    final titleColor = isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a);
+    final subtitleColor = isDark ? AppColors.darkTextSecondary : const Color(0xFF999999);
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: bg,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: bg,
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1a1a1a)),
+          icon: Icon(Icons.arrow_back_rounded, color: titleColor),
           onPressed: () => Navigator.pop(context),
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('분석 결과',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF1a1a1a))),
+            Text('분석 결과',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: titleColor)),
             if (routeSummary != null)
               Text(routeSummary!,
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF999999))),
+                  style: TextStyle(fontSize: 12, color: subtitleColor)),
           ],
         ),
       ),
@@ -1329,12 +1335,17 @@ class _ComparisonTable extends StatelessWidget {
     final rightHi = hasDetourCol && detourIsWinner;
     // 배너 텍스트: 실제 비용 기준 (savings > 0 이면 우회가 더 저렴)
     final detourIsActuallyCheaper = savings > 0;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tableBg = isDark ? AppColors.darkCard : Colors.white;
+    final tableBorder = isDark ? AppColors.darkCardBorder : const Color(0xFFEEEEEE);
+    final titleColor = isDark ? AppColors.darkTextPrimary : const Color(0xFF333333);
+    final iconColor = isDark ? AppColors.darkTextSecondary : const Color(0xFF888888);
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: tableBg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFEEEEEE)),
+        border: Border.all(color: tableBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1344,10 +1355,10 @@ class _ComparisonTable extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: Row(
               children: [
-                const Icon(Icons.compare_arrows_rounded, size: 16, color: Color(0xFF888888)),
+                Icon(Icons.compare_arrows_rounded, size: 16, color: iconColor),
                 const SizedBox(width: 6),
-                const Text('경로 비교',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF333333))),
+                Text('경로 비교',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: titleColor)),
                 if (fuelLabel != null) ...[
                   const SizedBox(width: 8),
                   Container(
@@ -1631,12 +1642,25 @@ class _TableRow extends StatelessWidget {
   Widget build(BuildContext context) {
     // midHighlight/rightHighlight: 추천(주황) 컬러를 줄 쪽을 의미하고,
     // 나머지 쪽(비승자)은 비교(파랑)로 통일한다.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final headerTextColor = isDark ? AppColors.darkTextSecondary : const Color(0xFF666666);
     final midColor = isHeader
-        ? const Color(0xFF666666)
+        ? headerTextColor
         : (midHighlight ? _kMarkerRecommend : _kCompareLoser);
     final rightColor = isHeader
-        ? const Color(0xFF666666)
+        ? headerTextColor
         : (rightHighlight ? _kMarkerRecommend : _kCompareLoser);
+    // 다크: 헤더/라벨 열은 카드 보다 살짝 어둡게, 비강조 셀은 파란 ghost tint.
+    final labelBg = isDark ? const Color(0x0AFFFFFF) : const Color(0xFFFAFAFA);
+    final labelText = isDark ? AppColors.darkTextMuted : const Color(0xFF888888);
+    final headerCellBg = isDark ? AppColors.darkCard : Colors.white;
+    final winnerCellBg = isDark
+        ? _kMarkerRecommend.withValues(alpha: 0.16)
+        : _kMarkerRecommendLight;
+    final loserCellBg = isDark
+        ? _kCompareLoser.withValues(alpha: 0.16)
+        : const Color(0xFFEEF4FF);
+    final dividerColor = isDark ? AppColors.darkCardBorder : const Color(0xFFF0F0F0);
 
     return IntrinsicHeight(
       child: Row(
@@ -1645,22 +1669,20 @@ class _TableRow extends StatelessWidget {
           Container(
             width: 64,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            color: const Color(0xFFFAFAFA),
+            color: labelBg,
             child: Text(
               isHeader ? '' : (label ?? ''),
-              style: const TextStyle(fontSize: 10, color: Color(0xFF888888), fontWeight: FontWeight.w500),
+              style: TextStyle(fontSize: 10, color: labelText, fontWeight: FontWeight.w500),
             ),
           ),
-          const VerticalDivider(width: 1, color: Color(0xFFF0F0F0)),
+          VerticalDivider(width: 1, color: dividerColor),
           // 경로상 열
           Expanded(
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               color: isHeader
-                  ? Colors.white
-                  : (midHighlight
-                      ? _kMarkerRecommendLight
-                      : const Color(0xFFEEF4FF)),
+                  ? headerCellBg
+                  : (midHighlight ? winnerCellBg : loserCellBg),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -1691,16 +1713,14 @@ class _TableRow extends StatelessWidget {
               ),
             ),
           ),
-          const VerticalDivider(width: 1, color: Color(0xFFF0F0F0)),
+          VerticalDivider(width: 1, color: dividerColor),
           // 우회 열
           Expanded(
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               color: isHeader
-                  ? Colors.white
-                  : (rightHighlight
-                      ? _kMarkerRecommendLight
-                      : const Color(0xFFEEF4FF)),
+                  ? headerCellBg
+                  : (rightHighlight ? winnerCellBg : loserCellBg),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -1785,6 +1805,7 @@ class _OptionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final canNav = stLat != null && stLng != null && destLat != null && destLng != null;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final Color borderColor;
     final Color bgColor;
@@ -1792,20 +1813,23 @@ class _OptionCard extends StatelessWidget {
     final Color navBtnTextColor;
 
     if (isUserSelected) {
+      // 보라 톤(선택됨) — 다크에서는 보라 16% alpha 로 lift.
       borderColor = _kSelected;
-      bgColor = _kSelectedLight;
+      bgColor = isDark ? _kSelected.withValues(alpha: 0.16) : _kSelectedLight;
       navBtnColor = _kSelected;
       navBtnTextColor = Colors.white;
     } else if (isAiRec) {
+      // 초록 톤(AI 추천) — 다크에서는 초록 16% alpha 로 lift.
       borderColor = _kPrimary;
-      bgColor = _kPrimaryLight;
+      bgColor = isDark ? _kPrimary.withValues(alpha: 0.16) : _kPrimaryLight;
       navBtnColor = _kPrimary;
       navBtnTextColor = Colors.white;
     } else {
-      borderColor = const Color(0xFFDDDDDD);
-      bgColor = Colors.white;
-      navBtnColor = const Color(0xFFEEEEEE);
-      navBtnTextColor = const Color(0xFF444444);
+      // 무채색(참고) — 다크에서는 darkCard, 라이트에서는 흰색.
+      borderColor = isDark ? AppColors.darkCardBorder : const Color(0xFFDDDDDD);
+      bgColor = isDark ? AppColors.darkCard : Colors.white;
+      navBtnColor = isDark ? const Color(0x1AFFFFFF) : const Color(0xFFEEEEEE);
+      navBtnTextColor = isDark ? AppColors.darkTextPrimary : const Color(0xFF444444);
     }
 
     return Container(
@@ -1922,10 +1946,16 @@ class _OptionCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(stName,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1a1a1a))),
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a))),
                 if (stAddr != null && stAddr!.isNotEmpty) ...[
                   const SizedBox(height: 2),
-                  Text(stAddr!, style: const TextStyle(fontSize: 12, color: Color(0xFF888888))),
+                  Text(stAddr!,
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? AppColors.darkTextSecondary : const Color(0xFF888888))),
                 ],
               ],
             ),
@@ -1938,7 +1968,7 @@ class _OptionCard extends StatelessWidget {
             margin: const EdgeInsets.symmetric(horizontal: 16),
             padding: const EdgeInsets.symmetric(vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFFF7F7F7),
+              color: isDark ? const Color(0x14FFFFFF) : const Color(0xFFF7F7F7),
               borderRadius: BorderRadius.circular(10),
             ),
             child: IntrinsicHeight(
@@ -1948,9 +1978,9 @@ class _OptionCard extends StatelessWidget {
                     value: priceL != null ? '${wonFmt.format(priceL!.round())}원' : '—',
                     label: '리터당',
                   ),
-                  const VerticalDivider(width: 1, color: Color(0xFFDDDDDD)),
+                  VerticalDivider(width: 1, color: isDark ? AppColors.darkCardBorder : const Color(0xFFDDDDDD)),
                   _DetourStatsCell(detourM: detourM, detourTimeMin: detourTimeMin),
-                  const VerticalDivider(width: 1, color: Color(0xFFDDDDDD)),
+                  VerticalDivider(width: 1, color: isDark ? AppColors.darkCardBorder : const Color(0xFFDDDDDD)),
                   _NumCell(
                     value: expectedCost > 0 ? '${wonFmt.format(expectedCost)}원' : '—',
                     label: '예상 주유비',
@@ -2375,39 +2405,39 @@ class _DetourStatsCell extends StatelessWidget {
 
   const _DetourStatsCell({required this.detourM, required this.detourTimeMin});
 
-  static const _valueStyle = TextStyle(
-    fontSize: 15,
-    fontWeight: FontWeight.w700,
-    color: Color(0xFF1a1a1a),
-  );
-  static const _subStyle = TextStyle(
-    fontSize: 12,
-    fontWeight: FontWeight.w600,
-    color: Color(0xFF546E7A),
-  );
-  static const _labelStyle = TextStyle(
-    fontSize: 11,
-    color: Color(0xFF999999),
-  );
-
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final valueStyle = TextStyle(
+      fontSize: 15,
+      fontWeight: FontWeight.w700,
+      color: isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a),
+    );
+    final subStyle = TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      color: isDark ? AppColors.darkTextSecondary : const Color(0xFF546E7A),
+    );
+    final labelStyle = TextStyle(
+      fontSize: 11,
+      color: isDark ? AppColors.darkTextMuted : const Color(0xFF999999),
+    );
     return Expanded(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          ..._valueWidgets(),
+          ..._valueWidgets(valueStyle, subStyle),
           const SizedBox(height: 3),
-          const Text('우회', textAlign: TextAlign.center, style: _labelStyle),
+          Text('우회', textAlign: TextAlign.center, style: labelStyle),
         ],
       ),
     );
   }
 
-  List<Widget> _valueWidgets() {
+  List<Widget> _valueWidgets(TextStyle valueStyle, TextStyle subStyle) {
     if (_detourIsNegligible(detourM: detourM, detourTimeMin: detourTimeMin)) {
       return [
-        const Text('우회 없음', textAlign: TextAlign.center, style: _valueStyle),
+        Text('우회 없음', textAlign: TextAlign.center, style: valueStyle),
       ];
     }
     final m = _meaningfulDetourMinutes(detourTimeMin);
@@ -2416,21 +2446,21 @@ class _DetourStatsCell extends StatelessWidget {
       final dist = detourM >= 1000
           ? '${(detourM / 1000).toStringAsFixed(1)} km'
           : '$detourM m';
-      list.add(Text(dist, textAlign: TextAlign.center, style: _valueStyle));
+      list.add(Text(dist, textAlign: TextAlign.center, style: valueStyle));
       list.add(const SizedBox(height: 4));
     }
     if (m != null) {
       list.add(Text(
         detourM > 0 ? '직행보다 +약 $m분' : '직행 대비 약 $m분 추가',
         textAlign: TextAlign.center,
-        style: _subStyle,
+        style: subStyle,
       ));
     } else {
       list.add(
-        const Text(
+        Text(
           '조금 우회',
           textAlign: TextAlign.center,
-          style: _subStyle,
+          style: subStyle,
         ),
       );
     }
@@ -2447,6 +2477,7 @@ class _NumCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Expanded(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -2456,11 +2487,13 @@ class _NumCell extends StatelessWidget {
               style: TextStyle(
                 fontSize: valueSize ?? 15,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFF1a1a1a),
+                color: isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a),
               )),
           const SizedBox(height: 3),
           Text(label,
-              style: const TextStyle(fontSize: 11, color: Color(0xFF999999))),
+              style: TextStyle(
+                  fontSize: 11,
+                  color: isDark ? AppColors.darkTextMuted : const Color(0xFF999999))),
         ],
       ),
     );
@@ -3262,11 +3295,16 @@ class _UserComparisonTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tableBg = isDark ? AppColors.darkCard : Colors.white;
+    final tableBorder = isDark ? AppColors.darkCardBorder : const Color(0xFFEEEEEE);
+    final titleColor = isDark ? AppColors.darkTextPrimary : const Color(0xFF333333);
+    final iconColor = isDark ? AppColors.darkTextSecondary : const Color(0xFF888888);
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: tableBg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFEEEEEE)),
+        border: Border.all(color: tableBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3276,10 +3314,10 @@ class _UserComparisonTable extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: Row(
               children: [
-                const Icon(Icons.compare_arrows_rounded, size: 16, color: Color(0xFF888888)),
+                Icon(Icons.compare_arrows_rounded, size: 16, color: iconColor),
                 const SizedBox(width: 6),
-                const Text('상세 비교',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF333333))),
+                Text('상세 비교',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: titleColor)),
                 if (fuelLabel != null) ...[
                   const SizedBox(width: 8),
                   Container(

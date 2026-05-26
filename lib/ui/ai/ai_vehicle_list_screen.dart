@@ -4,13 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../core/constants/api_constants.dart';
+import '../../core/theme/app_colors.dart';
 import '../../data/models/models.dart';
 import 'ai_vehicle_setup_screen.dart';
 
-const _kPrimary = Color(0xFF1D9E75);
-const _kPrimaryLight = Color(0xFFE1F5EE);
-const _kEvBlue = Color(0xFF1D6FE0);
-const _kEvBlueLight = Color(0xFFEAF1FD);
+// Brand accents (앱 컨벤션과 정합 — gas=blue, ev=green)
+const _kPrimary = AppColors.evGreen;
+const _kEvBlue = AppColors.gasBlue;
 
 class AiVehicleListScreen extends StatefulWidget {
   /// true: 온보딩에서 진입 — 완료 시 루트까지 팝
@@ -149,23 +149,26 @@ class _AiVehicleListScreenState extends State<AiVehicleListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? AppColors.darkBg : AppColors.lightBg;
+    final titleColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: bg,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: bg,
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: widget.isFromOnboarding
             ? null
             : IconButton(
-                icon: const Icon(Icons.arrow_back_rounded,
-                    color: Color(0xFF1a1a1a)),
+                icon: Icon(Icons.arrow_back_rounded, color: titleColor),
                 onPressed: () => Navigator.pop(context),
               ),
-        title: const Text(
+        title: Text(
           '내 차량',
           style: TextStyle(
-            color: Color(0xFF1a1a1a),
+            color: titleColor,
             fontWeight: FontWeight.w700,
             fontSize: 18,
           ),
@@ -189,7 +192,7 @@ class _AiVehicleListScreenState extends State<AiVehicleListScreen> {
           children: [
             Expanded(
               child: _vehicles.isEmpty
-                  ? _buildEmpty()
+                  ? _buildEmpty(isDark)
                   : ListView.separated(
                       padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
                       itemCount: _vehicles.length,
@@ -236,7 +239,12 @@ class _AiVehicleListScreenState extends State<AiVehicleListScreen> {
     );
   }
 
-  Widget _buildEmpty() {
+  Widget _buildEmpty(bool isDark) {
+    final iconBg = isDark ? AppColors.darkIconBg : AppColors.lightIconBg;
+    final iconColor = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final primaryText = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final mutedText = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -245,25 +253,25 @@ class _AiVehicleListScreenState extends State<AiVehicleListScreen> {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: const Color(0xFFF2F2F2),
+              color: iconBg,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Icon(Icons.directions_car_rounded,
-                size: 40, color: Color(0xFFCCCCCC)),
+            child: Icon(Icons.directions_car_rounded,
+                size: 40, color: iconColor),
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             '등록된 차량이 없어요',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF888888),
+              color: primaryText,
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             '아래 버튼으로 차량을 추가해보세요',
-            style: TextStyle(fontSize: 13, color: Color(0xFFAAAAAA)),
+            style: TextStyle(fontSize: 13, color: mutedText),
           ),
         ],
       ),
@@ -288,37 +296,56 @@ class _VehicleCard extends StatelessWidget {
   });
 
   Color get _accent => vehicle.isEV ? _kEvBlue : _kPrimary;
-  Color get _accentLight => vehicle.isEV ? _kEvBlueLight : _kPrimaryLight;
+
+  Color _accentLight(bool isDark) {
+    // EV = blue accent → gas-active-card token
+    // gas = green accent → ev-active-card token
+    // (Local _kPrimary/_kEvBlue 매핑 그대로 유지)
+    if (vehicle.isEV) {
+      return isDark ? AppColors.darkGasActiveCard : AppColors.lightGasActiveCard;
+    }
+    return isDark ? AppColors.darkEvActiveCard : AppColors.lightEvActiveCard;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? AppColors.darkCard : AppColors.lightCard;
+    final cardBorder = isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder;
+    final primaryText = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final secondaryText = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final iconBgInactive = isDark ? AppColors.darkIconBg : AppColors.lightIconBg;
+    final iconColorInactive = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? _accentLight : Colors.white,
+          color: isSelected ? _accentLight(isDark) : cardBg,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? _accent : const Color(0xFFEEEEEE),
+            color: isSelected ? _accent : cardBorder,
             width: isSelected ? 2 : 1,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: _accent.withValues(alpha: 0.08),
+                    color: _accent.withValues(alpha: isDark ? 0.18 : 0.08),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   )
                 ]
-              : [
-                  const BoxShadow(
-                    color: Color(0x0A000000),
-                    blurRadius: 6,
-                    offset: Offset(0, 2),
-                  )
-                ],
+              : isDark
+                  ? null
+                  : [
+                      const BoxShadow(
+                        color: Color(0x0A000000),
+                        blurRadius: 6,
+                        offset: Offset(0, 2),
+                      )
+                    ],
         ),
         child: Row(
           children: [
@@ -328,8 +355,8 @@ class _VehicleCard extends StatelessWidget {
               height: 48,
               decoration: BoxDecoration(
                 color: isSelected
-                    ? _accent.withValues(alpha: 0.15)
-                    : const Color(0xFFF0F0F0),
+                    ? _accent.withValues(alpha: isDark ? 0.22 : 0.15)
+                    : iconBgInactive,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
@@ -337,7 +364,7 @@ class _VehicleCard extends StatelessWidget {
                     ? Icons.bolt_rounded
                     : Icons.local_gas_station_rounded,
                 size: 24,
-                color: isSelected ? _accent : const Color(0xFFBBBBBB),
+                color: isSelected ? _accent : iconColorInactive,
               ),
             ),
             const SizedBox(width: 14),
@@ -354,7 +381,7 @@ class _VehicleCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: isSelected ? _accent : const Color(0xFF1a1a1a),
+                          color: isSelected ? _accent : primaryText,
                         ),
                       ),
                       if (isSelected) ...[
@@ -380,8 +407,7 @@ class _VehicleCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     _buildSubLabel(),
-                    style: const TextStyle(
-                        fontSize: 12, color: Color(0xFF888888)),
+                    style: TextStyle(fontSize: 12, color: secondaryText),
                   ),
                 ],
               ),
@@ -394,13 +420,17 @@ class _VehicleCard extends StatelessWidget {
                 _IconBtn(
                   icon: Icons.edit_rounded,
                   onTap: onEdit,
-                  color: const Color(0xFF888888),
+                  color: secondaryText,
+                  isDark: isDark,
                 ),
                 const SizedBox(width: 4),
                 _IconBtn(
                   icon: Icons.delete_outline_rounded,
                   onTap: onDelete,
-                  color: const Color(0xFFDDAAAA),
+                  color: isDark
+                      ? const Color(0xFFE57373)
+                      : const Color(0xFFDDAAAA),
+                  isDark: isDark,
                 ),
               ],
             ),
@@ -424,8 +454,14 @@ class _IconBtn extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   final Color color;
+  final bool isDark;
 
-  const _IconBtn({required this.icon, required this.onTap, required this.color});
+  const _IconBtn({
+    required this.icon,
+    required this.onTap,
+    required this.color,
+    required this.isDark,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -435,7 +471,7 @@ class _IconBtn extends StatelessWidget {
         width: 34,
         height: 34,
         decoration: BoxDecoration(
-          color: const Color(0xFFF5F5F5),
+          color: isDark ? AppColors.darkIconBg : const Color(0xFFF5F5F5),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, size: 17, color: color),

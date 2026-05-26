@@ -114,8 +114,12 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
     }
   }
 
-  // 유종별 배경 (price tag 배경) — HTML 양식
-  static Color _fuelBg(String code) {
+  // 유종별 배경 (price tag 배경) — HTML 양식 (light) / dark 는 brand 색 alpha 오버레이
+  static Color _fuelBg(String code, {bool isDark = false}) {
+    if (isDark) {
+      // 다크에서 light bg(흰 계열)를 그대로 쓰면 글자 안 보임 → 브랜드 색을 alpha 로 깔기.
+      return _fuelColor(code).withValues(alpha: 0.18);
+    }
     switch (code) {
       case 'B027': return const Color(0xFFEFF6FF);
       case 'B034': return const Color(0xFFFEF3C7);
@@ -468,7 +472,9 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                         child: Icon(
                           alias != null ? Icons.edit_rounded : Icons.edit_outlined,
                           size: 18,
-                          color: alias != null ? actionColor : _kMute2,
+                          color: alias != null
+                              ? actionColor
+                              : (isDark ? AppColors.darkTextSecondary : _kMute2),
                         ),
                       ),
                     ),
@@ -478,7 +484,10 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                   const SizedBox(height: 2),
                   Text(
                     name,
-                    style: TextStyle(fontSize: 12, color: _kMute2),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? AppColors.darkTextMuted : _kMute2,
+                    ),
                     maxLines: 1, overflow: TextOverflow.ellipsis,
                   ),
                 ],
@@ -592,8 +601,12 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
   }
 
   Widget _topChip(String label, {required bool isPrimary, required bool isDark}) {
-    final fg = isPrimary ? _kFuelRegular : _kMuted;
-    final bg = isPrimary ? const Color(0xFFEFF6FF) : _kLineSoft;
+    final fg = isPrimary
+        ? _kFuelRegular
+        : (isDark ? AppColors.darkTextSecondary : _kMuted);
+    final bg = isPrimary
+        ? (isDark ? _kFuelRegular.withValues(alpha: 0.18) : const Color(0xFFEFF6FF))
+        : (isDark ? Colors.white.withValues(alpha: 0.06) : _kLineSoft);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
@@ -753,7 +766,10 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text('가격 정보가 없어요',
-                  style: TextStyle(fontSize: 13, color: _kMuted)),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? AppColors.darkTextMuted : _kMuted,
+                  )),
             )
           else
             ...priceEntries.asMap().entries.map((e) {
@@ -775,7 +791,7 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _fuelBg(_userFuelCode),
+                  color: _fuelBg(_userFuelCode, isDark: isDark),
                   borderRadius: BorderRadius.circular(7),
                 ),
                 child: Row(
@@ -834,7 +850,7 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
   }) {
     final label = _fuelLabel[code] ?? code;
     final fuelColor = _fuelColor(code);
-    final fuelBg = _fuelBg(code);
+    final fuelBg = _fuelBg(code, isDark: isDark);
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 4),
       decoration: BoxDecoration(
@@ -893,9 +909,13 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                     color: isDark ? Colors.white : _kInk,
                   ),
                 ),
-                const TextSpan(
+                TextSpan(
                   text: '원',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _kMuted),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? AppColors.darkTextSecondary : _kMuted,
+                  ),
                 ),
               ],
             ),
@@ -906,23 +926,31 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
   }
 
   Widget _deltaChip(int? delta, bool isDark) {
+    // 다크에서 light pastel(_kRedBg/_kGreenBg)는 흰 배경 가정한 색이라 카드 위 떠 보임.
+    // → 다크에서는 brand 색 alpha 오버레이로 처리하고 텍스트는 살짝 밝게.
+    final neutralBg = isDark ? Colors.white.withValues(alpha: 0.06) : _kLineSoft;
+    final neutralFg = isDark ? AppColors.darkTextSecondary : _kMuted;
     if (delta == null) {
       return Align(
         alignment: Alignment.centerLeft,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
-            color: _kLineSoft,
+            color: neutralBg,
             borderRadius: BorderRadius.circular(6),
           ),
-          child: const Text('─', style: TextStyle(fontSize: 11, color: _kMuted, fontWeight: FontWeight.w700)),
+          child: Text('─', style: TextStyle(fontSize: 11, color: neutralFg, fontWeight: FontWeight.w700)),
         ),
       );
     }
     final isUp = delta > 0;
     final isZero = delta == 0;
-    final bg = isZero ? _kLineSoft : (isUp ? _kRedBg : _kGreenBg);
-    final fg = isZero ? _kMuted : (isUp ? _kRed : _kGreen);
+    final upBg = isDark ? const Color(0xFFEF4444).withValues(alpha: 0.18) : _kRedBg;
+    final downBg = isDark ? const Color(0xFF10B981).withValues(alpha: 0.18) : _kGreenBg;
+    final upFg = isDark ? const Color(0xFFFCA5A5) : _kRed;
+    final downFg = isDark ? const Color(0xFF6EE7B7) : _kGreen;
+    final bg = isZero ? neutralBg : (isUp ? upBg : downBg);
+    final fg = isZero ? neutralFg : (isUp ? upFg : downFg);
     final arrow = isZero ? null : (isUp ? Icons.arrow_drop_up : Icons.arrow_drop_down);
     return Align(
       alignment: Alignment.centerLeft,
@@ -947,8 +975,11 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
   }
 
   Widget _todayChip({required String label, required String value, _ChipTone? tone, required bool isDark}) {
-    final valColor = tone == _ChipTone.up ? _kRed
-                   : tone == _ChipTone.down ? _kGreen
+    // up/down 톤도 다크에서 light pastel 위 진한 빨강/초록 그대로면 콘트라스트 깨짐 → 살짝 밝게.
+    final upFg = isDark ? const Color(0xFFFCA5A5) : _kRed;
+    final downFg = isDark ? const Color(0xFF6EE7B7) : _kGreen;
+    final valColor = tone == _ChipTone.up ? upFg
+                   : tone == _ChipTone.down ? downFg
                    : (isDark ? Colors.white : _kInk);
     return Expanded(
       child: Container(
@@ -962,8 +993,10 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
           children: [
             Text(
               label,
-              style: const TextStyle(
-                fontSize: 10, color: _kMuted, fontWeight: FontWeight.w700,
+              style: TextStyle(
+                fontSize: 10,
+                color: isDark ? AppColors.darkTextMuted : _kMuted,
+                fontWeight: FontWeight.w700,
                 letterSpacing: 0.4,
               ),
             ),
@@ -1053,9 +1086,9 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
               Wrap(
                 spacing: 10,
                 children: [
-                  _legend('휘발유', _kFuelRegular),
-                  _legend('고급', _kFuelPremium),
-                  _legend('경유', _kFuelDiesel),
+                  _legend('휘발유', _kFuelRegular, isDark),
+                  _legend('고급', _kFuelPremium, isDark),
+                  _legend('경유', _kFuelDiesel, isDark),
                 ],
               ),
             ],
@@ -1090,7 +1123,7 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
     );
   }
 
-  Widget _legend(String label, Color color) {
+  Widget _legend(String label, Color color, bool isDark) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1098,8 +1131,10 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
           color: color, borderRadius: BorderRadius.circular(2),
         )),
         const SizedBox(width: 5),
-        Text(label, style: const TextStyle(
-            fontSize: 11, fontWeight: FontWeight.w700, color: _kInk2)),
+        Text(label, style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: isDark ? AppColors.darkTextPrimary : _kInk2)),
       ],
     );
   }
@@ -1133,13 +1168,14 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
   }
 
   Widget _buildChart(bool isDark) {
+    final emptyTextColor = isDark ? AppColors.darkTextMuted : _kMute2;
     final raw = _chartData;
     if (raw == null) {
-      return const Center(child: Text('가격 추이가 없어요', style: TextStyle(color: _kMute2)));
+      return Center(child: Text('가격 추이가 없어요', style: TextStyle(color: emptyTextColor)));
     }
     final points = (raw['points'] as List?) ?? const [];
     if (points.isEmpty) {
-      return const Center(child: Text('가격 추이 데이터 없음', style: TextStyle(color: _kMute2)));
+      return Center(child: Text('가격 추이 데이터 없음', style: TextStyle(color: emptyTextColor)));
     }
     final fuels = ((raw['fuels'] as List?) ?? const ['B027']).cast<String>();
 
@@ -1161,7 +1197,7 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
       }
     }
     if (minY == null || maxY == null) {
-      return const Center(child: Text('가격 추이 데이터 없음', style: TextStyle(color: _kMute2)));
+      return Center(child: Text('가격 추이 데이터 없음', style: TextStyle(color: emptyTextColor)));
     }
     // y 축 여유 — 가격 변동이 작은 케이스도 시각화 가능하게 padding
     final ySpan = (maxY - minY).abs();
@@ -1214,8 +1250,10 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
           show: true,
           drawVerticalLine: false,
           horizontalInterval: _niceYInterval(yMax - yMin),
-          getDrawingHorizontalLine: (_) =>
-              const FlLine(color: _kLine, strokeWidth: 1, dashArray: [2, 4]),
+          getDrawingHorizontalLine: (_) => FlLine(
+            color: isDark ? Colors.white.withValues(alpha: 0.08) : _kLine,
+            strokeWidth: 1, dashArray: const [2, 4],
+          ),
         ),
         titlesData: FlTitlesData(
           leftTitles: AxisTitles(
@@ -1231,7 +1269,11 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                   child: Text(
                     _formatPrice(v),
                     textAlign: TextAlign.right,
-                    style: const TextStyle(fontSize: 10, color: _kMute2, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: isDark ? AppColors.darkTextMuted : _kMute2,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 );
               },
@@ -1248,7 +1290,11 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                 return Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: Text(label,
-                      style: const TextStyle(fontSize: 9, color: _kMute2, fontWeight: FontWeight.w600)),
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: isDark ? AppColors.darkTextMuted : _kMute2,
+                        fontWeight: FontWeight.w600,
+                      )),
                 );
               },
             ),

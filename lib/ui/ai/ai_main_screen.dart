@@ -12,6 +12,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/constants/api_constants.dart';
 import '../../core/navigation/app_route_observer.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/utils/helpers.dart';
 import '../../core/utils/navigation_util.dart';
 import '../../data/models/models.dart';
@@ -691,10 +692,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
   // ── 위치 선택 시트 ──
   void _showLocationSheet({required bool isOrigin}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? AppColors.darkBg : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -1993,15 +1995,16 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final detourMin = altItem['detour_time_min'] is num ? (altItem['detour_time_min'] as num).round() : null;
     final detourIsNone = altItem['detour_is_none'] == true || (detourMin != null && detourMin <= 0);
     if (!mounted) return;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     await showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         return Container(
           padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(ctx).padding.bottom + 20),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkBg : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -2514,10 +2517,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   Future<void> _openEvStationDetail(Map<String, dynamic> station) async {
     final statId = station['statId']?.toString();
     if (statId == null || !mounted) return;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? AppColors.darkBg : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -2540,14 +2544,20 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
   // ── 현재위치 FAB (하단 패널 Column 내부에서 사용) ───────────────────────
   Widget _buildMyLocationFab() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: _moveToMyLocation,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         width: 44, height: 44,
         decoration: BoxDecoration(
-          color: (_isLocating || _isAtMyLocation) ? _kPrimary : Colors.white,
+          color: (_isLocating || _isAtMyLocation)
+              ? _kPrimary
+              : (isDark ? AppColors.darkCard : Colors.white),
           shape: BoxShape.circle,
+          border: isDark && !(_isLocating || _isAtMyLocation)
+              ? Border.all(color: AppColors.darkCardBorder, width: 1)
+              : null,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.15),
@@ -2563,7 +2573,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
               )
             : Icon(Icons.my_location_rounded,
                 size: 22,
-                color: _isAtMyLocation ? Colors.white : const Color(0xFF666666)),
+                color: _isAtMyLocation
+                    ? Colors.white
+                    : (isDark ? AppColors.darkTextSecondary : const Color(0xFF666666))),
       ),
     );
   }
@@ -3275,10 +3287,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   }
 
   void _showLevelEditSheet({bool isEv = false}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? AppColors.darkBg : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -3303,6 +3316,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final settings = ref.watch(settingsProvider);
     final canGasAnalysis = settings.vehicleType != VehicleType.ev;
     final canEvAnalysis = settings.vehicleType != VehicleType.gas;
@@ -3341,7 +3355,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           }
         });
       }
-      return const Scaffold(backgroundColor: Colors.white);
+      return Scaffold(backgroundColor: isDark ? AppColors.darkBg : AppColors.lightBg);
     }
 
     final box = Hive.box(AppConstants.settingsBox);
@@ -3582,8 +3596,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: isDark ? AppColors.darkCard : Colors.white,
                       borderRadius: BorderRadius.circular(14),
+                      border: isDark ? Border.all(color: AppColors.darkCardBorder, width: 1) : null,
                       boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 12)],
                     ),
                     child: Row(
@@ -3596,7 +3611,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                         const SizedBox(width: 10),
                         Text(
                           _pickingOrigin ? '지도에서 출발지를 선택하세요' : '지도에서 목적지를 선택하세요',
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: isDark ? AppColors.darkTextPrimary : null,
+                          ),
                         ),
                       ],
                     ),
@@ -3615,8 +3634,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                   child: Container(
                     padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: isDark ? AppColors.darkCard : Colors.white,
                       borderRadius: BorderRadius.circular(16),
+                      border: isDark ? Border.all(color: AppColors.darkCardBorder, width: 1) : null,
                       boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 16)],
                     ),
                     child: Column(
@@ -3630,11 +3650,18 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             const SizedBox(width: 8),
                             Expanded(
                               child: _isReverseGeocoding
-                                  ? const Text('주소 확인 중...',
-                                      style: TextStyle(fontSize: 13, color: Color(0xFF999999)))
+                                  ? Text('주소 확인 중...',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: isDark ? AppColors.darkTextSecondary : const Color(0xFF999999),
+                                      ))
                                   : Text(
                                       _pickerAddress ?? '지도를 드래그하세요',
-                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: isDark ? AppColors.darkTextPrimary : null,
+                                      ),
                                     ),
                             ),
                           ],
@@ -3697,8 +3724,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                               height: 46,
                               padding: const EdgeInsets.all(4),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: isDark ? AppColors.darkCard : Colors.white,
                                 borderRadius: BorderRadius.circular(14),
+                                border: isDark ? Border.all(color: AppColors.darkCardBorder, width: 1) : null,
                                 boxShadow: [
                                   BoxShadow(
                                     color: Colors.black.withValues(alpha: 0.08),
@@ -3741,11 +3769,16 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             child: Container(
                               width: 42, height: 42,
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: isDark ? AppColors.darkCard : Colors.white,
                                 borderRadius: BorderRadius.circular(11),
+                                border: isDark ? Border.all(color: AppColors.darkCardBorder, width: 1) : null,
                                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8)],
                               ),
-                              child: const Icon(Icons.directions_car_rounded, color: Color(0xFF666666), size: 18),
+                              child: Icon(
+                                Icons.directions_car_rounded,
+                                color: isDark ? AppColors.darkTextSecondary : const Color(0xFF666666),
+                                size: 18,
+                              ),
                             ),
                           ),
                         ],
@@ -3969,16 +4002,18 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                         child: Container(
                           width: 38, height: 38,
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: isDark ? AppColors.darkCard : Colors.white,
                             shape: BoxShape.circle,
+                            border: isDark ? Border.all(color: AppColors.darkCardBorder, width: 1) : null,
                             boxShadow: [BoxShadow(
                               color: Colors.black.withValues(alpha: 0.12),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             )],
                           ),
-                          child: const Icon(Icons.arrow_back_rounded,
-                              size: 18, color: Color(0xFF1a1a1a)),
+                          child: Icon(Icons.arrow_back_rounded,
+                              size: 18,
+                              color: isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a)),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -3987,8 +4022,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 14, vertical: 9),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: isDark ? AppColors.darkCard : Colors.white,
                             borderRadius: BorderRadius.circular(12),
+                            border: isDark ? Border.all(color: AppColors.darkCardBorder, width: 1) : null,
                             boxShadow: [BoxShadow(
                               color: Colors.black.withValues(alpha: 0.08),
                               blurRadius: 8,
@@ -3997,10 +4033,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           ),
                           child: Text(
                             _lastRouteSummary ?? '분석 결과',
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF1a1a1a)),
+                                color: isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a)),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -4024,7 +4060,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 _resultSheetScrollController = sc;
                 return Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: isDark ? AppColors.darkBg : Colors.white,
                   borderRadius:
                       const BorderRadius.vertical(top: Radius.circular(20)),
                   boxShadow: [
@@ -4086,7 +4122,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 _resultSheetScrollController = sc;
                 return Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: isDark ? AppColors.darkBg : Colors.white,
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                     boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 20, offset: const Offset(0, -2))],
                   ),
@@ -4114,8 +4150,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                   decoration: BoxDecoration(
                     color: (_isLocating || _isAtMyLocation)
                         ? _kPrimary
-                        : Colors.white,
+                        : (isDark ? AppColors.darkCard : Colors.white),
                     shape: BoxShape.circle,
+                    border: isDark && !(_isLocating || _isAtMyLocation)
+                        ? Border.all(color: AppColors.darkCardBorder, width: 1)
+                        : null,
                     boxShadow: [BoxShadow(
                       color: Colors.black.withValues(alpha: 0.15),
                       blurRadius: 8,
@@ -4132,7 +4171,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           size: 22,
                           color: _isAtMyLocation
                               ? Colors.white
-                              : const Color(0xFF666666)),
+                              : (isDark ? AppColors.darkTextSecondary : const Color(0xFF666666))),
                 ),
               ),
             ),
@@ -4190,8 +4229,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: isDark ? AppColors.darkCard : Colors.white,
                         borderRadius: BorderRadius.circular(12),
+                        border: isDark ? Border.all(color: AppColors.darkCardBorder, width: 1) : null,
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.12),
@@ -4214,10 +4254,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           const SizedBox(width: 10),
                           Text(
                             _aiAnalysisType == 'ev' ? 'AI 충전소 추천 중...' : 'AI 주유소 추천 중...',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF1a1a1a),
+                              color: isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a),
                             ),
                           ),
                         ],
@@ -4238,8 +4278,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: isDark ? AppColors.darkCard : Colors.white,
                         borderRadius: BorderRadius.circular(12),
+                        border: isDark ? Border.all(color: AppColors.darkCardBorder, width: 1) : null,
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.12),
@@ -4262,10 +4303,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           SizedBox(width: 10),
                           Text(
                             _userSelectingMessage,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF1a1a1a),
+                              color: isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a),
                             ),
                           ),
                         ],
@@ -4330,6 +4371,7 @@ class _StationSelectInlineSheetState extends State<_StationSelectInlineSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final stations = _highwayOnly
         ? widget.stations.where((s) => _isHighwayStation(s)).toList()
         : widget.stations;
@@ -4352,7 +4394,7 @@ class _StationSelectInlineSheetState extends State<_StationSelectInlineSheet> {
       color: Colors.transparent,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? AppColors.darkBg : Colors.white,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           boxShadow: [
             BoxShadow(color: Colors.black.withValues(alpha: 0.18), blurRadius: 20, offset: const Offset(0, -2)),
@@ -4387,8 +4429,12 @@ class _StationSelectInlineSheetState extends State<_StationSelectInlineSheet> {
                       children: [
                         const Icon(Icons.local_gas_station_rounded, size: 18, color: _kCompareBlue),
                         const SizedBox(width: 8),
-                        const Text('주유소 선택',
-                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Color(0xFF1a1a1a))),
+                        Text('주유소 선택',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a),
+                            )),
                         const SizedBox(width: 6),
                         Text('(${stations.length}곳)',
                             style: const TextStyle(fontSize: 13, color: Color(0xFF999999))),
@@ -4498,7 +4544,7 @@ class _StationSelectInlineSheetState extends State<_StationSelectInlineSheet> {
                                           style: TextStyle(
                                             fontWeight: isCheapest ? FontWeight.w700 : FontWeight.w600,
                                             fontSize: 14,
-                                            color: const Color(0xFF1a1a1a),
+                                            color: isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a),
                                           ),
                                           overflow: TextOverflow.ellipsis),
                                     ),
@@ -4625,16 +4671,30 @@ class _RouteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final usingGps = originName == null;
     final originLabel = originName ?? currentLocationAddress ?? '현재 위치';
+
+    final cardBg = isDark ? AppColors.darkCard : Colors.white;
+    final dotLineColor = isDark ? AppColors.darkCardBorder : const Color(0xFFEEEEEE);
+    final dividerColor = isDark ? AppColors.darkCardBorder : const Color(0xFFF0F0F0);
+    final primaryText = isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a);
+    final secondaryText = isDark ? AppColors.darkTextSecondary : const Color(0xFF444444);
+    final mutedText = isDark ? AppColors.darkTextMuted : const Color(0xFF888888);
+    final placeholderText = isDark ? AppColors.darkTextMuted : const Color(0xFFBBBBBB);
+    final iconColor = isDark ? AppColors.darkTextMuted : const Color(0xFFCCCCCC);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardBg,
         borderRadius: BorderRadius.circular(14),
+        border: isDark ? Border.all(color: AppColors.darkCardBorder, width: 0.5) : null,
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 12, offset: const Offset(0, 4))
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.08),
+            blurRadius: 12, offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Row(
@@ -4653,7 +4713,7 @@ class _RouteCard extends StatelessWidget {
                   border: Border.all(color: _kPrimary, width: 2.5),
                 ),
               ),
-              Container(width: 2, height: 25, color: const Color(0xFFEEEEEE)),
+              Container(width: 2, height: 25, color: dotLineColor),
               Container(
                   width: 10, height: 10,
                   decoration: const BoxDecoration(shape: BoxShape.circle, color: _kDanger)),
@@ -4680,9 +4740,9 @@ class _RouteCard extends StatelessWidget {
                               // GPS 모드: 주소가 있으면 진하게, 없으면 흐리게
                               color: usingGps
                                   ? (currentLocationAddress != null
-                                      ? const Color(0xFF444444)
-                                      : const Color(0xFF888888))
-                                  : const Color(0xFF1a1a1a),
+                                      ? secondaryText
+                                      : mutedText)
+                                  : primaryText,
                               fontWeight: usingGps ? FontWeight.w400 : FontWeight.w500,
                             ),
                             maxLines: 1,
@@ -4692,15 +4752,15 @@ class _RouteCard extends StatelessWidget {
                         if (!usingGps)
                           GestureDetector(
                             onTap: onClearOrigin,
-                            child: const Icon(Icons.close_rounded, size: 14, color: Color(0xFFCCCCCC)),
+                            child: Icon(Icons.close_rounded, size: 14, color: iconColor),
                           )
                         else
-                          const Icon(Icons.edit_location_alt_outlined, size: 14, color: Color(0xFFCCCCCC)),
+                          Icon(Icons.edit_location_alt_outlined, size: 14, color: iconColor),
                       ],
                     ),
                   ),
                 ),
-                const Divider(height: 1, color: Color(0xFFF0F0F0)),
+                Divider(height: 1, color: dividerColor),
                 // 목적지
                 GestureDetector(
                   onTap: onTapDest,
@@ -4713,7 +4773,7 @@ class _RouteCard extends StatelessWidget {
                             destName ?? '목적지를 입력하세요',
                             style: TextStyle(
                               fontSize: 13,
-                              color: destName != null ? const Color(0xFF1a1a1a) : const Color(0xFFBBBBBB),
+                              color: destName != null ? primaryText : placeholderText,
                               fontWeight: destName != null ? FontWeight.w500 : FontWeight.w400,
                             ),
                             maxLines: 1,
@@ -4723,7 +4783,7 @@ class _RouteCard extends StatelessWidget {
                         if (destName != null)
                           GestureDetector(
                             onTap: onClearDest,
-                            child: const Icon(Icons.close_rounded, size: 14, color: Color(0xFFCCCCCC)),
+                            child: Icon(Icons.close_rounded, size: 14, color: iconColor),
                           ),
                       ],
                     ),
@@ -4848,6 +4908,7 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SizedBox(
@@ -4859,7 +4920,7 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
               margin: const EdgeInsets.symmetric(vertical: 10),
               width: 40, height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFFDDDDDD),
+                color: isDark ? AppColors.darkCardBorder : const Color(0xFFDDDDDD),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -4868,7 +4929,11 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
               child: Text(
                 widget.isOrigin ? '출발지 설정' : '목적지 설정',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? AppColors.darkTextPrimary : null,
+                ),
               ),
             ),
             // ① 검색 필드 (상단)
@@ -4881,13 +4946,22 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
                   if (_myLocationSelected) setState(() => _myLocationSelected = false);
                   _onSearchChanged(v);
                 },
-                style: const TextStyle(fontSize: 14),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: isDark ? AppColors.darkTextPrimary : null,
+                ),
                 decoration: InputDecoration(
                   hintText: widget.isOrigin ? '출발지 검색' : '목적지 검색',
-                  hintStyle: const TextStyle(color: Color(0xFFBBBBBB)),
-                  prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF999999), size: 20),
+                  hintStyle: TextStyle(
+                    color: isDark ? AppColors.darkTextMuted : const Color(0xFFBBBBBB),
+                  ),
+                  prefixIcon: Icon(
+                    Icons.search_rounded,
+                    color: isDark ? AppColors.darkTextSecondary : const Color(0xFF999999),
+                    size: 20,
+                  ),
                   filled: true,
-                  fillColor: const Color(0xFFF5F5F5),
+                  fillColor: isDark ? AppColors.darkCard : const Color(0xFFF5F5F5),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide.none,
@@ -5134,10 +5208,12 @@ class _ModeSegment extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     // ai_reco_main.html mode-toggle 양식 — 활성은 액센트 → deep 그라데이션, 비활성은 투명/회색.
     final accentDeep = accent == _kEvAccent ? _kEvAccentDeep
                      : accent == _kFuelAccent ? _kFuelAccentDeep
                      : accent;
+    final inactiveColor = isDark ? AppColors.darkTextSecondary : _kMuted;
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -5171,7 +5247,7 @@ class _ModeSegment extends StatelessWidget {
             Icon(
               icon,
               size: 15,
-              color: active ? Colors.white : _kMuted,
+              color: active ? Colors.white : inactiveColor,
             ),
             const SizedBox(width: 6),
             Flexible(
@@ -5180,7 +5256,7 @@ class _ModeSegment extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
-                  color: active ? Colors.white : _kMuted,
+                  color: active ? Colors.white : inactiveColor,
                   letterSpacing: -0.2,
                 ),
                 maxLines: 1,
@@ -5232,10 +5308,11 @@ class _LevelSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? AppColors.darkCard : Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isEv ? _kEvAccent.withValues(alpha: 0.25) : _kFuelAccent.withValues(alpha: 0.25),
@@ -5344,13 +5421,15 @@ class _HeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = _modeAccent(isEv);
     final accentDeep = _modeAccentDeep(isEv);
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? AppColors.darkCard : Colors.white,
         borderRadius: BorderRadius.circular(22),
+        border: isDark ? Border.all(color: AppColors.darkCardBorder, width: 1) : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.08),
@@ -5390,9 +5469,10 @@ class _HeroCard extends StatelessWidget {
                           Expanded(
                             child: Text(
                               vehicleName.isEmpty ? (isEv ? 'EV' : '차량') : vehicleName,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 18, fontWeight: FontWeight.w800,
-                                letterSpacing: -0.4, color: _kInk,
+                                letterSpacing: -0.4,
+                                color: isDark ? AppColors.darkTextPrimary : _kInk,
                               ),
                               maxLines: 1, overflow: TextOverflow.ellipsis,
                             ),
@@ -5725,6 +5805,7 @@ class _LevelEditSheetState extends State<_LevelEditSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SafeArea(
@@ -5736,8 +5817,12 @@ class _LevelEditSheetState extends State<_LevelEditSheet> {
             children: [
               Row(
                 children: [
-                  const Text('잔량 & 목표 설정',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF1a1a1a))),
+                  Text('잔량 & 목표 설정',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a),
+                      )),
                   const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.close_rounded),
@@ -5967,6 +6052,7 @@ class _EvStationDetailSheetState extends State<_EvStationDetailSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final s = widget.station;
     final name = s['name']?.toString() ?? '-';
     final address = s['address']?.toString() ?? '';
@@ -6026,10 +6112,10 @@ class _EvStationDetailSheetState extends State<_EvStationDetailSheet> {
                 children: [
                   // 1. 헤더 — 이름 (큼) + 운영사 · 주소 (한 줄)
                   Text(name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 19,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF111827),
+                      color: isDark ? AppColors.darkTextPrimary : const Color(0xFF111827),
                       height: 1.25,
                       letterSpacing: -0.3,
                     )),
@@ -6090,7 +6176,7 @@ class _EvStationDetailSheetState extends State<_EvStationDetailSheet> {
                                 ? ''
                                 : (originDistM >= 1000 ? 'km' : 'm'),
                             label: '거리',
-                            color: const Color(0xFF111827),
+                            color: isDark ? AppColors.darkTextPrimary : const Color(0xFF111827),
                           )),
                           const _MetricDivider(),
                           Expanded(child: _BigMetric(
@@ -6147,16 +6233,18 @@ class _EvStationDetailSheetState extends State<_EvStationDetailSheet> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: isDark ? AppColors.darkCard : Colors.white,
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: const Color(0xFFE5E7EB)),
+                                border: Border.all(
+                                  color: isDark ? AppColors.darkCardBorder : const Color(0xFFE5E7EB),
+                                ),
                               ),
                               child: Text(
                                 '${NumberFormat('#,###', 'ko_KR').format(unitPrice)}원/kWh',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w800,
-                                  color: Color(0xFF111827),
+                                  color: isDark ? AppColors.darkTextPrimary : const Color(0xFF111827),
                                 ),
                               ),
                             ),
@@ -6521,10 +6609,11 @@ class _WatchProposalDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       elevation: 0,
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? AppColors.darkCard : Colors.white,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
         child: Column(
@@ -6540,9 +6629,13 @@ class _WatchProposalDialog extends StatelessWidget {
               child: Icon(Icons.radar_rounded, size: 32, color: accentColor),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               '실시간 현황 알림',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A)),
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A1A),
+              ),
             ),
             const SizedBox(height: 10),
             Text(
@@ -6550,7 +6643,11 @@ class _WatchProposalDialog extends StatelessWidget {
                   ? '약 ${fmtMin(etaMin!)} 소요 예정이에요.\n이동하는 동안 자리 변동 시\n알림을 드릴게요.'
                   : '이동하는 동안 자리 변동 시\n알림을 드릴게요.',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 14, color: Color(0xFF666666), height: 1.65),
+              style: TextStyle(
+                fontSize: 14,
+                color: isDark ? AppColors.darkTextSecondary : const Color(0xFF666666),
+                height: 1.65,
+              ),
             ),
             const SizedBox(height: 24),
             Row(

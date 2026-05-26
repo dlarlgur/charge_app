@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_colors.dart';
 import 'ai_vehicle_list_screen.dart';
 import 'ai_vehicle_setup_screen.dart';
 
@@ -54,8 +55,9 @@ class _AiOnboardingScreenState extends State<AiOnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? AppColors.darkBg : AppColors.lightBg,
       body: SafeArea(
         child: Column(
           children: [
@@ -66,7 +68,7 @@ class _AiOnboardingScreenState extends State<AiOnboardingScreen> {
                 children: const [
                   // 1. 진짜 이득인 주유소 (우회 비용 계산)
                   _HeroPage(
-                    iconBg: Color(0xFFE1F5EE),
+                    lightIconBg: Color(0xFFE1F5EE),
                     icon: Icons.alt_route_rounded,
                     iconColor: _kPrimary,
                     title: '그냥 싼 주유소 말고,\n진짜 이득인 주유소',
@@ -74,7 +76,7 @@ class _AiOnboardingScreenState extends State<AiOnboardingScreen> {
                   ),
                   // 2. 충전소도 똑똑하게 — SOC 기반 추천
                   _HeroPage(
-                    iconBg: Color(0xFFE9F8F0),
+                    lightIconBg: Color(0xFFE9F8F0),
                     icon: Icons.ev_station_rounded,
                     iconColor: _kPrimary,
                     title: '전기차도 마찬가지,\n꼭 필요한 충전소만',
@@ -82,7 +84,7 @@ class _AiOnboardingScreenState extends State<AiOnboardingScreen> {
                   ),
                   // 3. AI 비교 분석
                   _HeroPage(
-                    iconBg: Color(0xFFFAEEDA),
+                    lightIconBg: Color(0xFFFAEEDA),
                     icon: Icons.balance_rounded,
                     iconColor: Color(0xFFBA7517),
                     title: '비교는 AI가,\n선택은 내가',
@@ -90,7 +92,7 @@ class _AiOnboardingScreenState extends State<AiOnboardingScreen> {
                   ),
                   // 4. 차량 등록으로 시작
                   _HeroPage(
-                    iconBg: Color(0xFFE6F1FB),
+                    lightIconBg: Color(0xFFE6F1FB),
                     icon: Icons.directions_car_rounded,
                     iconColor: Color(0xFF378ADD),
                     title: '내연기관차도, 전기차도\n바로 시작!',
@@ -135,14 +137,14 @@ class _AiOnboardingScreenState extends State<AiOnboardingScreen> {
 // ─── 히어로 페이지 ────────────────────────────────────────────────────────────
 
 class _HeroPage extends StatelessWidget {
-  final Color iconBg;
+  final Color lightIconBg;
   final IconData icon;
   final Color iconColor;
   final String title;
   final String desc;
 
   const _HeroPage({
-    required this.iconBg,
+    required this.lightIconBg,
     required this.icon,
     required this.iconColor,
     required this.title,
@@ -151,6 +153,13 @@ class _HeroPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // 다크 모드에서는 브랜드 색을 옅게 깐 배경(8% alpha) 으로 통일 — 라이트의 파스텔 톤이 다크 bg 위에서 너무 밝게 튀는 문제 해소.
+    final iconBg = isDark ? iconColor.withValues(alpha: 0.16) : lightIconBg;
+    final titleColor =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final descColor =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32),
       child: Column(
@@ -169,10 +178,10 @@ class _HeroPage extends StatelessWidget {
           Text(
             title,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF1a1a1a),
+              color: titleColor,
               height: 1.3,
             ),
           ),
@@ -180,9 +189,9 @@ class _HeroPage extends StatelessWidget {
           Text(
             desc,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: Color(0xFF888888),
+              color: descColor,
               height: 1.6,
             ),
           ),
@@ -202,6 +211,9 @@ class _DotsIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final inactiveColor =
+        isDark ? AppColors.darkCardBorder : const Color(0xFFE0E0E0);
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(count, (i) {
@@ -212,7 +224,7 @@ class _DotsIndicator extends StatelessWidget {
           width: active ? 24 : 8,
           height: 8,
           decoration: BoxDecoration(
-            color: active ? _kPrimary : const Color(0xFFE0E0E0),
+            color: active ? _kPrimary : inactiveColor,
             borderRadius: BorderRadius.circular(4),
           ),
         );

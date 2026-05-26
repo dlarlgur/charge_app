@@ -5,15 +5,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../core/constants/api_constants.dart';
+import '../../core/theme/app_colors.dart';
 import '../../data/models/models.dart';
 import '../../providers/providers.dart';
 
 // 앱 컨벤션과 정합 — 내연기관(gas)은 파랑, 전기차(ev)는 초록.
 // ai_main_screen 의 _kFuelAccent(#3B82F6) / _kEvAccent(#10B981) 와 동일.
-const _kGasBlue = Color(0xFF3B82F6);
-const _kGasBlueLight = Color(0xFFEFF6FF);
-const _kEvGreen = Color(0xFF10B981);
-const _kEvGreenLight = Color(0xFFECFDF5);
+const _kGasBlue = AppColors.gasBlue;
+const _kEvGreen = AppColors.evGreen;
+
+// 테마-aware light 배경 helper (이전 const _kGasBlueLight / _kEvGreenLight 대체)
+Color _gasActiveBg(bool isDark) =>
+    isDark ? AppColors.darkGasActiveCard : AppColors.lightGasActiveCard;
+Color _evActiveBg(bool isDark) =>
+    isDark ? AppColors.darkEvActiveCard : AppColors.lightEvActiveCard;
 
 // ─── 차량 설정 화면 ────────────────────────────────────────────────────────────
 class AiVehicleSetupScreen extends ConsumerStatefulWidget {
@@ -296,20 +301,26 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
   // ─── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? AppColors.darkBg : AppColors.lightBg;
+    final titleColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final hintColor = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final sectionLabelColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: bg,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: bg,
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1a1a1a)),
+          icon: Icon(Icons.arrow_back_rounded, color: titleColor),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           widget.isEdit ? '차량 정보 수정' : '내 차량 등록',
-          style: const TextStyle(
-            color: Color(0xFF1a1a1a),
+          style: TextStyle(
+            color: titleColor,
             fontWeight: FontWeight.w700,
             fontSize: 18,
           ),
@@ -325,27 +336,43 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (!widget.isEdit) ...[
-                      const Text(
+                      Text(
                         '한 번 입력하면 자동으로 저장돼요',
-                        style: TextStyle(fontSize: 13, color: Color(0xFF999999)),
+                        style: TextStyle(fontSize: 13, color: hintColor),
                       ),
                       const SizedBox(height: 20),
                     ] else
                       const SizedBox(height: 8),
 
                     // ── 차량 이름 ──
-                    _sectionLabel('차량 이름'),
+                    _sectionLabel('차량 이름', sectionLabelColor),
                     const SizedBox(height: 10),
                     TextField(
                       controller: _nameController,
+                      style: TextStyle(color: titleColor),
                       decoration: InputDecoration(
                         hintText: '예: 내 차, 아반떼, 테슬라 등 (비워두면 자동 생성)',
-                        hintStyle: const TextStyle(color: Color(0xFFBBBBBB)),
+                        hintStyle: TextStyle(color: hintColor),
                         filled: true,
-                        fillColor: const Color(0xFFF8F8F8),
+                        fillColor: isDark
+                            ? AppColors.darkCard
+                            : const Color(0xFFF8F8F8),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
+                          borderSide: isDark
+                              ? const BorderSide(color: AppColors.darkCardBorder)
+                              : BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: isDark
+                              ? const BorderSide(color: AppColors.darkCardBorder)
+                              : BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                              color: _kGasBlue, width: 1.2),
                         ),
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 14),
@@ -354,7 +381,7 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
                     const SizedBox(height: 24),
 
                     // ── 차량 타입 선택 ──
-                    _sectionLabel('차량 타입'),
+                    _sectionLabel('차량 타입', sectionLabelColor),
                     const SizedBox(height: 10),
                     _VehicleTypeSelector(
                       selected: _vehicleType,
@@ -371,8 +398,8 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
                     FadeTransition(
                       opacity: _fadeAnim,
                       child: _vehicleType == 'gas'
-                          ? _buildGasForm()
-                          : _buildEvForm(),
+                          ? _buildGasForm(isDark, sectionLabelColor, hintColor)
+                          : _buildEvForm(isDark, sectionLabelColor, hintColor),
                     ),
                   ],
                 ),
@@ -411,35 +438,35 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
   }
 
   // ─── 내연기관 폼 ──────────────────────────────────────────────────────────
-  Widget _buildGasForm() {
+  Widget _buildGasForm(bool isDark, Color sectionLabelColor, Color hintColor) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionLabel('유종'),
+        _sectionLabel('유종', sectionLabelColor),
         const SizedBox(height: 8),
         _ChipRow(
           items: FuelType.values.map((f) => f.label).toList(),
           selected: _fuelType.label,
           activeColor: _kGasBlue,
-          activeLight: _kGasBlueLight,
+          activeLight: _gasActiveBg(isDark),
           onSelect: (label) => setState(() {
             _fuelType = FuelType.values.firstWhere((f) => f.label == label);
           }),
         ),
         const SizedBox(height: 20),
 
-        _sectionLabel('탱크 용량'),
+        _sectionLabel('탱크 용량', sectionLabelColor),
         const SizedBox(height: 8),
         _InputField(controller: _tankController, suffix: 'L', hint: '55'),
         const SizedBox(height: 20),
 
-        _sectionLabel('평균 연비'),
+        _sectionLabel('평균 연비', sectionLabelColor),
         const SizedBox(height: 8),
         _InputField(
             controller: _effController, suffix: 'km/L', hint: '12.5'),
         const SizedBox(height: 20),
 
-        _sectionLabel('현재 잔량'),
+        _sectionLabel('현재 잔량', sectionLabelColor),
         const SizedBox(height: 8),
         _GaugeSlider(
           value: _currentLevelPercent,
@@ -449,11 +476,11 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
         const SizedBox(height: 4),
         Text(
           '슬라이더를 움직여서 현재 연료량을 설정하세요',
-          style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+          style: TextStyle(fontSize: 11, color: hintColor),
         ),
         const SizedBox(height: 20),
 
-        _sectionLabel('목표 주유'),
+        _sectionLabel('목표 주유', sectionLabelColor),
         const SizedBox(height: 8),
         _ChipRow(
           items: const ['가득', '금액 지정', '리터 지정'],
@@ -463,7 +490,7 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
                   ? '금액 지정'
                   : '리터 지정',
           activeColor: _kGasBlue,
-          activeLight: _kGasBlueLight,
+          activeLight: _gasActiveBg(isDark),
           onSelect: (label) => setState(() {
             _targetMode = label == '가득'
                 ? 'FULL'
@@ -496,12 +523,12 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
         // 예상 주유량 미리보기
         if (_targetMode != 'PRICE')
           _PreviewBox(
-            color: _kGasBlueLight,
-            borderColor: _kGasBlue.withValues(alpha: 0.3),
+            color: _gasActiveBg(isDark),
+            borderColor: _kGasBlue.withValues(alpha: isDark ? 0.45 : 0.3),
             icon: Icons.local_gas_station_rounded,
             iconColor: _kGasBlue,
             text: '예상 주유량:  약 ${_gasGoalLiters.toStringAsFixed(1)} L',
-            textColor: const Color(0xFF1E40AF),
+            textColor: isDark ? const Color(0xFF93C5FD) : const Color(0xFF1E40AF),
           ),
         const SizedBox(height: 8),
       ],
@@ -509,26 +536,26 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
   }
 
   // ─── 전기차 폼 ────────────────────────────────────────────────────────────
-  Widget _buildEvForm() {
+  Widget _buildEvForm(bool isDark, Color sectionLabelColor, Color hintColor) {
     final chargeGoal = (_targetChargePercent - _currentLevelPercent)
         .clamp(0.0, 100.0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionLabel('배터리 용량'),
+        _sectionLabel('배터리 용량', sectionLabelColor),
         const SizedBox(height: 8),
         _InputField(
             controller: _batteryController, suffix: 'kWh', hint: '64'),
         const SizedBox(height: 20),
 
-        _sectionLabel('평균 전비'),
+        _sectionLabel('평균 전비', sectionLabelColor),
         const SizedBox(height: 8),
         _InputField(
             controller: _evEffController, suffix: 'km/kWh', hint: '5.0'),
         const SizedBox(height: 20),
 
-        _sectionLabel('현재 잔량'),
+        _sectionLabel('현재 잔량', sectionLabelColor),
         const SizedBox(height: 8),
         _GaugeSlider(
           value: _currentLevelPercent,
@@ -545,11 +572,11 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
         const SizedBox(height: 4),
         Text(
           '슬라이더를 움직여서 현재 배터리 잔량을 설정하세요',
-          style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+          style: TextStyle(fontSize: 11, color: hintColor),
         ),
         const SizedBox(height: 20),
 
-        _sectionLabel('목표 충전'),
+        _sectionLabel('목표 충전', sectionLabelColor),
         const SizedBox(height: 8),
         _GaugeSlider(
           value: _targetChargePercent,
@@ -564,30 +591,30 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
         const SizedBox(height: 4),
         Text(
           '목표 충전 퍼센테이지를 설정하세요',
-          style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+          style: TextStyle(fontSize: 11, color: hintColor),
         ),
         const SizedBox(height: 16),
 
         // 예상 충전량 미리보기
         _PreviewBox(
-          color: _kEvGreenLight,
-          borderColor: _kEvGreen.withValues(alpha: 0.3),
+          color: _evActiveBg(isDark),
+          borderColor: _kEvGreen.withValues(alpha: isDark ? 0.45 : 0.3),
           icon: Icons.bolt_rounded,
           iconColor: _kEvGreen,
           text: '예상 충전량:  ${chargeGoal.toStringAsFixed(0)} %',
-          textColor: const Color(0xFF047857),
+          textColor: isDark ? const Color(0xFF6EE7B7) : const Color(0xFF047857),
         ),
         const SizedBox(height: 8),
       ],
     );
   }
 
-  Widget _sectionLabel(String text) => Text(
+  Widget _sectionLabel(String text, Color color) => Text(
         text,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w700,
-          color: Color(0xFF888888),
+          color: color,
           letterSpacing: 0.4,
         ),
       );
@@ -605,6 +632,7 @@ class _VehicleTypeSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Row(
       children: [
         Expanded(
@@ -615,7 +643,7 @@ class _VehicleTypeSelector extends StatelessWidget {
             label: '내연기관차',
             sub: '휘발유 · 경유 · LPG',
             activeColor: _kGasBlue,
-            activeBg: _kGasBlueLight,
+            activeBg: _gasActiveBg(isDark),
             onTap: () => onSelect('gas'),
           ),
         ),
@@ -628,7 +656,7 @@ class _VehicleTypeSelector extends StatelessWidget {
             label: '전기차',
             sub: '배터리 · 충전',
             activeColor: _kEvGreen,
-            activeBg: _kEvGreenLight,
+            activeBg: _evActiveBg(isDark),
             onTap: () => onSelect('ev'),
           ),
         ),
@@ -660,6 +688,19 @@ class _TypeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final inactiveBg = isDark ? AppColors.darkCard : const Color(0xFFF8F8F8);
+    final inactiveBorder =
+        isDark ? AppColors.darkCardBorder : const Color(0xFFEEEEEE);
+    final inactiveIconBg =
+        isDark ? AppColors.darkIconBg : const Color(0xFFEEEEEE);
+    final inactiveIconColor =
+        isDark ? AppColors.darkTextMuted : const Color(0xFFAAAAAA);
+    final inactiveLabelColor =
+        isDark ? AppColors.darkTextSecondary : const Color(0xFF888888);
+    final inactiveSubColor =
+        isDark ? AppColors.darkTextMuted : const Color(0xFFBBBBBB);
+
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -667,10 +708,10 @@ class _TypeCard extends StatelessWidget {
         curve: Curves.easeInOut,
         padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 14),
         decoration: BoxDecoration(
-          color: selected ? activeBg : const Color(0xFFF8F8F8),
+          color: selected ? activeBg : inactiveBg,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: selected ? activeColor : const Color(0xFFEEEEEE),
+            color: selected ? activeColor : inactiveBorder,
             width: selected ? 2 : 1,
           ),
         ),
@@ -682,14 +723,14 @@ class _TypeCard extends StatelessWidget {
               height: 40,
               decoration: BoxDecoration(
                 color: selected
-                    ? activeColor.withValues(alpha: 0.15)
-                    : const Color(0xFFEEEEEE),
+                    ? activeColor.withValues(alpha: isDark ? 0.22 : 0.15)
+                    : inactiveIconBg,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
                 icon,
                 size: 22,
-                color: selected ? activeColor : const Color(0xFFAAAAAA),
+                color: selected ? activeColor : inactiveIconColor,
               ),
             ),
             const SizedBox(height: 10),
@@ -698,7 +739,7 @@ class _TypeCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: selected ? activeColor : const Color(0xFF888888),
+                color: selected ? activeColor : inactiveLabelColor,
               ),
             ),
             const SizedBox(height: 2),
@@ -708,7 +749,7 @@ class _TypeCard extends StatelessWidget {
                 fontSize: 11,
                 color: selected
                     ? activeColor.withValues(alpha: 0.7)
-                    : const Color(0xFFBBBBBB),
+                    : inactiveSubColor,
               ),
             ),
             if (selected)
@@ -799,6 +840,14 @@ class _ChipRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final inactiveBg =
+        isDark ? AppColors.darkCard : const Color(0xFFFAFAFA);
+    final inactiveBorder =
+        isDark ? AppColors.darkCardBorder : const Color(0xFFEEEEEE);
+    final inactiveTextColor =
+        isDark ? AppColors.darkTextSecondary : const Color(0xFF999999);
+
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -811,10 +860,10 @@ class _ChipRow extends StatelessWidget {
             padding:
                 const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
             decoration: BoxDecoration(
-              color: active ? activeLight : const Color(0xFFFAFAFA),
+              color: active ? activeLight : inactiveBg,
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: active ? activeColor : const Color(0xFFEEEEEE),
+                color: active ? activeColor : inactiveBorder,
               ),
             ),
             child: Text(
@@ -822,7 +871,7 @@ class _ChipRow extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: active ? activeColor : const Color(0xFF999999),
+                color: active ? activeColor : inactiveTextColor,
               ),
             ),
           ),
@@ -849,12 +898,23 @@ class _InputField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fieldBg = isDark ? AppColors.darkCard : const Color(0xFFFAFAFA);
+    final fieldBorder =
+        isDark ? AppColors.darkCardBorder : const Color(0xFFEEEEEE);
+    final textColor =
+        isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a);
+    final hintColor =
+        isDark ? AppColors.darkTextMuted : const Color(0xFFBBBBBB);
+    final suffixColor =
+        isDark ? AppColors.darkTextSecondary : const Color(0xFF999999);
+
     return Container(
       height: 50,
       decoration: BoxDecoration(
-        color: const Color(0xFFFAFAFA),
+        color: fieldBg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFEEEEEE)),
+        border: Border.all(color: fieldBorder),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
@@ -863,18 +923,18 @@ class _InputField extends StatelessWidget {
             child: TextField(
               controller: controller,
               keyboardType: keyboardType,
-              style: const TextStyle(fontSize: 15, color: Color(0xFF1a1a1a)),
+              style: TextStyle(fontSize: 15, color: textColor),
               decoration: InputDecoration(
                 border: InputBorder.none,
                 hintText: hint,
-                hintStyle: const TextStyle(color: Color(0xFFBBBBBB)),
+                hintStyle: TextStyle(color: hintColor),
                 isDense: true,
               ),
             ),
           ),
           Text(
             suffix,
-            style: const TextStyle(fontSize: 14, color: Color(0xFF999999)),
+            style: TextStyle(fontSize: 14, color: suffixColor),
           ),
         ],
       ),
@@ -902,13 +962,19 @@ class _GaugeSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final inactiveTrackColor =
+        isDark ? AppColors.darkCardBorder : const Color(0xFFF0F0F0);
+    final pctColor =
+        isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a);
+
     return Row(
       children: [
         Expanded(
           child: SliderTheme(
             data: SliderTheme.of(context).copyWith(
               activeTrackColor: _thumbColor,
-              inactiveTrackColor: const Color(0xFFF0F0F0),
+              inactiveTrackColor: inactiveTrackColor,
               thumbColor: _thumbColor,
               overlayColor: _thumbColor.withValues(alpha: 0.12),
               trackHeight: 8,
@@ -930,10 +996,10 @@ class _GaugeSlider extends StatelessWidget {
           child: Text(
             '${value.toStringAsFixed(0)}%',
             textAlign: TextAlign.right,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF1a1a1a),
+              color: pctColor,
             ),
           ),
         ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/utils/helpers.dart';
 import '../../core/utils/navigation_util.dart';
 import '../../data/services/station_alias_service.dart';
@@ -100,6 +101,12 @@ class EvResultBodyState extends State<EvResultBody> {
     final chargerType = data['charger_type']?.toString() ?? 'FAST';
     final totalCandidates = (data['total_candidates'] as num?)?.toInt();
     final filteredOut = (data['filtered_out_count'] as num?)?.toInt() ?? 0;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final mutedColor = isDark ? AppColors.darkTextSecondary : _kGrey;
+    // FAST/SLOW 칩의 light 배경은 다크에서 너무 밝게 튀므로 accent 16% alpha 로 lift.
+    final chipBg = isDark
+        ? (chargerType == 'FAST' ? _kBlue : _kGreen).withValues(alpha: 0.16)
+        : (chargerType == 'FAST' ? _kBlueLight : _kGreenLight);
 
     return CustomScrollView(
       controller: scrollController,
@@ -120,7 +127,7 @@ class EvResultBodyState extends State<EvResultBody> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: chargerType == 'FAST' ? _kBlueLight : _kGreenLight,
+                        color: chipBg,
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Row(
@@ -147,14 +154,14 @@ class EvResultBodyState extends State<EvResultBody> {
                       const SizedBox(width: 8),
                       Text(
                         '주행 가능 ${reachableKm.toStringAsFixed(0)}km',
-                        style: const TextStyle(fontSize: 13, color: _kGrey),
+                        style: TextStyle(fontSize: 13, color: mutedColor),
                       ),
                     ],
                     if (totalCandidates != null) ...[
                       const SizedBox(width: 6),
                       Text(
                         '· 후보 $totalCandidates개',
-                        style: const TextStyle(fontSize: 12, color: _kGrey),
+                        style: TextStyle(fontSize: 12, color: mutedColor),
                       ),
                     ],
                   ],
@@ -171,9 +178,9 @@ class EvResultBodyState extends State<EvResultBody> {
                 if (recommended == null)
                   _NoStationCard(filteredOut: filteredOut)
                 else ...[
-                  const Text(
+                  Text(
                     'AI 추천 충전소',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kGrey),
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: mutedColor),
                   ),
                   const SizedBox(height: 8),
                   KeyedSubtree(
@@ -195,9 +202,9 @@ class EvResultBodyState extends State<EvResultBody> {
                   ),
                   if (alternatives.isNotEmpty) ...[
                     const SizedBox(height: 20),
-                    const Text(
+                    Text(
                       '다른 후보',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kGrey),
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: mutedColor),
                     ),
                     const SizedBox(height: 8),
                     ...alternatives.map((alt) {
@@ -231,7 +238,7 @@ class EvResultBodyState extends State<EvResultBody> {
                       padding: const EdgeInsets.only(top: 8),
                       child: Text(
                         '* 이용제한 $filteredOut개소 제외됨',
-                        style: const TextStyle(fontSize: 11, color: _kGrey),
+                        style: TextStyle(fontSize: 11, color: mutedColor),
                       ),
                     ),
                 ],
@@ -250,28 +257,33 @@ class _NoStationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? AppColors.darkCard : const Color(0xFFF8F8F8);
+    final border = isDark ? AppColors.darkCardBorder : const Color(0xFFE0E0E0);
+    final primaryText = isDark ? AppColors.darkTextPrimary : const Color(0xFF444444);
+    final mutedText = isDark ? AppColors.darkTextSecondary : _kGrey;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F8F8),
+        color: bg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE0E0E0)),
+        border: Border.all(color: border),
       ),
       child: Column(
         children: [
-          const Icon(Icons.ev_station_rounded, size: 36, color: _kGrey),
+          Icon(Icons.ev_station_rounded, size: 36, color: mutedText),
           const SizedBox(height: 10),
-          const Text(
+          Text(
             '주행 가능 거리 내에\n이용 가능한 충전소가 없어요',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: Color(0xFF444444), height: 1.4),
+            style: TextStyle(fontSize: 14, color: primaryText, height: 1.4),
           ),
           if (filteredOut > 0) ...[
             const SizedBox(height: 6),
             Text(
               '(이용제한 $filteredOut개소 제외)',
-              style: const TextStyle(fontSize: 12, color: _kGrey),
+              style: TextStyle(fontSize: 12, color: mutedText),
             ),
           ],
         ],
@@ -381,14 +393,19 @@ class _StationCardState extends State<_StationCard> {
     final accentColor = widget.accentColor;
     final canNavigate = gsLat != null && gsLng != null &&
         widget.originLat != null && widget.destLat != null;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final rowBg = isDark ? const Color(0x14FFFFFF) : const Color(0xFFF8F9FA);
+    final rowBorder = isDark ? AppColors.darkCardBorder : const Color(0xFFE5E5E5);
+    final rowText = isDark ? AppColors.darkTextPrimary : const Color(0xFF1F2937);
+    final iconBtnFill = isDark ? const Color(0x1AFFFFFF) : const Color(0xFFEEEEEE);
 
     return Container(
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
+        color: rowBg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E5E5)),
+        border: Border.all(color: rowBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -416,10 +433,10 @@ class _StationCardState extends State<_StationCard> {
               Expanded(
                 child: Text(
                   gsOperator,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF1F2937),
+                    color: rowText,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -428,10 +445,10 @@ class _StationCardState extends State<_StationCard> {
                 const SizedBox(width: 6),
                 Text(
                   '${_wonFmt.format(gsUnitPrice)}원',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF1F2937),
+                    color: rowText,
                   ),
                 ),
               ],
@@ -446,10 +463,10 @@ class _StationCardState extends State<_StationCard> {
                   icon: gsIsWatching
                       ? Icons.notifications_active_rounded
                       : Icons.notifications_none_rounded,
-                  iconColor: gsIsWatching ? accentColor : _kGrey,
+                  iconColor: gsIsWatching ? accentColor : (isDark ? AppColors.darkTextSecondary : _kGrey),
                   fillColor: gsIsWatching
                       ? accentColor.withValues(alpha: 0.1)
-                      : const Color(0xFFEEEEEE),
+                      : iconBtnFill,
                   onTap: () async {
                     final existingSession = WatchService().session;
                     // 이미 이 충전소 → 끄기 확인
@@ -604,18 +621,26 @@ class _StationCardState extends State<_StationCard> {
 
     final accentColor = widget.accentColor;
     final accentLight = widget.accentLight;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? AppColors.darkCard : Colors.white;
+    final cardBorder = isDark ? AppColors.darkCardBorder : const Color(0xFFE5E5E5);
+    final titleColor = isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A1A);
+    final mutedTextColor = isDark ? AppColors.darkTextSecondary : _kGrey;
+    final dividerColor = isDark ? AppColors.darkCardBorder : const Color(0xFFEEEEEE);
+    // 다크 모드에서는 accentLight (Color.lerp white) 가 너무 밝게 튀므로 accent 16% alpha 로 부드럽게.
+    final headerBg = isDark ? accentColor.withValues(alpha: 0.16) : accentLight;
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardBg,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: widget.isRecommended ? accentColor : const Color(0xFFE5E5E5),
+          color: widget.isRecommended ? accentColor : cardBorder,
           width: widget.isRecommended ? 1.5 : 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -629,7 +654,7 @@ class _StationCardState extends State<_StationCard> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: accentLight,
+              color: headerBg,
               borderRadius: const BorderRadius.vertical(top: Radius.circular(13)),
             ),
             child: Row(
@@ -684,7 +709,7 @@ class _StationCardState extends State<_StationCard> {
               children: [
                 Text(
                   name,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A)),
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: titleColor),
                 ),
                 if (isGrouped || operator.isNotEmpty || address.isNotEmpty) ...[
                   const SizedBox(height: 3),
@@ -693,7 +718,7 @@ class _StationCardState extends State<_StationCard> {
                         ? '${groupedCount ?? groupedStations!.length}개 운영사 통합'
                             '${address.isNotEmpty ? " · $address" : ""}'
                         : [if (operator.isNotEmpty) operator, if (address.isNotEmpty) address].join(' · '),
-                    style: const TextStyle(fontSize: 12, color: _kGrey),
+                    style: TextStyle(fontSize: 12, color: mutedTextColor),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -786,7 +811,7 @@ class _StationCardState extends State<_StationCard> {
                     (widget.originLat != null && widget.destLat != null) ||
                     statId != null) ...[
                   const SizedBox(height: 4),
-                  const Divider(height: 1, color: Color(0xFFEEEEEE)),
+                  Divider(height: 1, color: dividerColor),
                   const SizedBox(height: 12),
                   // ── 보조 액션 (지도 / 상세) — 50:50 또는 단독 ──
                   if (widget.onMapTap != null || (statId != null && !isGrouped)) ...[
@@ -1139,13 +1164,14 @@ class _HandleDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return ColoredBox(
-      color: Colors.white,
+      color: isDark ? AppColors.darkBg : Colors.white,
       child: Center(
         child: Container(
           width: 36, height: 4,
           decoration: BoxDecoration(
-            color: Colors.grey.shade300,
+            color: isDark ? AppColors.darkTextMuted : Colors.grey.shade300,
             borderRadius: BorderRadius.circular(2),
           ),
         ),
@@ -1174,6 +1200,13 @@ class EvSelectList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accentColor = chargerType == 'FAST' ? _kBlue : _kGreen;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final mutedColor = isDark ? AppColors.darkTextSecondary : _kGrey;
+    final cardBg = isDark ? AppColors.darkCard : Colors.white;
+    final cardBorder = isDark ? AppColors.darkCardBorder : const Color(0xFFE5E5E5);
+    final nameColor = isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A1A);
+    final priceColor = isDark ? AppColors.darkTextPrimary : const Color(0xFF444444);
+    final chevronColor = isDark ? AppColors.darkTextMuted : Colors.grey.shade400;
 
     return CustomScrollView(
       controller: scrollController,
@@ -1192,7 +1225,7 @@ class EvSelectList extends StatelessWidget {
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: accentColor),
                 ),
                 const SizedBox(width: 6),
-                const Text('· 경로 가까운 순 · 가용 우선', style: TextStyle(fontSize: 12, color: _kGrey)),
+                Text('· 경로 가까운 순 · 가용 우선', style: TextStyle(fontSize: 12, color: mutedColor)),
               ],
             ),
           ),
@@ -1228,12 +1261,12 @@ class EvSelectList extends StatelessWidget {
                   margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: cardBg,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: isOnRoute ? accentColor.withValues(alpha: 0.4) : const Color(0xFFE5E5E5),
+                      color: isOnRoute ? accentColor.withValues(alpha: 0.4) : cardBorder,
                     ),
-                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2))],
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.04), blurRadius: 6, offset: const Offset(0, 2))],
                   ),
                   child: Row(
                     children: [
@@ -1256,14 +1289,14 @@ class EvSelectList extends StatelessWidget {
                                 ],
                                 Expanded(
                                   child: Text(name,
-                                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A)),
+                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: nameColor),
                                     overflow: TextOverflow.ellipsis),
                                 ),
                               ],
                             ),
                             if (operator.isNotEmpty) ...[
                               const SizedBox(height: 2),
-                              Text(operator, style: const TextStyle(fontSize: 11, color: _kGrey), overflow: TextOverflow.ellipsis),
+                              Text(operator, style: TextStyle(fontSize: 11, color: mutedColor), overflow: TextOverflow.ellipsis),
                             ],
                             const SizedBox(height: 6),
                             Wrap(
@@ -1289,20 +1322,20 @@ class EvSelectList extends StatelessWidget {
                                 ),
                                 if (originLabel != null)
                                   Text(originLabel,
-                                    style: const TextStyle(fontSize: 11, color: _kGrey)),
+                                    style: TextStyle(fontSize: 11, color: mutedColor)),
                                 if (originEtaMin != null && originEtaMin > 0)
                                   Text('약 ${fmtMin(originEtaMin)} 소요',
-                                    style: const TextStyle(fontSize: 11, color: _kGrey)),
+                                    style: TextStyle(fontSize: 11, color: mutedColor)),
                                 if (unitPrice != null)
                                   Text('${_wonFmt.format(unitPrice)}원/kWh',
-                                    style: const TextStyle(fontSize: 11, color: Color(0xFF444444))),
+                                    style: TextStyle(fontSize: 11, color: priceColor)),
                               ],
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400, size: 20),
+                      Icon(Icons.chevron_right_rounded, color: chevronColor, size: 20),
                     ],
                   ),
                 ),
@@ -1326,12 +1359,17 @@ class _EvAiMessageBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     if (message.isEmpty) return const SizedBox.shrink();
     final normalized = message.replaceAll(r'\n', '\n');
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? _kBlue.withValues(alpha: 0.12) : const Color(0xFFEEF4FF);
+    final border = isDark ? _kBlue.withValues(alpha: 0.35) : const Color(0xFFB8D0FF);
+    final iconBg = isDark ? _kBlue.withValues(alpha: 0.22) : const Color(0xFFD0E3FF);
+    final bodyTextColor = isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFEEF4FF),
+        color: bg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFB8D0FF)),
+        border: Border.all(color: border),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1340,7 +1378,7 @@ class _EvAiMessageBanner extends StatelessWidget {
             width: 20, height: 20,
             margin: const EdgeInsets.only(top: 1),
             decoration: BoxDecoration(
-              color: const Color(0xFFD0E3FF),
+              color: iconBg,
               borderRadius: BorderRadius.circular(6),
             ),
             child: const Icon(Icons.auto_awesome_rounded, size: 12, color: _kBlue),
@@ -1357,7 +1395,7 @@ class _EvAiMessageBanner extends StatelessWidget {
                   data: normalized,
                   shrinkWrap: true,
                   styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
-                    p: const TextStyle(fontSize: 13, height: 1.5, color: Color(0xFF1a1a1a)),
+                    p: TextStyle(fontSize: 13, height: 1.5, color: bodyTextColor),
                     strong: const TextStyle(
                       fontSize: 13, height: 1.5,
                       fontWeight: FontWeight.w700,
@@ -1383,10 +1421,16 @@ class _WatchDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dialogBg = isDark ? const Color(0xFF1A1F2C) : Colors.white;
+    final titleColor = isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A1A);
+    final descColor = isDark ? AppColors.darkTextSecondary : const Color(0xFF666666);
+    final cancelTextColor = isDark ? AppColors.darkTextSecondary : const Color(0xFF888888);
+    final cancelBorderColor = isDark ? AppColors.darkCardBorder : Colors.grey.shade300;
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       elevation: 0,
-      backgroundColor: Colors.white,
+      backgroundColor: dialogBg,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
         child: Column(
@@ -1396,15 +1440,15 @@ class _WatchDialog extends StatelessWidget {
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                color: accentColor.withValues(alpha: 0.1),
+                color: accentColor.withValues(alpha: isDark ? 0.20 : 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(Icons.radar_rounded, size: 32, color: accentColor),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               '실시간 현황 알림',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A)),
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: titleColor),
             ),
             const SizedBox(height: 10),
             Text(
@@ -1412,7 +1456,7 @@ class _WatchDialog extends StatelessWidget {
                   ? '약 ${fmtMin(etaMin!)} 소요 예정이에요.\n이동하는 동안 자리 변동 시\n알림을 드릴게요.'
                   : '이동하는 동안 자리 변동 시\n알림을 드릴게요.',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 14, color: Color(0xFF666666), height: 1.65),
+              style: TextStyle(fontSize: 14, color: descColor, height: 1.65),
             ),
             const SizedBox(height: 24),
             Row(
@@ -1421,13 +1465,13 @@ class _WatchDialog extends StatelessWidget {
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context, false),
                     style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: Colors.grey.shade300),
+                      side: BorderSide(color: cancelBorderColor),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(vertical: 13),
                     ),
-                    child: const Text(
+                    child: Text(
                       '나중에',
-                      style: TextStyle(color: Color(0xFF888888), fontWeight: FontWeight.w600),
+                      style: TextStyle(color: cancelTextColor, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ),

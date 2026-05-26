@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
 
 /// 이미 같은 충전소 알림 중 동작 선택 다이얼로그
 /// returns true → 알림 끄기, false/null → 취소(유지)
@@ -36,8 +37,16 @@ class _WatchSwitchDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF1A1F2C) : Colors.white;
+    final iconBg = isDark ? AppColors.gasBlue.withValues(alpha: 0.18) : const Color(0xFFEEF4FF);
+    final primary = isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A1A);
+    final secondary = isDark ? AppColors.darkTextSecondary : const Color(0xFF555555);
+    final borderColor = isDark ? AppColors.darkCardBorder : const Color(0xFFDDDDDD);
+    final cancelText = isDark ? AppColors.darkTextSecondary : const Color(0xFF888888);
+
     return Dialog(
-      backgroundColor: Colors.white,
+      backgroundColor: bg,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       insetPadding: const EdgeInsets.symmetric(horizontal: 32),
       child: Padding(
@@ -48,8 +57,8 @@ class _WatchSwitchDialog extends StatelessWidget {
             // 아이콘
             Container(
               width: 52, height: 52,
-              decoration: const BoxDecoration(
-                color: Color(0xFFEEF4FF),
+              decoration: BoxDecoration(
+                color: iconBg,
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.radar_rounded, color: _kBlue, size: 26),
@@ -57,12 +66,12 @@ class _WatchSwitchDialog extends StatelessWidget {
             const SizedBox(height: 16),
 
             // 타이틀
-            const Text(
+            Text(
               '자리 변동 알림 전환',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF1A1A1A),
+                color: primary,
               ),
             ),
             const SizedBox(height: 10),
@@ -71,17 +80,17 @@ class _WatchSwitchDialog extends StatelessWidget {
             RichText(
               textAlign: TextAlign.center,
               text: TextSpan(
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   height: 1.6,
-                  color: Color(0xFF555555),
+                  color: secondary,
                 ),
                 children: [
                   TextSpan(
                     text: currentStationName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF1A1A1A),
+                      color: primary,
                     ),
                   ),
                   const TextSpan(text: '의 알림이 진행 중이에요.\n현재 알림을 끄고 이 충전소로 전환할까요?'),
@@ -98,15 +107,15 @@ class _WatchSwitchDialog extends StatelessWidget {
                     onPressed: () => Navigator.pop(context, false),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 13),
-                      side: const BorderSide(color: Color(0xFFDDDDDD)),
+                      side: BorderSide(color: borderColor),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text(
+                    child: Text(
                       '아니요',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF888888),
+                        color: cancelText,
                       ),
                     ),
                   ),
@@ -145,8 +154,16 @@ class _WatchAlreadyActiveDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF1A1F2C) : Colors.white;
+    final iconBg = isDark ? AppColors.gasBlue.withValues(alpha: 0.18) : const Color(0xFFEEF4FF);
+    final primary = isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A1A);
+    final secondary = isDark ? AppColors.darkTextSecondary : const Color(0xFF555555);
+    final borderColor = isDark ? AppColors.darkCardBorder : const Color(0xFFDDDDDD);
+    final cancelText = isDark ? AppColors.darkTextSecondary : const Color(0xFF888888);
+
     return Dialog(
-      backgroundColor: Colors.white,
+      backgroundColor: bg,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       insetPadding: const EdgeInsets.symmetric(horizontal: 32),
       child: Padding(
@@ -157,20 +174,20 @@ class _WatchAlreadyActiveDialog extends StatelessWidget {
             // 아이콘
             Container(
               width: 52, height: 52,
-              decoration: const BoxDecoration(
-                color: Color(0xFFEEF4FF),
+              decoration: BoxDecoration(
+                color: iconBg,
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.radar_rounded, color: _kBlue, size: 26),
             ),
             const SizedBox(height: 16),
 
-            const Text(
+            Text(
               '자리 변동 알림 수신 중',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF1A1A1A),
+                color: primary,
               ),
             ),
             const SizedBox(height: 10),
@@ -178,17 +195,17 @@ class _WatchAlreadyActiveDialog extends StatelessWidget {
             RichText(
               textAlign: TextAlign.center,
               text: TextSpan(
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   height: 1.6,
-                  color: Color(0xFF555555),
+                  color: secondary,
                 ),
                 children: [
                   TextSpan(
                     text: stationName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF1A1A1A),
+                      color: primary,
                     ),
                   ),
                   const TextSpan(text: '의\n자리 변동 알림을 받고 있어요.\n알림을 끌까요?'),
@@ -204,15 +221,15 @@ class _WatchAlreadyActiveDialog extends StatelessWidget {
                     onPressed: () => Navigator.pop(context, false),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 13),
-                      side: const BorderSide(color: Color(0xFFDDDDDD)),
+                      side: BorderSide(color: borderColor),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text(
+                    child: Text(
                       '유지',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF888888),
+                        color: cancelText,
                       ),
                     ),
                   ),
