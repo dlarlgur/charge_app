@@ -991,10 +991,15 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
     final hasFound = data != null && data['found'] == true;
     final reliability = (data?['reliability'] as String?) ?? 'INSUFFICIENT';
     final sampleWeeks = (data?['sampleWeeks'] as int?) ?? 0;
-    final totalSessions = (data?['totalSessions'] as int?) ?? 0;
-    final isInsufficient = !hasFound ||
-        reliability == 'INSUFFICIENT' ||
-        totalSessions == 0;
+    final cards = (data?['cards'] as List?) ?? const [];
+    // 서버가 카드를 보내면 (low_usage_*, observation_missing 등) 그대로 렌더 —
+    // 정식 분석 임계 미달이어도 의미있는 정보 (대부분 비어있음/관측 없음) 제공.
+    // hasFound=false 면 데이터 자체가 없으므로 회색 placeholder.
+    final isCompletelyMissing = !hasFound || cards.isEmpty;
+    // 신뢰도 라벨 — INSUFFICIENT 면 보조 표시 없음 (카드 본문이 상황 설명)
+    final reliabilityBadge = reliability == 'INSUFFICIENT'
+        ? null
+        : _reliabilityLabel(reliability, sampleWeeks);
 
     return Container(
       key: _kUsage,
@@ -1006,15 +1011,13 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
             '이용현황',
             loading
                 ? null
-                : (isInsufficient
-                    ? '분석 준비 중'
-                    : _reliabilityLabel(reliability, sampleWeeks)),
+                : (isCompletelyMissing ? '분석 준비 중' : reliabilityBadge),
             isDark,
           ),
           const SizedBox(height: 12),
           if (loading)
             _usageLoading(isDark)
-          else if (isInsufficient)
+          else if (isCompletelyMissing)
             _usageInsufficient(isDark)
           else ...[
             _usageTypePill(data, isDark),
