@@ -164,6 +164,7 @@ class GasStationMapBadge {
       context: context,
     );
   }
+
 }
 
 class _GasBadgeTailPainter extends CustomPainter {

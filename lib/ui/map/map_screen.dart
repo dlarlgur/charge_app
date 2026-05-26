@@ -457,7 +457,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         nightModeEnable: isDark,
         locationButtonEnable: false,
         consumeSymbolTapEvents: false,
+        // 평면 지도라 틸트 불필요 + 수직 핀치줌이 틸트 제스처에 먹히는 것 방지.
+        tiltGesturesEnable: false,
       ),
+      // Flutter 3.24.3+ 엔진 회귀(translateMotionEvent, flutter#157463): TLHC
+      // 합성 경로에서 멀티터치 좌표가 손상돼, 핀치가 한번 깨지면 복구가 안 된다.
+      // forceHybridComposition 으로 initExpensiveAndroidView(전체 HC) 경로를 강제,
+      // 네이티브 터치 디스패치를 받아 버그 우회.
+      // ignore: invalid_use_of_visible_for_testing_member
+      forceHybridComposition: true,
       onMapReady: _onMapReady,
       onCameraChange: _onCameraChange,
       onMapTapped: _onMapTapped,
@@ -933,6 +941,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   Future<void> _updateMarkers() async {
     final controller = _mapController;
     if (controller == null) return;
+
+    // gas / EV 가 따로 로딩 완료되며 두 번 그리는 더블 드로 방지.
+    // 필요한 provider 가 아직 로딩 중이면 스킵 — 마지막에 끝나는 쪽이 재호출함.
+    if (_showGas && ref.read(mapGasStationsProvider).isLoading) return;
+    if (_showEv && ref.read(mapEvStationsProvider).isLoading) return;
 
     final gen = ++_markersGeneration;
     _markerRefs.clear();

@@ -115,50 +115,39 @@
                 android:src="@drawable/oil_hd"
                 android:contentDescription="@null"/>
 
-            <LinearLayout
+            <TextView
+                android:id="@+id/cg_name1"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:orientation="vertical"
-                android:layout_marginStart="10dp">
-                <TextView
-                    android:id="@+id/cg_name1"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textSize="13sp"
-                    android:textColor="@color/widget_ink"
-                    android:fontFamily="@font/pretendard_extrabold"
-                    android:singleLine="true"
-                    android:ellipsize="end"
-                    android:text="HD현대오일뱅크 효진주유소"/>
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="2dp"
-                    android:gravity="center_vertical">
-                    <TextView
-                        android:id="@+id/cg_pill1"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:paddingStart="6dp" android:paddingEnd="6dp"
-                        android:paddingTop="1dp" android:paddingBottom="1dp"
-                        android:background="@drawable/bg_pill_neutral"
-                        android:textSize="10sp"
-                        android:textColor="@color/widget_ink_2"
-                        android:fontFamily="@font/pretendard_bold"
-                        android:text="셀프"/>
-                    <TextView
-                        android:id="@+id/cg_sub1"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="5dp"
-                        android:textSize="10sp"
-                        android:textColor="@color/widget_muted"
-                        android:fontFamily="@font/pretendard_semibold"
-                        android:text="휘발유"/>
-                </LinearLayout>
-            </LinearLayout>
+                android:layout_marginStart="10dp"
+                android:textSize="13sp"
+                android:textColor="@color/widget_ink"
+                android:fontFamily="@font/pretendard_extrabold"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:text="HD현대오일뱅크 효진주유소"/>
+            <TextView
+                android:id="@+id/cg_pill1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:paddingStart="6dp" android:paddingEnd="6dp"
+                android:paddingTop="1dp" android:paddingBottom="1dp"
+                android:background="@drawable/bg_pill_neutral"
+                android:textSize="10sp"
+                android:textColor="@color/widget_ink_2"
+                android:fontFamily="@font/pretendard_bold"
+                android:text="셀프"/>
+            <TextView
+                android:id="@+id/cg_sub1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:textSize="10sp"
+                android:textColor="@color/widget_muted"
+                android:fontFamily="@font/pretendard_semibold"
+                android:text="휘발유"/>
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -229,50 +218,39 @@
                 android:src="@drawable/oil_soil"
                 android:contentDescription="@null"/>
 
-            <LinearLayout
+            <TextView
+                android:id="@+id/cg_name2"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:orientation="vertical"
-                android:layout_marginStart="10dp">
-                <TextView
-                    android:id="@+id/cg_name2"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textSize="13sp"
-                    android:textColor="@color/widget_ink"
-                    android:fontFamily="@font/pretendard_extrabold"
-                    android:singleLine="true"
-                    android:ellipsize="end"
-                    android:text="만남이엔지 두꺼비"/>
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="2dp"
-                    android:gravity="center_vertical">
-                    <TextView
-                        android:id="@+id/cg_pill2"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:paddingStart="6dp" android:paddingEnd="6dp"
-                        android:paddingTop="1dp" android:paddingBottom="1dp"
-                        android:background="@drawable/bg_pill_neutral"
-                        android:textSize="10sp"
-                        android:textColor="@color/widget_ink_2"
-                        android:fontFamily="@font/pretendard_bold"
-                        android:text="일반"/>
-                    <TextView
-                        android:id="@+id/cg_sub2"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="5dp"
-                        android:textSize="10sp"
-                        android:textColor="@color/widget_muted"
-                        android:fontFamily="@font/pretendard_semibold"
-                        android:text="휘발유"/>
-                </LinearLayout>
-            </LinearLayout>
+                android:layout_marginStart="10dp"
+                android:textSize="13sp"
+                android:textColor="@color/widget_ink"
+                android:fontFamily="@font/pretendard_extrabold"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:text="만남이엔지 두꺼비"/>
+            <TextView
+                android:id="@+id/cg_pill2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:paddingStart="6dp" android:paddingEnd="6dp"
+                android:paddingTop="1dp" android:paddingBottom="1dp"
+                android:background="@drawable/bg_pill_neutral"
+                android:textSize="10sp"
+                android:textColor="@color/widget_ink_2"
+                android:fontFamily="@font/pretendard_bold"
+                android:text="일반"/>
+            <TextView
+                android:id="@+id/cg_sub2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:textSize="10sp"
+                android:textColor="@color/widget_muted"
+                android:fontFamily="@font/pretendard_semibold"
+                android:text="휘발유"/>
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -343,48 +321,37 @@
                 android:src="@drawable/oil_gs"
                 android:contentDescription="@null"/>
 
-            <LinearLayout
+            <TextView
+                android:id="@+id/cg_name3"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:orientation="vertical"
-                android:layout_marginStart="10dp">
-                <TextView
-                    android:id="@+id/cg_name3"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textSize="13sp"
-                    android:textColor="@color/widget_ink"
-                    android:fontFamily="@font/pretendard_extrabold"
-                    android:singleLine="true"
-                    android:ellipsize="end"/>
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="2dp"
-                    android:gravity="center_vertical">
-                    <TextView
-                        android:id="@+id/cg_pill3"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:paddingStart="6dp" android:paddingEnd="6dp"
-                        android:paddingTop="1dp" android:paddingBottom="1dp"
-                        android:background="@drawable/bg_pill_neutral"
-                        android:textSize="10sp"
-                        android:textColor="@color/widget_ink_2"
-                        android:fontFamily="@font/pretendard_bold"
-                        android:text="셀프"/>
-                    <TextView
-                        android:id="@+id/cg_sub3"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="5dp"
-                        android:textSize="10sp"
-                        android:textColor="@color/widget_muted"
-                        android:fontFamily="@font/pretendard_semibold"/>
-                </LinearLayout>
-            </LinearLayout>
+                android:layout_marginStart="10dp"
+                android:textSize="13sp"
+                android:textColor="@color/widget_ink"
+                android:fontFamily="@font/pretendard_extrabold"
+                android:singleLine="true"
+                android:ellipsize="end"/>
+            <TextView
+                android:id="@+id/cg_pill3"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:paddingStart="6dp" android:paddingEnd="6dp"
+                android:paddingTop="1dp" android:paddingBottom="1dp"
+                android:background="@drawable/bg_pill_neutral"
+                android:textSize="10sp"
+                android:textColor="@color/widget_ink_2"
+                android:fontFamily="@font/pretendard_bold"
+                android:text="셀프"/>
+            <TextView
+                android:id="@+id/cg_sub3"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:textSize="10sp"
+                android:textColor="@color/widget_muted"
+                android:fontFamily="@font/pretendard_semibold"/>
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -484,50 +451,39 @@
                 android:text="EV"
                 android:background="@drawable/bg_badge_ev_slow"/>
 
-            <LinearLayout
+            <TextView
+                android:id="@+id/ce_name1"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:orientation="vertical"
-                android:layout_marginStart="10dp">
-                <TextView
-                    android:id="@+id/ce_name1"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textSize="13sp"
-                    android:textColor="@color/widget_ink"
-                    android:fontFamily="@font/pretendard_extrabold"
-                    android:singleLine="true"
-                    android:ellipsize="end"
-                    android:text="동천자이아파트4"/>
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="2dp"
-                    android:gravity="center_vertical">
-                    <TextView
-                        android:id="@+id/ce_pill1"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:paddingStart="6dp" android:paddingEnd="6dp"
-                        android:paddingTop="1dp" android:paddingBottom="1dp"
-                        android:background="@drawable/bg_pill_speed_slow"
-                        android:textSize="10sp"
-                        android:textColor="@color/widget_blue_text"
-                        android:fontFamily="@font/pretendard_bold"
-                        android:text="완속"/>
-                    <TextView
-                        android:id="@+id/ce_sub1"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="5dp"
-                        android:textSize="10sp"
-                        android:textColor="@color/widget_muted"
-                        android:fontFamily="@font/pretendard_semibold"
-                        android:text="7kW"/>
-                </LinearLayout>
-            </LinearLayout>
+                android:layout_marginStart="10dp"
+                android:textSize="13sp"
+                android:textColor="@color/widget_ink"
+                android:fontFamily="@font/pretendard_extrabold"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:text="동천자이아파트4"/>
+            <TextView
+                android:id="@+id/ce_pill1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:paddingStart="6dp" android:paddingEnd="6dp"
+                android:paddingTop="1dp" android:paddingBottom="1dp"
+                android:background="@drawable/bg_pill_speed_slow"
+                android:textSize="10sp"
+                android:textColor="@color/widget_blue_text"
+                android:fontFamily="@font/pretendard_bold"
+                android:text="완속"/>
+            <TextView
+                android:id="@+id/ce_sub1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:textSize="10sp"
+                android:textColor="@color/widget_muted"
+                android:fontFamily="@font/pretendard_semibold"
+                android:text="7kW"/>
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -611,50 +567,39 @@
                 android:text="EV"
                 android:background="@drawable/bg_badge_ev_fast"/>
 
-            <LinearLayout
+            <TextView
+                android:id="@+id/ce_name2"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:orientation="vertical"
-                android:layout_marginStart="10dp">
-                <TextView
-                    android:id="@+id/ce_name2"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textSize="13sp"
-                    android:textColor="@color/widget_ink"
-                    android:fontFamily="@font/pretendard_extrabold"
-                    android:singleLine="true"
-                    android:ellipsize="end"
-                    android:text="동자 2순위"/>
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="2dp"
-                    android:gravity="center_vertical">
-                    <TextView
-                        android:id="@+id/ce_pill2"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:paddingStart="6dp" android:paddingEnd="6dp"
-                        android:paddingTop="1dp" android:paddingBottom="1dp"
-                        android:background="@drawable/bg_pill_speed_fast"
-                        android:textSize="10sp"
-                        android:textColor="@color/widget_green_text"
-                        android:fontFamily="@font/pretendard_bold"
-                        android:text="급속"/>
-                    <TextView
-                        android:id="@+id/ce_sub2"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="5dp"
-                        android:textSize="10sp"
-                        android:textColor="@color/widget_muted"
-                        android:fontFamily="@font/pretendard_semibold"
-                        android:text="100kW"/>
-                </LinearLayout>
-            </LinearLayout>
+                android:layout_marginStart="10dp"
+                android:textSize="13sp"
+                android:textColor="@color/widget_ink"
+                android:fontFamily="@font/pretendard_extrabold"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:text="동자 2순위"/>
+            <TextView
+                android:id="@+id/ce_pill2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:paddingStart="6dp" android:paddingEnd="6dp"
+                android:paddingTop="1dp" android:paddingBottom="1dp"
+                android:background="@drawable/bg_pill_speed_fast"
+                android:textSize="10sp"
+                android:textColor="@color/widget_green_text"
+                android:fontFamily="@font/pretendard_bold"
+                android:text="급속"/>
+            <TextView
+                android:id="@+id/ce_sub2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:textSize="10sp"
+                android:textColor="@color/widget_muted"
+                android:fontFamily="@font/pretendard_semibold"
+                android:text="100kW"/>
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -738,48 +683,37 @@
                 android:text="EV"
                 android:background="@drawable/bg_badge_ev_slow"/>
 
-            <LinearLayout
+            <TextView
+                android:id="@+id/ce_name3"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:orientation="vertical"
-                android:layout_marginStart="10dp">
-                <TextView
-                    android:id="@+id/ce_name3"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textSize="13sp"
-                    android:textColor="@color/widget_ink"
-                    android:fontFamily="@font/pretendard_extrabold"
-                    android:singleLine="true"
-                    android:ellipsize="end"/>
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="2dp"
-                    android:gravity="center_vertical">
-                    <TextView
-                        android:id="@+id/ce_pill3"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:paddingStart="6dp" android:paddingEnd="6dp"
-                        android:paddingTop="1dp" android:paddingBottom="1dp"
-                        android:background="@drawable/bg_pill_speed_slow"
-                        android:textSize="10sp"
-                        android:textColor="@color/widget_blue_text"
-                        android:fontFamily="@font/pretendard_bold"
-                        android:text="완속"/>
-                    <TextView
-                        android:id="@+id/ce_sub3"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="5dp"
-                        android:textSize="10sp"
-                        android:textColor="@color/widget_muted"
-                        android:fontFamily="@font/pretendard_semibold"/>
-                </LinearLayout>
-            </LinearLayout>
+                android:layout_marginStart="10dp"
+                android:textSize="13sp"
+                android:textColor="@color/widget_ink"
+                android:fontFamily="@font/pretendard_extrabold"
+                android:singleLine="true"
+                android:ellipsize="end"/>
+            <TextView
+                android:id="@+id/ce_pill3"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:paddingStart="6dp" android:paddingEnd="6dp"
+                android:paddingTop="1dp" android:paddingBottom="1dp"
+                android:background="@drawable/bg_pill_speed_slow"
+                android:textSize="10sp"
+                android:textColor="@color/widget_blue_text"
+                android:fontFamily="@font/pretendard_bold"
+                android:text="완속"/>
+            <TextView
+                android:id="@+id/ce_sub3"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:textSize="10sp"
+                android:textColor="@color/widget_muted"
+                android:fontFamily="@font/pretendard_semibold"/>
 
             <LinearLayout
                 android:layout_width="wrap_content"
