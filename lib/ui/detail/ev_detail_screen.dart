@@ -1118,8 +1118,17 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
 
   Widget _usageTypePill(Map<String, dynamic> data, bool isDark) {
     final stationType = data['stationType'] as String?;
-    final label = (data['stationTypeLabel'] as String?) ?? '분류 준비 중';
-    final accent = _typeAccent(stationType);
+    final labelRaw = data['stationTypeLabel'] as String?;
+    final isClassified = labelRaw != null &&
+        stationType != null &&
+        stationType != 'UNKNOWN' &&
+        stationType != 'EXCLUDED';
+    final label = labelRaw ?? '분류 준비 중';
+    // 분류가 확정된 경우만 컬러 강조, 미확정이면 회색 톤으로 통일
+    // ("분석 준비 중" 회색 placeholder 와 일관)
+    final accent = isClassified
+        ? _typeAccent(stationType)
+        : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted);
     return Row(
       children: [
         Container(
