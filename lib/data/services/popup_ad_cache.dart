@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:dio/dio.dart';
 import 'package:dksw_app_core/dksw_app_core.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/painting.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
@@ -85,8 +86,9 @@ class PopupAdCache {
       await box.put(_kAdJson, ad.toJson());
       await box.put(_kAdImage, bytes);
       await box.put(_kAdSavedAt, DateTime.now().millisecondsSinceEpoch);
-    } catch (_) {
+    } catch (e) {
       // 캐시 갱신 실패해도 앱 동작에는 영향 없음.
+      if (kDebugMode) debugPrint('[popup-ad] save (이미지 다운로드/저장) 실패: $e');
     }
   }
 

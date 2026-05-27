@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dksw_app_core/dksw_app_core.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -71,7 +72,9 @@ class PopupAdDialog extends StatelessWidget {
       if (!PopupAdCache.isSameAsCached(fresh)) {
         await PopupAdCache.save(fresh);
       }
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint('[popup-ad] background refresh 실패: $e');
+    }
   }
 
   void _skipToday(BuildContext context) {

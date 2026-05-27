@@ -69,7 +69,9 @@ class AlertService {
         'hour': hour,
         'minute': minute,
       });
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint('[alerts] setAlertTime 서버 동기화 실패: $e');
+    }
   }
 
   // ── 구독 목록 (주유소별 유종 문자열) ──
@@ -190,7 +192,9 @@ class AlertService {
       }
       
       addMessage(title: '⛽ 오늘의 주유 가격', body: lines.join('\n'));
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint('[alerts] gas price 메시지 파싱 실패: $e');
+    }
   }
 
   void deleteMessage(String id) {
@@ -262,7 +266,9 @@ class AlertService {
         final token = await FirebaseMessaging.instance.getToken();
         if (token != null) await _registerDevice(token);
       }
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint('[alerts] FCM token refresh 실패: $e');
+    }
   }
 
   Future<void> _registerDevice(String fcmToken) async {
@@ -271,7 +277,9 @@ class AlertService {
         'deviceId': deviceId,
         'fcmToken': fcmToken,
       });
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint('[alerts] device 등록 실패: $e');
+    }
   }
 
   /// 주유소 구독 (단일 유종 추가)
@@ -381,8 +389,10 @@ class AlertService {
         'stationName': subscribedStationNames[stationId] ?? '',
         'fuelTypes': fuels.join(','),
       });
-    } catch (_) {}
-    
+    } catch (e) {
+      if (kDebugMode) debugPrint('[alerts] unsubscribeFuelType 서버 동기화 실패: $e');
+    }
+
     _notifySubsChanged();
   }
 
@@ -478,7 +488,9 @@ class AlertService {
             DateTime.now().difference(lastTs).inSeconds < 60) return;
       }
       addMessage(title: title, body: body);
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint('[alerts] ev alarm 메시지 파싱 실패: $e');
+    }
   }
 
   Future<void> unsubscribeEvAlarm(String stationId) async {
@@ -487,7 +499,9 @@ class AlertService {
         'deviceId': deviceId,
         'stationId': stationId,
       });
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint('[alerts] unsubscribeEvAlarm 서버 동기화 실패: $e');
+    }
     final subs = _evAlarmSet..remove(stationId);
     Hive.box(_boxKey).put(_evAlarmSubsKey, subs.toList());
     final names = evAlarmNames..remove(stationId);
@@ -511,8 +525,10 @@ class AlertService {
         'deviceId': deviceId,
         'stationId': stationId,
       });
-    } catch (_) {}
-    
+    } catch (e) {
+      if (kDebugMode) debugPrint('[alerts] unsubscribe 서버 동기화 실패: $e');
+    }
+
     _notifySubsChanged();
   }
 }

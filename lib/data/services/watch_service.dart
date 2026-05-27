@@ -92,7 +92,9 @@ class WatchService {
           _notify();
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint('[watch] 활성 세션 복원 실패: $e');
+    }
   }
 
   /// 현재 충전소 자리 수를 서버에서 실시간으로 조회해 업데이트
@@ -107,7 +109,9 @@ class WatchService {
         final avail = chargers.where((c) => (c as Map)['stat'] == 2).length;
         if (avail != s.currentAvail) updateCurrentAvail(s.statId, avail);
       }
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint('[watch] refreshAvail 실패: $e');
+    }
   }
 
   /// 워치 시작

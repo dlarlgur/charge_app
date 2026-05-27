@@ -292,7 +292,8 @@ class WidgetService {
       }
       await updateGasWidget();
       return true;
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) debugPrint('[Widget][gas-bg] FAIL: $e');
       return false;
     }
   }
@@ -308,7 +309,8 @@ class WidgetService {
       }
       await updateEvWidget();
       return true;
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) debugPrint('[Widget][ev-bg] FAIL: $e');
       return false;
     }
   }

@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:dio/dio.dart';
 import 'package:dksw_app_core/dksw_app_core.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/painting.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/constants/api_constants.dart';
@@ -195,7 +196,8 @@ class HouseAdCache {
       }
       await box.put(_kAdsJson, fresh.map((a) => a.toJson()).toList());
       await box.put('${_kAdsJson}_savedAt', DateTime.now().millisecondsSinceEpoch);
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) debugPrint('[house-ad] fetch 실패: $e');
       _fetched = true;
     }
   }
