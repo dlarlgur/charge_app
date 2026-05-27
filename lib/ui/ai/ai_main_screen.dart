@@ -26,6 +26,7 @@ import 'ai_onboarding_screen.dart';
 import 'widgets/ai_painters.dart';
 import 'widgets/big_metric.dart';
 import 'widgets/select_badge.dart';
+import 'widgets/thin_chip.dart';
 import 'widgets/watch_proposal_dialog.dart';
 import 'ai_result_screen.dart';
 import 'ai_vehicle_list_screen.dart';
@@ -4849,7 +4850,7 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
               child: Row(
                 children: [
                   Expanded(
-                    child: _ThinChip(
+                    child: ThinChip(
                       icon: Icons.my_location_rounded,
                       label: _addressLoading
                           ? '내위치 (확인 중...)'
@@ -4862,7 +4863,7 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: _ThinChip(
+                    child: ThinChip(
                       icon: Icons.map_outlined,
                       label: '지도에서 선택',
                       color: const Color(0xFF378ADD),
@@ -5017,50 +5018,6 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
 }
 
 // ─── 얇은 칩 (하단 내위치/지도에서선택용) ──────────────────────────────────────
-
-class _ThinChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _ThinChip({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withValues(alpha: 0.18)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 15, color: color),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                label,
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 // ─── 상단 모드 세그먼트 (주유 / 충전) ─────────────────────────────────────────
 
