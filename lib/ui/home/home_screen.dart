@@ -207,7 +207,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       } else if (type == 'gas') {
         navigateToGasStationNotifier.value = stationId;
       }
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint('[widget-intent] resume consume 실패: $e');
+    }
   }
 
   void _onNavigateToAlerts() => _openAlertsPage();

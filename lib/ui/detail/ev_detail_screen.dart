@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -137,7 +138,8 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
           _analyticsLoading = false;
         });
       }
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) debugPrint('[ev-detail] analytics 로드 실패: $e');
       if (mounted) setState(() => _analyticsLoading = false);
     }
   }
@@ -272,7 +274,8 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
           _nearbyLoading = false;
         });
       }
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) debugPrint('[ev-detail] nearby POI 로드 실패: $e');
       if (mounted) setState(() => _nearbyLoading = false);
     }
   }

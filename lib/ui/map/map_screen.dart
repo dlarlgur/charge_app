@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -294,7 +295,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       final lng = center?.lng ?? loc?.lng;
       final results = await ApiService().searchPlaces(query.trim(), lat: lat, lng: lng);
       if (mounted) setState(() { _searchResults = results; _isSearchLoading = false; });
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) debugPrint('[map-search] searchPlaces 실패: $e');
       if (mounted) setState(() { _searchResults = []; _isSearchLoading = false; });
     }
   }

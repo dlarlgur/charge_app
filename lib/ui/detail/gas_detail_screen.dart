@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -232,7 +233,8 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
       if (mounted) setState(() { _detail = data; _loading = false; });
       // detail 로드 후 차트 미리 fetch (4w 기본)
       _loadChart(_chartPeriod);
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) debugPrint('[gas-detail] detail 로드 실패: $e');
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -253,7 +255,8 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
         widget.stationId, period: period, fuels: fuels,
       );
       if (mounted) setState(() { _chartData = data; _chartLoading = false; });
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) debugPrint('[gas-detail] chart 로드 실패: $e');
       if (mounted) setState(() { _chartData = null; _chartLoading = false; });
     }
   }

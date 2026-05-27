@@ -4,6 +4,7 @@ import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -41,8 +42,9 @@ Future<void> _consumePendingWidgetIntent() async {
     } else if (type == 'gas') {
       navigateToGasStationNotifier.value = stationId;
     }
-  } catch (_) {
+  } catch (e) {
     // 위젯 딥링크 실패는 무시 (앱 실행 자체엔 영향 없음)
+    if (kDebugMode) debugPrint('[widget-intent] pending consume 실패: $e');
   }
 }
 
@@ -111,7 +113,9 @@ Future<void> _saveGasPriceToHive(Map<String, dynamic> data) async {
     await box.put('push_messages', msgs);
     final unread = ((box.get('push_unread_count', defaultValue: 0) as int?) ?? 0) + 1;
     await box.put('push_unread_count', unread);
-  } catch (_) {}
+  } catch (e) {
+    if (kDebugMode) debugPrint('[fcm-bg] gas price hive save 실패: $e');
+  }
 }
 
 /// "읽음" 액션 버튼: 앱 열지 않고 미읽음 수만 0으로 초기화
@@ -208,7 +212,9 @@ Future<void> _saveEvAlarmToHive(dynamic box, Map<String, dynamic> data) async {
     await box.put('push_messages', msgs);
     final unread = ((box.get('push_unread_count', defaultValue: 0) as int?) ?? 0) + 1;
     await box.put('push_unread_count', unread);
-  } catch (_) {}
+  } catch (e) {
+    if (kDebugMode) debugPrint('[fcm-bg] ev alarm hive save 실패: $e');
+  }
 }
 
 /// 로컬 알림 채널 + 핸들러 초기화. main() 을 빨리 끝내기 위해 분리.
