@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
@@ -794,7 +795,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         if (parsed != null) pathPoints = parsed;
         pathSegments = _segmentsFromPayload(dr);
       }
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint('[ai-preview] getDrivingRoute 실패: $e');
+    }
 
     _lastStartLat = startLat;
     _lastStartLng = startLng;
@@ -905,7 +908,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           if (parsed.length >= 2) pathPoints = parsed;
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint('[ai-analyze] getDrivingRoute 실패: $e');
+    }
 
     _lastStartLat = startLat;
     _lastStartLng = startLng;
@@ -1086,7 +1091,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 pathPoints: viaPathPoints,
               );
             }
-          } catch (_) {}
+          } catch (e) {
+            if (kDebugMode) debugPrint('[ai-analyze] viaRoute fallback getDrivingRoute 실패: $e');
+          }
         }
 
         // AI 추천 복원용 파라미터 저장
@@ -1956,7 +1963,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           return;
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint('[ai-via] client getDrivingRoute 실패: $e');
+    }
     apply(serverPts, serverSeg);
   }
 
@@ -2082,7 +2091,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             pathPoints: pathPoints,
           );
         }
-      } catch (_) {}
+      } catch (e) {
+        if (kDebugMode) debugPrint('[ai-alt] alternative getDrivingRoute 실패: $e');
+      }
     }
 
     // 다른 후보로 선택 → 해당 station id 보라색 강조 (이미 함수 시작 시 설정함)
@@ -2159,7 +2170,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           if (parsed != null) pathPoints = parsed;
           pathSegments = _segmentsFromPayload(vr);
         }
-      } catch (_) {}
+      } catch (e) {
+        if (kDebugMode) debugPrint('[ai-compare] getDrivingRoute 실패: $e');
+      }
     }
 
     _drawResultOnMap(
@@ -2251,7 +2264,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           _lastPathPoints = pathPoints;
           _lastPathSegments = pathSegments;
         }
-      } catch (_) {}
+      } catch (e) {
+        if (kDebugMode) debugPrint('[ev-analyze] getDrivingRoute 실패: $e');
+      }
     }
 
     try {
@@ -2326,7 +2341,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         if (parsed != null) pathPoints = parsed;
         pathSegments = _segmentsFromPayload(vr);
       }
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint('[ev-route] getDrivingRoute 실패: $e');
+    }
 
     await _drawEvResultOnMap(
       pathPoints: pathPoints,
@@ -2436,7 +2453,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           _lastStartLng = startLng;
           _lastPathPoints = pathPoints;
         }
-      } catch (_) {}
+      } catch (e) {
+        if (kDebugMode) debugPrint('[ev-userselect] getDrivingRoute 실패: $e');
+      }
     }
 
     try {
@@ -2483,7 +2502,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       );
       // EV 후보 마커 표시
       await _drawEvCandidateMarkers(candidates);
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) debugPrint('[ev-userselect] postEvAiRecommend 실패: $e');
       if (!mounted) return;
       setState(() => _errorMessage = '충전소 목록을 불러오는데 실패했습니다.');
     } finally {
@@ -2671,7 +2691,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           if (parsed.length >= 2) pathPoints = parsed;
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint('[user-select] getDrivingRoute 실패: $e');
+    }
 
     _lastStartLat = startLat;
     _lastStartLng = startLng;

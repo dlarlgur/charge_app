@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -92,7 +93,8 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
       final results = await ApiService().searchPlaces(query.trim(), lat: lat, lng: lng);
       if (!mounted || reqId != _searchRequestSeq) return;
       setState(() { _results = results; _isLoading = false; });
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) debugPrint('[location-picker] searchPlaces 실패: $e');
       if (!mounted || reqId != _searchRequestSeq) return;
       setState(() { _results = []; _isLoading = false; });
     }
