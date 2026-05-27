@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/utils/helpers.dart';
-import '../../core/utils/navigation_util.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/models.dart';
 import '../../data/services/api_service.dart';
@@ -268,9 +267,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _clearMarkers(); // 탭 즉시 기존 마커 제거
     final pos = await controller.getCameraPosition();
     final bounds = await controller.getContentBounds();
-    final radius = bounds != null
-        ? _boundsToRadius(bounds, pos.target)
-        : _zoomToRadius(pos.zoom);
+    final radius = _boundsToRadius(bounds, pos.target);
     ref.read(mapCenterProvider.notifier).state = (lat: pos.target.latitude, lng: pos.target.longitude);
     ref.read(mapRadiusProvider.notifier).state = radius;
     if (_selectedStation != null) await _dismissSheet();
@@ -1149,10 +1146,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
   }
 
-  void _openNavigation(double lat, double lng, String name) {
-    showNavigationSheet(context, lat: lat, lng: lng, name: name);
-  }
-
   // ─── 클러스터 목록 시트 (같은 GPS 마커 N개) ───
   Widget _buildClusterListSheet(List<dynamic> stations, bool isDark) {
     final isEv = stations.first is EvStation;
@@ -1306,7 +1299,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       maxLines: 1, overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                  if (subInfo != null && subInfo.isNotEmpty) ...[
+                  if (subInfo.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(subInfo,
                       style: TextStyle(

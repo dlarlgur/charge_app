@@ -11,7 +11,6 @@ import '../../data/services/alert_service.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/station_alias_service.dart';
 import '../../providers/providers.dart';
-import '../../data/services/favorite_service.dart';
 
 String _fuelTypeLabel(String code) {
   switch (code) {

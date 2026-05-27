@@ -9,8 +9,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/helpers.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import '../../core/constants/api_constants.dart';
 import '../../data/models/models.dart';
 import '../../data/services/ad_service.dart';
 import '../../data/services/alert_service.dart';
@@ -94,11 +92,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     });
 
     // 홈 팝업: 공지(type=popup) 우선, 없으면 광고 (둘 다 하루 1회 한도)
+    // - delay 를 700ms 로 늘려 FCM/위젯 탭의 600ms navigation 보다 뒤에 실행
+    // - isCurrent 체크로 그 사이 detail 화면이 push 되었으면 popup 스킵
+    //   (이전엔 400ms 후 무조건 표시 → 알림 navigation 위에 팝업이 떠 어색했음)
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future.delayed(const Duration(milliseconds: 400), () async {
+      Future.delayed(const Duration(milliseconds: 700), () async {
         if (!mounted) return;
+        if (ModalRoute.of(context)?.isCurrent != true) return;
         await PopupNoticeDialog.showIfEligible(context);
         if (!mounted) return;
+        if (ModalRoute.of(context)?.isCurrent != true) return;
         await PopupAdDialog.showIfEligible(context);
       });
     });
@@ -1367,73 +1370,6 @@ class _AlertPageState extends State<_AlertPage> {
               },
             ),
     );
-  }
-}
-
-String _fuelTypesLabel(List<String> fuelTypes) {
-  if (fuelTypes.isEmpty) return '휘발유';
-  final first = FuelType.fromCode(fuelTypes.first).label;
-  if (fuelTypes.length == 1) return first;
-  return '$first 외 ${fuelTypes.length - 1}';
-}
-
-// 필터 칩 공통 라벨: 전체면 기본명, 1개면 항목명, 복수면 "첫번째 외 N"
-String _chipLabel(List<String> items, String Function(String) labelFn, String defaultLabel) {
-  if (items.isEmpty) return defaultLabel;
-
-  // 코드가 여러 개여도 같은 라벨(예: A0/G0 둘 다 '공공기관')이면
-  // 한 개로 취급하기 위해 라벨 기준으로 중복 제거
-  final labels = items.map(labelFn).toSet().toList();
-  final first = labels.first;
-  // 충전장소: 모든 종류가 선택된 경우에는 기본 라벨("충전장소")로 표기
-  if (defaultLabel == '충전장소' && labels.length >= 6) {
-    return defaultLabel;
-  }
-  if (labels.length == 1) return first;
-  return '$first 외 ${labels.length - 1}';
-}
-
-String _brandLabel(String brand) {
-  switch (brand) {
-    case 'SKE': return 'SK에너지';
-    case 'GSC': return 'GS칼텍스';
-    case 'HDO': return '현대오일뱅크';
-    case 'SOL': return 'S-OIL';
-    case 'NHO': return 'NH주유소';
-    case 'E1G': return 'E1에너지';
-    case 'RTO': return '알뜰주유소';
-    case 'ETC': return '기타';
-    default: return brand;
-  }
-}
-
-String _kindLabel(String kind) {
-  switch (kind) {
-    case 'A0': case 'G0': return '공공기관';
-    case 'B0': return '공영주차';
-    case 'C0': return '고속도로';
-    case 'D0': case 'E0': case 'F0': case 'I0': return '일반충전소';
-    case 'H0': return '숙박시설';
-    case 'J0': return '아파트';
-    default: return kind;
-  }
-}
-
-String _chargerTypeLabel(String type) {
-  switch (type) {
-    case '01': return 'DC차데모';
-    case '02': return 'AC완속';
-    case '03': return 'DC차데모+AC3상';
-    case '04': return 'DC콤보';
-    case '05': return 'DC차데모+DC콤보';
-    case '06': return 'DC차데모+AC3상+DC콤보';
-    case '07': return 'AC3상';
-    case '08': return 'DC콤보(저속)';
-    case '09': return 'NACS';
-    case '89': return 'H2(수소)';
-    case 'SC': return '슈퍼차저';
-    case 'DT': return '데스티네이션';
-    default: return type;
   }
 }
 

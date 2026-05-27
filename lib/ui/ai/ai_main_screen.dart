@@ -16,7 +16,6 @@ import '../../core/theme/app_colors.dart';
 import '../../core/utils/helpers.dart';
 import '../../core/utils/navigation_util.dart';
 import '../../data/models/models.dart';
-import '../../data/services/alert_service.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/notification_service.dart';
 import '../../data/services/station_alias_service.dart';
@@ -57,7 +56,6 @@ const _kMuted = Color(0xFF64748B);
 const _kMute2 = Color(0xFF94A3B8);
 const _kLine = Color(0xFFE2E8F0);
 const _kLineSoft = Color(0xFFF1F5F9);
-const _kReco = Color(0xFFF5F6F8); // 추천 화면 배경
 
 Color _modeAccent(bool isEv) => isEv ? _kEvAccent : _kFuelAccent;
 Color _modeAccentLight(bool isEv) => isEv ? _kEvAccentLight : _kFuelAccentLight;
@@ -1599,7 +1597,6 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       if (lat == null || lng == null) continue;
       final avail = (c['available_count'] as num?)?.toInt() ?? 0;
       final total = (c['total_count'] as num?)?.toInt() ?? 0;
-      final name = c['name']?.toString() ?? '충전소';
       final label = '$avail/$total';
       final borderColor = avail > 0 ? const Color(0xFF1D9E75) : const Color(0xFFE8700A);
       final textColor   = avail > 0 ? const Color(0xFF1D9E75) : const Color(0xFFE8700A);
@@ -2339,7 +2336,6 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final stLat = (station['lat'] as num?)?.toDouble();
     final stLng = (station['lng'] as num?)?.toDouble();
     if (stLat == null || stLng == null) return;
-    final stName = station['name']?.toString() ?? '';
 
     var pathPoints = _lastPathPoints;
     List<Map<String, dynamic>>? pathSegments;
@@ -2585,118 +2581,6 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       ),
     );
   }
-
-  // ── EV UI 헬퍼 위젯 ──────────────────────────────────────────────────────
-  Widget _evSegTab(String type, String label, IconData icon, Color activeColor) {
-    final active = _evChargerType == type;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _evChargerType = type),
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-          height: double.infinity,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: active ? Colors.white : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: active
-                ? [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.06),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1),
-                    ),
-                    BoxShadow(
-                      color: activeColor.withValues(alpha: 0.08),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 16, color: active ? activeColor : const Color(0xFF9EA7B2)),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: active ? FontWeight.w800 : FontWeight.w600,
-                  color: active ? activeColor : const Color(0xFF9EA7B2),
-                  letterSpacing: -0.2,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _evActionBtn({
-    required String label,
-    required IconData icon,
-    required Color color,
-    required bool loading,
-    required bool enabled,
-    required VoidCallback onTap,
-    bool primary = true,
-    bool expand = false,
-  }) {
-    final fgColor = enabled ? color : color.withValues(alpha: 0.5);
-    final iconSize = expand ? 17.0 : 15.0;
-    final fontSize = expand ? 14.5 : 13.0;
-    final inner = loading
-        ? SizedBox(
-            width: 20, height: 20,
-            child: CircularProgressIndicator(
-              strokeWidth: 2.2,
-              color: primary ? Colors.white.withValues(alpha: 0.9) : fgColor,
-            ),
-          )
-        : Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: iconSize, color: primary ? Colors.white : fgColor),
-              const SizedBox(width: 6),
-              Text(label,
-                style: TextStyle(
-                  fontSize: fontSize,
-                  fontWeight: FontWeight.w700,
-                  color: primary ? Colors.white : fgColor,
-                )),
-            ],
-          );
-    return GestureDetector(
-      onTap: enabled ? onTap : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        height: expand ? 50 : null,
-        width: expand ? double.infinity : null,
-        padding: expand
-            ? null
-            : const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: primary ? fgColor : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: primary
-              ? null
-              : Border.all(color: fgColor, width: 1.4),
-          boxShadow: primary && enabled
-              ? [BoxShadow(color: fgColor.withValues(alpha: 0.18), blurRadius: 8, offset: const Offset(0, 3))]
-              : null,
-        ),
-        child: expand ? Center(child: inner) : inner,
-      ),
-    );
-  }
-  // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _clearResult() async {
     // 모드 플래그를 먼저 동기적으로 리셋 → 뒤로가기 중복 호출 방지
@@ -5276,122 +5160,6 @@ class _ModeSegment extends StatelessWidget {
   }
 }
 
-// ─── 잔량 요약 카드 ────────────────────────────────────────────────────────────
-
-class _LevelSummaryCard extends StatelessWidget {
-  final double currentLevel;
-  final String targetMode;
-  final TextEditingController priceController;
-  final TextEditingController literController;
-  final NumberFormat wonFmt;
-  final bool isEv;
-
-  const _LevelSummaryCard({
-    required this.currentLevel,
-    required this.targetMode,
-    required this.priceController,
-    required this.literController,
-    required this.wonFmt,
-    this.isEv = false,
-  });
-
-  String get _targetLabel {
-    if (isEv) return '잔량 편집';
-    if (targetMode == 'FULL') return '가득 채우기';
-    if (targetMode == 'PRICE') {
-      final p = double.tryParse(priceController.text.replaceAll(',', '.')) ?? 0;
-      return '${wonFmt.format(p.round())}원';
-    }
-    final l = double.tryParse(literController.text.replaceAll(',', '.')) ?? 0;
-    return '${l > 0 ? l.toStringAsFixed(l == l.roundToDouble() ? 0 : 1) : '—'}L';
-  }
-
-  Color get _levelColor {
-    if (currentLevel <= 20) return const Color(0xFFE24B4A);
-    if (currentLevel <= 50) return const Color(0xFFEF9F27);
-    return const Color(0xFF22C55E);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isEv ? _kEvAccent.withValues(alpha: 0.25) : _kFuelAccent.withValues(alpha: 0.25),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(currentLevel.toStringAsFixed(0),
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: _levelColor,
-                    height: 1.0,
-                    letterSpacing: -0.5,
-                  )),
-              Padding(
-                padding: const EdgeInsets.only(left: 1, top: 4),
-                child: Text('%',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: _levelColor.withValues(alpha: 0.85),
-                  )),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: LayoutBuilder(builder: (_, c) {
-                  final fillW = c.maxWidth * (currentLevel / 100);
-                  return Stack(children: [
-                    Container(
-                      height: 6,
-                      decoration: BoxDecoration(
-                          color: const Color(0xFFF1F3F5),
-                          borderRadius: BorderRadius.circular(3)),
-                    ),
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 250),
-                      curve: Curves.easeOut,
-                      height: 6,
-                      width: fillW,
-                      decoration: BoxDecoration(
-                        color: _levelColor,
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    ),
-                  ]);
-                }),
-              ),
-              const SizedBox(width: 8),
-              Icon(Icons.edit_rounded, size: 14, color: const Color(0xFF666666).withValues(alpha: 0.5)),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(_targetLabel,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF6B7280))),
-        ],
-      ),
-    );
-  }
-}
-
 // ─── Hero 카드 (ai_reco_main.html 양식) ─────────────────────────────────────
 // 큰 원형 게이지 (잔량 %) + 가능 km + 차량 정보 + 효율/탱크 stat + 선호 조건 chip.
 // 사용자 입력: tap → 잔량 편집 시트, 차량 편집 → 차량 선택, chip 토글.
@@ -6065,7 +5833,6 @@ class _EvStationDetailSheetState extends State<_EvStationDetailSheet> {
     final operator = s['operator']?.toString() ?? '';
     final availCount = (s['available_count'] as num?)?.toInt() ?? 0;
     final totalCount = (s['total_count'] as num?)?.toInt() ?? 0;
-    final chargingCount = (s['charging_count'] as num?)?.toInt() ?? 0;
     final unitPrice = (s['unit_price'] as num?)?.toInt();
     final detourMin = (s['detour_time_min'] as num?)?.toInt();
     final originDistM = (s['origin_distance_m'] as num?)?.toInt();
@@ -6080,13 +5847,6 @@ class _EvStationDetailSheetState extends State<_EvStationDetailSheet> {
     String? etaLabel;
     if (originEtaMin != null && originEtaMin > 0) {
       etaLabel = '약 ${fmtMin(originEtaMin)}';
-    }
-
-    String? originDistLabel;
-    if (originDistM != null && originDistM > 0) {
-      originDistLabel = originDistM >= 1000
-          ? '출발지에서 ${(originDistM / 1000).toStringAsFixed(0)}km'
-          : '출발지에서 ${originDistM}m';
     }
 
     return SafeArea(
@@ -6501,109 +6261,6 @@ class _MetricDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       Container(width: 1, color: const Color(0xFFE5E7EB));
-}
-
-class _StatusBadge extends StatelessWidget {
-  final String label;
-  final int count;
-  final Color color;
-  const _StatusBadge({required this.label, required this.count, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text('$count', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: color)),
-        Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF888888))),
-      ],
-    );
-  }
-}
-
-class _InfoTag extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  const _InfoTag({required this.icon, required this.label, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 13, color: color),
-        const SizedBox(width: 3),
-        Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w500)),
-      ],
-    );
-  }
-}
-
-class _ChargerRow extends StatelessWidget {
-  final Charger charger;
-  const _ChargerRow({required this.charger});
-
-  static const _statusColors = {
-    ChargerStatus.available: Color(0xFF1D9E75),
-    ChargerStatus.charging:  Color(0xFFE8700A),
-    ChargerStatus.commError:    Color(0xFF888888),
-    ChargerStatus.suspended:    Color(0xFF888888),
-    ChargerStatus.maintenance:  Color(0xFF888888),
-    ChargerStatus.unknown:      Color(0xFF888888),
-  };
-
-  static const _statusLabels = {
-    ChargerStatus.available: '이용가능',
-    ChargerStatus.charging:  '충전중',
-    ChargerStatus.commError:    '통신오류',
-    ChargerStatus.suspended:    '중지',
-    ChargerStatus.maintenance:  '점검중',
-    ChargerStatus.unknown:      '상태미확인',
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    final color = _statusColors[charger.status] ?? const Color(0xFF888888);
-    final statusLabel = _statusLabels[charger.status] ?? '-';
-    final speedLabel = charger.isUltraFast ? '초급속' : charger.isFast ? '급속' : '완속';
-    final speedColor = charger.isFast ? const Color(0xFF1D6FE0) : const Color(0xFF1D9E75);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
-        borderRadius: BorderRadius.circular(9),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 6, height: 6,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: speedColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(speedLabel,
-              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: speedColor)),
-          ),
-          const SizedBox(width: 6),
-          Text(charger.typeText,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF444444))),
-          const SizedBox(width: 4),
-          Text('${charger.output}kW',
-            style: const TextStyle(fontSize: 11, color: Color(0xFF888888))),
-          const Spacer(),
-          Text(statusLabel,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
-        ],
-      ),
-    );
-  }
 }
 
 // ── 워치 제안 다이얼로그 ──────────────────────────────────────────────────────────

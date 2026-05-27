@@ -26,16 +26,10 @@ class EvDetailScreen extends ConsumerStatefulWidget {
 class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
   EvStation? _station;
   bool _loading = true;
-  bool _isFavorite = false;
-  bool _isAlarm = false;
-  bool _alarmLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _isFavorite = FavoriteService.isFavorite(widget.stationId, 'ev');
-    _isAlarm = AlertService().isEvAlarmSubscribed(widget.stationId);
-    AlertService().subsChanged.addListener(_onSubsChanged);
     // 미리 받은 station 객체가 있으면 즉시 표시(UX 부드러움), 항상 백그라운드로 fresh fetch.
     // 이전엔 widget.station 받으면 _loadDetail() 호출 안 해서 around list / 즐겨찾기에서
     // 진입 시 충전기 상태가 카드 캐시 시점 그대로 stale → 사용자 보고: 갱신 안 됨.
@@ -46,49 +40,12 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
     _loadDetail();
   }
 
-  @override
-  void dispose() {
-    AlertService().subsChanged.removeListener(_onSubsChanged);
-    super.dispose();
-  }
-
-  void _onSubsChanged() {
-    if (mounted) setState(() => _isAlarm = AlertService().isEvAlarmSubscribed(widget.stationId));
-  }
-
   Future<void> _loadDetail() async {
     try {
       final detail = await ApiService().getEvStationDetail(widget.stationId);
       if (mounted) setState(() { _station = EvStation.fromJson(detail); _loading = false; });
     } catch (e) {
       if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _toggleAlarm() async {
-    if (_alarmLoading) return;
-    final name = _station?.name ?? widget.stationId;
-    setState(() => _alarmLoading = true);
-    try {
-      if (_isAlarm) {
-        await AlertService().unsubscribeEvAlarm(widget.stationId);
-        if (mounted) setState(() => _isAlarm = false);
-      } else {
-        final ids = AlertService().evAlarmStationIds;
-        if (!ids.contains(widget.stationId) && ids.length >= AlertService.evAlarmMaxCount) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('충전소 현황 알림은 최대 50개까지 설정할 수 있어요')),
-            );
-          }
-          return;
-        }
-        final ok = await AlertService().subscribeEvAlarm(
-          stationId: widget.stationId, stationName: name);
-        if (mounted) setState(() => _isAlarm = ok);
-      }
-    } finally {
-      if (mounted) setState(() => _alarmLoading = false);
     }
   }
 
@@ -1477,50 +1434,6 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
         SnackBar(content: Text('${p.name} 을(를) 열 수 없어요')),
       );
     }
-  }
-
-  // ─── 히어로 직하단 주 액션: [알림] [즐겨찾기] [────────길찾기────────] ───
-  Widget _primaryActions(EvStation s) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-      child: Row(
-        children: [
-          _ActionIconBtn(
-            icon: _isAlarm
-                ? Icons.notifications_active_rounded
-                : Icons.notifications_none_rounded,
-            color: _isAlarm ? AppColors.evGreen : null,
-            loading: _alarmLoading,
-            onTap: _toggleAlarm,
-            isDark: isDark,
-          ),
-          const SizedBox(width: 6),
-          _ActionIconBtn(
-            icon: _isFavorite ? Icons.favorite : Icons.favorite_border,
-            color: _isFavorite ? AppColors.evGreen : null,
-            onTap: _toggleFavorite,
-            isDark: isDark,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: () =>
-                  showNavigationSheet(context, lat: s.lat, lng: s.lng, name: s.name),
-              icon: const Icon(Icons.navigation_rounded, size: 18),
-              label: const Text('길찾기'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.evGreen,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                elevation: 0,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _routeIncludeButton() {

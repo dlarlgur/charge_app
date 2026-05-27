@@ -1246,7 +1246,6 @@ class EvSelectList extends StatelessWidget {
               final routeDistM = (s['route_distance_m'] as num?)?.toInt() ?? 0;
               final originDistM = (s['origin_distance_m'] as num?)?.toInt();
               final originEtaMin = (s['origin_eta_min'] as num?)?.toInt();
-              final statusMsg = s['status_message']?.toString() ?? '';
               final isOnRoute = routeDistM <= 500;
 
               final originLabel = originDistM != null && originDistM > 0

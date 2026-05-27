@@ -156,8 +156,8 @@ class _MaintenanceScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
-    return WillPopScope(
-      onWillPop: () async => false,
+    return PopScope(
+      canPop: false,
       child: Scaffold(
         backgroundColor: isDark ? const Color(0xFF0C0E13) : Colors.white,
         body: SafeArea(

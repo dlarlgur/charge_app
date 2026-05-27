@@ -10,8 +10,40 @@ class PermissionScreen extends StatefulWidget {
   State<PermissionScreen> createState() => _PermissionScreenState();
 }
 
-class _PermissionScreenState extends State<PermissionScreen> {
+class _PermissionScreenState extends State<PermissionScreen>
+    with WidgetsBindingObserver {
   bool _isLoading = false;
+  // 설정 앱을 띄운 직후 → 사용자가 돌아오면 권한 재체크해 자동 진행.
+  bool _awaitingSettingsReturn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _awaitingSettingsReturn) {
+      _awaitingSettingsReturn = false;
+      _recheckAfterSettings();
+    }
+  }
+
+  // 설정 다녀온 후 권한 자동 재체크 — 사용자가 다시 버튼 누르지 않아도 진행.
+  Future<void> _recheckAfterSettings() async {
+    final status = await Permission.locationWhenInUse.status;
+    if (!mounted) return;
+    if (status.isGranted || status.isLimited) {
+      context.go('/onboarding');
+    }
+  }
 
   Future<void> _requestPermission() async {
     setState(() => _isLoading = true);
@@ -47,6 +79,7 @@ class _PermissionScreenState extends State<PermissionScreen> {
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
+              _awaitingSettingsReturn = true;
               await openAppSettings();
             },
             child: const Text('설정 열기'),

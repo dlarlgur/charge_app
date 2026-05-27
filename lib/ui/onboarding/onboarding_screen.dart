@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/constants/api_constants.dart';
 import '../../data/models/models.dart';
 import '../../providers/providers.dart';
 import '../../data/services/alert_service.dart';
@@ -26,9 +25,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   // ev:   0(차종) → 1(충전기) → 2(알림)            = 3스텝
   // both: 0(차종) → 1(유종) → 2(충전기) → 3(알림) = 4스텝
   int get _totalSteps => _vehicleType == VehicleType.both ? 4 : 3;
-
-  bool get _isBoth => _vehicleType == VehicleType.both;
-  bool get _isEv => _vehicleType == VehicleType.ev;
 
   // 현재 스텝이 어떤 내용인지
   _StepKind get _currentKind {
