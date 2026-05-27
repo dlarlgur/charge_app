@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -370,9 +371,14 @@ final gasStationsProvider = Provider<AsyncValue<List<GasStation>>>((ref) {
 // ─── EV Stations Raw Provider (위치 기반 API) ───
 final evStationsRawProvider = FutureProvider.family<List<EvStation>, ({double lat, double lng, int radius})>(
   (ref, args) async {
+    // Tesla 실패 시 전체 EV 리스트가 AsyncError 되는 fail-all 방지 — empty 로 fallback
     final results = await Future.wait([
       ApiService().getEvStationsAround(lat: args.lat, lng: args.lng, radius: args.radius),
-      ApiService().getTeslaStationsAround(lat: args.lat, lng: args.lng, radius: args.radius),
+      ApiService().getTeslaStationsAround(lat: args.lat, lng: args.lng, radius: args.radius)
+          .catchError((e) {
+        if (kDebugMode) debugPrint('[Tesla] around 실패 (skip): $e');
+        return <Map<String, dynamic>>[];
+      }),
     ]);
     return [
       ...results[0].map((json) => EvStation.fromJson(json)),
@@ -504,9 +510,14 @@ final mapEvStationsProvider = FutureProvider<List<EvStation>>((ref) async {
   final filter = ref.watch(evFilterProvider);
   final radius = ref.watch(mapRadiusProvider);
 
+  // Tesla 실패 시 전체 EV 리스트가 AsyncError 되는 fail-all 방지 — empty 로 fallback
   final results = await Future.wait([
     ApiService().getEvStationsAround(lat: center.lat, lng: center.lng, radius: radius),
-    ApiService().getTeslaStationsAround(lat: center.lat, lng: center.lng, radius: radius),
+    ApiService().getTeslaStationsAround(lat: center.lat, lng: center.lng, radius: radius)
+        .catchError((e) {
+      if (kDebugMode) debugPrint('[Tesla] map around 실패 (skip): $e');
+      return <Map<String, dynamic>>[];
+    }),
   ]);
 
   var stations = [

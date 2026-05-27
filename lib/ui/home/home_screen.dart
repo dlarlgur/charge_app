@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -43,6 +45,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     with WidgetsBindingObserver {
   final _messageBadgeKey = GlobalKey<_HomeTabState>();
   DateTime? _lastBackPressTime;
+  // FCM 리스너는 hot reload / re-create 시 중복 등록되면 알림 2회 저장 등 부작용.
+  // dispose 에서 명시적으로 cancel 하기 위해 subscription 보관.
+  StreamSubscription<RemoteMessage>? _fcmOnMessageSub;
+  StreamSubscription<RemoteMessage>? _fcmOnOpenedSub;
 
   @override
   void initState() {
@@ -55,7 +61,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     navigateToAlertsNotifier.addListener(_onNavigateToAlerts);
 
     // 포그라운드 FCM 메시지 수신 → 로컬 알림 표시 + 내역 저장
-    FirebaseMessaging.onMessage.listen((message) {
+    _fcmOnMessageSub = FirebaseMessaging.onMessage.listen((message) {
       if (message.data['type'] == 'gas_price_alert') {
         showGasPriceNotification(message.data, soundMode: AlertService().alertSoundMode);
         AlertService().addGasPriceMessage(message.data);
@@ -98,7 +104,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     });
 
     // 백그라운드 알림 탭해서 앱 열린 경우 (앱이 이미 실행 중)
-    FirebaseMessaging.onMessageOpenedApp.listen((message) {
+    _fcmOnOpenedSub = FirebaseMessaging.onMessageOpenedApp.listen((message) {
       if (message.data['type'] == 'gas_price_alert') {
         AlertService().addGasPriceMessage(message.data);
         _messageBadgeKey.currentState?.refreshCount();
@@ -169,6 +175,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     navigateToEvStationNotifier.removeListener(_onNavigateToEvStation);
     navigateToGasStationNotifier.removeListener(_onNavigateToGasStation);
     requestEvReplanNotifier.removeListener(_onEvReplanRequested);
+    _fcmOnMessageSub?.cancel();
+    _fcmOnOpenedSub?.cancel();
     super.dispose();
   }
 

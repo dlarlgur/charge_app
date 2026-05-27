@@ -39,9 +39,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   List<dynamic>? _selectedCluster;
   bool _showSearchHere = false;
   bool _mapReady = false;
-  // NaverMap(PlatformView)을 한 번만 생성해 캐시 — 부모 setState 가 잦아도
-  // 동일 위젯 인스턴스라 NaverMap 이 rebuild 되지 않아 제스처/줌이 끊기지 않음.
+  // NaverMap(PlatformView)을 캐시 — 부모 setState 가 잦아도 동일 위젯 인스턴스라
+  // NaverMap 이 rebuild 되지 않아 제스처/줌이 끊기지 않음.
+  // isDark 변경 시에만 재생성 → NaverMap 의 _updateOptionsIfNeeded 가 nightMode
+  // 라이브 업데이트 (PlatformView 재생성 없음).
   Widget? _cachedMap;
+  bool? _cachedMapIsDark;
   int _markersGeneration = 0;
   final Map<String, NMarker> _markerRefs = {};
   Timer? _markerDebounce;
@@ -447,8 +450,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       }
     });
 
-    // NaverMap 은 첫 build 에 한 번만 생성해 캐시 → setState 가 잦아도 rebuild 안 됨
-    _cachedMap ??= NaverMap(
+    // isDark 가 바뀐 경우만 재생성 (다크모드 토글 → nightMode 반영).
+    // 그 외 setState 는 캐시 사용 → 제스처/줌 끊김 없음.
+    if (_cachedMap == null || _cachedMapIsDark != isDark) {
+      _cachedMapIsDark = isDark;
+      _cachedMap = NaverMap(
       options: NaverMapViewOptions(
         initialCameraPosition: const NCameraPosition(
           target: NLatLng(37.5665, 126.9780),
@@ -470,6 +476,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       onCameraChange: _onCameraChange,
       onMapTapped: _onMapTapped,
     );
+    }
 
     return Scaffold(
       body: Stack(
@@ -900,6 +907,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     await GasStationMapBadge.precacheBrandImages(context);
   }
 
+  // ─── 마커 배지 아이콘 캐시 ───
+  // 키: 렌더 결과를 결정하는 모든 입력. 가격 동일하면 동일 비트맵 재사용.
+  // 150개 마커 × widget→bitmap rasterize 비용 (각 10~30ms) 을 매 update 마다
+  // 반복하던 것을 캐시 hit 시 0ms 로. 최대 _kBadgeCacheMax 항목 LRU 유지.
+  static const int _kBadgeCacheMax = 400;
+  final Map<String, NOverlayImage> _badgeIconCache = {};
+  final List<String> _badgeIconLru = [];
+
   // ─── 마커 배지 아이콘 (로고 + 가격/텍스트 카드 스타일) ───
   Future<NOverlayImage> _stationBadgeIcon({
     required String label,
@@ -908,14 +923,21 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     bool isEv = false,
     bool isHighlighted = false,
     bool isCheapest = false,
-  }) {
+  }) async {
+    final key = '$label|$brand|$stationName|$isEv|$isHighlighted|$isCheapest';
+    final cached = _badgeIconCache[key];
+    if (cached != null) {
+      _badgeIconLru.remove(key);
+      _badgeIconLru.add(key);
+      return cached;
+    }
     final Color borderColor = isHighlighted
         ? _kSelectedColor
         : (isCheapest ? const Color(0xFFEF4444) : const Color(0xFFDDDDDD));
     final Color textColor = isHighlighted
         ? _kSelectedColor
         : (isCheapest ? const Color(0xFFEF4444) : const Color(0xFF1a1a1a));
-    return GasStationMapBadge.overlayImage(
+    final icon = await GasStationMapBadge.overlayImage(
       context,
       label: label,
       brand: brand,
@@ -925,6 +947,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       textColor: textColor,
       emphasizeBorder: isHighlighted,
     );
+    _badgeIconCache[key] = icon;
+    _badgeIconLru.add(key);
+    if (_badgeIconLru.length > _kBadgeCacheMax) {
+      final evict = _badgeIconLru.removeAt(0);
+      _badgeIconCache.remove(evict);
+    }
+    return icon;
   }
 
   /// 거리순 정렬된 목록에서 [maxCount]개를 균등 간격으로 추출.
@@ -1130,9 +1159,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final accent = isEv ? AppColors.evGreen : AppColors.gasBlue;
     final kindLabel = isEv ? '충전소' : '주유소';
 
+    // 호출처 가드는 있지만 build 중 _dismissSheet 호출되는 race 방어
+    final sheetCtrl = _sheetController;
+    if (sheetCtrl == null) return const SizedBox.shrink();
+
     return DraggableScrollableSheet(
       key: ValueKey('cluster_sheet_${stations.length}_${stations.hashCode}'),
-      controller: _sheetController!,
+      controller: sheetCtrl,
       initialChildSize: 0.55,
       minChildSize: 0.2,
       maxChildSize: 0.95,
@@ -1295,11 +1328,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   // 가격 행 1~4개 따라 높이가 달라지므로 보수적으로 넉넉하게 잡음
   static const double _gasHeroCardPx = 420.0;
   Widget _buildGasDetailSheet(GasStation s, bool isDark) {
+    final sheetCtrl = _sheetController;
+    if (sheetCtrl == null) return const SizedBox.shrink();
     final screenH = MediaQuery.of(context).size.height;
     final snap = (_gasHeroCardPx / screenH).clamp(0.38, 0.75);
     return DraggableScrollableSheet(
       key: ValueKey('gas_sheet_${s.id}'),
-      controller: _sheetController!,
+      controller: sheetCtrl,
       initialChildSize: snap,
       minChildSize: 0.2,
       maxChildSize: 0.95,
@@ -1327,11 +1362,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   // 폰 크기와 무관하게 "길 안내 시작" 버튼까지만 보이도록 동적 계산.
   static const double _evHeroCardPx = 360.0; // 드래그핸들+히어로+버튼 합산 픽셀
   Widget _buildEvDetailSheet(EvStation s, bool isDark) {
+    final sheetCtrl = _sheetController;
+    if (sheetCtrl == null) return const SizedBox.shrink();
     final screenH = MediaQuery.of(context).size.height;
     final snap = (_evHeroCardPx / screenH).clamp(0.35, 0.70);
     return DraggableScrollableSheet(
       key: ValueKey('ev_sheet_${s.statId}'),
-      controller: _sheetController!,
+      controller: sheetCtrl,
       initialChildSize: snap,
       minChildSize: 0.2,
       maxChildSize: 0.95,

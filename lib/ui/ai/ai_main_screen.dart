@@ -82,6 +82,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   // consumeSymbolTapEvents 가 _isSelectMode 에 따라 바뀌므로 그 값이 변할 때만 재생성.
   Widget? _cachedMap;
   bool? _cachedMapSelectMode;
+  bool? _cachedMapIsDark;
 
   // ── 피커 모드 (지도에서 위치 선택) ──
   bool _isPickerMode = false;
@@ -606,18 +607,23 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     });
   }
 
-  /// 배경 NaverMap — 한 번 생성 후 캐시. _isSelectMode 가 바뀔 때만 재생성.
-  Widget _buildMap() {
-    if (_cachedMapSelectMode != _isSelectMode) {
+  /// 배경 NaverMap — 한 번 생성 후 캐시. _isSelectMode / isDark 바뀔 때만 재생성.
+  Widget _buildMap(bool isDark) {
+    if (_cachedMapSelectMode != _isSelectMode || _cachedMapIsDark != isDark) {
       _cachedMap = null;
       _cachedMapSelectMode = _isSelectMode;
+      _cachedMapIsDark = isDark;
     }
     return _cachedMap ??= NaverMap(
       options: NaverMapViewOptions(
         mapType: NMapType.basic,
+        nightModeEnable: isDark,
         locationButtonEnable: false,
         consumeSymbolTapEvents: _isSelectMode,
+        tiltGesturesEnable: false,
       ),
+      // ignore: invalid_use_of_visible_for_testing_member
+      forceHybridComposition: true,
       onMapReady: _onMapReady,
       onCameraIdle: _onCameraIdle,
       onSymbolTapped: _onSymbolTapped,
@@ -3570,7 +3576,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       body: Stack(
         children: [
           // ── 배경 지도 (캐시된 NaverMap — 제스처 격리) ──
-          _buildMap(),
+          _buildMap(isDark),
 
           // ── 피커 모드: 가운데 핀 ──
           if (_isPickerMode)
