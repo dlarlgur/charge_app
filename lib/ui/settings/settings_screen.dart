@@ -517,7 +517,7 @@ class _AlertSettingTileState extends State<_AlertSettingTile> {
                       child: Switch(
                         value: _enabled,
                         onChanged: _toggleEnabled,
-                        activeColor: AppColors.gasBlue,
+                        activeThumbColor: AppColors.gasBlue,
                       ),
                     ),
             ],

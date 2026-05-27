@@ -267,7 +267,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _clearMarkers(); // 탭 즉시 기존 마커 제거
     final pos = await controller.getCameraPosition();
     final bounds = await controller.getContentBounds();
-    final radius = _boundsToRadius(bounds, pos.target);
+    // bounds 는 일부 환경에서 null 일 수 있어 (analyzer 가 non-null 추론해도
+    // 런타임엔 발생) — null 이면 zoom 기반 fallback
+    final radius = bounds != null
+        ? _boundsToRadius(bounds, pos.target)
+        : _zoomToRadius(pos.zoom);
     ref.read(mapCenterProvider.notifier).state = (lat: pos.target.latitude, lng: pos.target.longitude);
     ref.read(mapRadiusProvider.notifier).state = radius;
     if (_selectedStation != null) await _dismissSheet();

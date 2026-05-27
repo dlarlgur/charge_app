@@ -1749,7 +1749,7 @@ class _AlertSettingTileEmbedState extends State<_AlertSettingTileEmbed> {
                       child: Switch(
                         value: _enabled,
                         onChanged: _toggleEnabled,
-                        activeColor: AppColors.gasBlue,
+                        activeThumbColor: AppColors.gasBlue,
                       ),
                     ),
             ],
