@@ -24,6 +24,7 @@ import '../../data/services/location_service.dart';
 import '../../providers/providers.dart';
 import 'ai_onboarding_screen.dart';
 import 'widgets/ai_painters.dart';
+import 'widgets/big_metric.dart';
 import 'widgets/select_badge.dart';
 import 'ai_result_screen.dart';
 import 'ai_vehicle_list_screen.dart';
@@ -5850,14 +5851,14 @@ class _EvStationDetailSheetState extends State<_EvStationDetailSheet> {
                     child: IntrinsicHeight(
                       child: Row(
                         children: [
-                          Expanded(child: _BigMetric(
+                          Expanded(child: BigMetric(
                             value: '$availCount',
                             unit: '/$totalCount',
                             label: '이용가능',
                             color: availCount > 0 ? _kGreen : _kOrange,
                           )),
-                          const _MetricDivider(),
-                          Expanded(child: _BigMetric(
+                          const MetricDivider(),
+                          Expanded(child: BigMetric(
                             value: originDistM == null
                                 ? '-'
                                 : (originDistM >= 1000
@@ -5869,15 +5870,15 @@ class _EvStationDetailSheetState extends State<_EvStationDetailSheet> {
                             label: '거리',
                             color: isDark ? AppColors.darkTextPrimary : const Color(0xFF111827),
                           )),
-                          const _MetricDivider(),
-                          Expanded(child: _BigMetric(
+                          const MetricDivider(),
+                          Expanded(child: BigMetric(
                             value: etaLabel ?? '-',
                             unit: '',
                             label: '예상 소요',
                             color: accentColor,
                           )),
-                          const _MetricDivider(),
-                          Expanded(child: _BigMetric(
+                          const MetricDivider(),
+                          Expanded(child: BigMetric(
                             value: detourMin == null
                                 ? '-'
                                 : (detourMin == 0 ? '없음' : '+$detourMin'),
@@ -6119,75 +6120,6 @@ class _EvStationDetailSheetState extends State<_EvStationDetailSheet> {
 }
 
 // ─── 핵심 메트릭 셀 (이용가능 / 거리 / 도착 / 우회 4-cell 그리드) ───
-class _BigMetric extends StatelessWidget {
-  final String value;
-  final String unit;
-  final String label;
-  final Color color;
-  const _BigMetric({
-    required this.value,
-    required this.unit,
-    required this.label,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            Flexible(
-              child: Text(
-                value,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: color,
-                  letterSpacing: -0.5,
-                  height: 1,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            if (unit.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(left: 1),
-                child: Text(
-                  unit,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: color.withValues(alpha: 0.8),
-                  ),
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600),
-        ),
-      ],
-    );
-  }
-}
-
-class _MetricDivider extends StatelessWidget {
-  const _MetricDivider();
-  @override
-  Widget build(BuildContext context) =>
-      Container(width: 1, color: const Color(0xFFE5E7EB));
-}
-
 // ── 워치 제안 다이얼로그 ──────────────────────────────────────────────────────────
 class _WatchProposalDialog extends StatelessWidget {
   final int? etaMin;
