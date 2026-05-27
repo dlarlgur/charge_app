@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:geolocator/geolocator.dart';
 
 class LocationService {
@@ -61,7 +62,7 @@ class LocationService {
       );
       return _lastPosition;
     } catch (e) {
-      print('[Location] Error: $e');
+      debugPrint('[Location] Error: $e');
       return _lastPosition;
     }
   }

@@ -42,18 +42,25 @@ android {
         manifestPlaceholders["naverMapClientId"] = project.findProperty("NAVER_MAP_CLIENT_ID") ?: "x57z7zsj7i"
     }
 
-    signingConfigs {
-        create("release") {
-            keyAlias = keyProperties["keyAlias"] as String
-            keyPassword = keyProperties["keyPassword"] as String
-            storeFile = file(keyProperties["storeFile"] as String)
-            storePassword = keyProperties["storePassword"] as String
+    // key.properties 가 있을 때만 release 서명 구성. 없으면 release 도 debug 키로 fallback
+    // (CI/clean checkout 환경에서 빌드 깨짐 방지 — 캐스트 ClassCastException 회피).
+    if (keyPropertiesFile.exists()) {
+        signingConfigs {
+            create("release") {
+                keyAlias = keyProperties["keyAlias"] as String
+                keyPassword = keyProperties["keyPassword"] as String
+                storeFile = file(keyProperties["storeFile"] as String)
+                storePassword = keyProperties["storePassword"] as String
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = if (keyPropertiesFile.exists())
+                signingConfigs.getByName("release")
+            else
+                signingConfigs.getByName("debug")
         }
     }
 }

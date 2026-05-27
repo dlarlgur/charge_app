@@ -85,11 +85,15 @@ class ApiService {
       headers: {'Content-Type': 'application/json'},
     ));
 
-    _dio.interceptors.add(LogInterceptor(
-      requestBody: true,
-      responseBody: true,
-      logPrint: (obj) => print('[API] $obj'),
-    ));
+    // 디버그에서만 request/response body 로그 — 릴리즈에서 위치/FCM 토큰/AI 응답 등
+    // 민감 데이터가 logcat 으로 새지 않도록 차단.
+    if (kDebugMode) {
+      _dio.interceptors.add(LogInterceptor(
+        requestBody: true,
+        responseBody: true,
+        logPrint: (obj) => debugPrint('[API] $obj'),
+      ));
+    }
   }
 
   // ─── 주유소 ───
