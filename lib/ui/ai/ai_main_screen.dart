@@ -24,6 +24,7 @@ import '../../data/services/location_service.dart';
 import '../../providers/providers.dart';
 import 'ai_onboarding_screen.dart';
 import 'widgets/ai_painters.dart';
+import 'widgets/select_badge.dart';
 import 'ai_result_screen.dart';
 import 'ai_vehicle_list_screen.dart';
 import 'ai_vehicle_setup_screen.dart';
@@ -4350,10 +4351,10 @@ class _StationSelectInlineSheetState extends State<_StationSelectInlineSheet> {
                       padding: const EdgeInsets.fromLTRB(18, 0, 18, 8),
                       child: Row(
                         children: [
-                          _SelectBadge(label: selectedAId != null ? 'A 선택됨' : 'A 미선택',
+                          SelectBadge(label: selectedAId != null ? 'A 선택됨' : 'A 미선택',
                               color: const Color(0xFFE8700A), filled: selectedAId != null),
                           const SizedBox(width: 6),
-                          _SelectBadge(label: selectedBId != null ? 'B 선택됨' : 'B 미선택',
+                          SelectBadge(label: selectedBId != null ? 'B 선택됨' : 'B 미선택',
                               color: _kCompareBlue, filled: selectedBId != null),
                           const Spacer(),
                           Text('지도에서도 선택 가능',
@@ -4514,27 +4515,6 @@ class _StationSelectInlineSheetState extends State<_StationSelectInlineSheet> {
           },
         ),
       ),
-    );
-  }
-}
-
-class _SelectBadge extends StatelessWidget {
-  final String label;
-  final Color color;
-  final bool filled;
-  const _SelectBadge({required this.label, required this.color, required this.filled});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: filled ? color.withValues(alpha: 0.12) : Colors.grey[100],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: filled ? color.withValues(alpha: 0.5) : Colors.grey[300]!),
-      ),
-      child: Text(label,
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: filled ? color : Colors.grey[500])),
     );
   }
 }
