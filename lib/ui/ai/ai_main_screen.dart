@@ -23,6 +23,7 @@ import '../../data/services/watch_service.dart';
 import '../../data/services/location_service.dart';
 import '../../providers/providers.dart';
 import 'ai_onboarding_screen.dart';
+import 'widgets/ai_painters.dart';
 import 'ai_result_screen.dart';
 import 'ai_vehicle_list_screen.dart';
 import 'ai_vehicle_setup_screen.dart';
@@ -1210,7 +1211,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           ),
           CustomPaint(
             size: const Size(10, triH),
-            painter: _DownTrianglePainter(color),
+            painter: DownTrianglePainter(color),
           ),
         ],
       ),
@@ -1326,7 +1327,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   /// patternImage 생성 — NPathOverlay 가 경로 방향 자동 회전
   Future<NOverlayImage> _buildPatternImage() => NOverlayImage.fromWidget(
         widget: CustomPaint(
-          painter: _RouteArrowPainter(),
+          painter: RouteArrowPainter(),
           size: const Size(10, 14),
         ),
         size: const Size(10, 14),
@@ -5427,7 +5428,7 @@ class _GaugeRing extends StatelessWidget {
         children: [
           CustomPaint(
             size: const Size(size, size),
-            painter: _GaugeRingPainter(
+            painter: GaugeRingPainter(
               percent: percent.clamp(0, 100) / 100,
               color: color, colorDeep: colorDeep,
               bgColor: isEv ? _kEvAccentLight : _kFuelAccentLight,
@@ -5475,43 +5476,6 @@ class _GaugeRing extends StatelessWidget {
       ),
     );
   }
-}
-
-class _GaugeRingPainter extends CustomPainter {
-  final double percent;
-  final Color color;
-  final Color colorDeep;
-  final Color bgColor;
-  _GaugeRingPainter({required this.percent, required this.color, required this.colorDeep, required this.bgColor});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const stroke = 12.0;
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.width - stroke) / 2;
-    // 배경 원
-    canvas.drawCircle(
-      center, radius,
-      Paint()..color = bgColor..style = PaintingStyle.stroke..strokeWidth = stroke,
-    );
-    // 진행 호 (12시부터 시계방향)
-    if (percent > 0) {
-      final rect = Rect.fromCircle(center: center, radius: radius);
-      final paint = Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topLeft, end: Alignment.bottomRight,
-          colors: [color, colorDeep],
-        ).createShader(rect)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = stroke
-        ..strokeCap = StrokeCap.round;
-      canvas.drawArc(rect, -1.5708, percent * 2 * 3.14159, false, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _GaugeRingPainter old) =>
-      old.percent != percent || old.color != color || old.bgColor != bgColor;
 }
 
 // ─── 잔량/목표 편집 바텀 시트 ──────────────────────────────────────────────────
@@ -5766,25 +5730,6 @@ class _LevelEditSheetState extends State<_LevelEditSheet> {
 }
 
 // ── 아래 꼬리 삼각형 페인터 ──────────────────────────────────────────────────
-class _DownTrianglePainter extends CustomPainter {
-  final Color color;
-  const _DownTrianglePainter(this.color);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = color;
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width / 2, size.height)
-      ..close();
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(_DownTrianglePainter old) => old.color != color;
-}
-
 // ─── EV 사용자 선택 모드 — 충전소 상세 바텀시트 ────────────────────────────────
 class _EvStationDetailSheet extends StatefulWidget {
   final Map<String, dynamic> station;
@@ -6353,24 +6298,3 @@ class _WatchProposalDialog extends StatelessWidget {
 }
 
 /// 경로 화살표 — 네이버 스타일 얇은 chevron (위쪽 기본, angle 으로 방향 회전)
-class _RouteArrowPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.0
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    final w = size.width;
-    final h = size.height;
-    final path = Path()
-      ..moveTo(w * 0.1, h * 0.8)  // 왼쪽 하단
-      ..lineTo(w * 0.5, h * 0.15) // 꼭대기 중앙
-      ..lineTo(w * 0.9, h * 0.8); // 오른쪽 하단
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(_RouteArrowPainter oldDelegate) => false;
-}
