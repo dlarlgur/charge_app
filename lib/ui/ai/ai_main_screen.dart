@@ -35,35 +35,8 @@ import 'ev_result_screen.dart';
 import '../widgets/gas_station_map_badge.dart';
 import '../widgets/watch_switch_dialog.dart';
 import '../detail/ev_detail_screen.dart';
+import 'ai_constants.dart';
 
-const _kPrimary = Color(0xFF1D9E75);
-const _kPrimaryLight = Color(0xFFE1F5EE);
-const _kDanger = Color(0xFFE24B4A);
-
-// 사용자 선택 모드(A/B) 색상
-const _kCompareBlue = Color(0xFF1D6FE0);
-
-// ─── 모드별 액센트 컬러 ───
-// 앱 전체 컨벤션과 통일: AppColors.gasBlue (주유) / AppColors.evGreen (충전)
-// (값은 compile-time const 유지 위해 같은 RGB 그대로 복사)
-const _kFuelAccent = Color(0xFF3B82F6);      // = AppColors.gasBlue
-const _kFuelAccentLight = Color(0xFFEFF6FF);
-const _kEvAccent = Color(0xFF10B981);        // = AppColors.evGreen
-const _kEvAccentLight = Color(0xFFECFDF5);
-// ai_reco_main.html 그라데이션 — primary gradient end (toggle/CTA 진한 톤)
-const _kFuelAccentDeep = Color(0xFF2563EB);
-const _kEvAccentDeep = Color(0xFF059669);
-Color _modeAccentDeep(bool isEv) => isEv ? _kEvAccentDeep : _kFuelAccentDeep;
-// ai_reco_main.html 디자인 토큰 — ink/muted/line/bg 통일
-const _kInk = Color(0xFF0F172A);
-const _kInk2 = Color(0xFF334155);
-const _kMuted = Color(0xFF64748B);
-const _kMute2 = Color(0xFF94A3B8);
-const _kLine = Color(0xFFE2E8F0);
-const _kLineSoft = Color(0xFFF1F5F9);
-
-Color _modeAccent(bool isEv) => isEv ? _kEvAccent : _kFuelAccent;
-Color _modeAccentLight(bool isEv) => isEv ? _kEvAccentLight : _kFuelAccentLight;
 
 class AiMainScreen extends ConsumerStatefulWidget {
   const AiMainScreen({super.key});
@@ -1233,7 +1206,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       case 1: return const Color(0xFFFFD75A).withValues(alpha: 0.78); // 서행 (연노랑)
       case 2: return const Color(0xFFFFB25A).withValues(alpha: 0.78); // 지체 (연주황)
       case 3: return const Color(0xFFF27573).withValues(alpha: 0.78); // 정체 (연빨강)
-      default: return _kPrimary.withValues(alpha: 0.78);              // 미확인 (앱 기본색)
+      default: return kPrimary.withValues(alpha: 0.78);              // 미확인 (앱 기본색)
     }
   }
 
@@ -2559,7 +2532,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         width: 44, height: 44,
         decoration: BoxDecoration(
           color: (_isLocating || _isAtMyLocation)
-              ? _kPrimary
+              ? kPrimary
               : (isDark ? AppColors.darkCard : Colors.white),
           shape: BoxShape.circle,
           border: isDark && !(_isLocating || _isAtMyLocation)
@@ -2884,8 +2857,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           emphasize = true;
         } else if (isB) {
           label = price != null ? 'B ${_wonFmt.format(price)}원' : 'B';
-          borderColor = _kCompareBlue;
-          textColor = _kCompareBlue;
+          borderColor = kCompareBlue;
+          textColor = kCompareBlue;
           emphasize = true;
         } else if (isCheapest) {
           label = price != null ? '최저가 ${_wonFmt.format(price)}원' : '최저가';
@@ -3474,7 +3447,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.location_pin, size: 52, color: _pickingOrigin ? _kPrimary : _kDanger),
+                    Icon(Icons.location_pin, size: 52, color: _pickingOrigin ? kPrimary : kDanger),
                     const SizedBox(height: 28),
                   ],
                 ),
@@ -3500,7 +3473,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                       children: [
                         Icon(
                           Icons.edit_location_alt_rounded,
-                          color: _pickingOrigin ? _kPrimary : _kDanger,
+                          color: _pickingOrigin ? kPrimary : kDanger,
                           size: 20,
                         ),
                         const SizedBox(width: 10),
@@ -3541,7 +3514,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                         Row(
                           children: [
                             Icon(Icons.location_on_rounded,
-                                color: _pickingOrigin ? _kPrimary : _kDanger, size: 18),
+                                color: _pickingOrigin ? kPrimary : kDanger, size: 18),
                             const SizedBox(width: 8),
                             Expanded(
                               child: _isReverseGeocoding
@@ -3582,7 +3555,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                 onPressed: (_pickerLatLng != null && !_isReverseGeocoding)
                                     ? _confirmMapPick : null,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: _pickingOrigin ? _kPrimary : _kDanger,
+                                  backgroundColor: _pickingOrigin ? kPrimary : kDanger,
                                   foregroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                   elevation: 0,
@@ -3637,7 +3610,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                       icon: Icons.local_gas_station_rounded,
                                       label: 'AI 주유 분석',
                                       active: !isEvVehicle,
-                                      accent: _kFuelAccent,
+                                      accent: kFuelAccent,
                                       onTap: () => _switchModeTo(ev: false),
                                     ),
                                   ),
@@ -3646,7 +3619,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                       icon: Icons.bolt_rounded,
                                       label: 'AI 충전 분석',
                                       active: isEvVehicle,
-                                      accent: _kEvAccent,
+                                      accent: kEvAccent,
                                       onTap: () => _switchModeTo(ev: true),
                                     ),
                                   ),
@@ -3727,15 +3700,15 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           decoration: BoxDecoration(
                             color: const Color(0xFFFFF0F0),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: _kDanger.withValues(alpha: 0.3)),
+                            border: Border.all(color: kDanger.withValues(alpha: 0.3)),
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.error_outline_rounded, color: _kDanger, size: 16),
+                              const Icon(Icons.error_outline_rounded, color: kDanger, size: 16),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(_errorMessage!,
-                                    style: const TextStyle(fontSize: 12, color: _kDanger)),
+                                    style: const TextStyle(fontSize: 12, color: kDanger)),
                               ),
                             ],
                           ),
@@ -3805,14 +3778,14 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                   gradient: LinearGradient(
                                     begin: Alignment.topLeft, end: Alignment.bottomRight,
                                     colors: [
-                                      _modeAccentDeep(isEvVehicle),
-                                      _modeAccent(isEvVehicle),
+                                      modeAccentDeep(isEvVehicle),
+                                      modeAccent(isEvVehicle),
                                     ],
                                   ),
                                   borderRadius: BorderRadius.circular(16),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: _modeAccent(isEvVehicle).withValues(alpha: 0.30),
+                                      color: modeAccent(isEvVehicle).withValues(alpha: 0.30),
                                       blurRadius: 18, offset: const Offset(0, 8),
                                     ),
                                   ],
@@ -3851,23 +3824,23 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: _kLine, width: 1.5),
+                                  border: Border.all(color: kLine, width: 1.5),
                                 ),
                                 alignment: Alignment.center,
                                 child: _userSelecting
                                     ? SizedBox(width: 22, height: 22,
                                         child: CircularProgressIndicator(strokeWidth: 2.5,
-                                            color: _modeAccent(isEvVehicle)))
+                                            color: modeAccent(isEvVehicle)))
                                     : Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          const Icon(Icons.format_list_bulleted_rounded, size: 16, color: _kInk),
+                                          const Icon(Icons.format_list_bulleted_rounded, size: 16, color: kInk),
                                           const SizedBox(width: 6),
                                           const Text(
                                             '직접 선택',
                                             style: TextStyle(
                                               fontSize: 14, fontWeight: FontWeight.w800,
-                                              color: _kInk, letterSpacing: -0.3,
+                                              color: kInk, letterSpacing: -0.3,
                                             ),
                                           ),
                                         ],
@@ -4044,7 +4017,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                   width: 44, height: 44,
                   decoration: BoxDecoration(
                     color: (_isLocating || _isAtMyLocation)
-                        ? _kPrimary
+                        ? kPrimary
                         : (isDark ? AppColors.darkCard : Colors.white),
                     shape: BoxShape.circle,
                     border: isDark && !(_isLocating || _isAtMyLocation)
@@ -4143,7 +4116,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             height: 18,
                             child: CircularProgressIndicator(
                               strokeWidth: 2.2,
-                              color: _modeAccent(_aiAnalysisType == 'ev'),
+                              color: modeAccent(_aiAnalysisType == 'ev'),
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -4192,7 +4165,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             height: 18,
                             child: CircularProgressIndicator(
                               strokeWidth: 2.2,
-                              color: _kCompareBlue,
+                              color: kCompareBlue,
                             ),
                           ),
                           SizedBox(width: 10),
@@ -4322,7 +4295,7 @@ class _StationSelectInlineSheetState extends State<_StationSelectInlineSheet> {
                     padding: const EdgeInsets.fromLTRB(18, 6, 12, 8),
                     child: Row(
                       children: [
-                        const Icon(Icons.local_gas_station_rounded, size: 18, color: _kCompareBlue),
+                        const Icon(Icons.local_gas_station_rounded, size: 18, color: kCompareBlue),
                         const SizedBox(width: 8),
                         Text('주유소 선택',
                             style: TextStyle(
@@ -4358,7 +4331,7 @@ class _StationSelectInlineSheetState extends State<_StationSelectInlineSheet> {
                               color: const Color(0xFFE8700A), filled: selectedAId != null),
                           const SizedBox(width: 6),
                           SelectBadge(label: selectedBId != null ? 'B 선택됨' : 'B 미선택',
-                              color: _kCompareBlue, filled: selectedBId != null),
+                              color: kCompareBlue, filled: selectedBId != null),
                           const Spacer(),
                           Text('지도에서도 선택 가능',
                               style: TextStyle(fontSize: 11, color: Colors.grey[500])),
@@ -4401,7 +4374,7 @@ class _StationSelectInlineSheetState extends State<_StationSelectInlineSheet> {
 
                   final badgeColor = isA
                       ? const Color(0xFFE8700A)
-                      : (isB ? _kCompareBlue : const Color(0xFF9E9E9E));
+                      : (isB ? kCompareBlue : const Color(0xFF9E9E9E));
 
                   return InkWell(
                     onTap: () => widget.onStationTap(stId),
@@ -4448,7 +4421,7 @@ class _StationSelectInlineSheetState extends State<_StationSelectInlineSheet> {
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                                         decoration: BoxDecoration(
-                                          color: _kCompareBlue,
+                                          color: kCompareBlue,
                                           borderRadius: BorderRadius.circular(4),
                                         ),
                                         child: const Text('최저가',
@@ -4471,7 +4444,7 @@ class _StationSelectInlineSheetState extends State<_StationSelectInlineSheet> {
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: isCheapest ? FontWeight.w700 : FontWeight.w500,
-                                color: isCheapest ? _kCompareBlue : const Color(0xFFAAAAAA),
+                                color: isCheapest ? kCompareBlue : const Color(0xFFAAAAAA),
                               ),
                             ),
                         ],
@@ -4494,9 +4467,9 @@ class _StationSelectInlineSheetState extends State<_StationSelectInlineSheet> {
                     child: ElevatedButton(
                       onPressed: bothSelected && !widget.isComparing ? widget.onCompare : null,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _kCompareBlue,
+                        backgroundColor: kCompareBlue,
                         foregroundColor: Colors.white,
-                        disabledBackgroundColor: _kCompareBlue.withValues(alpha: 0.4),
+                        disabledBackgroundColor: kCompareBlue.withValues(alpha: 0.4),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         elevation: 0,
                       ),
@@ -4584,13 +4557,13 @@ class _RouteCard extends StatelessWidget {
                 width: 10, height: 10,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: _kPrimary, width: 2.5),
+                  border: Border.all(color: kPrimary, width: 2.5),
                 ),
               ),
               Container(width: 2, height: 25, color: dotLineColor),
               Container(
                   width: 10, height: 10,
-                  decoration: const BoxDecoration(shape: BoxShape.circle, color: _kDanger)),
+                  decoration: const BoxDecoration(shape: BoxShape.circle, color: kDanger)),
               const SizedBox(height: 12),  // 34/2 - 10/2
             ],
           ),
@@ -4857,7 +4830,7 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
                           : (_localCurrentAddress != null
                               ? '내위치 · $_localCurrentAddress'
                               : '내위치'),
-                      color: _kPrimary,
+                      color: kPrimary,
                       onTap: _onMyLocationChipTap,
                     ),
                   ),
@@ -4878,7 +4851,7 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
             Expanded(
               child: _isLoading
                   ? const Center(
-                      child: CircularProgressIndicator(color: _kPrimary, strokeWidth: 2))
+                      child: CircularProgressIndicator(color: kPrimary, strokeWidth: 2))
                   : _searchController.text.isEmpty && !_myLocationSelected
                       ? (widget.searchHistoryItems.isEmpty
                           ? const Center(
@@ -4926,16 +4899,16 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
                                     leading: Container(
                                       width: 36, height: 36,
                                       decoration: BoxDecoration(
-                                        color: _kPrimaryLight,
+                                        color: kPrimaryLight,
                                         borderRadius: BorderRadius.circular(10),
                                       ),
                                       child: const Icon(Icons.my_location_rounded,
-                                          color: _kPrimary, size: 18),
+                                          color: kPrimary, size: 18),
                                     ),
                                     title: const Text('현재 위치 사용',
                                         style: TextStyle(fontSize: 14,
                                             fontWeight: FontWeight.w600,
-                                            color: _kPrimary)),
+                                            color: kPrimary)),
                                     subtitle: widget.currentLocationAddress != null
                                         ? Text(widget.currentLocationAddress!,
                                             style: const TextStyle(
@@ -4965,7 +4938,7 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
                                     child: Row(
                                       crossAxisAlignment: CrossAxisAlignment.center,
                                       children: [
-                                        const Icon(Icons.place_outlined, color: _kPrimary, size: 20),
+                                        const Icon(Icons.place_outlined, color: kPrimary, size: 20),
                                         const SizedBox(width: 12),
                                         Expanded(
                                           child: Column(
@@ -5040,10 +5013,10 @@ class _ModeSegment extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     // ai_reco_main.html mode-toggle 양식 — 활성은 액센트 → deep 그라데이션, 비활성은 투명/회색.
-    final accentDeep = accent == _kEvAccent ? _kEvAccentDeep
-                     : accent == _kFuelAccent ? _kFuelAccentDeep
+    final accentDeep = accent == kEvAccent ? kEvAccentDeep
+                     : accent == kFuelAccent ? kFuelAccentDeep
                      : accent;
-    final inactiveColor = isDark ? AppColors.darkTextSecondary : _kMuted;
+    final inactiveColor = isDark ? AppColors.darkTextSecondary : kMuted;
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -5136,8 +5109,8 @@ class _HeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final accent = _modeAccent(isEv);
-    final accentDeep = _modeAccentDeep(isEv);
+    final accent = modeAccent(isEv);
+    final accentDeep = modeAccentDeep(isEv);
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
       decoration: BoxDecoration(
@@ -5186,7 +5159,7 @@ class _HeroCard extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 18, fontWeight: FontWeight.w800,
                                 letterSpacing: -0.4,
-                                color: isDark ? AppColors.darkTextPrimary : _kInk,
+                                color: isDark ? AppColors.darkTextPrimary : kInk,
                               ),
                               maxLines: 1, overflow: TextOverflow.ellipsis,
                             ),
@@ -5196,11 +5169,11 @@ class _HeroCard extends StatelessWidget {
                             child: Container(
                               width: 28, height: 28,
                               decoration: BoxDecoration(
-                                color: _kLineSoft,
+                                color: kLineSoft,
                                 borderRadius: BorderRadius.circular(7),
                               ),
                               alignment: Alignment.center,
-                              child: const Icon(Icons.edit_outlined, size: 14, color: _kMute2),
+                              child: const Icon(Icons.edit_outlined, size: 14, color: kMute2),
                             ),
                           ),
                         ],
@@ -5208,7 +5181,7 @@ class _HeroCard extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(
                         isEv ? '현재 배터리 · 잔량 편집' : '현재 잔유량 · 잔량 편집',
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _kMuted),
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kMuted),
                       ),
                       const SizedBox(height: 10),
                       Row(
@@ -5236,16 +5209,16 @@ class _HeroCard extends StatelessWidget {
           ),
           // 2) divider
           Container(
-            height: 1, color: _kLineSoft,
+            height: 1, color: kLineSoft,
             margin: const EdgeInsets.fromLTRB(0, 16, 0, 14),
           ),
           // 3) 선호 조건 타이틀 + chip
           Row(
             children: [
-              Icon(Icons.tune_rounded, size: 13, color: _kMuted),
+              Icon(Icons.tune_rounded, size: 13, color: kMuted),
               const SizedBox(width: 6),
               Text(isEv ? '충전 선호 조건' : '주유 선호 조건',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _kMuted)),
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
             ],
           ),
           const SizedBox(height: 10),
@@ -5257,7 +5230,7 @@ class _HeroCard extends StatelessWidget {
                 label: '고속도로',
                 active: highwayOnly,
                 accent: accent,
-                accentLight: _modeAccentLight(isEv),
+                accentLight: modeAccentLight(isEv),
                 onTap: onToggleHighway,
               ),
               if (isEv) ...[
@@ -5266,7 +5239,7 @@ class _HeroCard extends StatelessWidget {
                   label: '급속',
                   active: chargerMode == 'FAST',
                   accent: accent,
-                  accentLight: _modeAccentLight(isEv),
+                  accentLight: modeAccentLight(isEv),
                   onTap: () => onChangeChargerMode?.call('FAST'),
                 ),
                 _prefChip(
@@ -5274,7 +5247,7 @@ class _HeroCard extends StatelessWidget {
                   label: '완속',
                   active: chargerMode == 'SLOW',
                   accent: accent,
-                  accentLight: _modeAccentLight(isEv),
+                  accentLight: modeAccentLight(isEv),
                   onTap: () => onChangeChargerMode?.call('SLOW'),
                 ),
               ],
@@ -5289,7 +5262,7 @@ class _HeroCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: _kLineSoft,
+        color: kLineSoft,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
@@ -5297,12 +5270,12 @@ class _HeroCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(label,
-              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: _kMuted)),
+              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: kMuted)),
           const SizedBox(height: 2),
           Text(value,
               style: const TextStyle(
                 fontSize: 13, fontWeight: FontWeight.w800,
-                color: _kInk, letterSpacing: -0.2,
+                color: kInk, letterSpacing: -0.2,
               ),
               maxLines: 1, overflow: TextOverflow.ellipsis),
         ],
@@ -5321,7 +5294,7 @@ class _HeroCard extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
         decoration: BoxDecoration(
-          color: active ? accentLight : _kLineSoft,
+          color: active ? accentLight : kLineSoft,
           borderRadius: BorderRadius.circular(99),
           border: Border.all(
             color: active ? accent.withValues(alpha: 0.22) : Colors.transparent,
@@ -5331,12 +5304,12 @@ class _HeroCard extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 13, color: active ? accent : _kInk2),
+            Icon(icon, size: 13, color: active ? accent : kInk2),
             const SizedBox(width: 5),
             Text(label,
                 style: TextStyle(
                   fontSize: 12.5, fontWeight: FontWeight.w700,
-                  color: active ? accent : _kInk2, letterSpacing: -0.1,
+                  color: active ? accent : kInk2, letterSpacing: -0.1,
                 )),
           ],
         ),
@@ -5370,7 +5343,7 @@ class _GaugeRing extends StatelessWidget {
             painter: GaugeRingPainter(
               percent: percent.clamp(0, 100) / 100,
               color: color, colorDeep: colorDeep,
-              bgColor: isEv ? _kEvAccentLight : _kFuelAccentLight,
+              bgColor: isEv ? kEvAccentLight : kFuelAccentLight,
             ),
           ),
           Column(
@@ -5389,7 +5362,7 @@ class _GaugeRing extends StatelessWidget {
                     text: '%',
                     style: TextStyle(
                       fontSize: 14, fontWeight: FontWeight.w700,
-                      color: _kMuted, height: 1,
+                      color: kMuted, height: 1,
                     ),
                   ),
                 ]),
@@ -5399,12 +5372,12 @@ class _GaugeRing extends StatelessWidget {
                 text: TextSpan(children: [
                   const TextSpan(
                     text: '≈ ',
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: _kMuted),
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: kMuted),
                   ),
                   TextSpan(
                     text: '${reachableKm.round()} km',
                     style: const TextStyle(
-                      fontSize: 11, fontWeight: FontWeight.w800, color: _kInk2,
+                      fontSize: 11, fontWeight: FontWeight.w800, color: kInk2,
                     ),
                   ),
                 ]),
@@ -5520,19 +5493,19 @@ class _LevelEditSheetState extends State<_LevelEditSheet> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: _useDte ? _kPrimary.withValues(alpha: 0.1) : const Color(0xFFF5F5F5),
+                        color: _useDte ? kPrimary.withValues(alpha: 0.1) : const Color(0xFFF5F5F5),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: _useDte ? _kPrimary : const Color(0xFFDDDDDD)),
+                        border: Border.all(color: _useDte ? kPrimary : const Color(0xFFDDDDDD)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.speed_rounded, size: 13,
-                              color: _useDte ? _kPrimary : const Color(0xFF888888)),
+                              color: _useDte ? kPrimary : const Color(0xFF888888)),
                           const SizedBox(width: 4),
                           Text('주행가능거리 입력',
                               style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
-                                  color: _useDte ? _kPrimary : const Color(0xFF888888))),
+                                  color: _useDte ? kPrimary : const Color(0xFF888888))),
                         ],
                       ),
                     ),
@@ -5606,7 +5579,7 @@ class _LevelEditSheetState extends State<_LevelEditSheet> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
-                          color: _mode == entry.$1 ? _kPrimary : const Color(0xFFF5F5F5),
+                          color: _mode == entry.$1 ? kPrimary : const Color(0xFFF5F5F5),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(entry.$2,
@@ -5652,7 +5625,7 @@ class _LevelEditSheetState extends State<_LevelEditSheet> {
                 child: ElevatedButton(
                   onPressed: () => widget.onSave(_level, _mode),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _kPrimary,
+                    backgroundColor: kPrimary,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
