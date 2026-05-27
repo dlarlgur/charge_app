@@ -279,6 +279,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   // ─── 검색 ───
+  // AI 탭과 동일한 lat/lng 결정 로직 — center 없으면 GPS fallback. 두 화면이
+  // 같은 검색어에 동일 결과 반환하도록 보장.
   Future<void> _performSearch(String query) async {
     if (query.trim().isEmpty) {
       setState(() => _searchResults = []);
@@ -287,11 +289,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     setState(() => _isSearchLoading = true);
     try {
       final center = ref.read(mapCenterProvider);
-      final results = await ApiService().searchPlaces(
-        query.trim(),
-        lat: center?.lat,
-        lng: center?.lng,
-      );
+      final loc = center == null ? await ref.read(locationProvider.future) : null;
+      final lat = center?.lat ?? loc?.lat;
+      final lng = center?.lng ?? loc?.lng;
+      final results = await ApiService().searchPlaces(query.trim(), lat: lat, lng: lng);
       if (mounted) setState(() { _searchResults = results; _isSearchLoading = false; });
     } catch (_) {
       if (mounted) setState(() { _searchResults = []; _isSearchLoading = false; });
