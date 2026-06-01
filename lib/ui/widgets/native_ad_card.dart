@@ -35,7 +35,10 @@ class _AdMobNativeCardState extends State<AdMobNativeCard> {
   bool _loaded = false;
   bool _failed = false;
 
-  double get _height => widget.isEv ? 80 : 64; // EV 카드와 동일 / Gas 카드와 동일
+  // EV/Gas 카드와 비슷한 높이지만 native ad XML (icon 44dp + paddingTop/Bottom 13dp
+  // = ~70dp + headline/body/CTA) 내용을 다 담으려면 좀 더 큰 높이 필요. 이전 80/64 는
+  // 하단 CTA/body 잘림. EV 96, Gas 80 으로 상향.
+  double get _height => widget.isEv ? 96 : 80;
 
   @override
   void didChangeDependencies() {
@@ -100,7 +103,8 @@ class HouseAdCard extends StatefulWidget {
 
 class _HouseAdCardState extends State<HouseAdCard> {
   bool _impressionReported = false;
-  double get _height => widget.isEv ? 80 : 64;
+  // native ad card 와 동일 — 컨텐츠 잘림 방지 위해 80/96 으로 상향.
+  double get _height => widget.isEv ? 96 : 80;
 
   @override
   void initState() {
