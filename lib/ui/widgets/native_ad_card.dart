@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -202,10 +203,10 @@ class _StructuredAdContent extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
             ),
             clipBehavior: Clip.antiAlias,
-            child: Image.network(
-              DkswCore.resolveAssetUrl(ad.imageUrl),
+            child: CachedNetworkImage(
+              imageUrl: DkswCore.resolveAssetUrl(ad.imageUrl),
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Icon(Icons.image_outlined,
+              errorWidget: (_, __, ___) => Icon(Icons.image_outlined,
                   size: iconSize * 0.45, color: AppColors.gasBlue),
             ),
           ),
@@ -304,10 +305,10 @@ class _BannerAdContent extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        Image.network(
-          DkswCore.resolveAssetUrl(ad.imageUrl),
+        CachedNetworkImage(
+          imageUrl: DkswCore.resolveAssetUrl(ad.imageUrl),
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          errorWidget: (_, __, ___) => const SizedBox.shrink(),
         ),
         Positioned(
           top: 6,
