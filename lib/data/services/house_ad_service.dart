@@ -230,7 +230,8 @@ class HouseAdCache {
 class AdSlotResolver {
   AdSlotResolver._();
 
-  static const Set<int> admobSlots = {4, 8};
+  // 4 간격 8개 자리 — list_banner1~8 unit ID 와 매핑됨 (ad_service.dart 참조)
+  static const Set<int> admobSlots = {4, 8, 12, 16, 20, 24, 28, 32};
 
   /// 슬롯이 광고 위치인지 (AdMob 또는 house ad).
   /// 광고 자체가 없으면 false 라서 일반 station 으로 채워짐.
@@ -259,7 +260,7 @@ class AdSlotResolver {
 
   /// 화면에 등장할 가장 먼 광고 슬롯 (스크롤 끝까지 그릴 필요 X 한정용).
   static int get maxAdSlot {
-    int m = 8; // AdMob 기본 두 자리
+    int m = 32; // AdMob 기본 8자리 (4,8,12,16,20,24,28,32)
     for (final a in HouseAdCache.ads) {
       if (a.listPosition > m) m = a.listPosition;
     }

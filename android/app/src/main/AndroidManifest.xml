@@ -134,11 +134,10 @@
             android:name="com.google.android.gms.car.application"
             android:resource="@xml/automotive_app_desc" />
 
-        <!-- AdMob App ID — TODO: 본인 AdMob App ID 로 교체 (ca-app-pub-XXXX~YYYY 형식) -->
-        <!-- 현재 값은 Google 공식 테스트 App ID. 실서비스 전 반드시 교체. -->
+        <!-- AdMob App ID (charge — 기름반 전기반) -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713" />
+            android:value="ca-app-pub-8640148276009977~8762972754" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
