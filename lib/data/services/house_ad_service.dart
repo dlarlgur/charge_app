@@ -148,7 +148,9 @@ class HouseAdCache {
   static Future<void> fetch({String? serverBaseUrl}) async {
     try {
       final base = serverBaseUrl ?? 'https://dksw4.com/console';
-      final res = await Dio().get(
+      // JSON 응답 파싱을 isolate 로 — main thread block 방지
+      final fetchDio = Dio()..transformer = BackgroundTransformer();
+      final res = await fetchDio.get(
         '$base/api/house-ads',
         queryParameters: {'package': AppConstants.packageName},
         options: Options(receiveTimeout: const Duration(seconds: 5)),

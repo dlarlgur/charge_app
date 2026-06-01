@@ -31,7 +31,7 @@ class AlertService {
     baseUrl: ApiConstants.baseUrl,
     connectTimeout: const Duration(seconds: 10),
     receiveTimeout: const Duration(seconds: 10),
-  ));
+  ))..transformer = BackgroundTransformer();
 
   String get deviceId {
     final box = Hive.box(_boxKey);

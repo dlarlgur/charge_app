@@ -53,7 +53,7 @@ class WatchService {
     baseUrl: ApiConstants.baseUrl,
     connectTimeout: const Duration(seconds: 10),
     receiveTimeout: const Duration(seconds: 10),
-  ));
+  ))..transformer = BackgroundTransformer();
 
   // 현재 세션 (메모리)
   WatchSession? _session;
