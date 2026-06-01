@@ -187,6 +187,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _markersGeneration++;
     _markerRefs.clear();
     _mapController?.clearOverlays(type: NOverlayType.marker);
+    // 필터 변경 등으로 마커가 전부 폐기될 때 — 다음 표시 셋과 키가 거의 안 겹치므로
+    // 배지 아이콘 캐시도 같이 비워 메모리 회수. 첫 진입에만 재 raster 비용 있음.
+    _badgeIconCache.clear();
+    _badgeIconLru.clear();
   }
 
   void _setShowGas(bool value) {
@@ -486,7 +490,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       body: Stack(
         children: [
           // ─── 네이버 지도 ───
-          _cachedMap!,
+          // RepaintBoundary 로 지도 레이어 격리 — 시트 열고 닫기 등 다른 UI 변화 시
+          // 지도까지 같이 repaint 안 되도록. 마커 update 도 별도 cached layer.
+          RepaintBoundary(child: _cachedMap!),
 
           // ─── 상단 오버레이 ───
           Positioned(
