@@ -11,8 +11,11 @@ import 'ad_service.dart';
 ///  - 첫 광고 표시까지 RTT 한 번 절약 (~200~500ms).
 ///  - 이미 데이터 자체는 SDK 캐시에 있어 두 번째 요청부터는 거의 즉답.
 ///
-/// 8자리 모두 워밍업 하면 API 호출 부담이 커서 화면에 가장 먼저 등장하는
-/// 앞 2자리 (position 4, 8) 만 사전 로드.
+/// 8자리 모두 워밍업 하지만 burst 부담 줄이려고 시간차로:
+///  - 4, 8  : 즉시 (첫 화면 노출용)
+///  - 12, 16: +3초
+///  - 20, 24: +6초
+///  - 28, 32: +10초
 class AdMobWarmup {
   AdMobWarmup._();
 
@@ -21,8 +24,24 @@ class AdMobWarmup {
   static Future<void> run() async {
     if (_done) return;
     _done = true;
+    // 첫 화면 즉시 노출 슬롯
     _warmSlot(AdUnitIds.forPosition(4));
     _warmSlot(AdUnitIds.forPosition(8));
+    // 스크롤 직후 노출 슬롯 — 3초 후
+    Future.delayed(const Duration(seconds: 3), () {
+      _warmSlot(AdUnitIds.forPosition(12));
+      _warmSlot(AdUnitIds.forPosition(16));
+    });
+    // 더 아래 슬롯 — 6초 후
+    Future.delayed(const Duration(seconds: 6), () {
+      _warmSlot(AdUnitIds.forPosition(20));
+      _warmSlot(AdUnitIds.forPosition(24));
+    });
+    // 가장 먼 슬롯 — 10초 후
+    Future.delayed(const Duration(seconds: 10), () {
+      _warmSlot(AdUnitIds.forPosition(28));
+      _warmSlot(AdUnitIds.forPosition(32));
+    });
   }
 
   static void _warmSlot(String unitId) {
