@@ -3458,7 +3458,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       body: Stack(
         children: [
           // ── 배경 지도 (캐시된 NaverMap — 제스처 격리) ──
-          _buildMap(isDark),
+          // RepaintBoundary 로 지도 레이어 격리 — 시트/오버레이 변화 시 지도 같이 repaint 안 함
+          RepaintBoundary(child: _buildMap(isDark)),
 
           // ── 피커 모드: 가운데 핀 ──
           if (_isPickerMode)

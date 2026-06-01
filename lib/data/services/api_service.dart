@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:dio/dio.dart';
+import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../core/constants/api_constants.dart';
@@ -91,6 +92,20 @@ class ApiService {
     // thread 보존. 작은 응답엔 isolate 전환 비용(~5-10ms) 있지만 큰 응답에서
     // 이득이 훨씬 큼.
     _dio.transformer = BackgroundTransformer();
+
+    // 응답 메모리 캐시 — 같은 URL+쿼리 + 짧은 시간내 (30초) 재요청 시 서버 안 가고
+    // 즉시 반환. 지도 토글, 탭 전환 등에서 체감 즉시 응답.
+    // policy.refresh = 캐시 만료된 경우만 fetch / cacheKeyBuilder = URL+쿼리 기반.
+    _dio.interceptors.add(DioCacheInterceptor(
+      options: CacheOptions(
+        store: MemCacheStore(maxSize: 10 * 1024 * 1024, maxEntrySize: 2 * 1024 * 1024),
+        policy: CachePolicy.request,
+        maxStale: const Duration(seconds: 30),
+        priority: CachePriority.normal,
+        keyBuilder: CacheOptions.defaultCacheKeyBuilder,
+        allowPostMethod: false, // POST (분석/추천) 은 캐시 X — 매번 fresh
+      ),
+    ));
 
     // 디버그에서만 request/response body 로그 — 릴리즈에서 위치/FCM 토큰/AI 응답 등
     // 민감 데이터가 logcat 으로 새지 않도록 차단.
