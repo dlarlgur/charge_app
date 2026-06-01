@@ -284,11 +284,14 @@ class WidgetService {
   static Future<bool> backgroundUpdateGas() async {
     try {
       await Hive.initFlutter();
-      if (!Hive.isBoxOpen(AppConstants.settingsBox)) {
-        await Hive.openBox(AppConstants.settingsBox);
-      }
-      if (!Hive.isBoxOpen(AppConstants.favoritesBox)) {
-        await Hive.openBox(AppConstants.favoritesBox);
+      // station_aliases box 도 열어야 resolveGas/Ev 가 alias 찾을 수 있음 —
+      // 안 열면 자동 동기화에서 alias 없이 원본 이름으로 표시됨 (수동 새로고침 path 와 차이).
+      for (final box in [
+        AppConstants.settingsBox,
+        AppConstants.favoritesBox,
+        'station_aliases',
+      ]) {
+        if (!Hive.isBoxOpen(box)) await Hive.openBox(box);
       }
       await updateGasWidget();
       return true;
@@ -301,11 +304,12 @@ class WidgetService {
   static Future<bool> backgroundUpdateEv() async {
     try {
       await Hive.initFlutter();
-      if (!Hive.isBoxOpen(AppConstants.settingsBox)) {
-        await Hive.openBox(AppConstants.settingsBox);
-      }
-      if (!Hive.isBoxOpen(AppConstants.favoritesBox)) {
-        await Hive.openBox(AppConstants.favoritesBox);
+      for (final box in [
+        AppConstants.settingsBox,
+        AppConstants.favoritesBox,
+        'station_aliases',
+      ]) {
+        if (!Hive.isBoxOpen(box)) await Hive.openBox(box);
       }
       await updateEvWidget();
       return true;
