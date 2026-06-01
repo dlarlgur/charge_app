@@ -85,6 +85,13 @@ class ApiService {
       headers: {'Content-Type': 'application/json'},
     ));
 
+    // 응답 JSON parse 를 별도 isolate 에서 — Dio 기본 SyncTransformer 는 main
+    // thread 에서 parse 라 500KB+ 응답 (EV/주유소 수백 건) 에서 50-200ms 차지 →
+    // 줌/스크롤 jank 원인. BackgroundTransformer 가 compute() 으로 던져서 UI
+    // thread 보존. 작은 응답엔 isolate 전환 비용(~5-10ms) 있지만 큰 응답에서
+    // 이득이 훨씬 큼.
+    _dio.transformer = BackgroundTransformer();
+
     // 디버그에서만 request/response body 로그 — 릴리즈에서 위치/FCM 토큰/AI 응답 등
     // 민감 데이터가 logcat 으로 새지 않도록 차단.
     if (kDebugMode) {
