@@ -850,6 +850,18 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     return null;
   }
 
+  // 선택 경로의 교통색 세그먼트 (기존 경로와 동일하게 그리기 위함)
+  List<Map<String, dynamic>>? _selectedRouteSegments() {
+    final alts = _routeAlts;
+    if (alts == null) return null;
+    for (final r in alts) {
+      if (r['key'] == _selectedRouteKey) {
+        return _segmentsFromPayload(r);
+      }
+    }
+    return null;
+  }
+
   /// 목적지 설정 시 추천(0)+고속도로우선(4) 두 경로를 받아 칩으로 노출.
   /// 실패/빈 응답이면 기존 단일 미리보기로 폴백.
   Future<void> _loadRouteAlternatives() async {
@@ -924,12 +936,13 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   void _applySelectedRoute() {
     final pts = _selectedRoutePoints();
     if (pts == null || pts.length < 2 || _destLat == null || _destLng == null) return;
+    final segs = _selectedRouteSegments();
     _lastPathPoints = pts;
-    _lastPathSegments = null;
+    _lastPathSegments = segs;
     _selectedAltStationId = null;
     unawaited(_drawResultOnMap(
       pathPoints: pts,
-      pathSegments: null,
+      pathSegments: segs,
       originLat: _lastStartLat,
       originLng: _lastStartLng,
       stLat: null,
@@ -2467,7 +2480,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 {'lat': startLat, 'lng': startLng},
                 {'lat': _destLat!, 'lng': _destLng!},
               ]);
-    List<Map<String, dynamic>>? pathSegments = selPts != null ? null : _lastPathSegments;
+    List<Map<String, dynamic>>? pathSegments =
+        selPts != null ? _selectedRouteSegments() : _lastPathSegments;
     int? directDurationMs = _selectedRouteDurationMs();
 
     if (selPts == null &&
