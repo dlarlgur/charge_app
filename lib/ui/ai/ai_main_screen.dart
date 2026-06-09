@@ -85,6 +85,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   List<Map<String, dynamic>>? _routeAlts;   // 서버 /route/alternatives 의 routes
   String _selectedRouteKey = 'recommend';   // 기본 선택: 추천경로(0)
   bool _routesDistinct = false;             // false면 두 경로 동일 → 선택 UI 숨김
+  bool _loadingRouteAlts = false;           // 경로 대안 불러오는 중 (로딩 표시)
   bool _heroCollapsed = false;              // 배터리/차량 카드 접기 (지도 가림 최소화) // 교통 색상용
 
   // ── 잔량/목표 ──
@@ -898,6 +899,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       startLng = loc.lng;
     }
 
+    setState(() => _loadingRouteAlts = true);
     try {
       final isEv = _aiAnalysisType == 'ev';
       final res = await ApiService().getRouteAlternatives(
@@ -916,6 +918,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         setState(() {
           _routeAlts = null;
           _routesDistinct = false;
+          _loadingRouteAlts = false;
         });
         unawaited(_showQuickRoutePreview());
         return;
@@ -926,6 +929,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         _selectedRouteKey = 'recommend';
         _lastStartLat = startLat;
         _lastStartLng = startLng;
+        _loadingRouteAlts = false;
       });
       _applySelectedRoute();
     } catch (e) {
@@ -934,6 +938,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       setState(() {
         _routeAlts = null;
         _routesDistinct = false;
+        _loadingRouteAlts = false;
       });
       unawaited(_showQuickRoutePreview());
     }
@@ -1101,6 +1106,35 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   }
 
   Widget _buildRouteSelector({required bool isEv}) {
+    final accent = isEv ? const Color(0xFF10B981) : const Color(0xFF3B82F6);
+    // 경로 불러오는 중 — "왜 안 그려지지" 혼란 방지용 로딩 표시
+    if (_loadingRouteAlts) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 15,
+                height: 15,
+                child: CircularProgressIndicator(strokeWidth: 2, color: accent),
+              ),
+              const SizedBox(width: 10),
+              const Text('경로 비교 중…',
+                  style: TextStyle(
+                      fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
+            ],
+          ),
+        ),
+      );
+    }
     final alts = _routeAlts;
     if (alts == null || !_routesDistinct || alts.length < 2) {
       return const SizedBox.shrink();
@@ -1178,8 +1212,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                     style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: ink)),
               ],
             ),
-            const SizedBox(height: 2),
-            Text('$timeStr · $km km', style: TextStyle(fontSize: 11, color: sub)),
+            const SizedBox(height: 3),
+            Text('$timeStr · ${km}km',
+                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: sub)),
           ],
         ),
       ),
