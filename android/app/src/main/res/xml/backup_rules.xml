@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 11 이하: full backup 규칙 (Google Drive Auto Backup)
+
+  포함: SharedPreferences + Hive (앱 내부 파일)
+  제외: FCM 토큰 — 새 폰에서 새 토큰 발급되어야 함
+       위젯 캐시 — device-local 임시 데이터
+       광고 캐시 — 디스크 캐시는 재다운로드 가능
+-->
+<full-backup-content>
+  <!-- Hive boxes 가 디스크에 저장되는 위치 (app-internal files) → 자동 포함 -->
+  <!-- 명시적 exclude 만 정의 -->
+
+  <!-- FCM 등록 토큰 (firebase-iid) — 디바이스 종속이라 백업 X -->
+  <exclude domain="sharedpref" path="com.google.firebase.iid.xml" />
+  <exclude domain="sharedpref" path="com.google.android.gms.appid.xml" />
+
+  <!-- 홈 위젯 캐시 (디바이스별 widget id) -->
+  <exclude domain="sharedpref" path="WidgetPrefs.xml" />
+  <exclude domain="sharedpref" path="HomeWidgetPreferences.xml" />
+
+  <!-- 광고 캐시 (재다운로드 가능) -->
+  <exclude domain="file" path="splash_ad/" />
+  <exclude domain="file" path="popup_ad/" />
+  <exclude domain="file" path="house_ad/" />
+
+  <!-- ImageCache (cached_network_image) -->
+  <exclude domain="file" path="libCachedImageData/" />
+  <exclude domain="file" path="cached_network_images/" />
+</full-backup-content>
