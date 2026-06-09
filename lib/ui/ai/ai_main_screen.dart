@@ -862,6 +862,20 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     return null;
   }
 
+  // 선택 안 된 대안 경로들의 폴리라인 (회색으로 같이 그리기 위함)
+  List<List<Map<String, dynamic>>> _unselectedRoutesPoints() {
+    final alts = _routeAlts;
+    if (alts == null || !_routesDistinct) return [];
+    final out = <List<Map<String, dynamic>>>[];
+    for (final r in alts) {
+      if (r['key'] != _selectedRouteKey) {
+        final pts = _pathPointsFromServerJson(r['path_points']);
+        if (pts != null && pts.length >= 2) out.add(pts);
+      }
+    }
+    return out;
+  }
+
   /// 목적지 설정 시 추천(0)+고속도로우선(4) 두 경로를 받아 칩으로 노출.
   /// 실패/빈 응답이면 기존 단일 미리보기로 폴백.
   Future<void> _loadRouteAlternatives() async {
@@ -931,6 +945,39 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     _applySelectedRoute();
   }
 
+  /// 출발지 ↔ 목적지 위치 바꾸기 (티맵 스타일). 출발지가 GPS면 현재 좌표로 확정 후 스왑.
+  Future<void> _swapOriginDest() async {
+    if (_destLat == null || _destLng == null) return;
+    double? oLat = _originLat;
+    double? oLng = _originLng;
+    String? oName = _originName;
+    if (oLat == null || oLng == null) {
+      final baseLoc = await ref.read(locationProvider.future);
+      final loc = baseLoc ??
+          await LocationService().getFreshPosition().then(
+                (p) => p == null ? null : (lat: p.latitude, lng: p.longitude),
+              );
+      if (loc == null || !mounted) return;
+      oLat = loc.lat;
+      oLng = loc.lng;
+      oName = _currentLocationAddress ?? '현재 위치';
+    }
+    final dLat = _destLat;
+    final dLng = _destLng;
+    final dName = _destName;
+    HapticFeedback.selectionClick();
+    setState(() {
+      _originLat = dLat;
+      _originLng = dLng;
+      _originName = dName;
+      _destLat = oLat;
+      _destLng = oLng;
+      _destName = oName;
+      _errorMessage = null;
+    });
+    unawaited(_loadRouteAlternatives());
+  }
+
   /// 선택된 경로 폴리라인을 지도에 다시 그리고 _lastPathPoints 갱신(분석이 재사용).
   /// 대안 API는 교통 세그먼트를 안 주므로 단색 폴리라인으로 그린다.
   void _applySelectedRoute() {
@@ -950,6 +997,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       stName: '',
       destLat: _destLat!,
       destLng: _destLng!,
+      greyRoutes: _unselectedRoutesPoints(),
     ));
   }
 
@@ -1564,6 +1612,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     required double destLat,
     required double destLng,
     List<dynamic>? alternatives, // 대안 후보 (회색 마커)
+    List<List<Map<String, dynamic>>>? greyRoutes, // 선택 안 된 대안 경로 (회색 선)
   }) async {
     if (_mapController == null) return;
 
@@ -1579,6 +1628,30 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
     // ── 경로 라인 ──
     final patternImg = await _buildPatternImage();
+
+    // 선택 안 된 대안 경로를 회색으로 먼저 깔아 비교 표시 (선택 경로가 위에 그려짐)
+    if (greyRoutes != null && greyRoutes.isNotEmpty) {
+      for (int gi = 0; gi < greyRoutes.length; gi++) {
+        final gpts = greyRoutes[gi];
+        if (gpts.length < 2) continue;
+        final gcoords = _densifyPath(_smoothPath(gpts
+            .map((p) => NLatLng(
+                  (p['lat'] as num).toDouble(),
+                  (p['lng'] as num).toDouble(),
+                ))
+            .toList()));
+        final greyOverlay = NPathOverlay(
+          id: 'alt_route_grey_$gi',
+          coords: gcoords,
+          color: const Color(0xFFAEB6C2),
+          width: 7,
+          outlineColor: Colors.white,
+          outlineWidth: 1,
+        );
+        greyOverlay.setGlobalZIndex(-250000); // 선택 경로(기본 -200000)보다 아래
+        await _mapController!.addOverlay(greyOverlay);
+      }
+    }
 
     if (pathSegments != null && pathSegments.isNotEmpty) {
       // ① NMultipartPathOverlay: 교통 정보 세그먼트별 색상
@@ -3915,13 +3988,16 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                         originName: _originName,
                         destName: _destName,
                         currentLocationAddress: _currentLocationAddress,
+                        onSwap: _swapOriginDest,
                         onTapOrigin: () => _showLocationSheet(isOrigin: true),
                         onTapDest: () => _showLocationSheet(isOrigin: false),
                         onClearOrigin: () => setState(() {
                           _originName = null; _originLat = null; _originLng = null;
+                          _routeAlts = null; _routesDistinct = false;
                         }),
                         onClearDest: () => setState(() {
                           _destName = null; _destLat = null; _destLng = null; _errorMessage = null;
+                          _routeAlts = null; _routesDistinct = false;
                         }),
                       ),
                     ],

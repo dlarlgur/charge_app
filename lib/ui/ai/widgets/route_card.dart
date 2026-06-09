@@ -12,6 +12,7 @@ class RouteCard extends StatelessWidget {
   final VoidCallback onTapDest;
   final VoidCallback onClearOrigin;
   final VoidCallback onClearDest;
+  final VoidCallback? onSwap; // 출발↔목적지 위치 바꾸기 (티맵 스타일 ↕)
 
   const RouteCard({
     super.key,
@@ -22,6 +23,7 @@ class RouteCard extends StatelessWidget {
     required this.onTapDest,
     required this.onClearOrigin,
     required this.onClearDest,
+    this.onSwap,
   });
 
   @override
@@ -147,6 +149,18 @@ class RouteCard extends StatelessWidget {
               ],
             ),
           ),
+          // 출발↔목적지 위치 바꾸기 (티맵 스타일)
+          if (onSwap != null) ...[
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: onSwap,
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: Icon(Icons.swap_vert_rounded, size: 22, color: mutedText),
+              ),
+            ),
+          ],
         ],
       ),
     );
