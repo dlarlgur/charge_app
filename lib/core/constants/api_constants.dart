@@ -34,6 +34,7 @@ class ApiConstants {
 
   // ─── AI 추천 ───
   static const routeDriving = '/route/driving';
+  static const routeAlternatives = '/route/alternatives';
   static const refuelAnalyze = '/v1/refuel/analyze';
   static const refuelRouteStations = '/v1/refuel/route-stations';
   static const refuelCompare = '/v1/refuel/compare';

@@ -79,7 +79,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   // ── 분석에 사용된 마지막 경로 (결과화면 지도용) ──
   double _lastStartLat = 0, _lastStartLng = 0;
   List<Map<String, dynamic>> _lastPathPoints = [];
-  List<Map<String, dynamic>>? _lastPathSegments; // 교통 색상용
+  List<Map<String, dynamic>>? _lastPathSegments;
+
+  // ── 경로 대안 선택 (추천 0 / 고속도로우선 4) ──
+  List<Map<String, dynamic>>? _routeAlts;   // 서버 /route/alternatives 의 routes
+  String _selectedRouteKey = 'recommend';   // 기본 선택: 추천경로(0)
+  bool _routesDistinct = false;             // false면 두 경로 동일 → 선택 UI 숨김 // 교통 색상용
 
   // ── 잔량/목표 ──
   double _currentLevelPercent = 25.0;
@@ -311,6 +316,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           _isEvSelectMode = false;
         });
         _loadSaved();
+        // 모드 바뀌면 충전소/주유소 카테고리가 달라지므로 경로 개수 재집계
+        if (_destLat != null && _destLng != null) {
+          unawaited(_loadRouteAlternatives());
+        }
       }
     } else {
       // 차량 없음 → 등록 페이지로
@@ -662,11 +671,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     if (_pickingOrigin) {
       setState(() { _originLat = lat; _originLng = lng; _originName = name; });
       if (_destLat != null && _destLng != null) {
-        unawaited(_showQuickRoutePreview());
+        unawaited(_loadRouteAlternatives());
       }
     } else {
       setState(() { _destLat = lat; _destLng = lng; _destName = name; });
-      unawaited(_showQuickRoutePreview());
+      unawaited(_loadRouteAlternatives());
     }
     _exitPickerMode();
   }
@@ -710,7 +719,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                   _currentLocationAddress = resolved;
                 }
               });
-              unawaited(_showQuickRoutePreview());
+              unawaited(_loadRouteAlternatives());
             });
           }
         },
@@ -729,11 +738,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           if (isOrigin) {
             setState(() { _originLat = lat; _originLng = lng; _originName = name; });
             if (_destLat != null && _destLng != null) {
-              unawaited(_showQuickRoutePreview());
+              unawaited(_loadRouteAlternatives());
             }
           } else {
             setState(() { _destLat = lat; _destLng = lng; _destName = name; _errorMessage = null; });
-            unawaited(_showQuickRoutePreview());
+            unawaited(_loadRouteAlternatives());
           }
         },
       ),
@@ -818,6 +827,207 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     );
   }
 
+  // ── 경로 대안(추천 0 / 고속도로우선 4) ──────────────────────────────────
+  List<Map<String, dynamic>>? _selectedRoutePoints() {
+    final alts = _routeAlts;
+    if (alts == null) return null;
+    for (final r in alts) {
+      if (r['key'] == _selectedRouteKey) {
+        return _pathPointsFromServerJson(r['path_points']);
+      }
+    }
+    return null;
+  }
+
+  int? _selectedRouteDurationMs() {
+    final alts = _routeAlts;
+    if (alts == null) return null;
+    for (final r in alts) {
+      if (r['key'] == _selectedRouteKey && r['duration_ms'] is num) {
+        return (r['duration_ms'] as num).round();
+      }
+    }
+    return null;
+  }
+
+  /// 목적지 설정 시 추천(0)+고속도로우선(4) 두 경로를 받아 칩으로 노출.
+  /// 실패/빈 응답이면 기존 단일 미리보기로 폴백.
+  Future<void> _loadRouteAlternatives() async {
+    if (_mapController == null || _destLat == null || _destLng == null) return;
+
+    double startLat;
+    double startLng;
+    if (_originLat != null && _originLng != null) {
+      startLat = _originLat!;
+      startLng = _originLng!;
+    } else {
+      final baseLoc = await ref.read(locationProvider.future);
+      final loc = baseLoc ??
+          await LocationService().getFreshPosition().then(
+                (p) => p == null ? null : (lat: p.latitude, lng: p.longitude),
+              );
+      if (loc == null || !mounted) return;
+      startLat = loc.lat;
+      startLng = loc.lng;
+    }
+
+    try {
+      final isEv = _aiAnalysisType == 'ev';
+      final res = await ApiService().getRouteAlternatives(
+        startLat: startLat,
+        startLng: startLng,
+        goalLat: _destLat!,
+        goalLng: _destLng!,
+        mode: isEv ? 'ev' : 'fuel',
+      );
+      final raw = res['routes'];
+      final routes = raw is List
+          ? raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList()
+          : <Map<String, dynamic>>[];
+      if (!mounted) return;
+      if (routes.isEmpty) {
+        setState(() {
+          _routeAlts = null;
+          _routesDistinct = false;
+        });
+        unawaited(_showQuickRoutePreview());
+        return;
+      }
+      setState(() {
+        _routeAlts = routes;
+        _routesDistinct = res['routes_distinct'] == true;
+        _selectedRouteKey = 'recommend';
+        _lastStartLat = startLat;
+        _lastStartLng = startLng;
+      });
+      _applySelectedRoute();
+    } catch (e) {
+      if (kDebugMode) debugPrint('[route-alts] 실패: $e');
+      if (!mounted) return;
+      setState(() {
+        _routeAlts = null;
+        _routesDistinct = false;
+      });
+      unawaited(_showQuickRoutePreview());
+    }
+  }
+
+  void _selectRoute(String key) {
+    if (key == _selectedRouteKey) return;
+    HapticFeedback.selectionClick();
+    setState(() => _selectedRouteKey = key);
+    _applySelectedRoute();
+  }
+
+  /// 선택된 경로 폴리라인을 지도에 다시 그리고 _lastPathPoints 갱신(분석이 재사용).
+  /// 대안 API는 교통 세그먼트를 안 주므로 단색 폴리라인으로 그린다.
+  void _applySelectedRoute() {
+    final pts = _selectedRoutePoints();
+    if (pts == null || pts.length < 2 || _destLat == null || _destLng == null) return;
+    _lastPathPoints = pts;
+    _lastPathSegments = null;
+    _selectedAltStationId = null;
+    unawaited(_drawResultOnMap(
+      pathPoints: pts,
+      pathSegments: null,
+      originLat: _lastStartLat,
+      originLng: _lastStartLng,
+      stLat: null,
+      stLng: null,
+      stName: '',
+      destLat: _destLat!,
+      destLng: _destLng!,
+    ));
+  }
+
+  Widget _buildRouteSelector({required bool isEv}) {
+    final alts = _routeAlts;
+    if (alts == null || !_routesDistinct || alts.length < 2) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Row(
+        children: [
+          for (int i = 0; i < alts.length; i++) ...[
+            if (i > 0) const SizedBox(width: 8),
+            Expanded(child: _routeChip(alts[i], isEv)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _routeChip(Map<String, dynamic> r, bool isEv) {
+    final accent = isEv ? const Color(0xFF10B981) : const Color(0xFF3B82F6);
+    final accentLight = isEv ? const Color(0xFFECFDF5) : const Color(0xFFEFF6FF);
+    final selected = r['key'] == _selectedRouteKey;
+    final label = (r['label'] ?? '경로').toString();
+    final rest = r['rest_area_count'] ?? 0;
+    final targetNum = r['target_count'];
+    final targetStr = targetNum is num && targetNum >= 100 ? '100+' : '${targetNum ?? 0}';
+    final min = ((r['duration_ms'] ?? 0) as num) ~/ 60000;
+    final km = (((r['distance_m'] ?? 0) as num) / 1000).round();
+    return GestureDetector(
+      onTap: () => _selectRoute((r['key'] ?? 'recommend').toString()),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+        decoration: BoxDecoration(
+          color: selected ? accentLight : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? accent.withValues(alpha: 0.45) : const Color(0xFFE2E8F0),
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: selected ? accent : const Color(0xFF94A3B8),
+                    ),
+                  ),
+                ),
+                if (selected) ...[
+                  const SizedBox(width: 3),
+                  Icon(Icons.check_circle, size: 13, color: accent),
+                ],
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '🛣️ 휴게소 $rest · ${isEv ? '🔌' : '⛽'} $targetStr',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: selected ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
+              ),
+            ),
+            const SizedBox(height: 1),
+            Text(
+              '$min분 · ${km}km',
+              style: TextStyle(
+                fontSize: 10,
+                color: selected ? const Color(0xFF64748B) : const Color(0xFFB0BAC9),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ── 분석 실행 ──
   Future<void> _runAnalyze() async {
     final box = Hive.box(AppConstants.settingsBox);
@@ -884,32 +1094,39 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     ];
     int? directDurationMs;
 
-    try {
-      final dr = await ApiService().getDrivingRoute(
-        startLat: startLat, startLng: startLng,
-        goalLat: _destLat!, goalLng: _destLng!,
-      );
-      if (dr['success'] == true) {
-        // 직접 경로 소요시간 (고속도로 IC 필터용)
-        if (dr['duration_ms'] is num) {
-          directDurationMs = (dr['duration_ms'] as num).round();
-        }
-        final raw = dr['path_points'];
-        if (raw is List && raw.length >= 2) {
-          final parsed = <Map<String, dynamic>>[];
-          for (final e in raw) {
-            if (e is Map) {
-              final lat = e['lat']; final lng = e['lng'];
-              if (lat is num && lng is num) {
-                parsed.add({'lat': lat.toDouble(), 'lng': lng.toDouble()});
+    // 사용자가 고른 경로(추천/고속도로우선)가 있으면 그 폴리라인을 그대로 분석에 쓴다.
+    final selPts = _selectedRoutePoints();
+    if (selPts != null && selPts.length >= 2) {
+      pathPoints = selPts;
+      directDurationMs = _selectedRouteDurationMs();
+    } else {
+      try {
+        final dr = await ApiService().getDrivingRoute(
+          startLat: startLat, startLng: startLng,
+          goalLat: _destLat!, goalLng: _destLng!,
+        );
+        if (dr['success'] == true) {
+          // 직접 경로 소요시간 (고속도로 IC 필터용)
+          if (dr['duration_ms'] is num) {
+            directDurationMs = (dr['duration_ms'] as num).round();
+          }
+          final raw = dr['path_points'];
+          if (raw is List && raw.length >= 2) {
+            final parsed = <Map<String, dynamic>>[];
+            for (final e in raw) {
+              if (e is Map) {
+                final lat = e['lat']; final lng = e['lng'];
+                if (lat is num && lng is num) {
+                  parsed.add({'lat': lat.toDouble(), 'lng': lng.toDouble()});
+                }
               }
             }
+            if (parsed.length >= 2) pathPoints = parsed;
           }
-          if (parsed.length >= 2) pathPoints = parsed;
         }
+      } catch (e) {
+        if (kDebugMode) debugPrint('[ai-analyze] getDrivingRoute 실패: $e');
       }
-    } catch (e) {
-      if (kDebugMode) debugPrint('[ai-analyze] getDrivingRoute 실패: $e');
     }
 
     _lastStartLat = startLat;
@@ -2240,15 +2457,21 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
     // 미리보기에서 이미 경로를 받아놨으면 재사용, 아니면 새로 fetch
     // (2점 = origin/dest만 있는 직선 폴백 → 추천 정확도 박살나므로 재fetch 강제)
-    var pathPoints = _lastPathPoints.length >= 3 ? _lastPathPoints
-        : <Map<String, dynamic>>[
-            {'lat': startLat, 'lng': startLng},
-            {'lat': _destLat!, 'lng': _destLng!},
-          ];
-    List<Map<String, dynamic>>? pathSegments = _lastPathSegments;
-    int? directDurationMs;
+    // 사용자가 고른 경로(추천/고속도로우선)가 있으면 그 폴리라인을 우선 사용.
+    final selPts = _selectedRoutePoints();
+    var pathPoints = selPts != null && selPts.length >= 2
+        ? selPts
+        : (_lastPathPoints.length >= 3
+            ? _lastPathPoints
+            : <Map<String, dynamic>>[
+                {'lat': startLat, 'lng': startLng},
+                {'lat': _destLat!, 'lng': _destLng!},
+              ]);
+    List<Map<String, dynamic>>? pathSegments = selPts != null ? null : _lastPathSegments;
+    int? directDurationMs = _selectedRouteDurationMs();
 
-    if (pathPoints.length < 3 || _lastStartLat != startLat || _lastStartLng != startLng) {
+    if (selPts == null &&
+        (pathPoints.length < 3 || _lastStartLat != startLat || _lastStartLng != startLng)) {
       try {
         final dr = await ApiService().getDrivingRoute(
           startLat: startLat, startLng: startLng,
@@ -3782,6 +4005,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             ? (m) => setState(() => _evChargerType = m)
                             : null,
                       ),
+                      _buildRouteSelector(isEv: isEvVehicle),
                       const SizedBox(height: 12),
                       // ─── HTML CTA row: gradient primary + 흰 secondary ───
                       Row(

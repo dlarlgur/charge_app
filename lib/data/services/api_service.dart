@@ -244,6 +244,28 @@ class ApiService {
     return out;
   }
 
+  /// 경로 대안: 추천(0) + 고속도로우선(4) 두 경로를 충전소/주유소·휴게소 개수와 함께.
+  /// mode: 'ev'(충전) | 'fuel'(주유)
+  Future<Map<String, dynamic>> getRouteAlternatives({
+    required double startLat,
+    required double startLng,
+    required double goalLat,
+    required double goalLng,
+    String mode = 'ev',
+  }) async {
+    final res = await _dio.get(
+      ApiConstants.routeAlternatives,
+      queryParameters: {
+        'start_lat': startLat,
+        'start_lng': startLng,
+        'goal_lat': goalLat,
+        'goal_lng': goalLng,
+        'mode': mode,
+      },
+    );
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
   Future<Map<String, dynamic>> postEvAiRecommend(Map<String, dynamic> body) async {
     final res = await _dio.post(ApiConstants.evAiRecommend, data: body);
     return Map<String, dynamic>.from(res.data ?? {});

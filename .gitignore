@@ -63,3 +63,6 @@ ios_info_plist_additions.xml
 
 # Claude 설정
 .claude/
+
+# 브레인스토밍 비주얼 컴패니언 산출물
+.superpowers/
