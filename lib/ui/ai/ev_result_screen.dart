@@ -9,6 +9,16 @@ import '../../data/services/watch_service.dart';
 import '../detail/ev_detail_screen.dart';
 import '../widgets/watch_switch_dialog.dart';
 
+// CommonMark: 닫는 ** 앞이 문장부호(%,/ 등)이고 바로 뒤가 한글이면 볼드 파싱 실패(**25%**로).
+// 닫는 ** "앞"에 ZWSP 삽입해 부호 플랭킹 회피. (비표시 → 잘 되던 케이스 영향 없음)
+String _normalizeMarkdownForKoreanEv(String src) {
+  final zwsp = String.fromCharCode(0x200B);
+  return src.replaceAllMapped(
+    RegExp(r'\*\*([^\n*][^\n*]*?)\*\*(?=[가-힣])'),
+    (m) => '**${m.group(1)!}$zwsp**',
+  );
+}
+
 const _kBlue = Color(0xFF1D6FE0);
 const _kBlueLight = Color(0xFFEEF4FF);
 const _kGreen = Color(0xFF1D9E75);
@@ -1357,7 +1367,7 @@ class _EvAiMessageBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (message.isEmpty) return const SizedBox.shrink();
-    final normalized = message.replaceAll(r'\n', '\n');
+    final normalized = _normalizeMarkdownForKoreanEv(message.replaceAll(r'\n', '\n'));
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? _kBlue.withValues(alpha: 0.12) : const Color(0xFFEEF4FF);
     final border = isDark ? _kBlue.withValues(alpha: 0.35) : const Color(0xFFB8D0FF);
