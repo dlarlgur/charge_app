@@ -13,10 +13,17 @@ import '../widgets/watch_switch_dialog.dart';
 // 닫는 ** "앞"에 ZWSP 삽입해 부호 플랭킹 회피. (비표시 → 잘 되던 케이스 영향 없음)
 String _normalizeMarkdownForKoreanEv(String src) {
   final zwsp = String.fromCharCode(0x200B);
-  return src.replaceAllMapped(
+  // 1) "** 텍스트 **" 안쪽 공백 제거 (CommonMark 가 볼드로 안 봐 ** 노출되는 케이스)
+  var s = src.replaceAllMapped(
+    RegExp(r'\*\*[ \t]*([^*\n]+?)[ \t]*\*\*'),
+    (m) => '**${m.group(1)!}**',
+  );
+  // 2) 닫는 ** 앞 부호 + 뒤 한글 케이스(**25%**로) → 닫는 ** 앞에 ZWSP
+  s = s.replaceAllMapped(
     RegExp(r'\*\*([^\n*][^\n*]*?)\*\*(?=[가-힣])'),
     (m) => '**${m.group(1)!}$zwsp**',
   );
+  return s;
 }
 
 const _kBlue = Color(0xFF1D6FE0);
