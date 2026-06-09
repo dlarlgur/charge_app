@@ -1577,11 +1577,10 @@ class _SupportEmbedState extends State<_SupportEmbed> {
       initialData: seed,
       builder: (context, snap) {
         final c = snap.data;
-        if (c == null) return const SizedBox.shrink();
-        final hasN = c.notices > 0;
-        final hasE = c.events > 0;
-        final hasF = c.faqs > 0;
-        if (!hasN && !hasE && !hasF) return const SizedBox.shrink();
+        // 1:1 문의는 count 와 무관하게 항상 노출되므로 early-return 하지 않는다.
+        final hasN = c != null && c.notices > 0;
+        final hasE = c != null && c.events > 0;
+        final hasF = c != null && c.faqs > 0;
         final isDark = widget.isDark;
         final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
         final secondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
@@ -1606,9 +1605,17 @@ class _SupportEmbedState extends State<_SupportEmbed> {
               child: Text('고객 지원',
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.gasBlue)),
             ),
-            if (hasN) tile(Icons.campaign_rounded, '공지사항', c.notices, '/notices'),
-            if (hasE) tile(Icons.celebration_rounded, '이벤트', c.events, '/events'),
-            if (hasF) tile(Icons.help_outline_rounded, '자주 묻는 질문', c.faqs, '/faq'),
+            if (hasN) tile(Icons.campaign_rounded, '공지사항', c!.notices, '/notices'),
+            if (hasE) tile(Icons.celebration_rounded, '이벤트', c!.events, '/events'),
+            if (hasF) tile(Icons.help_outline_rounded, '자주 묻는 질문', c!.faqs, '/faq'),
+            // 1:1 문의하기 — 항상 노출
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+              leading: Icon(Icons.support_agent_rounded, size: 22, color: secondary),
+              title: Text('1:1 문의하기', style: Theme.of(context).textTheme.titleSmall),
+              trailing: Icon(Icons.chevron_right_rounded, size: 20, color: muted),
+              onTap: () => context.push('/inquiry'),
+            ),
             const SizedBox(height: 16),
           ],
         );

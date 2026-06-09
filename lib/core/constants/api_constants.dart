@@ -23,6 +23,9 @@ class ApiConstants {
   static const teslaAround = '/stations/tesla/around';
   static const teslaDetail = '/stations/tesla'; // + /:uuid
 
+  // ─── 1:1 문의 ───
+  static const inquiries = '/inquiries';
+
   // ─── 검색 ───
   static const searchPlaces = '/search/places';
 

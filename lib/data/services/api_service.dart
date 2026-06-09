@@ -266,6 +266,37 @@ class ApiService {
     return Map<String, dynamic>.from(res.data ?? {});
   }
 
+  // ─── 1:1 문의 ───
+  Future<bool> createInquiry({
+    required String appId,
+    required String deviceId,
+    required String title,
+    required String content,
+  }) async {
+    final res = await _dio.post(ApiConstants.inquiries, data: {
+      'app_id': appId,
+      'device_id': deviceId,
+      'title': title,
+      'content': content,
+    });
+    return res.data?['success'] == true;
+  }
+
+  Future<List<Map<String, dynamic>>> getMyInquiries({
+    required String appId,
+    required String deviceId,
+  }) async {
+    final res = await _dio.get(ApiConstants.inquiries, queryParameters: {
+      'app_id': appId,
+      'device_id': deviceId,
+    });
+    final list = res.data?['inquiries'];
+    if (list is List) {
+      return list.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+    }
+    return [];
+  }
+
   Future<Map<String, dynamic>> postEvAiRecommend(Map<String, dynamic> body) async {
     final res = await _dio.post(ApiConstants.evAiRecommend, data: body);
     return Map<String, dynamic>.from(res.data ?? {});

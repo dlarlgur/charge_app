@@ -13,6 +13,7 @@ import '../ui/settings/policies_screen.dart';
 import '../ui/notices/notices_screen.dart';
 import '../ui/events/events_screen.dart';
 import '../ui/faq/faq_screen.dart';
+import '../ui/support/inquiry_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -42,6 +43,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/notices', builder: (_, __) => const NoticesScreen()),
       GoRoute(path: '/events', builder: (_, __) => const EventsScreen()),
       GoRoute(path: '/faq', builder: (_, __) => const FaqScreen()),
+      GoRoute(path: '/inquiry', builder: (_, __) => const InquiryScreen()),
     ],
   );
 });
