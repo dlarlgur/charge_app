@@ -1006,18 +1006,41 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   Widget _buildHeroToggleHandle() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
-      onTap: () => setState(() => _heroCollapsed = !_heroCollapsed),
       behavior: HitTestBehavior.opaque,
+      onTap: () => setState(() => _heroCollapsed = !_heroCollapsed),
+      // 위/아래로 드래그해서 펼치기/접기
+      onVerticalDragEnd: (details) {
+        final v = details.primaryVelocity ?? 0;
+        if (v > 80) {
+          setState(() => _heroCollapsed = true);
+        } else if (v < -80) {
+          setState(() => _heroCollapsed = false);
+        }
+      },
       child: Container(
         width: double.infinity,
         alignment: Alignment.center,
-        padding: const EdgeInsets.only(top: 2, bottom: 8),
+        padding: const EdgeInsets.only(top: 2, bottom: 10),
         child: Container(
-          width: 40,
-          height: 5,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           decoration: BoxDecoration(
-            color: isDark ? AppColors.darkTextMuted : const Color(0xFFCBD5E1),
+            color: isDark ? AppColors.darkCard : Colors.white,
             borderRadius: BorderRadius.circular(99),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.14),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Container(
+            width: 44,
+            height: 5,
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkTextMuted : const Color(0xFF94A3B8),
+              borderRadius: BorderRadius.circular(99),
+            ),
           ),
         ),
       ),
