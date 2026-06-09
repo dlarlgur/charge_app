@@ -84,7 +84,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   // ── 경로 대안 선택 (추천 0 / 고속도로우선 4) ──
   List<Map<String, dynamic>>? _routeAlts;   // 서버 /route/alternatives 의 routes
   String _selectedRouteKey = 'recommend';   // 기본 선택: 추천경로(0)
-  bool _routesDistinct = false;             // false면 두 경로 동일 → 선택 UI 숨김 // 교통 색상용
+  bool _routesDistinct = false;             // false면 두 경로 동일 → 선택 UI 숨김
+  bool _heroCollapsed = false;              // 배터리/차량 카드 접기 (지도 가림 최소화) // 교통 색상용
 
   // ── 잔량/목표 ──
   double _currentLevelPercent = 25.0;
@@ -1001,6 +1002,81 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     ));
   }
 
+  // 네이버 지도처럼 그랩 핸들 — 탭하면 배터리/차량 카드 접기/펼치기
+  Widget _buildHeroToggleHandle() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return GestureDetector(
+      onTap: () => setState(() => _heroCollapsed = !_heroCollapsed),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        width: double.infinity,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.only(top: 2, bottom: 8),
+        child: Container(
+          width: 40,
+          height: 5,
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkTextMuted : const Color(0xFFCBD5E1),
+            borderRadius: BorderRadius.circular(99),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 접힌 상태 요약 바 (차량 · 잔량 · 도달거리). 탭하면 펼침.
+  Widget _buildCollapsedHeroBar({
+    required bool isEv,
+    required double level,
+    required String vehicleName,
+    required double reachableKm,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = isEv ? const Color(0xFF10B981) : const Color(0xFF3B82F6);
+    final bg = isDark ? AppColors.darkCard : Colors.white;
+    final ink = isDark ? AppColors.darkTextPrimary : const Color(0xFF0F172A);
+    final muted = isDark ? AppColors.darkTextMuted : const Color(0xFF64748B);
+    return GestureDetector(
+      onTap: () => setState(() => _heroCollapsed = false),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(16),
+          border: isDark ? Border.all(color: AppColors.darkCardBorder, width: 0.5) : null,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.08),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(isEv ? Icons.ev_station_rounded : Icons.local_gas_station_rounded,
+                size: 18, color: accent),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(vehicleName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: ink)),
+            ),
+            const SizedBox(width: 8),
+            Text('${level.round()}%',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: accent)),
+            const Spacer(),
+            Text('~${reachableKm.round()}km', style: TextStyle(fontSize: 12, color: muted)),
+            const SizedBox(width: 6),
+            Icon(Icons.keyboard_arrow_up_rounded, size: 20, color: muted),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildRouteSelector({required bool isEv}) {
     final alts = _routeAlts;
     if (alts == null || !_routesDistinct || alts.length < 2) {
@@ -1025,15 +1101,18 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final selected = r['key'] == _selectedRouteKey;
     final label = (r['label'] ?? '경로').toString();
     final rest = r['rest_area_count'] ?? 0;
-    final targetNum = r['target_count'];
-    final targetStr = targetNum is num && targetNum >= 100 ? '100+' : '${targetNum ?? 0}';
-    final min = ((r['duration_ms'] ?? 0) as num) ~/ 60000;
+    final totalMin = ((r['duration_ms'] ?? 0) as num) ~/ 60000;
+    final h = totalMin ~/ 60;
+    final m = totalMin % 60;
+    final timeStr = h > 0 ? '$h시간 $m분' : '$m분';
     final km = (((r['distance_m'] ?? 0) as num) / 1000).round();
+    final ink = selected ? const Color(0xFF0F172A) : const Color(0xFF94A3B8);
+    final sub = selected ? const Color(0xFF64748B) : const Color(0xFFB0BAC9);
     return GestureDetector(
       onTap: () => _selectRoute((r['key'] ?? 'recommend').toString()),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: selected ? accentLight : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(12),
@@ -1054,7 +1133,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 12.5,
                       fontWeight: FontWeight.w800,
                       color: selected ? accent : const Color(0xFF94A3B8),
                     ),
@@ -1062,27 +1141,22 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 ),
                 if (selected) ...[
                   const SizedBox(width: 3),
-                  Icon(Icons.check_circle, size: 13, color: accent),
+                  Icon(Icons.check_circle_rounded, size: 14, color: accent),
                 ],
               ],
             ),
-            const SizedBox(height: 4),
-            Text(
-              '🛣️ 휴게소 $rest · ${isEv ? '🔌' : '⛽'} $targetStr',
-              style: TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w700,
-                color: selected ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
-              ),
+            const SizedBox(height: 7),
+            Row(
+              children: [
+                Icon(Icons.local_cafe_rounded,
+                    size: 14, color: selected ? accent : const Color(0xFFB0BAC9)),
+                const SizedBox(width: 4),
+                Text('휴게소 $rest곳',
+                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: ink)),
+              ],
             ),
-            const SizedBox(height: 1),
-            Text(
-              '$min분 · ${km}km',
-              style: TextStyle(
-                fontSize: 10,
-                color: selected ? const Color(0xFF64748B) : const Color(0xFFB0BAC9),
-              ),
-            ),
+            const SizedBox(height: 2),
+            Text('$timeStr · $km km', style: TextStyle(fontSize: 11, color: sub)),
           ],
         ),
       ),
@@ -4048,8 +4122,26 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           ),
                         ),
                       ],
-                      // ─── HTML hero 양식: 게이지 + 차량 정보 + stat + 선호 조건 chip 통합 ───
-                      HeroCard(
+                      // ─── 접기 핸들 + HeroCard (네이버처럼 접어 지도 확보) ───
+                      _buildHeroToggleHandle(),
+                      if (_heroCollapsed)
+                        _buildCollapsedHeroBar(
+                          isEv: isEvVehicle,
+                          level: _currentLevelPercent,
+                          vehicleName: selectedVehicle?.name.isNotEmpty == true
+                              ? selectedVehicle!.name
+                              : (isEvVehicle ? '차량 선택' : fuelLabel),
+                          reachableKm: _currentLevelPercent /
+                              100 *
+                              (isEvVehicle
+                                  ? (selectedVehicle?.batteryCapacity ?? tankCapacity)
+                                  : tankCapacity) *
+                              (isEvVehicle
+                                  ? (selectedVehicle?.evEfficiency ?? efficiency)
+                                  : efficiency),
+                        )
+                      else
+                        HeroCard(
                         currentLevel: _currentLevelPercent,
                         isEv: isEvVehicle,
                         reachableKm: _currentLevelPercent / 100 *
