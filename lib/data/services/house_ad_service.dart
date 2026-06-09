@@ -187,8 +187,9 @@ class HouseAdCache {
 class AdSlotResolver {
   AdSlotResolver._();
 
-  // 4 간격 8개 자리 — list_banner1~8 unit ID 와 매핑됨 (ad_service.dart 참조)
-  static const Set<int> admobSlots = {4, 8, 12, 16, 20, 24, 28, 32};
+  // 정식 오픈: 8 간격(4·12·20·28). 이전 4 간격(4,8,...,32)은 과다 노출이라 완화.
+  // list_banner1·3·5·7 unit ID 와 매핑 (ad_service.dart 참조, 짝수 자리 ID는 미사용).
+  static const Set<int> admobSlots = {4, 12, 20, 28};
 
   /// 슬롯이 광고 위치인지 (AdMob 또는 house ad).
   /// 광고 자체가 없으면 false 라서 일반 station 으로 채워짐.

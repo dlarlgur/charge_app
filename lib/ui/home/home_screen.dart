@@ -542,12 +542,7 @@ class _AdMobAt {
 }
 
 List<Object> mergeWithAdSlots<T extends Object>(List<T> stations) {
-  // [TEMP DISABLED] 광고 너무 자주 노출돼 일시적으로 전체 비활성.
-  // 복구: 아래 early return 제거 + 원본 merge 로직 (주석 처리됨) 활성화.
-  return List<Object>.from(stations);
-
-  // ignore: dead_code
-  /*
+  // 정식 오픈: 리스트 광고 활성화 (AdSlotResolver.admobSlots = 8번째마다).
   final merged = <Object>[];
   int sIdx = 0;
   int pos = 1;
@@ -570,7 +565,6 @@ List<Object> mergeWithAdSlots<T extends Object>(List<T> stations) {
     if (pos > 200) break; // 안전망 — 광고 슬롯만 잇따르는 비정상 케이스 방지
   }
   return merged;
-  */
 }
 
 // ─── 주유소 리스트 뷰 ───
