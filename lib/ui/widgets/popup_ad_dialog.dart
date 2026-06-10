@@ -124,12 +124,14 @@ class PopupAdDialog extends StatelessWidget {
                 children: [
                   GestureDetector(
                     onTap: () => _handleTap(context),
-                    child: AspectRatio(
-                      aspectRatio: 9 / 16,
-                      child: Image.network(
-                        DkswCore.resolveAssetUrl(ad.imageUrl),
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
+                    // 이미지 자연 비율 그대로 — 디자이너가 1080×1200 이든 1080×2340 이든
+                    // 잘림 없이 전체 표시.
+                    child: Image.network(
+                      DkswCore.resolveAssetUrl(ad.imageUrl),
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => AspectRatio(
+                        aspectRatio: 9 / 16,
+                        child: Container(
                           color: Colors.black26,
                           child: const Icon(Icons.broken_image_rounded, color: Colors.white54, size: 48),
                         ),
