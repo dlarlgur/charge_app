@@ -296,6 +296,14 @@ void main() async {
   await Firebase.initializeApp();
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
+  // 콘솔 공지/이벤트 FCM 토픽 구독 — fire-and-forget (실패해도 부팅 무관)
+  unawaited(() async {
+    try {
+      await FirebaseMessaging.instance.subscribeToTopic(DkswCore.noticesTopic());
+      await FirebaseMessaging.instance.subscribeToTopic(DkswCore.eventsTopic());
+    } catch (_) {}
+  }());
+
   // 로컬 알림 초기화는 fire-and-forget — 채널 생성은 idempotent,
   // 첫 알림이 발송되기 전에만 끝나면 됨. main() 을 0.3초 정도 줄임.
   unawaited(_initLocalNotifications());
