@@ -280,9 +280,12 @@ void showEvAlarmNotification(Map<String, dynamic> data, {int soundMode = 0}) {
           ? evAlarmChannelSilent
           : evAlarmChannel;
 
-  // 즐겨찾기 충전소 자리 알림은 폰 전용 — 안드로이드 오토엔 띄우지 않는다.
-  // (운전 중엔 'watch 세션 = 지금 가는 충전소' 알림만 차에 떠야 산만하지 않음.
-  //  그래서 MessagingStyle/category=message 대신 BigText 사용 → 오토 미노출.)
+  // Android Auto 호환: ev_watch 와 동일 패턴 (MessagingStyle + category=message)
+  const personIcon = FlutterBitmapAssetAndroidIcon('assets/halfNhalf_launcher.png');
+  final messagingPerson = stationName.isNotEmpty
+      ? Person(name: stationName, important: true, icon: personIcon)
+      : const Person(name: '충전 도우미', important: true, icon: personIcon);
+
   notificationPlugin.show(
     1002,
     title,
@@ -296,7 +299,16 @@ void showEvAlarmNotification(Map<String, dynamic> data, {int soundMode = 0}) {
         priority: soundMode == 2 ? Priority.low : Priority.high,
         playSound: soundMode == 0,
         enableVibration: soundMode != 2,
-        styleInformation: BigTextStyleInformation(body, contentTitle: title),
+        category: AndroidNotificationCategory.message,
+        visibility: NotificationVisibility.public,
+        styleInformation: MessagingStyleInformation(
+          messagingPerson,
+          conversationTitle: stationName.isNotEmpty ? stationName : null,
+          messages: [
+            Message(body, DateTime.now(), messagingPerson),
+          ],
+        ),
+        actions: _autoActions(),
       ),
     ),
     payload: 'ev_alarm:$stationId:${Uri.encodeComponent(title)}:${Uri.encodeComponent(body)}',
