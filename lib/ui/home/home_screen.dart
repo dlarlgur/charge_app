@@ -18,7 +18,7 @@ import '../../providers/providers.dart';
 import '../ai/ai_main_screen.dart';
 import '../map/map_screen.dart';
 import '../widgets/native_ad_card.dart';
-import '../widgets/popup_ad_dialog.dart';
+// popup_ad_dialog 는 dksw_app_core v0.3.2 부터 코어로 통합 — 위 import 로 사용.
 import '../widgets/popup_notice_dialog.dart';
 import '../widgets/shared_widgets.dart';
 import '../widgets/watch_session_bar.dart';
