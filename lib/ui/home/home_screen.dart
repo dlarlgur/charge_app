@@ -72,6 +72,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         final stationId = message.data['stationId'] as String? ?? '';
         final newAvail = int.tryParse(message.data['newAvail'] as String? ?? '') ?? 0;
         if (stationId.isNotEmpty) WatchService().updateCurrentAvail(stationId, newAvail);
+      } else if (message.data['type'] == 'inquiry_reply') {
+        // 1:1 문의 답변 — 포그라운드에선 시스템이 자동 표시 안 하므로 직접 띄움
+        showInquiryReplyNotification(
+          title: message.notification?.title,
+          body: message.notification?.body,
+        );
       }
     });
 

@@ -314,3 +314,35 @@ void showEvAlarmNotification(Map<String, dynamic> data, {int soundMode = 0}) {
     payload: 'ev_alarm:$stationId:${Uri.encodeComponent(title)}:${Uri.encodeComponent(body)}',
   );
 }
+
+const inquiryReplyChannel = AndroidNotificationChannel(
+  'inquiry_reply',
+  '문의 답변 알림',
+  description: '1:1 문의에 대한 답변이 도착하면 알려드립니다',
+  importance: Importance.high,
+);
+
+/// 포그라운드(앱 실행 중) 1:1 문의 답변 FCM 수신 시 로컬 알림 표시.
+/// 백그라운드/종료 상태에선 시스템이 자동 표시하므로 이 함수는 포그라운드 전용.
+/// 폰 알림이면 충분 — Android Auto 대상 아님(BigText).
+void showInquiryReplyNotification({String? title, String? body}) {
+  final t = (title == null || title.isEmpty) ? '문의 답변이 도착했어요' : title;
+  final b = body ?? '';
+  notificationPlugin.show(
+    1004,
+    t,
+    b,
+    NotificationDetails(
+      android: AndroidNotificationDetails(
+        inquiryReplyChannel.id,
+        inquiryReplyChannel.name,
+        channelDescription: inquiryReplyChannel.description,
+        importance: inquiryReplyChannel.importance,
+        priority: Priority.high,
+        visibility: NotificationVisibility.public,
+        styleInformation: BigTextStyleInformation(b),
+      ),
+    ),
+    payload: 'inquiry_reply',
+  );
+}
