@@ -5,6 +5,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/services/ad_service.dart';
+import '../../data/services/admob_warmup.dart';
 import '../../data/services/house_ad_service.dart';
 
 /// 인-리스트 광고 카드.
@@ -32,10 +33,15 @@ class AdMobNativeCard extends StatefulWidget {
   State<AdMobNativeCard> createState() => _AdMobNativeCardState();
 }
 
-class _AdMobNativeCardState extends State<AdMobNativeCard> {
+class _AdMobNativeCardState extends State<AdMobNativeCard>
+    with AutomaticKeepAliveClientMixin {
   NativeAd? _ad;
   bool _loaded = false;
   bool _failed = false;
+
+  // 로드된 광고는 스크롤로 벗어나도 유지 → 재진입 시 재로딩(전환 hitch) 방지.
+  @override
+  bool get wantKeepAlive => _loaded;
 
   // 옆 스테이션 카드와 동일 높이로 — 슬롯에 빈 공간 없이 꽉 차게.
   // (XML 은 match_parent + center_vertical 로 채워 콘텐츠 중앙 정렬, 잘림 X)
@@ -49,6 +55,15 @@ class _AdMobNativeCardState extends State<AdMobNativeCard> {
   }
 
   void _load() {
+    // 미리 로드된(풀) 광고가 있으면 즉시 사용 — 스크롤 중 load→삽입 hitch 없음(gas 한정).
+    if (!widget.isEv) {
+      final pooled = AdMobWarmup.take(widget.adUnitId);
+      if (pooled != null) {
+        _ad = pooled;
+        _loaded = true;
+        return;
+      }
+    }
     _ad = NativeAd(
       adUnitId: widget.adUnitId,
       factoryId: widget.isEv ? 'stationCardListEv' : 'stationCardList',
@@ -73,6 +88,7 @@ class _AdMobNativeCardState extends State<AdMobNativeCard> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // AutomaticKeepAlive
     if (_failed) return const SizedBox.shrink();
     if (!_loaded || _ad == null) {
       return SizedBox(height: _height + widget.margin.vertical);
