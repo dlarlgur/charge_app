@@ -181,15 +181,14 @@ class HouseAdCache {
 
 /// 리스트 슬롯 결정 — 앱이 호출.
 ///
-/// AdMob 기본 슬롯: 4, 8.
+/// AdMob 슬롯: 4·8·12·16·20·24·28·32 (4 간격, list_banner1~8 unit ID).
 /// 같은 위치 house ad 가 있고 bypass_admob=true 면 house 가 대체.
-/// 슬롯 12+ 는 house ad 만.
+/// 그 외 위치는 house ad 등록 시에만 노출.
 class AdSlotResolver {
   AdSlotResolver._();
 
-  // 정식 오픈: 8 간격(4·12·20·28). 이전 4 간격(4,8,...,32)은 과다 노출이라 완화.
-  // list_banner1·3·5·7 unit ID 와 매핑 (ad_service.dart 참조, 짝수 자리 ID는 미사용).
-  static const Set<int> admobSlots = {4, 12, 20, 28};
+  // 4 간격(4,8,12,...,32) — list_banner1~8 unit ID 전부 사용 (ad_service.dart 참조).
+  static const Set<int> admobSlots = {4, 8, 12, 16, 20, 24, 28, 32};
 
   /// 슬롯이 광고 위치인지 (AdMob 또는 house ad).
   /// 광고 자체가 없으면 false 라서 일반 station 으로 채워짐.
