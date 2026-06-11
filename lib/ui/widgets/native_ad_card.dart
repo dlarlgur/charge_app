@@ -46,7 +46,7 @@ class _AdMobNativeCardState extends State<AdMobNativeCard>
   // 옆 스테이션 카드와 동일 높이로 — 슬롯에 빈 공간 없이 꽉 차게.
   // (XML 은 match_parent + center_vertical 로 채워 콘텐츠 중앙 정렬, 잘림 X)
   // Gas = GasStationCard(BrandLogo 40 + padding 13×2 ≈ 68dp) 와 동일.
-  double get _height => widget.isEv ? 96 : 80;
+  double get _height => widget.isEv ? 96 : 68;
 
   @override
   void didChangeDependencies() {
@@ -186,7 +186,7 @@ class HouseAdCard extends StatefulWidget {
 class _HouseAdCardState extends State<HouseAdCard> {
   bool _impressionReported = false;
   // native ad card 와 동일 — 옆 스테이션 카드 높이(Gas 68 / EV 96)에 맞춤.
-  double get _height => widget.isEv ? 96 : 80;
+  double get _height => widget.isEv ? 96 : 68;
 
   @override
   void initState() {
