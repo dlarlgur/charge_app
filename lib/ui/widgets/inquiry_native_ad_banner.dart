@@ -29,7 +29,8 @@ class _InquiryNativeAdBannerState extends State<InquiryNativeAdBanner> {
   void _load() {
     final ad = NativeAd(
       adUnitId: InquiryNativeAdBanner.adUnitId,
-      factoryId: 'inquiryCard',
+      // chat_llm 문의배너와 동일한 가로형 팩토리(아이콘+제목+본문+CTA / 오른쪽 미디어).
+      factoryId: 'stationCardTop',
       request: const AdRequest(),
       listener: NativeAdListener(
         onAdLoaded: (_) {
@@ -59,8 +60,8 @@ class _InquiryNativeAdBannerState extends State<InquiryNativeAdBanner> {
     // 좌우 마진 0 — core InquiryScreen 의 ListView 패딩(16)만 적용돼
     // '내 문의 N건' 헤더 카드와 동일 폭이 되게(배너에 별도 마진 주면 이중 = 더 좁아짐).
     return SizedBox(
-      // 세로 카드 고정 높이 — 2줄 헤드라인 + 풀폭 CTA 가 잘리지 않게.
-      height: 188,
+      // chat_llm 문의배너(가로형 카드)와 동일 높이.
+      height: 116,
       width: double.infinity,
       child: AdWidget(ad: ad),
     );

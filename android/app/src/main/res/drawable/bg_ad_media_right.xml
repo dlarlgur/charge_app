@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MediaView 우측 모서리만 둥글게 (카드 우측 radius 16 과 맞춤) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#F5F5F5" />
+    <corners
+        android:topRightRadius="15dp"
+        android:bottomRightRadius="15dp"
+        android:topLeftRadius="0dp"
+        android:bottomLeftRadius="0dp" />
+</shape>

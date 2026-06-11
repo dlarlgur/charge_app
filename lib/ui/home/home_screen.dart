@@ -1445,51 +1445,60 @@ class SettingsScreenEmbed extends ConsumerWidget {
 
     return SafeArea(
       child: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.only(bottom: 8),
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-            child: Text('설정', style: Theme.of(context).textTheme.headlineSmall),
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
+            child: Text('설정',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
+                    )),
           ),
           _sectionHeader(context, '차량 설정'),
-          _tile(context, isDark, Icons.directions_car_rounded, '차량 타입', settings.vehicleType.label, () {
-            _showPicker(context, '차량 타입', VehicleType.values.map((t) => t.label).toList(),
-              VehicleType.values.indexOf(settings.vehicleType),
-              (i) => ref.read(settingsProvider.notifier).setVehicleType(VehicleType.values[i]));
-          }),
-          if (settings.vehicleType != VehicleType.ev)
-            _tile(context, isDark, Icons.local_gas_station_rounded, '유종', settings.fuelType.label, () {
-              _showPicker(context, '유종', FuelType.values.map((t) => t.label).toList(),
-                FuelType.values.indexOf(settings.fuelType),
-                (i) => ref.read(settingsProvider.notifier).setFuelType(FuelType.values[i]));
+          settingsCard(isDark, [
+            _tile(context, isDark, Icons.directions_car_rounded, '차량 타입', settings.vehicleType.label, () {
+              _showPicker(context, '차량 타입', VehicleType.values.map((t) => t.label).toList(),
+                VehicleType.values.indexOf(settings.vehicleType),
+                (i) => ref.read(settingsProvider.notifier).setVehicleType(VehicleType.values[i]));
             }),
-          const SizedBox(height: 16),
+            if (settings.vehicleType != VehicleType.ev) ...[
+              settingsDivider(isDark),
+              _tile(context, isDark, Icons.local_gas_station_rounded, '유종', settings.fuelType.label, () {
+                _showPicker(context, '유종', FuelType.values.map((t) => t.label).toList(),
+                  FuelType.values.indexOf(settings.fuelType),
+                  (i) => ref.read(settingsProvider.notifier).setFuelType(FuelType.values[i]));
+              }),
+            ],
+          ]),
           _sectionHeader(context, '알림'),
-          _AlertSettingTileEmbed(isDark: isDark),
-          _EvAlarmSettingTileEmbed(isDark: isDark),
-          const SizedBox(height: 16),
+          settingsCard(isDark, [
+            _AlertSettingTileEmbed(isDark: isDark),
+            settingsDivider(isDark),
+            _EvAlarmSettingTileEmbed(isDark: isDark),
+          ]),
           _sectionHeader(context, '앱 설정'),
-          _tile(context, isDark, Icons.dark_mode_rounded, '테마',
-            themeMode == ThemeMode.dark ? '다크' : '라이트', () {
-              const modes = [ThemeMode.light, ThemeMode.dark];
-              _showPicker(context, '테마', ['라이트 모드', '다크 모드'],
-                modes.indexOf(themeMode == ThemeMode.system ? ThemeMode.light : themeMode),
-                (i) => ref.read(themeModeProvider.notifier).setTheme(modes[i]));
-          }),
-          const SizedBox(height: 16),
+          settingsCard(isDark, [
+            _tile(context, isDark, Icons.dark_mode_rounded, '테마',
+              themeMode == ThemeMode.dark ? '다크' : '라이트', () {
+                const modes = [ThemeMode.light, ThemeMode.dark];
+                _showPicker(context, '테마', ['라이트 모드', '다크 모드'],
+                  modes.indexOf(themeMode == ThemeMode.system ? ThemeMode.light : themeMode),
+                  (i) => ref.read(themeModeProvider.notifier).setTheme(modes[i]));
+            }),
+          ]),
           _SupportEmbed(isDark: isDark),
           _sectionHeader(context, '정보'),
-          _tile(
-            context, isDark, Icons.description_outlined, '정책 및 약관',
-            '', () => context.push('/policies'),
-          ),
-          _tile(
-            context, isDark, Icons.info_outline_rounded, '앱 버전',
-            DkswCore.appVersion, null,
-          ),
-          const SizedBox(height: 24),
+          settingsCard(isDark, [
+            _tile(context, isDark, Icons.description_outlined, '정책 및 약관', '',
+                () => context.push('/policies')),
+            settingsDivider(isDark),
+            _tile(context, isDark, Icons.info_outline_rounded, '앱 버전',
+                DkswCore.appVersion, null),
+          ]),
+          const SizedBox(height: 20),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
             child: Text(
               '유가 정보 출처: 한국석유공사 오피넷(www.opinet.co.kr)\n충전소 정보 출처: 환경부 전기차 충전소 공공데이터',
               style: TextStyle(
@@ -1503,6 +1512,30 @@ class SettingsScreenEmbed extends ConsumerWidget {
       ),
     );
   }
+
+  /// 설정 섹션 카드 — 둥근 카드로 타일 그룹화(앱 카드 톤과 통일).
+  static Widget settingsCard(bool isDark, List<Widget> children) => Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkCard : AppColors.lightCard,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? AppColors.darkCardBorder : const Color(0xFFE8ECF0),
+            width: 1,
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(mainAxisSize: MainAxisSize.min, children: children),
+      );
+
+  /// 카드 내부 타일 사이 구분선(살짝 들여쓰기).
+  static Widget settingsDivider(bool isDark) => Divider(
+        height: 1,
+        thickness: 1,
+        indent: 16,
+        endIndent: 16,
+        color: isDark ? const Color(0x12FFFFFF) : const Color(0xFFEEF1F5),
+      );
 
   Widget _sectionHeader(BuildContext context, String title) {
     return Padding(
@@ -1534,7 +1567,7 @@ class SettingsScreenEmbed extends ConsumerWidget {
   Widget _tile(BuildContext context, bool isDark, IconData icon, String title, String value, VoidCallback? onTap) {
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       leading: settingsIconChip(icon, isDark),
       title: Text(title,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
@@ -1626,7 +1659,7 @@ class _SupportEmbedState extends State<_SupportEmbed> {
         final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
 
         Widget tile(IconData icon, String title, int count, String route) => ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           leading: SettingsScreenEmbed.settingsIconChip(icon, isDark),
           title: Text(title,
               style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
@@ -1638,6 +1671,26 @@ class _SupportEmbedState extends State<_SupportEmbed> {
           onTap: () => context.push(route),
         );
 
+        final tiles = <Widget>[
+          if (hasN) tile(Icons.campaign_rounded, '공지사항', c!.notices, '/notices'),
+          if (hasE) tile(Icons.celebration_rounded, '이벤트', c!.events, '/events'),
+          if (hasF) tile(Icons.help_outline_rounded, '자주 묻는 질문', c!.faqs, '/faq'),
+          // 1:1 문의하기 — 항상 노출
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            leading: SettingsScreenEmbed.settingsIconChip(Icons.support_agent_rounded, isDark),
+            title: Text('1:1 문의하기',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+            trailing: Icon(Icons.chevron_right_rounded, size: 20, color: muted),
+            onTap: () => context.push('/inquiry'),
+          ),
+        ];
+        // 타일 사이 구분선 삽입
+        final children = <Widget>[];
+        for (var i = 0; i < tiles.length; i++) {
+          if (i > 0) children.add(SettingsScreenEmbed.settingsDivider(isDark));
+          children.add(tiles[i]);
+        }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -1650,19 +1703,7 @@ class _SupportEmbedState extends State<_SupportEmbed> {
                       letterSpacing: 0.4,
                       color: AppColors.gasBlue)),
             ),
-            if (hasN) tile(Icons.campaign_rounded, '공지사항', c!.notices, '/notices'),
-            if (hasE) tile(Icons.celebration_rounded, '이벤트', c!.events, '/events'),
-            if (hasF) tile(Icons.help_outline_rounded, '자주 묻는 질문', c!.faqs, '/faq'),
-            // 1:1 문의하기 — 항상 노출
-            ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-              leading: SettingsScreenEmbed.settingsIconChip(Icons.support_agent_rounded, isDark),
-              title: Text('1:1 문의하기',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-              trailing: Icon(Icons.chevron_right_rounded, size: 20, color: muted),
-              onTap: () => context.push('/inquiry'),
-            ),
-            const SizedBox(height: 8),
+            SettingsScreenEmbed.settingsCard(isDark, children),
           ],
         );
       },
@@ -1751,7 +1792,7 @@ class _AlertSettingTileEmbedState extends State<_AlertSettingTileEmbed> {
     return Column(
       children: [
         ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           leading: Icon(
             _enabled ? Icons.notifications_rounded : Icons.notifications_off_rounded,
             size: 22,
@@ -1815,7 +1856,7 @@ class _AlertSettingTileEmbedState extends State<_AlertSettingTileEmbed> {
 
         if (_enabled)
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
             child: Row(
               children: [
                 Text('알림 방식',
@@ -1865,7 +1906,7 @@ class _AlertSettingTileEmbedState extends State<_AlertSettingTileEmbed> {
           curve: Curves.easeInOut,
           child: _expanded
               ? Container(
-                  margin: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  margin: const EdgeInsets.fromLTRB(14, 2, 14, 10),
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0x0AFFFFFF) : const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.circular(12),
@@ -1971,7 +2012,7 @@ class _EvAlarmSettingTileEmbedState extends State<_EvAlarmSettingTileEmbed> {
     return Column(
       children: [
         ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           leading: Icon(
             Icons.ev_station_rounded,
             size: 22,
@@ -1999,7 +2040,7 @@ class _EvAlarmSettingTileEmbedState extends State<_EvAlarmSettingTileEmbed> {
         ),
         if (_ids.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
             child: Row(
               children: [
                 Text('알림 방식', style: TextStyle(fontSize: 12, color: mutedColor)),
@@ -2046,7 +2087,7 @@ class _EvAlarmSettingTileEmbedState extends State<_EvAlarmSettingTileEmbed> {
           curve: Curves.easeInOut,
           child: _expanded
               ? Container(
-                  margin: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  margin: const EdgeInsets.fromLTRB(14, 2, 14, 10),
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0x0AFFFFFF) : const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.circular(12),

@@ -592,17 +592,6 @@ class _AiResultBodyState extends State<AiResultBody> {
           const SizedBox(height: 12),
         ],
 
-        // ── 도착 후 주유 옵션 (Stage 6) ──
-        // 만땅 출발 등 잔량 충분 → 경로상 후보가 멀리 잡혔을 때
-        // 도착지 근처 주유소를 보조 카드로 노출
-        if (data['arrival_refuel'] is Map) ...[
-          _ArrivalRefuelCard(
-            arrival: data['arrival_refuel'] as Map<String, dynamic>,
-            wonFmt: _wonFmt,
-          ),
-          const SizedBox(height: 12),
-        ],
-
         // ── 기준 정보 ──
         if (goalL != null)
           Center(
@@ -2076,88 +2065,6 @@ class _OptionCard extends StatelessWidget {
                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── 도착 후 주유 카드 ─────────────────────────────────────────────────────
-// 만땅/잔량 충분 시: 경로상 가까운 곳에 들러도 못 넣으므로 도착지 근처
-// 주유소를 별도 보조 카드로 보여줌. 서버가 arrival_refuel 채우면 표시.
-
-class _ArrivalRefuelCard extends StatelessWidget {
-  final Map<String, dynamic> arrival;
-  final NumberFormat wonFmt;
-
-  const _ArrivalRefuelCard({required this.arrival, required this.wonFmt});
-
-  @override
-  Widget build(BuildContext context) {
-    final st = arrival['station'] is Map ? arrival['station'] as Map<String, dynamic> : const {};
-    final name = (st['display_name'] ?? st['name'] ?? '').toString();
-    final brand = (st['brand'] ?? '').toString();
-    final price = st['price_won_per_liter'] is num ? (st['price_won_per_liter'] as num).toDouble() : null;
-    final distM = arrival['distance_from_destination_m'] is num
-        ? (arrival['distance_from_destination_m'] as num).toInt()
-        : null;
-    final cost = arrival['expected_cost_won'] is num
-        ? (arrival['expected_cost_won'] as num).toInt()
-        : null;
-    final distLabel = distM == null
-        ? null
-        : (distM < 1000 ? '${distM}m' : '${(distM / 1000).toStringAsFixed(1)}km');
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7FAFD),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFCFE0F5)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.flag_rounded, size: 16, color: Color(0xFF1D6FE0)),
-              const SizedBox(width: 6),
-              const Text('도착 후 주유 옵션',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1D6FE0))),
-              const Spacer(),
-              if (distLabel != null)
-                Text('목적지에서 $distLabel',
-                  style: const TextStyle(fontSize: 11, color: Color(0xFF666666))),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            name.isNotEmpty ? name : '도착지 근처 주유소',
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF222222)),
-            maxLines: 1, overflow: TextOverflow.ellipsis,
-          ),
-          if (brand.isNotEmpty) ...[
-            const SizedBox(height: 2),
-            Text(brand, style: const TextStyle(fontSize: 11, color: Color(0xFF888888))),
-          ],
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              if (price != null) ...[
-                Text('${price.toStringAsFixed(0)}원/L',
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1D6FE0))),
-              ],
-              const SizedBox(width: 12),
-              if (cost != null)
-                Text('예상 ${wonFmt.format(cost)}원',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF666666))),
-            ],
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            '잔량이 충분해 경로상 주유보다 도착지 근처가 더 저렴할 수 있어요.',
-            style: TextStyle(fontSize: 11, color: Color(0xFF888888)),
           ),
         ],
       ),

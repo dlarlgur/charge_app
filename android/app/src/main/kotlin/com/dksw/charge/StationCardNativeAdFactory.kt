@@ -6,6 +6,7 @@ import android.view.View
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
+import com.google.android.gms.ads.nativead.MediaView
 import com.google.android.gms.ads.nativead.NativeAd
 import com.google.android.gms.ads.nativead.NativeAdView
 import io.flutter.plugins.googlemobileads.GoogleMobileAdsPlugin
@@ -66,24 +67,16 @@ private fun bind(view: NativeAdView, nativeAd: NativeAd) {
     view.setNativeAd(nativeAd)
 }
 
-/** 상단 2단 카드 전용 바인딩 — 헤드라인(그라데이션) + 광고주/본문(하단) 분리. */
+/** 상단 가로형 배너 바인딩 — 왼쪽 아이콘/헤드라인/본문/CTA + 오른쪽 미디어(이미지·영상). */
 private fun bindTop(view: NativeAdView, nativeAd: NativeAd) {
     val headline = view.findViewById<TextView>(R.id.ad_headline)
-    val advertiser = view.findViewById<TextView>(R.id.ad_advertiser)
     val body = view.findViewById<TextView>(R.id.ad_body)
-    val cta = view.findViewById<Button>(R.id.ad_call_to_action)
+    val cta = view.findViewById<TextView>(R.id.ad_call_to_action)
     val icon = view.findViewById<ImageView>(R.id.ad_icon)
+    val media = view.findViewById<MediaView>(R.id.ad_media)
 
     headline.text = nativeAd.headline ?: ""
     view.headlineView = headline
-
-    val adv = nativeAd.advertiser ?: nativeAd.store
-    if (adv.isNullOrBlank()) {
-        advertiser.visibility = View.GONE
-    } else {
-        advertiser.text = adv
-        view.advertiserView = advertiser
-    }
 
     val bodyText = nativeAd.body
     if (bodyText.isNullOrBlank()) {
@@ -97,17 +90,21 @@ private fun bindTop(view: NativeAdView, nativeAd: NativeAd) {
     if (ctaText.isNullOrBlank()) {
         cta.visibility = View.INVISIBLE
     } else {
-        cta.text = "$ctaText  →"
+        cta.text = ctaText
         view.callToActionView = cta
     }
 
-    val iconDrawable = nativeAd.icon?.drawable ?: nativeAd.images.firstOrNull()?.drawable
-    if (iconDrawable != null) {
-        icon.setImageDrawable(iconDrawable)
-        view.iconView = icon
+    val icn = nativeAd.icon
+    if (icn?.drawable != null) {
+        icon.setImageDrawable(icn.drawable)
+        icon.visibility = View.VISIBLE
     } else {
         icon.visibility = View.GONE
     }
+    view.iconView = icon
+
+    // 오른쪽 큰 미디어 (이미지/영상)
+    view.mediaView = media
 
     view.setNativeAd(nativeAd)
 }
