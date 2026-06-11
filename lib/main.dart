@@ -19,6 +19,7 @@ import 'app.dart';
 import 'core/constants/api_constants.dart';
 import 'core/constants/secrets.dart';
 import 'data/services/admob_warmup.dart';
+import 'data/services/exit_ad_service.dart';
 import 'data/services/alert_service.dart';
 import 'data/services/house_ad_service.dart';
 import 'data/services/notification_service.dart';
@@ -372,6 +373,8 @@ Future<void> _initBackgroundTasks() async {
     await MobileAds.instance.initialize();
     // AdMob 워밍업 — 슬롯 단위 ID 로 한 번 load() 해서 SDK 내부 캐시 데움.
     unawaited(AdMobWarmup.run());
+    // 앱 종료 전면광고 미리 로드 (종료 시점 즉시 노출).
+    ExitAdService.instance.preload();
   } catch (e) {
     debugPrint('[AdMob] init 실패 (무시됨): $e');
   }

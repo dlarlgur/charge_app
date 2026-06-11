@@ -14,6 +14,7 @@ import '../ui/notices/notices_screen.dart';
 import '../ui/events/events_screen.dart';
 import '../ui/faq/faq_screen.dart';
 import 'package:dksw_app_core/dksw_app_core.dart' show InquiryScreen;
+import '../ui/widgets/inquiry_native_ad_banner.dart';
 import '../data/services/alert_service.dart';
 import '../core/constants/api_constants.dart';
 
@@ -50,6 +51,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => InquiryScreen(
           appId: AppConstants.packageName,
           deviceId: AlertService().deviceId,
+          topBanner: const InquiryNativeAdBanner(),
+          bannerAboveHeader: true, // '내 문의 N건' 카드 위에 노출
         ),
       ),
     ],

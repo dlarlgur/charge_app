@@ -77,6 +77,12 @@ class MainActivity : FlutterFragmentActivity() {
             "stationCardListEv",
             StationCardListEvNativeAdFactory(this),
         )
+        // 1:1 문의 화면 상단 — 세로 카드 (큰 헤드라인 + 풀폭 CTA)
+        io.flutter.plugins.googlemobileads.GoogleMobileAdsPlugin.registerNativeAdFactory(
+            flutterEngine,
+            "inquiryCard",
+            InquiryNativeAdFactory(this),
+        )
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: io.flutter.embedding.engine.FlutterEngine) {
@@ -87,6 +93,8 @@ class MainActivity : FlutterFragmentActivity() {
             .unregisterNativeAdFactory(flutterEngine, "stationCardList")
         io.flutter.plugins.googlemobileads.GoogleMobileAdsPlugin
             .unregisterNativeAdFactory(flutterEngine, "stationCardListEv")
+        io.flutter.plugins.googlemobileads.GoogleMobileAdsPlugin
+            .unregisterNativeAdFactory(flutterEngine, "inquiryCard")
         super.cleanUpFlutterEngine(flutterEngine)
     }
 }

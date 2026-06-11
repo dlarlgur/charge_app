@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 1:1 문의 광고 'AD' 뱃지 — 파랑 알약 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#3B6DFF" />
+    <corners android:radius="5dp" />
+</shape>

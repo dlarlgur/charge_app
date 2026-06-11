@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  1:1 문의 화면 상단 네이티브 광고 — 세로 카드.
+  AD 뱃지 + 광고주 / 큰 헤드라인 / 풀폭 그라데이션 CTA. 그라데이션 테두리.
+  height 는 Flutter(AdWidget) 가 고정값으로 지정.
+-->
+<com.google.android.gms.ads.nativead.NativeAdView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="@drawable/ad_inquiry_card_bg"
+        android:gravity="center_vertical"
+        android:paddingStart="18dp"
+        android:paddingEnd="18dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp">
+
+        <!-- 상단: AD 뱃지 + 광고주 (오른쪽 AdChoices ⓘ 자리 확보) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingEnd="24dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="AD"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFFFF"
+                android:background="@drawable/ad_inquiry_badge_bg"
+                android:paddingStart="7dp"
+                android:paddingEnd="7dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:includeFontPadding="false" />
+
+            <TextView
+                android:id="@+id/ad_advertiser"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:textSize="13sp"
+                android:textColor="@color/ad_text_secondary"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+
+        <!-- 헤드라인 -->
+        <TextView
+            android:id="@+id/ad_headline"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:textColor="@color/ad_text_primary"
+            android:lineSpacingExtra="2dp"
+            android:maxLines="2"
+            android:ellipsize="end" />
+
+        <!-- CTA 풀폭 버튼 -->
+        <Button
+            android:id="@+id/ad_call_to_action"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="16dp"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFFFF"
+            android:textAllCaps="false"
+            android:background="@drawable/ad_inquiry_cta_bg"
+            android:stateListAnimator="@null" />
+
+    </LinearLayout>
+</com.google.android.gms.ads.nativead.NativeAdView>

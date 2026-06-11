@@ -11,6 +11,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/utils/helpers.dart';
 import '../../data/models/models.dart';
 import '../../data/services/ad_service.dart';
+import '../../data/services/exit_ad_service.dart';
 import '../../data/services/alert_service.dart';
 import '../../data/services/house_ad_service.dart';
 import '../../data/services/notification_service.dart';
@@ -291,7 +292,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ),
           );
         } else {
-          SystemNavigator.pop();
+          // 종료 전 전면광고 — 준비됐으면 보여주고 닫히면 종료, 없으면 즉시 종료.
+          ExitAdService.instance.showThenExit(() => SystemNavigator.pop());
         }
       },
       child: Scaffold(
