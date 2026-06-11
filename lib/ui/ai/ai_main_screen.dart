@@ -1157,14 +1157,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final accentLight = isEv ? const Color(0xFFECFDF5) : const Color(0xFFEFF6FF);
     final selected = r['key'] == _selectedRouteKey;
     final label = (r['label'] ?? '경로').toString();
-    final rest = r['rest_area_count'] ?? 0;
     final totalMin = ((r['duration_ms'] ?? 0) as num) ~/ 60000;
     final h = totalMin ~/ 60;
     final m = totalMin % 60;
     final timeStr = h > 0 ? '$h시간 $m분' : '$m분';
     final km = (((r['distance_m'] ?? 0) as num) / 1000).round();
     final ink = selected ? const Color(0xFF0F172A) : const Color(0xFF94A3B8);
-    final sub = selected ? const Color(0xFF64748B) : const Color(0xFFB0BAC9);
     return GestureDetector(
       onTap: () => _selectRoute((r['key'] ?? 'recommend').toString()),
       child: AnimatedContainer(
@@ -1202,19 +1200,16 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 ],
               ],
             ),
-            const SizedBox(height: 7),
+            const SizedBox(height: 6),
             Row(
               children: [
-                Icon(Icons.local_cafe_rounded,
+                Icon(Icons.schedule_rounded,
                     size: 14, color: selected ? accent : const Color(0xFFB0BAC9)),
                 const SizedBox(width: 4),
-                Text('휴게소 $rest곳',
+                Text('$timeStr · ${km}km',
                     style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: ink)),
               ],
             ),
-            const SizedBox(height: 3),
-            Text('$timeStr · ${km}km',
-                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: sub)),
           ],
         ),
       ),
