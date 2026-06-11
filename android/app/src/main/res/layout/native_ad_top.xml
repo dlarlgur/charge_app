@@ -1,109 +1,125 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Top 배너 광고 — 강조형. 큰 이미지(media) + 헤드라인·본문 + CTA.
-  KakaoTalk '지금' 탭 상단 배너처럼 prominent 한 자리.
-  height: ~108dp.
+  홈 상단 배너 (AdMob 네이티브) — 2단 카드.
+  상단: 그라데이션 패널 + AD 뱃지 + 큰 헤드라인 / 하단: 흰 정보줄(아이콘+광고주+본문+CTA).
+  DkswTopBanner(house ad)와 동일 톤. height 는 Flutter(AdWidget) 가 고정 지정.
 -->
 <com.google.android.gms.ads.nativead.NativeAdView
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="match_parent">
 
-    <FrameLayout
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@drawable/ad_card_bg"
-        android:paddingStart="14dp"
-        android:paddingEnd="14dp"
-        android:paddingTop="14dp"
-        android:paddingBottom="14dp">
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="@drawable/ad_top2_card"
+        android:clipToOutline="true">
 
+        <!-- ── 상단 그라데이션 패널 ── -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:background="@drawable/ad_top2_gradient"
+            android:paddingStart="18dp"
+            android:paddingEnd="18dp"
+            android:paddingTop="14dp"
+            android:paddingBottom="14dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top|end"
+                android:text="AD"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFFFF"
+                android:background="@drawable/ad_top2_badge"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp"
+                android:includeFontPadding="false" />
+
+            <TextView
+                android:id="@+id/ad_headline"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|start"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFFFF"
+                android:lineSpacingExtra="2dp"
+                android:maxLines="2"
+                android:ellipsize="end" />
+        </FrameLayout>
+
+        <!-- ── 하단 정보줄 ── -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp">
 
-            <!-- 큰 이미지 영역 80x80 — 강조형 시각 -->
             <ImageView
                 android:id="@+id/ad_icon"
-                android:layout_width="80dp"
-                android:layout_height="80dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:scaleType="centerCrop"
-                android:background="@drawable/ad_logo_bg"
+                android:background="@drawable/ad_top2_icon"
+                android:clipToOutline="true"
                 android:contentDescription="@null" />
 
-            <!-- 가운데 + 오른쪽: headline / body / CTA pill -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginStart="14dp"
+                android:layout_marginStart="12dp"
+                android:layout_marginEnd="8dp"
                 android:orientation="vertical">
 
-                <!-- AD 라벨 -->
                 <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="AD"
-                    android:textSize="9sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/ad_label_text"
-                    android:background="@drawable/ad_label_bg"
-                    android:paddingStart="5dp"
-                    android:paddingEnd="5dp"
-                    android:paddingTop="1dp"
-                    android:paddingBottom="1dp"
-                    android:layout_marginBottom="4dp"
-                    android:includeFontPadding="false" />
-
-                <!-- Headline -->
-                <TextView
-                    android:id="@+id/ad_headline"
+                    android:id="@+id/ad_advertiser"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:textSize="15sp"
+                    android:textSize="14sp"
                     android:textStyle="bold"
                     android:textColor="@color/ad_text_primary"
                     android:maxLines="1"
                     android:ellipsize="end" />
 
-                <!-- Body -->
                 <TextView
                     android:id="@+id/ad_body"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:textSize="11.5sp"
+                    android:textSize="12.5sp"
                     android:textColor="@color/ad_text_secondary"
-                    android:maxLines="2"
+                    android:maxLines="1"
                     android:ellipsize="end" />
-
-                <!-- CTA pill — 우측 정렬 작은 버튼 -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:gravity="end"
-                    android:orientation="horizontal">
-                    <Button
-                        android:id="@+id/ad_call_to_action"
-                        android:layout_width="wrap_content"
-                        android:layout_height="30dp"
-                        android:minWidth="0dp"
-                        android:minHeight="0dp"
-                        android:paddingStart="14dp"
-                        android:paddingEnd="14dp"
-                        android:paddingTop="0dp"
-                        android:paddingBottom="0dp"
-                        android:textSize="12sp"
-                        android:textStyle="bold"
-                        android:textColor="#FFFFFFFF"
-                        android:textAllCaps="false"
-                        android:background="@drawable/ad_cta_bg"
-                        android:stateListAnimator="@null" />
-                </LinearLayout>
             </LinearLayout>
+
+            <Button
+                android:id="@+id/ad_call_to_action"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:paddingTop="0dp"
+                android:paddingBottom="0dp"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="#FF2563EB"
+                android:textAllCaps="false"
+                android:background="@drawable/ad_top2_cta"
+                android:stateListAnimator="@null" />
         </LinearLayout>
-    </FrameLayout>
+    </LinearLayout>
 </com.google.android.gms.ads.nativead.NativeAdView>

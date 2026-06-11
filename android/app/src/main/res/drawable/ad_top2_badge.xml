@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 상단배너 AD 뱃지 — 그라데이션 위 다크 반투명 알약 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#52000000" />
+    <corners android:radius="20dp" />
+</shape>

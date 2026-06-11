@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -57,10 +56,12 @@ class _InquiryNativeAdBannerState extends State<InquiryNativeAdBanner> {
   Widget build(BuildContext context) {
     final ad = _ad;
     if (!_loaded || ad == null) return const SizedBox.shrink();
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+    // 좌우 마진 0 — core InquiryScreen 의 ListView 패딩(16)만 적용돼
+    // '내 문의 N건' 헤더 카드와 동일 폭이 되게(배너에 별도 마진 주면 이중 = 더 좁아짐).
+    return SizedBox(
       // 세로 카드 고정 높이 — 2줄 헤드라인 + 풀폭 CTA 가 잘리지 않게.
       height: 188,
+      width: double.infinity,
       child: AdWidget(ad: ad),
     );
   }

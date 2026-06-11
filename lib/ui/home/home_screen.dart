@@ -541,8 +541,8 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
 
 // ─── 광고 슬롯 + 스테이션 머지 ───
 //
-// list_position 4·8 = AdMob 자리 (bypass=true house ad 가 있으면 대체).
-// 12+ = 등록된 house ad 만 노출 (없으면 station 자리).
+// list_position 4·8·12·16·20·24·28·32 = AdMob 자리 (bypass=true house ad 가 있으면 대체).
+// 그 외 위치 = 등록된 house ad 만 노출 (없으면 station 자리).
 // stations 가 다 떨어지면 종료 — 이후 광고 슬롯은 화면에 등장하지 않음.
 class _AdMobAt {
   final int position;
@@ -550,7 +550,7 @@ class _AdMobAt {
 }
 
 List<Object> mergeWithAdSlots<T extends Object>(List<T> stations) {
-  // 정식 오픈: 리스트 광고 활성화 (AdSlotResolver.admobSlots = 8번째마다).
+  // 정식 오픈: 리스트 광고 활성화 (AdSlotResolver.admobSlots = 4번째마다).
   final merged = <Object>[];
   int sIdx = 0;
   int pos = 1;
@@ -623,6 +623,10 @@ class _GasListViewState extends ConsumerState<_GasListView> {
         controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
+          // 홈 상단 배너 — 콘솔(home_top) house ad 우선, 없으면 AdMob 2단 네이티브, 둘 다 없으면 높이 0.
+          const SliverToBoxAdapter(
+            child: DkswTopBanner(admobFallback: TopBannerAdmobCard()),
+          ),
           // 검색 + 필터 버튼
           SliverToBoxAdapter(
             child: Padding(
@@ -858,6 +862,10 @@ class _EvListViewState extends ConsumerState<_EvListView> {
         controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
+          // 홈 상단 배너 — 콘솔(home_top) house ad 우선, 없으면 AdMob 2단 네이티브, 둘 다 없으면 높이 0.
+          const SliverToBoxAdapter(
+            child: DkswTopBanner(admobFallback: TopBannerAdmobCard()),
+          ),
           // 검색 + 필터 버튼
           SliverToBoxAdapter(
             child: Padding(
@@ -1498,20 +1506,45 @@ class SettingsScreenEmbed extends ConsumerWidget {
 
   Widget _sectionHeader(BuildContext context, String title) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-      child: Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.gasBlue)),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 6),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.4,
+          color: AppColors.gasBlue,
+        ),
+      ),
     );
   }
 
+  /// 틴티드 아이콘 칩 — 회색 맨아이콘 대신 둥근 색배경 칩으로 personality 부여.
+  static Widget settingsIconChip(IconData icon, bool isDark) => Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          color: AppColors.gasBlue.withValues(alpha: isDark ? 0.20 : 0.10),
+          borderRadius: BorderRadius.circular(11),
+        ),
+        alignment: Alignment.center,
+        child: Icon(icon, size: 20, color: AppColors.gasBlue),
+      );
+
   Widget _tile(BuildContext context, bool isDark, IconData icon, String title, String value, VoidCallback? onTap) {
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
-      leading: Icon(icon, size: 22, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
-      title: Text(title, style: Theme.of(context).textTheme.titleSmall),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      leading: settingsIconChip(icon, isDark),
+      title: Text(title,
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-        Text(value, style: Theme.of(context).textTheme.bodyMedium),
-        if (onTap != null) Icon(Icons.chevron_right_rounded, size: 20,
-            color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+        Text(value, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: muted)),
+        if (onTap != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 2),
+            child: Icon(Icons.chevron_right_rounded, size: 20, color: muted),
+          ),
       ]),
       onTap: onTap,
     );
@@ -1591,12 +1624,12 @@ class _SupportEmbedState extends State<_SupportEmbed> {
         final hasF = c != null && c.faqs > 0;
         final isDark = widget.isDark;
         final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-        final secondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
         Widget tile(IconData icon, String title, int count, String route) => ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
-          leading: Icon(icon, size: 22, color: secondary),
-          title: Text(title, style: Theme.of(context).textTheme.titleSmall),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+          leading: SettingsScreenEmbed.settingsIconChip(icon, isDark),
+          title: Text(title,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
           trailing: Row(mainAxisSize: MainAxisSize.min, children: [
             Text('$count', style: TextStyle(fontSize: 13, color: muted)),
             const SizedBox(width: 4),
@@ -1609,22 +1642,27 @@ class _SupportEmbedState extends State<_SupportEmbed> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 6),
               child: Text('고객 지원',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.gasBlue)),
+                  style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.4,
+                      color: AppColors.gasBlue)),
             ),
             if (hasN) tile(Icons.campaign_rounded, '공지사항', c!.notices, '/notices'),
             if (hasE) tile(Icons.celebration_rounded, '이벤트', c!.events, '/events'),
             if (hasF) tile(Icons.help_outline_rounded, '자주 묻는 질문', c!.faqs, '/faq'),
             // 1:1 문의하기 — 항상 노출
             ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
-              leading: Icon(Icons.support_agent_rounded, size: 22, color: secondary),
-              title: Text('1:1 문의하기', style: Theme.of(context).textTheme.titleSmall),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              leading: SettingsScreenEmbed.settingsIconChip(Icons.support_agent_rounded, isDark),
+              title: Text('1:1 문의하기',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
               trailing: Icon(Icons.chevron_right_rounded, size: 20, color: muted),
               onTap: () => context.push('/inquiry'),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
           ],
         );
       },

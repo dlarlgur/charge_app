@@ -75,8 +75,8 @@ class HouseAd {
 /// 이미지 자체는 CachedNetworkImage 가 위젯 표시 시 lazy 다운로드 + 디스크 캐시.
 ///
 /// 노출 규칙:
-///  - 슬롯 4·8 = 기본 AdMob. 같은 위치에 bypass=true house ad 가 있으면 대체.
-///  - 슬롯 12+ = 등록된 house ad 항상 노출 (AdMob 자리 아님).
+///  - 슬롯 4·8·12·16·20·24·28·32 = 기본 AdMob. 같은 위치에 bypass=true house ad 가 있으면 대체.
+///  - 그 외 위치 = 등록된 house ad 항상 노출 (AdMob 자리 아님).
 class HouseAdCache {
   HouseAdCache._();
 
@@ -129,7 +129,11 @@ class HouseAdCache {
       final fetchDio = Dio()..transformer = BackgroundTransformer();
       final res = await fetchDio.get(
         '$base/api/house-ads',
-        queryParameters: {'package': AppConstants.packageName},
+        queryParameters: {
+          'package': AppConstants.packageName,
+          // 서버 test_device_ids 화이트리스트 매칭용 — 콘솔 기록 device_id 와 동일.
+          if (DkswCore.deviceId.isNotEmpty) 'device_id': DkswCore.deviceId,
+        },
         options: Options(receiveTimeout: const Duration(seconds: 5)),
       );
       final data = res.data;

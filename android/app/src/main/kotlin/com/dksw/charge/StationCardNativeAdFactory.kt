@@ -66,6 +66,52 @@ private fun bind(view: NativeAdView, nativeAd: NativeAd) {
     view.setNativeAd(nativeAd)
 }
 
+/** 상단 2단 카드 전용 바인딩 — 헤드라인(그라데이션) + 광고주/본문(하단) 분리. */
+private fun bindTop(view: NativeAdView, nativeAd: NativeAd) {
+    val headline = view.findViewById<TextView>(R.id.ad_headline)
+    val advertiser = view.findViewById<TextView>(R.id.ad_advertiser)
+    val body = view.findViewById<TextView>(R.id.ad_body)
+    val cta = view.findViewById<Button>(R.id.ad_call_to_action)
+    val icon = view.findViewById<ImageView>(R.id.ad_icon)
+
+    headline.text = nativeAd.headline ?: ""
+    view.headlineView = headline
+
+    val adv = nativeAd.advertiser ?: nativeAd.store
+    if (adv.isNullOrBlank()) {
+        advertiser.visibility = View.GONE
+    } else {
+        advertiser.text = adv
+        view.advertiserView = advertiser
+    }
+
+    val bodyText = nativeAd.body
+    if (bodyText.isNullOrBlank()) {
+        body.visibility = View.GONE
+    } else {
+        body.text = bodyText
+        view.bodyView = body
+    }
+
+    val ctaText = nativeAd.callToAction
+    if (ctaText.isNullOrBlank()) {
+        cta.visibility = View.INVISIBLE
+    } else {
+        cta.text = "$ctaText  →"
+        view.callToActionView = cta
+    }
+
+    val iconDrawable = nativeAd.icon?.drawable ?: nativeAd.images.firstOrNull()?.drawable
+    if (iconDrawable != null) {
+        icon.setImageDrawable(iconDrawable)
+        view.iconView = icon
+    } else {
+        icon.visibility = View.GONE
+    }
+
+    view.setNativeAd(nativeAd)
+}
+
 class StationCardTopNativeAdFactory(private val context: Context) :
     GoogleMobileAdsPlugin.NativeAdFactory {
     override fun createNativeAd(
@@ -74,7 +120,7 @@ class StationCardTopNativeAdFactory(private val context: Context) :
     ): NativeAdView {
         val view = LayoutInflater.from(context)
             .inflate(R.layout.native_ad_top, null) as NativeAdView
-        bind(view, nativeAd)
+        bindTop(view, nativeAd)
         return view
     }
 }

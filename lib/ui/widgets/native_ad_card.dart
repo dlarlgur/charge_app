@@ -4,13 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_colors.dart';
+import '../../data/services/ad_service.dart';
 import '../../data/services/house_ad_service.dart';
 
 /// 인-리스트 광고 카드.
 ///
 /// 두 종류:
 ///  - AdMob 네이티브 광고 (factoryId=stationCardList) — 슬롯 4·8.
-///  - House ad (콘솔 등록) — 슬롯 4·8 (bypass) 또는 12+.
+///  - House ad (콘솔 등록) — AdMob 슬롯(4·8·12·…·32) bypass 대체 또는 그 외 위치.
 ///
 /// 호출하는 쪽에서 어느 종류인지 결정해서 적합한 위젯을 그림.
 class AdMobNativeCard extends StatefulWidget {
@@ -36,10 +37,10 @@ class _AdMobNativeCardState extends State<AdMobNativeCard> {
   bool _loaded = false;
   bool _failed = false;
 
-  // EV/Gas 카드와 비슷한 높이지만 native ad XML (icon 44dp + paddingTop/Bottom 13dp
-  // = ~70dp + headline/body/CTA) 내용을 다 담으려면 좀 더 큰 높이 필요. 이전 80/64 는
-  // 하단 CTA/body 잘림. EV 96, Gas 80 으로 상향.
-  double get _height => widget.isEv ? 96 : 80;
+  // 옆 스테이션 카드와 동일 높이로 — 슬롯에 빈 공간 없이 꽉 차게.
+  // (XML 은 match_parent + center_vertical 로 채워 콘텐츠 중앙 정렬, 잘림 X)
+  // Gas = GasStationCard(BrandLogo 40 + padding 13×2 ≈ 68dp) 와 동일.
+  double get _height => widget.isEv ? 96 : 68;
 
   @override
   void didChangeDependencies() {
@@ -79,7 +80,69 @@ class _AdMobNativeCardState extends State<AdMobNativeCard> {
     return Container(
       margin: widget.margin,
       height: _height,
-      child: AdWidget(ad: _ad!),
+      // 네이티브 광고(플랫폼 뷰)는 XML 의 라운드가 콘텐츠에 가려 각져 보임 →
+      // Flutter 단에서 ClipRRect 로 강제 라운드(스테이션 카드와 동일 14dp).
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: AdWidget(ad: _ad!),
+      ),
+    );
+  }
+}
+
+/// 홈 상단 배너 AdMob 네이티브 (2단 카드, factoryId=stationCardTop).
+/// DkswTopBanner 의 admobFallback 으로 사용 — 콘솔 house ad 없을 때 노출.
+/// 로드 전·실패 시 높이 0(빈 자리).
+class TopBannerAdmobCard extends StatefulWidget {
+  const TopBannerAdmobCard({super.key});
+
+  @override
+  State<TopBannerAdmobCard> createState() => _TopBannerAdmobCardState();
+}
+
+class _TopBannerAdmobCardState extends State<TopBannerAdmobCard> {
+  NativeAd? _ad;
+  bool _loaded = false;
+  bool _failed = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_ad == null) _load();
+  }
+
+  void _load() {
+    _ad = NativeAd(
+      adUnitId: AdUnitIds.topBanner,
+      factoryId: 'stationCardTop',
+      request: const AdRequest(),
+      listener: NativeAdListener(
+        onAdLoaded: (_) {
+          if (mounted) setState(() => _loaded = true);
+        },
+        onAdFailedToLoad: (ad, _) {
+          ad.dispose();
+          if (mounted) setState(() => _failed = true);
+        },
+      ),
+    )..load();
+  }
+
+  @override
+  void dispose() {
+    _ad?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_failed || !_loaded || _ad == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: SizedBox(height: 188, child: AdWidget(ad: _ad!)),
+      ),
     );
   }
 }
@@ -104,8 +167,8 @@ class HouseAdCard extends StatefulWidget {
 
 class _HouseAdCardState extends State<HouseAdCard> {
   bool _impressionReported = false;
-  // native ad card 와 동일 — 컨텐츠 잘림 방지 위해 80/96 으로 상향.
-  double get _height => widget.isEv ? 96 : 80;
+  // native ad card 와 동일 — 옆 스테이션 카드 높이(Gas 68 / EV 96)에 맞춤.
+  double get _height => widget.isEv ? 96 : 68;
 
   @override
   void initState() {
