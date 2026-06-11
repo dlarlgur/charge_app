@@ -121,6 +121,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   @override
   void dispose() {
     _markerDebounce?.cancel();
+    _searchDebounce?.cancel();
     _searchController.dispose();
     _sheetController?.dispose();
     super.dispose();
@@ -286,7 +287,20 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   // ─── 검색 ───
   // AI 탭과 동일한 lat/lng 결정 로직 — center 없으면 GPS fallback. 두 화면이
   // 같은 검색어에 동일 결과 반환하도록 보장.
+  Timer? _searchDebounce;
+
+  /// 입력마다 호출 — 디바운스해서 타이핑 멈춘 뒤에만 검색(키 입력당 네트워크 호출 폭주 방지).
+  void _onSearchChanged(String query) {
+    _searchDebounce?.cancel();
+    if (query.trim().isEmpty) {
+      setState(() => _searchResults = []);
+      return;
+    }
+    _searchDebounce = Timer(const Duration(milliseconds: 320), () => _performSearch(query));
+  }
+
   Future<void> _performSearch(String query) async {
+    _searchDebounce?.cancel(); // onSubmitted(엔터) 즉시 실행 시 대기 중 디바운스 취소
     if (query.trim().isEmpty) {
       setState(() => _searchResults = []);
       return;
@@ -608,7 +622,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       ),
                       style: TextStyle(fontSize: 14,
                           color: isDark ? Colors.white : Colors.black87),
-                      onChanged: _performSearch,
+                      onChanged: _onSearchChanged,
                       onSubmitted: _performSearch,
                     )
                   : Text('장소, 주소 검색',
@@ -924,6 +938,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   static const int _kBadgeCacheMax = 400;
   final Map<String, NOverlayImage> _badgeIconCache = {};
   final List<String> _badgeIconLru = [];
+  // 병렬 마커 빌드 중 같은 아이콘 key 의 동시 래스터를 1회로 합침(중복 raster 제거).
+  final Map<String, Future<NOverlayImage>> _badgeIconInflight = {};
 
   // ─── 마커 배지 아이콘 (로고 + 가격/텍스트 카드 스타일) ───
   Future<NOverlayImage> _stationBadgeIcon({
@@ -941,29 +957,39 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       _badgeIconLru.add(key);
       return cached;
     }
-    final Color borderColor = isHighlighted
-        ? _kSelectedColor
-        : (isCheapest ? const Color(0xFFEF4444) : const Color(0xFFDDDDDD));
-    final Color textColor = isHighlighted
-        ? _kSelectedColor
-        : (isCheapest ? const Color(0xFFEF4444) : const Color(0xFF1a1a1a));
-    final icon = await GasStationMapBadge.overlayImage(
-      context,
-      label: label,
-      brand: brand,
-      stationName: stationName,
-      isEv: isEv,
-      borderColor: borderColor,
-      textColor: textColor,
-      emphasizeBorder: isHighlighted,
-    );
-    _badgeIconCache[key] = icon;
-    _badgeIconLru.add(key);
-    if (_badgeIconLru.length > _kBadgeCacheMax) {
-      final evict = _badgeIconLru.removeAt(0);
-      _badgeIconCache.remove(evict);
+    final inflight = _badgeIconInflight[key];
+    if (inflight != null) return inflight; // 동시 요청 → 진행 중 future 공유
+    final future = () async {
+      final Color borderColor = isHighlighted
+          ? _kSelectedColor
+          : (isCheapest ? const Color(0xFFEF4444) : const Color(0xFFDDDDDD));
+      final Color textColor = isHighlighted
+          ? _kSelectedColor
+          : (isCheapest ? const Color(0xFFEF4444) : const Color(0xFF1a1a1a));
+      final icon = await GasStationMapBadge.overlayImage(
+        context,
+        label: label,
+        brand: brand,
+        stationName: stationName,
+        isEv: isEv,
+        borderColor: borderColor,
+        textColor: textColor,
+        emphasizeBorder: isHighlighted,
+      );
+      _badgeIconCache[key] = icon;
+      _badgeIconLru.add(key);
+      if (_badgeIconLru.length > _kBadgeCacheMax) {
+        final evict = _badgeIconLru.removeAt(0);
+        _badgeIconCache.remove(evict);
+      }
+      return icon;
+    }();
+    _badgeIconInflight[key] = future;
+    try {
+      return await future;
+    } finally {
+      _badgeIconInflight.remove(key);
     }
-    return icon;
   }
 
   /// 거리순 정렬된 목록에서 [maxCount]개를 균등 간격으로 추출.
@@ -1013,120 +1039,128 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
     _lastMinGasPrice = minGasPrice;
 
+    // ── 마커 빌드: 아이콘(위젯 래스터)을 병렬로 만들고 한 번에 addOverlayAll ──
+    // 이전: 마커마다 `icon: await ...` + `addOverlay` 를 순차(최대 300×2 호출) → 첫 드로 잭.
+    // 변경: 아이콘 Future 를 병렬로 만들고(캐시+in-flight 중복제거), 마커는 1회 배치 추가.
+    final markerFutures = <Future<NMarker>>[];
+
     if (_showGas) {
-      // 좌표 4자리 일치 그룹화 → 단일은 일반 마커, 2개+ 는 클러스터 마커
       final gasGroups = _groupByCluster<GasStation>(
         gasStations, (s) => NLatLng(s.lat, s.lng),
       );
-      for (final entry in gasGroups.entries) {
-        if (gen != _markersGeneration) return;
-        final group = entry.value;
+      gasGroups.forEach((keyc, group) {
         if (group.length == 1) {
           final s = group.first;
           final isCheapest = minGasPrice != null && s.price == minGasPrice;
-          final isSelected = _selectedStation != null &&
-              _selectedStation is GasStation &&
+          final isSelected = _selectedStation is GasStation &&
               (_selectedStation as GasStation).id == s.id;
           final label = s.priceText;
           final markerId = 'gas_${s.id}';
           final displayName = StationAliasService.resolveGas(s.id, s.name);
-          final marker = NMarker(
-            id: markerId,
-            position: NLatLng(s.lat, s.lng),
-            icon: await _stationBadgeIcon(
-              label: label, brand: s.brand, stationName: displayName,
-              isHighlighted: isSelected, isCheapest: isCheapest,
-            ),
-          );
-          _markerRefs[markerId] = marker;
-          marker.setOnTapListener((_) async {
-            final prev = _selectedStation;
-            if (prev is GasStation && prev.id == s.id) {
-              await _dismissSheet();
-              return;
-            }
-            await _restoreMarkerIcon(prev, _lastMinGasPrice);
-            _selectStation(s);
-            await _highlightMarker(markerId, label, brand: s.brand, stationName: displayName);
-          });
-          await controller.addOverlay(marker);
+          markerFutures.add(() async {
+            final marker = NMarker(
+              id: markerId,
+              position: NLatLng(s.lat, s.lng),
+              icon: await _stationBadgeIcon(
+                label: label, brand: s.brand, stationName: displayName,
+                isHighlighted: isSelected, isCheapest: isCheapest,
+              ),
+            );
+            marker.setOnTapListener((_) async {
+              final prev = _selectedStation;
+              if (prev is GasStation && prev.id == s.id) {
+                await _dismissSheet();
+                return;
+              }
+              await _restoreMarkerIcon(prev, _lastMinGasPrice);
+              _selectStation(s);
+              await _highlightMarker(markerId, label, brand: s.brand, stationName: displayName);
+            });
+            _markerRefs[markerId] = marker;
+            return marker;
+          }());
         } else {
-          // 클러스터: 같은 GPS 의 주유소 N개
           final first = group.first;
-          final markerId = 'gas_cluster_${entry.key}';
-          final marker = NMarker(
-            id: markerId,
-            position: NLatLng(first.lat, first.lng),
-            icon: await _stationBadgeIcon(
-              label: '+${group.length}',
-              brand: null,
-              stationName: '주유소 ${group.length}곳',
-              isCheapest: false,
-            ),
-          );
-          _markerRefs[markerId] = marker;
-          marker.setOnTapListener((_) async {
-            await _restoreMarkerIcon(_selectedStation, _lastMinGasPrice);
-            _selectCluster(group.cast<dynamic>());
-          });
-          await controller.addOverlay(marker);
+          final markerId = 'gas_cluster_$keyc';
+          markerFutures.add(() async {
+            final marker = NMarker(
+              id: markerId,
+              position: NLatLng(first.lat, first.lng),
+              icon: await _stationBadgeIcon(
+                label: '+${group.length}', brand: null,
+                stationName: '주유소 ${group.length}곳', isCheapest: false,
+              ),
+            );
+            marker.setOnTapListener((_) async {
+              await _restoreMarkerIcon(_selectedStation, _lastMinGasPrice);
+              _selectCluster(group.cast<dynamic>());
+            });
+            _markerRefs[markerId] = marker;
+            return marker;
+          }());
         }
-      }
+      });
     }
 
     if (_showEv) {
       final evGroups = _groupByCluster<EvStation>(
         evStations, (s) => NLatLng(s.lat, s.lng),
       );
-      for (final entry in evGroups.entries) {
-        if (gen != _markersGeneration) return;
-        final group = entry.value;
+      evGroups.forEach((keyc, group) {
         if (group.length == 1) {
           final s = group.first;
-          final isSelected = _selectedStation != null &&
-              _selectedStation is EvStation &&
+          final isSelected = _selectedStation is EvStation &&
               (_selectedStation as EvStation).statId == s.statId;
           final markerLabel = s.isTesla ? 'Tesla' : '${s.availableCount}/${s.totalCount}';
           final markerId = 'ev_${s.statId}';
-          final marker = NMarker(
-            id: markerId,
-            position: NLatLng(s.lat, s.lng),
-            icon: await _stationBadgeIcon(
-              label: markerLabel, isEv: true, isHighlighted: isSelected,
-            ),
-          );
-          _markerRefs[markerId] = marker;
-          marker.setOnTapListener((_) async {
-            final prev = _selectedStation;
-            if (prev is EvStation && prev.statId == s.statId) {
-              await _dismissSheet();
-              return;
-            }
-            await _restoreMarkerIcon(prev, _lastMinGasPrice);
-            _selectStation(s);
-            await _highlightMarker(markerId, markerLabel, isEv: true);
-          });
-          await controller.addOverlay(marker);
+          markerFutures.add(() async {
+            final marker = NMarker(
+              id: markerId,
+              position: NLatLng(s.lat, s.lng),
+              icon: await _stationBadgeIcon(
+                label: markerLabel, isEv: true, isHighlighted: isSelected,
+              ),
+            );
+            marker.setOnTapListener((_) async {
+              final prev = _selectedStation;
+              if (prev is EvStation && prev.statId == s.statId) {
+                await _dismissSheet();
+                return;
+              }
+              await _restoreMarkerIcon(prev, _lastMinGasPrice);
+              _selectStation(s);
+              await _highlightMarker(markerId, markerLabel, isEv: true);
+            });
+            _markerRefs[markerId] = marker;
+            return marker;
+          }());
         } else {
-          // 클러스터: 같은 GPS 의 충전소 N개 (아파트 단지 케이스)
           final first = group.first;
-          final markerId = 'ev_cluster_${entry.key}';
-          final marker = NMarker(
-            id: markerId,
-            position: NLatLng(first.lat, first.lng),
-            icon: await _stationBadgeIcon(
-              label: '+${group.length}',
-              isEv: true,
-            ),
-          );
-          _markerRefs[markerId] = marker;
-          marker.setOnTapListener((_) async {
-            await _restoreMarkerIcon(_selectedStation, _lastMinGasPrice);
-            _selectCluster(group.cast<dynamic>());
-          });
-          await controller.addOverlay(marker);
+          final markerId = 'ev_cluster_$keyc';
+          markerFutures.add(() async {
+            final marker = NMarker(
+              id: markerId,
+              position: NLatLng(first.lat, first.lng),
+              icon: await _stationBadgeIcon(
+                label: '+${group.length}', isEv: true,
+              ),
+            );
+            marker.setOnTapListener((_) async {
+              await _restoreMarkerIcon(_selectedStation, _lastMinGasPrice);
+              _selectCluster(group.cast<dynamic>());
+            });
+            _markerRefs[markerId] = marker;
+            return marker;
+          }());
         }
-      }
+      });
+    }
+
+    if (gen != _markersGeneration) return;
+    final markers = await Future.wait(markerFutures);
+    if (gen != _markersGeneration) return;
+    if (markers.isNotEmpty) {
+      await controller.addOverlayAll(markers.toSet());
     }
   }
 

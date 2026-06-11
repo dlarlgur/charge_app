@@ -2003,6 +2003,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   /// EV 직접선택 모드 — 후보 충전소 마커를 지도에 표시
   Future<void> _drawEvCandidateMarkers(List<Map<String, dynamic>> candidates) async {
     if (_mapController == null || candidates.isEmpty) return;
+    // 아이콘(위젯 래스터) 병렬 생성 후 한 번에 addOverlayAll — 순차 await + 개별 add 제거.
+    final futures = <Future<NMarker?>>[];
     for (int i = 0; i < candidates.length; i++) {
       final c = candidates[i];
       final lat = (c['lat'] as num?)?.toDouble();
@@ -2011,27 +2013,28 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       final avail = (c['available_count'] as num?)?.toInt() ?? 0;
       final total = (c['total_count'] as num?)?.toInt() ?? 0;
       final label = '$avail/$total';
-      final borderColor = avail > 0 ? const Color(0xFF1D9E75) : const Color(0xFFE8700A);
-      final textColor   = avail > 0 ? const Color(0xFF1D9E75) : const Color(0xFFE8700A);
-      final marker = NMarker(
-        id: 'ev_candidate_$i',
-        position: NLatLng(lat, lng),
-        icon: await GasStationMapBadge.overlayImage(
-          context,
-          label: label,
-          isEv: true,
-          borderColor: borderColor,
-          textColor: textColor,
-          emphasizeBorder: false,
-        ),
-        anchor: const NPoint(0.5, 1.0),
-      );
-      marker.setOnTapListener((_) {
-        // 탭하면 해당 충전소 상세 바텀시트 열기
-        _openEvStationDetail(c);
-      });
-      await _mapController!.addOverlay(marker);
+      final color = avail > 0 ? const Color(0xFF1D9E75) : const Color(0xFFE8700A);
+      futures.add(() async {
+        final marker = NMarker(
+          id: 'ev_candidate_$i',
+          position: NLatLng(lat, lng),
+          icon: await GasStationMapBadge.overlayImage(
+            context,
+            label: label,
+            isEv: true,
+            borderColor: color,
+            textColor: color,
+            emphasizeBorder: false,
+          ),
+          anchor: const NPoint(0.5, 1.0),
+        );
+        marker.setOnTapListener((_) => _openEvStationDetail(c)); // 상세 바텀시트
+        return marker;
+      }());
     }
+    final markers = (await Future.wait(futures)).whereType<NMarker>().toSet();
+    if (_mapController == null || markers.isEmpty) return;
+    await _mapController!.addOverlayAll(markers);
   }
 
   /// EV AI 추천 결과 지도 마커 — 번개+avail/total 형태로 통일
