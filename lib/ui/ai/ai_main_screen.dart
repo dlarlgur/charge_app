@@ -2376,32 +2376,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       apply(serverPts, serverSeg);
       return;
     }
-    debugPrint(
-      serverSusp
-          ? '[AI_MAP_ROUTE] 서버 polyline_order.suspicious → 클라이언트 길찾기로 대체'
-          : '[AI_MAP_ROUTE] 경유 경로 좌표 순서 의심 → 클라이언트 길찾기로 대체',
-    );
-    try {
-      final vr = await ApiService().getDrivingRoute(
-        startLat: _lastStartLat,
-        startLng: _lastStartLng,
-        goalLat: _destLat!,
-        goalLng: _destLng!,
-        waypointLat: stLat,
-        waypointLng: stLng,
-      );
-      if (vr['success'] == true) {
-        final parsed = _pathPointsFromServerJson(vr['path_points']);
-        if (parsed != null) {
-          final segs = _segmentsFromPayload(vr);
-          apply(parsed, segs);
-          return;
-        }
-      }
-    } catch (e) {
-      if (kDebugMode) debugPrint('[ai-via] client getDrivingRoute 실패: $e');
-    }
-    apply(serverPts, serverSeg);
+    // 경유 좌표가 톨게이트/고속도로에 snap 되면 TMap/Naver 모두 진입→U턴 경로를 짠다
+    // (목적지 먼저 갔다가 경유로 되돌아오는 폴리라인). 클라이언트 재길찾기도 같은 snap →
+    // 억지로 U턴 경로를 그리지 않고 **직행 경로**를 그리고 주유소는 마커로만 노출한다.
+    debugPrint('[AI_MAP_ROUTE] 경유 경로 snap 의심(server=$serverSusp/client=$clientSusp) → 직행 경로로 표시(마커만)');
+    apply(_lastPathPoints, null);
   }
 
   /// 지도 마커 탭 시 표시되는 미니 카드 sheet — 이름·주소·가격·우회 정보 +
