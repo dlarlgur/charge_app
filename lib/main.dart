@@ -377,7 +377,7 @@ Future<void> _initBackgroundTasks() async {
   try {
     await MobileAds.instance.initialize();
     // AdMob 워밍업 — 슬롯 단위 ID 로 한 번 load() 해서 SDK 내부 캐시 데움.
-    unawaited(AdMobWarmup.run());
+    AdMobWarmup.run();
     // 앱 종료 전면광고 미리 로드 (종료 시점 즉시 노출).
     ExitAdService.instance.preload();
   } catch (e) {

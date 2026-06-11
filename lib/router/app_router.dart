@@ -13,7 +13,8 @@ import '../ui/settings/policies_screen.dart';
 import '../ui/notices/notices_screen.dart';
 import '../ui/events/events_screen.dart';
 import '../ui/faq/faq_screen.dart';
-import 'package:dksw_app_core/dksw_app_core.dart' show InquiryScreen;
+import 'package:dksw_app_core/dksw_app_core.dart' show InquiryScreen, DkswTopBanner;
+import 'package:flutter/widgets.dart' show EdgeInsets;
 import '../ui/widgets/inquiry_native_ad_banner.dart';
 import '../data/services/alert_service.dart';
 import '../core/constants/api_constants.dart';
@@ -51,7 +52,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => InquiryScreen(
           appId: AppConstants.packageName,
           deviceId: AlertService().deviceId,
-          topBanner: const InquiryNativeAdBanner(),
+          // 콘솔 inquiry_top 광고가 bypass 면 그걸, 아니면 AdMob(InquiryNativeAdBanner).
+          topBanner: const DkswTopBanner(
+            placement: 'inquiry_top',
+            margin: EdgeInsets.zero,
+            admobFallback: InquiryNativeAdBanner(),
+          ),
           bannerAboveHeader: true, // '내 문의 N건' 카드 위에 노출
           // 답변 푸시 탭 → 그 문의 상세 자동 오픈 (deep-link)
           initialInquiryId: state.extra is int ? state.extra as int : null,

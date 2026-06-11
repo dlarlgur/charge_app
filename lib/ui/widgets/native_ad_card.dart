@@ -5,8 +5,8 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/services/ad_service.dart';
-import '../../data/services/admob_warmup.dart';
 import '../../data/services/house_ad_service.dart';
+import '../../data/services/list_ad_cache.dart';
 
 /// 인-리스트 광고 카드.
 ///
@@ -33,76 +33,46 @@ class AdMobNativeCard extends StatefulWidget {
   State<AdMobNativeCard> createState() => _AdMobNativeCardState();
 }
 
-class _AdMobNativeCardState extends State<AdMobNativeCard>
-    with AutomaticKeepAliveClientMixin {
-  NativeAd? _ad;
-  bool _loaded = false;
-  bool _failed = false;
-
-  // 로드된 광고는 스크롤로 벗어나도 유지 → 재진입 시 재로딩(전환 hitch) 방지.
-  @override
-  bool get wantKeepAlive => _loaded;
+class _AdMobNativeCardState extends State<AdMobNativeCard> {
+  // 광고는 카드가 소유하지 않고 ListAdCache 가 (unitId+factory) 키로 보관.
+  // 스크롤로 벗어나면 PlatformView 는 unmount(가벼움), 인스턴스는 캐시에 살아 있어
+  // 되돌아올 때 재로드 없이 다시 mount 만. (KeepAlive·프리로드 풀 불필요)
+  late final String _key = '${widget.adUnitId}|${widget.isEv}';
+  String get _factory => widget.isEv ? 'stationCardListEv' : 'stationCardList';
 
   // 옆 스테이션 카드와 동일 높이로 — 슬롯에 빈 공간 없이 꽉 차게.
-  // (XML 은 match_parent + center_vertical 로 채워 콘텐츠 중앙 정렬, 잘림 X)
   // Gas = GasStationCard(BrandLogo 40 + padding 13×2 ≈ 68dp) 와 동일.
   double get _height => widget.isEv ? 96 : 68;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_ad == null) _load();
-  }
-
-  void _load() {
-    // 미리 로드된(풀) 광고가 있으면 즉시 사용 — 스크롤 중 load→삽입 hitch 없음(gas 한정).
-    if (!widget.isEv) {
-      final pooled = AdMobWarmup.take(widget.adUnitId);
-      if (pooled != null) {
-        _ad = pooled;
-        _loaded = true;
-        return;
-      }
-    }
-    _ad = NativeAd(
-      adUnitId: widget.adUnitId,
-      factoryId: widget.isEv ? 'stationCardListEv' : 'stationCardList',
-      request: const AdRequest(),
-      listener: NativeAdListener(
-        onAdLoaded: (_) {
-          if (mounted) setState(() => _loaded = true);
-        },
-        onAdFailedToLoad: (ad, _) {
-          ad.dispose();
-          if (mounted) setState(() => _failed = true);
-        },
-      ),
-    )..load();
-  }
-
-  @override
-  void dispose() {
-    _ad?.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    // 이 카드가 화면 근처에서 빌드되는 시점에 비로소 로드(지연) → PlatformView mount 분산.
+    ListAdCache.ensureLoaded(_key, widget.adUnitId, _factory);
   }
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); // AutomaticKeepAlive
-    if (_failed) return const SizedBox.shrink();
-    if (!_loaded || _ad == null) {
-      return SizedBox(height: _height + widget.margin.vertical);
-    }
-    return Container(
-      margin: widget.margin,
-      height: _height,
-      // 네이티브 광고(플랫폼 뷰)는 XML 의 라운드가 콘텐츠에 가려 각져 보임 →
-      // Flutter 단에서 ClipRRect 로 강제 라운드(스테이션 카드와 동일 14dp).
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        // 플랫폼뷰(광고) 리페인트를 격리 → 스크롤 시 리스트 전체 리페인트 방지(잭 완화)
-        child: RepaintBoundary(child: AdWidget(ad: _ad!)),
-      ),
+    return ValueListenableBuilder<bool>(
+      valueListenable: ListAdCache.readyNotifier(_key),
+      builder: (context, ready, _) {
+        final ad = ListAdCache.ad(_key);
+        if (!ready || ad == null) {
+          // 로딩 중/실패 — 옆 카드와 동일 높이로 자리만 예약(레이아웃 점프 방지).
+          return SizedBox(height: _height + widget.margin.vertical);
+        }
+        return Container(
+          margin: widget.margin,
+          height: _height,
+          // 네이티브 광고(플랫폼 뷰)는 XML 의 라운드가 콘텐츠에 가려 각져 보임 →
+          // Flutter 단에서 ClipRRect 로 강제 라운드(스테이션 카드와 동일 14dp).
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            // 플랫폼뷰(광고) 리페인트를 격리 → 스크롤 시 리스트 전체 리페인트 방지(잭 완화)
+            child: RepaintBoundary(child: AdWidget(ad: ad)),
+          ),
+        );
+      },
     );
   }
 }
