@@ -58,6 +58,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     // 로컬 알림 "상세보기" 액션 탭 → 알림 페이지로 이동
     navigateToAlertsNotifier.addListener(_onNavigateToAlerts);
+    // 1:1 문의 답변 알림 탭 → 그 문의 상세로 이동
+    navigateToInquiryNotifier.addListener(_onNavigateToInquiry);
 
     // 포그라운드 FCM 메시지 수신 → 로컬 알림 표시 + 내역 저장
     _fcmOnMessageSub = FirebaseMessaging.onMessage.listen((message) {
@@ -78,6 +80,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         showInquiryReplyNotification(
           title: message.notification?.title,
           body: message.notification?.body,
+          inquiryId: int.tryParse(message.data['inquiryId']?.toString() ?? ''),
         );
       }
     });
@@ -139,6 +142,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ));
           }
         }
+      } else if (message.data['type'] == 'inquiry_reply') {
+        navigateToInquiryNotifier.value =
+            int.tryParse(message.data['inquiryId']?.toString() ?? '') ?? 0;
       }
     });
 
@@ -173,6 +179,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             }
           });
         }
+      } else if (message.data['type'] == 'inquiry_reply') {
+        final id = int.tryParse(message.data['inquiryId']?.toString() ?? '') ?? 0;
+        Future.delayed(const Duration(milliseconds: 600),
+            () => navigateToInquiryNotifier.value = id);
       }
     });
 
@@ -182,6 +192,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     navigateToAlertsNotifier.removeListener(_onNavigateToAlerts);
+    navigateToInquiryNotifier.removeListener(_onNavigateToInquiry);
     navigateToEvStationNotifier.removeListener(_onNavigateToEvStation);
     navigateToGasStationNotifier.removeListener(_onNavigateToGasStation);
     requestEvReplanNotifier.removeListener(_onEvReplanRequested);
@@ -220,6 +231,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   void _onNavigateToAlerts() => _openAlertsPage();
+
+  void _onNavigateToInquiry() {
+    final id = navigateToInquiryNotifier.value;
+    if (id <= 0 || !mounted) return;
+    navigateToInquiryNotifier.value = 0; // 소비
+    context.push('/inquiry', extra: id);
+  }
 
   void _onNavigateToEvStation() {
     final stationId = navigateToEvStationNotifier.value;

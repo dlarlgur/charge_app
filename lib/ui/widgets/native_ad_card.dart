@@ -84,7 +84,8 @@ class _AdMobNativeCardState extends State<AdMobNativeCard> {
       // Flutter 단에서 ClipRRect 로 강제 라운드(스테이션 카드와 동일 14dp).
       child: ClipRRect(
         borderRadius: BorderRadius.circular(14),
-        child: AdWidget(ad: _ad!),
+        // 플랫폼뷰(광고) 리페인트를 격리 → 스크롤 시 리스트 전체 리페인트 방지(잭 완화)
+        child: RepaintBoundary(child: AdWidget(ad: _ad!)),
       ),
     );
   }
@@ -141,7 +142,8 @@ class _TopBannerAdmobCardState extends State<TopBannerAdmobCard> {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(14),
-        child: SizedBox(height: 116, child: AdWidget(ad: _ad!)),
+        child: SizedBox(
+            height: 116, child: RepaintBoundary(child: AdWidget(ad: _ad!))),
       ),
     );
   }

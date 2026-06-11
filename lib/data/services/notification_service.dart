@@ -12,6 +12,9 @@ final navigateToAlertsNotifier = ValueNotifier<int>(0);
 /// EV 알람 탭 시 stationId 전달 → HomeScreen에서 충전소 상세로 이동
 final navigateToEvStationNotifier = ValueNotifier<String>('');
 
+/// 문의 답변 알림 탭 시 그 문의 id 전달 → HomeScreen이 1:1 문의 상세로 이동.
+final navigateToInquiryNotifier = ValueNotifier<int>(0);
+
 /// 홈 위젯(주유소) 탭 시 stationId 전달 → HomeScreen에서 주유소 상세로 이동
 final navigateToGasStationNotifier = ValueNotifier<String>('');
 
@@ -325,7 +328,7 @@ const inquiryReplyChannel = AndroidNotificationChannel(
 /// 포그라운드(앱 실행 중) 1:1 문의 답변 FCM 수신 시 로컬 알림 표시.
 /// 백그라운드/종료 상태에선 시스템이 자동 표시하므로 이 함수는 포그라운드 전용.
 /// 폰 알림이면 충분 — Android Auto 대상 아님(BigText).
-void showInquiryReplyNotification({String? title, String? body}) {
+void showInquiryReplyNotification({String? title, String? body, int? inquiryId}) {
   final t = (title == null || title.isEmpty) ? '문의 답변이 도착했어요' : title;
   final b = body ?? '';
   notificationPlugin.show(
@@ -343,6 +346,6 @@ void showInquiryReplyNotification({String? title, String? body}) {
         styleInformation: BigTextStyleInformation(b),
       ),
     ),
-    payload: 'inquiry_reply',
+    payload: 'inquiry_reply:${inquiryId ?? ''}',
   );
 }

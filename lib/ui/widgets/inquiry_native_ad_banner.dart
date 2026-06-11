@@ -63,7 +63,7 @@ class _InquiryNativeAdBannerState extends State<InquiryNativeAdBanner> {
       // chat_llm 문의배너(가로형 카드)와 동일 높이.
       height: 116,
       width: double.infinity,
-      child: AdWidget(ad: ad),
+      child: RepaintBoundary(child: AdWidget(ad: ad)),
     );
   }
 }

@@ -48,11 +48,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/faq', builder: (_, __) => const FaqScreen()),
       GoRoute(
         path: '/inquiry',
-        builder: (_, __) => InquiryScreen(
+        builder: (_, state) => InquiryScreen(
           appId: AppConstants.packageName,
           deviceId: AlertService().deviceId,
           topBanner: const InquiryNativeAdBanner(),
           bannerAboveHeader: true, // '내 문의 N건' 카드 위에 노출
+          // 답변 푸시 탭 → 그 문의 상세 자동 오픈 (deep-link)
+          initialInquiryId: state.extra is int ? state.extra as int : null,
         ),
       ),
     ],

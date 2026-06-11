@@ -261,6 +261,11 @@ Future<void> _initLocalNotifications() async {
       } else if (payload.startsWith('ev_watch:')) {
         final stationId = payload.substring('ev_watch:'.length);
         if (stationId.isNotEmpty) navigateToEvStationNotifier.value = stationId;
+      } else if (payload.startsWith('inquiry_reply')) {
+        // 1:1 문의 답변 알림 탭 → 그 문의 상세 (payload: inquiry_reply:id)
+        final idStr =
+            payload.substring('inquiry_reply'.length).replaceFirst(':', '');
+        navigateToInquiryNotifier.value = int.tryParse(idStr) ?? 0;
       } else {
         // 알림 본문 탭 또는 "상세보기" 버튼 → 알림 페이지로 이동
         navigateToAlertsNotifier.value++;
