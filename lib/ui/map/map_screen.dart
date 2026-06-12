@@ -982,7 +982,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final results = await Future.wait([
       circle(AppColors.gasBlue),
       circle(AppColors.evGreen),
-      circle(const Color(0xFF6366F1)), // 인디고: 주유+충전 혼합
+      circle(AppColors.gasBlue), // 주유+충전 혼합도 파랑(주유 톤)
     ]);
     if (!mounted) return;
     _clusterIconGas = results[0];
