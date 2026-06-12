@@ -46,7 +46,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   Widget? _cachedMap;
   bool? _cachedMapIsDark;
   int _markersGeneration = 0;
-  final Map<String, NMarker> _markerRefs = {};
+  final Map<String, NClusterableMarker> _markerRefs = {};
+  // 줌 기반 네이티브 클러스터링용 원형 아이콘 (개수는 캡션으로 따로 그림).
+  // 동기 clusterMarkerBuilder 안에서 await 불가 → 타입별 3종을 미리 래스터해 둠.
+  NOverlayImage? _clusterIconGas;
+  NOverlayImage? _clusterIconEv;
+  NOverlayImage? _clusterIconMixed;
   Timer? _markerDebounce;
   double? _lastMinGasPrice;
   bool _isLocating = false;
@@ -187,7 +192,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _markerDebounce?.cancel();
     _markersGeneration++;
     _markerRefs.clear();
-    _mapController?.clearOverlays(type: NOverlayType.marker);
+    _mapController?.clearOverlays(type: NOverlayType.clusterableMarker);
     // 필터 변경 등으로 마커가 전부 폐기될 때 — 다음 표시 셋과 키가 거의 안 겹치므로
     // 배지 아이콘 캐시도 같이 비워 메모리 회수. 첫 진입에만 재 raster 비용 있음.
     _badgeIconCache.clear();
@@ -410,6 +415,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     });
     _mapReady = true;
     _precacheBrandLogos();
+    _buildClusterIcons();
     _updateMarkers();
   }
 
@@ -494,6 +500,19 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       // 네이티브 터치 디스패치를 받아 버그 우회.
       // ignore: invalid_use_of_visible_for_testing_member
       forceHybridComposition: true,
+      // 줌 기반 클러스터링 — 줌아웃 시 가까운 마커를 지역별 원(개수)으로 병합,
+      // 확대하면 개별 마커로 분리. 렌더 마커 수가 급감해 팬/줌이 부드러워짐.
+      clusterOptions: NaverMapClusteringOptions(
+        // 화면상 거리 기준 병합. 줌아웃일수록 더 넓게 묶어 개수를 확 줄임.
+        mergeStrategy: const NClusterMergeStrategy(
+          willMergedScreenDistance: {
+            NInclusiveRange(0, 9): 120,   // 광역(시/도) — 크게 묶음
+            NInclusiveRange(10, 12): 90,  // 시군구 단위
+          },
+          maxMergeableScreenDistance: 120,
+        ),
+        clusterMarkerBuilder: _buildClusterMarker,
+      ),
       onMapReady: _onMapReady,
       onCameraChange: _onCameraChange,
       onMapTapped: _onMapTapped,
@@ -931,6 +950,83 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     await GasStationMapBadge.precacheBrandImages(context);
   }
 
+  // ─── 줌 기반 클러스터 원형 아이콘 (타입별 색) ───
+  // 동기 clusterMarkerBuilder 안에서는 위젯 래스터(await)가 불가하므로,
+  // 주유(파랑)·충전(초록)·혼합(인디고) 3종을 맵 준비 시 미리 만들어 둔다.
+  // 개수 텍스트는 아이콘에 굽지 않고 네이티브 캡션으로 그려 클러스터마다 재래스터 0.
+  Future<void> _buildClusterIcons() async {
+    if (!mounted) return;
+    Future<NOverlayImage> circle(Color color) => NOverlayImage.fromWidget(
+          widget: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.28),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+          ),
+          size: const Size(44, 44),
+          context: context,
+        );
+    final results = await Future.wait([
+      circle(AppColors.gasBlue),
+      circle(AppColors.evGreen),
+      circle(const Color(0xFF6366F1)), // 인디고: 주유+충전 혼합
+    ]);
+    if (!mounted) return;
+    _clusterIconGas = results[0];
+    _clusterIconEv = results[1];
+    _clusterIconMixed = results[2];
+  }
+
+  // 네이티브가 가까운 NClusterableMarker 들을 묶을 때마다 호출(동기).
+  // children 의 'type' 태그 구성으로 주유/충전/혼합을 판정해 색을 정하고,
+  // 개수는 캡션으로 표시. 탭하면 해당 위치로 줌인해 개별 마커가 드러나게 한다.
+  void _buildClusterMarker(NClusterInfo info, NClusterMarker clusterMarker) {
+    var hasGas = false, hasEv = false;
+    for (final child in info.children) {
+      final t = child.tags['type'];
+      if (t == 'ev') {
+        hasEv = true;
+      } else {
+        hasGas = true;
+      }
+      if (hasGas && hasEv) break;
+    }
+    final icon = (hasGas && hasEv)
+        ? _clusterIconMixed
+        : (hasEv ? _clusterIconEv : _clusterIconGas);
+    if (icon != null) clusterMarker.setIcon(icon);
+    clusterMarker.setCaption(NOverlayCaption(
+      text: info.size.toString(),
+      color: Colors.white,
+      textSize: 13,
+      haloColor: Colors.transparent,
+    ));
+    clusterMarker.setOnTapListener((_) async {
+      final c = _mapController;
+      if (c == null) return;
+      final pos = await c.getCameraPosition();
+      await c.updateCamera(
+        NCameraUpdate.scrollAndZoomTo(
+          target: clusterMarker.position,
+          zoom: (pos.zoom + 2).clamp(0.0, 20.0),
+        )..setAnimation(
+            animation: NCameraAnimation.easing,
+            duration: const Duration(milliseconds: 300),
+          ),
+      );
+    });
+  }
+
   // ─── 마커 배지 아이콘 캐시 ───
   // 키: 렌더 결과를 결정하는 모든 입력. 가격 동일하면 동일 비트맵 재사용.
   // 150개 마커 × widget→bitmap rasterize 비용 (각 10~30ms) 을 매 update 마다
@@ -1014,7 +1110,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
     final gen = ++_markersGeneration;
     _markerRefs.clear();
-    await controller.clearOverlays(type: NOverlayType.marker);
+    await controller.clearOverlays(type: NOverlayType.clusterableMarker);
     if (gen != _markersGeneration) return;
 
     final gasStations = _spreadSample<GasStation>(
@@ -1042,7 +1138,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     // ── 마커 빌드: 아이콘(위젯 래스터)을 병렬로 만들고 한 번에 addOverlayAll ──
     // 이전: 마커마다 `icon: await ...` + `addOverlay` 를 순차(최대 300×2 호출) → 첫 드로 잭.
     // 변경: 아이콘 Future 를 병렬로 만들고(캐시+in-flight 중복제거), 마커는 1회 배치 추가.
-    final markerFutures = <Future<NMarker>>[];
+    final markerFutures = <Future<NClusterableMarker>>[];
 
     if (_showGas) {
       final gasGroups = _groupByCluster<GasStation>(
@@ -1058,9 +1154,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           final markerId = 'gas_${s.id}';
           final displayName = StationAliasService.resolveGas(s.id, s.name);
           markerFutures.add(() async {
-            final marker = NMarker(
+            final marker = NClusterableMarker(
               id: markerId,
               position: NLatLng(s.lat, s.lng),
+              tags: const {'type': 'gas'},
               icon: await _stationBadgeIcon(
                 label: label, brand: s.brand, stationName: displayName,
                 isHighlighted: isSelected, isCheapest: isCheapest,
@@ -1083,9 +1180,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           final first = group.first;
           final markerId = 'gas_cluster_$keyc';
           markerFutures.add(() async {
-            final marker = NMarker(
+            final marker = NClusterableMarker(
               id: markerId,
               position: NLatLng(first.lat, first.lng),
+              tags: const {'type': 'gas'},
               icon: await _stationBadgeIcon(
                 label: '+${group.length}', brand: null,
                 stationName: '주유소 ${group.length}곳', isCheapest: false,
@@ -1114,9 +1212,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           final markerLabel = s.isTesla ? 'Tesla' : '${s.availableCount}/${s.totalCount}';
           final markerId = 'ev_${s.statId}';
           markerFutures.add(() async {
-            final marker = NMarker(
+            final marker = NClusterableMarker(
               id: markerId,
               position: NLatLng(s.lat, s.lng),
+              tags: const {'type': 'ev'},
               icon: await _stationBadgeIcon(
                 label: markerLabel, isEv: true, isHighlighted: isSelected,
               ),
@@ -1138,9 +1237,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           final first = group.first;
           final markerId = 'ev_cluster_$keyc';
           markerFutures.add(() async {
-            final marker = NMarker(
+            final marker = NClusterableMarker(
               id: markerId,
               position: NLatLng(first.lat, first.lng),
+              tags: const {'type': 'ev'},
               icon: await _stationBadgeIcon(
                 label: '+${group.length}', isEv: true,
               ),
