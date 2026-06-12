@@ -383,10 +383,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       pillH = tp.height + 10; // 상하 패딩 5*2
     }
     final canvasW = math.max(pinW, hasName ? pillW : pinW);
-    final canvasH = hasName ? pillH + gap + pinH : pinH;
+    // +4: TextPainter 높이와 실제 위젯 렌더 높이의 반올림 차이로 인한 2px 오버플로 방지.
+    final canvasH = (hasName ? pillH + gap + pinH : pinH) + 4;
 
     final icon = await NOverlayImage.fromWidget(
-      widget: _SearchPin(name: name, nameStyle: nameStyle, pillWidth: pillW),
+      widget: _SearchPin(
+        name: name, nameStyle: nameStyle, pillWidth: pillW,
+        canvasWidth: canvasW, canvasHeight: canvasH,
+      ),
       size: Size(canvasW, canvasH),
       context: context,
     );
@@ -1617,10 +1621,14 @@ class _SearchPin extends StatelessWidget {
   final String name;
   final TextStyle nameStyle;
   final double pillWidth;
+  final double canvasWidth;
+  final double canvasHeight;
   const _SearchPin({
     required this.name,
     required this.nameStyle,
     required this.pillWidth,
+    required this.canvasWidth,
+    required this.canvasHeight,
   });
 
   // 차분한 로즈 (스테이션 파랑/초록과 충돌 없이, 빨강만큼 튀지 않음).
@@ -1628,7 +1636,14 @@ class _SearchPin extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    // 캔버스 크기를 고정하고 콘텐츠를 하단 정렬 — 여유(+4)는 위쪽 투명으로 가고
+    // 핀 끝이 캔버스 맨 아래(앵커 0.5,1.0)에 오게 해 좌표를 정확히 가리킴.
+    return SizedBox(
+      width: canvasWidth,
+      height: canvasHeight,
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -1677,6 +1692,8 @@ class _SearchPin extends StatelessWidget {
           ),
         ),
       ],
+        ),
+      ),
     );
   }
 }
