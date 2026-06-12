@@ -145,6 +145,8 @@ class GasStationMapBadge {
                 Text(
                   label,
                   style: TextStyle(
+                    // fromWidget 래스터는 앱 폰트 미상속 → Pretendard 명시해 통일.
+                    fontFamily: 'Pretendard',
                     color: effectiveText,
                     fontSize: fontSize,
                     fontWeight: FontWeight.w800,

@@ -369,7 +369,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     // Flutter 폰트로 깔끔하게. 가변 길이라 TextPainter 로 실제 폭을 재서 캔버스 산정.
     const double pinH = 44, pinW = 44, gap = 3;
     final hasName = name.isNotEmpty;
+    // fromWidget 래스터는 앱 테마(Pretendard)를 상속 못 받아 시스템 폰트로 폴백됨 →
+    // fontFamily 명시해 앱 글씨와 통일.
     const nameStyle = TextStyle(
+      fontFamily: 'Pretendard',
       fontSize: 13, fontWeight: FontWeight.w700,
       color: Color(0xFF1F2937), height: 1.15,
     );
