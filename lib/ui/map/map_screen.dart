@@ -52,6 +52,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   NOverlayImage? _clusterIconGas;
   NOverlayImage? _clusterIconEv;
   NOverlayImage? _clusterIconMixed;
+  // 검색한 장소를 표시하는 핀(역삼각 빨강) — 스테이션 마커와 별개 타입(marker)이라
+  // 클러스터링/마커 갱신에 휩쓸리지 않음.
+  NMarker? _searchMarker;
   Timer? _markerDebounce;
   double? _lastMinGasPrice;
   bool _isLocating = false;
@@ -328,17 +331,53 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _saveToHistory(place);
     final lat = (place['lat'] as num).toDouble();
     final lng = (place['lng'] as num).toDouble();
+    final name = (place['name'] ?? '').toString();
     _mapController?.updateCamera(NCameraUpdate.withParams(
       target: NLatLng(lat, lng),
       zoom: 14,
     ));
     ref.read(mapCenterProvider.notifier).state = (lat: lat, lng: lng);
+    // 검색 위치에 빨강 핀 + 장소명 캡션. 주변 주유/충전소는 center 갱신으로 재조회됨.
+    _setSearchMarker(lat, lng, name);
     setState(() {
       _isSearchMode = false;
       _searchResults = [];
       _showSearchHere = false;
     });
     _searchController.clear();
+  }
+
+  /// 검색한 장소를 가리키는 빨강 핀 마커(+ 이름 캡션)를 찍는다.
+  /// 스테이션 마커와 다른 색/모양으로 "여기 검색함" 을 분명히 보여줌.
+  Future<void> _setSearchMarker(double lat, double lng, String name) async {
+    final c = _mapController;
+    if (c == null) return;
+    if (_searchMarker != null) {
+      await c.deleteOverlay(_searchMarker!.info);
+      _searchMarker = null;
+    }
+    final icon = await NOverlayImage.fromWidget(
+      widget: const _SearchPin(),
+      size: const Size(34, 44),
+      context: context,
+    );
+    if (!mounted) return;
+    final marker = NMarker(
+      id: 'search_pin',
+      position: NLatLng(lat, lng),
+      icon: icon,
+      anchor: const NPoint(0.5, 1.0), // 핀 끝이 좌표를 가리키도록
+    );
+    if (name.isNotEmpty) {
+      marker.setCaption(NOverlayCaption(
+        text: name,
+        textSize: 14,
+        color: const Color(0xFFD32F2F),
+        haloColor: Colors.white,
+      ));
+    }
+    _searchMarker = marker;
+    await c.addOverlay(marker);
   }
 
   // ─── 필터 열기 ───
@@ -504,8 +543,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       // 확대하면 개별 마커로 분리. 렌더 마커 수가 급감해 팬/줌이 부드러워짐.
       clusterOptions: NaverMapClusteringOptions(
         // 클러스터링이 동작할 줌 범위. 초기 줌(14)에선 개별 마커 그대로 보이고,
-        // 줌아웃(≤12)했을 때만 지역별 원으로 묶이게 상한을 낮춤.
-        enableZoomRange: const NInclusiveRange(0, 12),
+        // 한 단계 줌아웃(≤13)하면 지역별 원으로 묶이게 — 첫화면 묶임/과도한 줌아웃의 중간.
+        enableZoomRange: const NInclusiveRange(0, 13),
         // 화면상 거리 기준 병합. 줌아웃일수록 더 넓게 묶어 개수를 확 줄임.
         mergeStrategy: const NClusterMergeStrategy(
           willMergedScreenDistance: {
@@ -1534,6 +1573,35 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     );
   }
 
+}
+
+/// 검색한 장소를 가리키는 빨강 핀 (스테이션 마커와 구분되는 색/모양).
+class _SearchPin extends StatelessWidget {
+  const _SearchPin();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 34,
+      height: 44,
+      child: Stack(
+        alignment: Alignment.topCenter,
+        children: [
+          // 흰 외곽선용 살짝 큰 핀
+          const Icon(Icons.location_on, size: 44, color: Colors.white),
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(Icons.location_on, size: 41, color: const Color(0xFFE53935)),
+          ),
+          // 중앙 흰 점
+          const Positioned(
+            top: 11,
+            child: CircleAvatar(radius: 5, backgroundColor: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 
