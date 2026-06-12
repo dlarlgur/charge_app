@@ -365,9 +365,29 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       await c.deleteOverlay(_searchMarker!.info);
       _searchMarker = null;
     }
+    // 이름 알약을 핀과 한 이미지로 그림 — 네이티브 캡션(투박한 폰트/외곽선) 대신
+    // Flutter 폰트로 깔끔하게. 가변 길이라 TextPainter 로 실제 폭을 재서 캔버스 산정.
+    const double pinH = 44, pinW = 44, gap = 3;
+    final hasName = name.isNotEmpty;
+    const nameStyle = TextStyle(
+      fontSize: 13, fontWeight: FontWeight.w700,
+      color: Color(0xFF1F2937), height: 1.15,
+    );
+    double pillW = 0, pillH = 0;
+    if (hasName) {
+      final tp = TextPainter(
+        text: TextSpan(text: name, style: nameStyle),
+        maxLines: 1, textDirection: TextDirection.ltr,
+      )..layout();
+      pillW = (tp.width + 22).clamp(34, 220).toDouble(); // 좌우 패딩 11*2, 최대 220
+      pillH = tp.height + 10; // 상하 패딩 5*2
+    }
+    final canvasW = math.max(pinW, hasName ? pillW : pinW);
+    final canvasH = hasName ? pillH + gap + pinH : pinH;
+
     final icon = await NOverlayImage.fromWidget(
-      widget: const _SearchPin(),
-      size: const Size(34, 44),
+      widget: _SearchPin(name: name, nameStyle: nameStyle, pillWidth: pillW),
+      size: Size(canvasW, canvasH),
       context: context,
     );
     if (!mounted) return;
@@ -375,23 +395,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       id: 'search_pin',
       position: NLatLng(lat, lng),
       icon: icon,
-      anchor: const NPoint(0.5, 1.0), // 핀 끝이 좌표를 가리키도록
-      // 다른 마커에 가려지지 않게 — 캡션 강제 노출 + 충돌해도 안 숨김.
-      isForceShowCaption: true,
+      anchor: const NPoint(0.5, 1.0), // 핀 끝(이미지 하단 중앙)이 좌표를 가리키도록
+      // 다른 마커에 가려지지 않게 — 강제 노출 + 충돌해도 안 숨김.
       isForceShowIcon: true,
-      isHideCollidedCaptions: false,
       isHideCollidedMarkers: false,
     );
     // 스테이션 마커보다 위에 그려지도록 zIndex 상향.
     marker.setZIndex(1000000);
-    if (name.isNotEmpty) {
-      marker.setCaption(NOverlayCaption(
-        text: name,
-        textSize: 14,
-        color: const Color(0xFFD32F2F),
-        haloColor: Colors.white,
-      ));
-    }
     _searchMarker = marker;
     await c.addOverlay(marker);
   }
@@ -1601,31 +1611,72 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
 }
 
-/// 검색한 장소를 가리키는 빨강 핀 (스테이션 마커와 구분되는 색/모양).
+/// 검색한 장소를 가리키는 핀 + 이름 알약. 스테이션 마커(파랑/초록)와 구분되되
+/// 너무 튀지 않는 차분한 로즈 톤. 이름은 흰 알약 위 Flutter 폰트로 깔끔하게.
 class _SearchPin extends StatelessWidget {
-  const _SearchPin();
+  final String name;
+  final TextStyle nameStyle;
+  final double pillWidth;
+  const _SearchPin({
+    required this.name,
+    required this.nameStyle,
+    required this.pillWidth,
+  });
+
+  // 차분한 로즈 (스테이션 파랑/초록과 충돌 없이, 빨강만큼 튀지 않음).
+  static const Color _pin = Color(0xFFE0455E);
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 34,
-      height: 44,
-      child: Stack(
-        alignment: Alignment.topCenter,
-        children: [
-          // 흰 외곽선용 살짝 큰 핀
-          const Icon(Icons.location_on, size: 44, color: Colors.white),
-          Padding(
-            padding: const EdgeInsets.only(top: 1),
-            child: Icon(Icons.location_on, size: 41, color: const Color(0xFFE53935)),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        if (name.isNotEmpty) ...[
+          Container(
+            width: pillWidth,
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(color: _pin.withValues(alpha: 0.55), width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.18),
+                  blurRadius: 5,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: nameStyle,
+            ),
           ),
-          // 중앙 흰 점
-          const Positioned(
-            top: 11,
-            child: CircleAvatar(radius: 5, backgroundColor: Colors.white),
-          ),
+          const SizedBox(height: 3),
         ],
-      ),
+        SizedBox(
+          width: 44,
+          height: 44,
+          child: Stack(
+            alignment: Alignment.topCenter,
+            children: [
+              const Icon(Icons.location_on, size: 44, color: Colors.white),
+              const Padding(
+                padding: EdgeInsets.only(top: 1),
+                child: Icon(Icons.location_on, size: 40, color: _pin),
+              ),
+              const Positioned(
+                top: 11,
+                child: CircleAvatar(radius: 4.5, backgroundColor: Colors.white),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
