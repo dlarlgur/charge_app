@@ -503,6 +503,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       // 줌 기반 클러스터링 — 줌아웃 시 가까운 마커를 지역별 원(개수)으로 병합,
       // 확대하면 개별 마커로 분리. 렌더 마커 수가 급감해 팬/줌이 부드러워짐.
       clusterOptions: NaverMapClusteringOptions(
+        // 클러스터링이 동작할 줌 범위. 초기 줌(14)에선 개별 마커 그대로 보이고,
+        // 줌아웃(≤12)했을 때만 지역별 원으로 묶이게 상한을 낮춤.
+        enableZoomRange: const NInclusiveRange(0, 12),
         // 화면상 거리 기준 병합. 줌아웃일수록 더 넓게 묶어 개수를 확 줄임.
         mergeStrategy: const NClusterMergeStrategy(
           willMergedScreenDistance: {
