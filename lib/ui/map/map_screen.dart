@@ -1632,9 +1632,8 @@ class _SearchPin extends StatelessWidget {
     required this.canvasHeight,
   });
 
-  // 앱 메인 컬러(gasBlue). 스테이션 배지는 흰 카드라 솔리드 블루 핀과 구분되고,
-  // 파랑 클러스터 원은 줌아웃(≤13)에서만 보여 검색 줌(14)과 안 겹침.
-  static const Color _pin = AppColors.gasBlue;
+  // 바이올렛 — 주유 파랑/충전 초록과 안 겹치면서 그 사이에 자연스레 어울리는 톤.
+  static const Color _pin = Color(0xFF7C3AED);
 
   @override
   Widget build(BuildContext context) {
