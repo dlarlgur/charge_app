@@ -332,10 +332,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final lat = (place['lat'] as num).toDouble();
     final lng = (place['lng'] as num).toDouble();
     final name = (place['name'] ?? '').toString();
+    // 이동 애니메이션 중 onCameraChange 연쇄로 핀이 곧장 지워지거나 줌이 튀는 것 방지.
+    _suppressCameraChange = true;
     _mapController?.updateCamera(NCameraUpdate.withParams(
       target: NLatLng(lat, lng),
       zoom: 14,
-    ));
+    )..setAnimation(
+        animation: NCameraAnimation.easing,
+        duration: const Duration(milliseconds: 400),
+      ));
     ref.read(mapCenterProvider.notifier).state = (lat: lat, lng: lng);
     // 검색 위치에 빨강 핀 + 장소명 캡션. 주변 주유/충전소는 center 갱신으로 재조회됨.
     _setSearchMarker(lat, lng, name);
@@ -345,6 +350,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       _showSearchHere = false;
     });
     _searchController.clear();
+    // 이동 애니메이션이 끝난 뒤부터 사용자 제스처를 받도록 플래그 해제.
+    Future.delayed(const Duration(milliseconds: 650), () {
+      _suppressCameraChange = false;
+    });
   }
 
   /// 검색한 장소를 가리키는 빨강 핀 마커(+ 이름 캡션)를 찍는다.
@@ -367,7 +376,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       position: NLatLng(lat, lng),
       icon: icon,
       anchor: const NPoint(0.5, 1.0), // 핀 끝이 좌표를 가리키도록
+      // 다른 마커에 가려지지 않게 — 캡션 강제 노출 + 충돌해도 안 숨김.
+      isForceShowCaption: true,
+      isForceShowIcon: true,
+      isHideCollidedCaptions: false,
+      isHideCollidedMarkers: false,
     );
+    // 스테이션 마커보다 위에 그려지도록 zIndex 상향.
+    marker.setZIndex(1000000);
     if (name.isNotEmpty) {
       marker.setCaption(NOverlayCaption(
         text: name,
@@ -460,6 +476,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   void _onCameraChange(NCameraUpdateReason reason, bool animated) {
     if (_suppressCameraChange) return;
+    // 사용자가 직접 지도를 확대/축소·이동하면 검색 핀을 거둠 (이동 직후 1회 표시용).
+    if (_searchMarker != null &&
+        (reason == NCameraUpdateReason.gesture ||
+            reason == NCameraUpdateReason.control)) {
+      _mapController?.deleteOverlay(_searchMarker!.info);
+      _searchMarker = null;
+    }
     // 값이 이미 원하는 상태면 setState 스킵 — 카메라 이동 중 rebuild 폭주 방지
     if (_mapReady && !_isSearchMode && (!_showSearchHere || _isAtMyLocation)) {
       setState(() {
@@ -562,6 +585,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
 
     return Scaffold(
+      // 검색창은 상단 고정 — 키보드가 떴다 닫힐 때 지도(PlatformView)가 리사이즈되며
+      // 줌이 튀어 보이는 깜빡임 방지. 키보드는 지도 위에 겹쳐 뜨게 둠.
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           // ─── 네이버 지도 ───
