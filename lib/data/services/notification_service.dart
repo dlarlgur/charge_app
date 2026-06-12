@@ -227,12 +227,13 @@ void showEvWatchNotification(Map<String, dynamic> data, {int soundMode = 0}) {
 
   // Android Auto 호환: MessagingStyleInformation + category=message 사용 시
   // 차량 디스플레이에 메시지 카드로 노출되고 음성 readout 도 트리거됨.
-  // Person.bot=true 로 발신 주체를 "충전 도우미" 로 명시.
+  // bot:true + 고정 key — 발신 주체를 "사람" 이 아닌 앱 봇으로 명시해야 안드로이드 오토가
+  // 폰 연락처에 매칭(예: 동명의 연락처 이름으로 표시)하지 않는다. (없으면 사람으로 취급됨)
   // icon: 미지정 시 안드로이드가 이름 첫 글자로 자동 아바타를 그려서 앱 로고로 통일.
   const personIcon = FlutterBitmapAssetAndroidIcon('assets/halfNhalf_launcher.png');
   final messagingPerson = stationName.isNotEmpty
-      ? Person(name: stationName, important: true, icon: personIcon)
-      : const Person(name: '충전 도우미', important: true, icon: personIcon);
+      ? Person(name: stationName, bot: true, key: 'ev_charge_helper', icon: personIcon)
+      : const Person(name: '충전 도우미', bot: true, key: 'ev_charge_helper', icon: personIcon);
 
   notificationPlugin.show(
     1003,
@@ -284,10 +285,11 @@ void showEvAlarmNotification(Map<String, dynamic> data, {int soundMode = 0}) {
           : evAlarmChannel;
 
   // Android Auto 호환: ev_watch 와 동일 패턴 (MessagingStyle + category=message)
+  // bot:true + 고정 key — 사람(연락처)으로 매칭되지 않게. (ev_watch 와 동일 사유)
   const personIcon = FlutterBitmapAssetAndroidIcon('assets/halfNhalf_launcher.png');
   final messagingPerson = stationName.isNotEmpty
-      ? Person(name: stationName, important: true, icon: personIcon)
-      : const Person(name: '충전 도우미', important: true, icon: personIcon);
+      ? Person(name: stationName, bot: true, key: 'ev_charge_helper', icon: personIcon)
+      : const Person(name: '충전 도우미', bot: true, key: 'ev_charge_helper', icon: personIcon);
 
   notificationPlugin.show(
     1002,
