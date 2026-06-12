@@ -379,7 +379,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         text: TextSpan(text: name, style: nameStyle),
         maxLines: 1, textDirection: TextDirection.ltr,
       )..layout();
-      pillW = (tp.width + 22).clamp(34, 220).toDouble(); // 좌우 패딩 11*2, 최대 220
+      // 좌우 패딩 11*2 + 여유 4 — 텍스트폭과 딱 맞아 반올림으로 말줄임 뜨던 것 방지.
+      pillW = (tp.width + 26).clamp(34, 260).toDouble();
       pillH = tp.height + 10; // 상하 패딩 5*2
     }
     final canvasW = math.max(pinW, hasName ? pillW : pinW);
@@ -1631,8 +1632,9 @@ class _SearchPin extends StatelessWidget {
     required this.canvasHeight,
   });
 
-  // 차분한 로즈 (스테이션 파랑/초록과 충돌 없이, 빨강만큼 튀지 않음).
-  static const Color _pin = Color(0xFFE0455E);
+  // 앱 메인 컬러(gasBlue). 스테이션 배지는 흰 카드라 솔리드 블루 핀과 구분되고,
+  // 파랑 클러스터 원은 줌아웃(≤13)에서만 보여 검색 줌(14)과 안 겹침.
+  static const Color _pin = AppColors.gasBlue;
 
   @override
   Widget build(BuildContext context) {
