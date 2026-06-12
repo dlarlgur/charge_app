@@ -556,12 +556,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         // 평면 지도라 틸트 불필요 + 수직 핀치줌이 틸트 제스처에 먹히는 것 방지.
         tiltGesturesEnable: false,
       ),
-      // Flutter 3.24.3+ 엔진 회귀(translateMotionEvent, flutter#157463): TLHC
-      // 합성 경로에서 멀티터치 좌표가 손상돼, 핀치가 한번 깨지면 복구가 안 된다.
-      // forceHybridComposition 으로 initExpensiveAndroidView(전체 HC) 경로를 강제,
-      // 네이티브 터치 디스패치를 받아 버그 우회.
-      // ignore: invalid_use_of_visible_for_testing_member
-      forceHybridComposition: true,
+      // forceHybridComposition 제거 → 기본 TLHC(텍스처) 합성 경로 사용.
+      // 과거 Flutter 3.24.3 의 엔진 회귀(translateMotionEvent, flutter#157463)로
+      // TLHC 에서 멀티터치(핀치줌)가 깨져 전체 HC 를 강제했었으나, 현재 Flutter 3.38.5
+      // 에선 해당 회귀가 해소됨. 강제 HC 는 팬/줌마다 텍스처를 통째 복사해 버벅임의
+      // 주원인이라 제거 — 핀치줌이 정상이면 그대로 두고, 깨지면 forceHybridComposition:
+      // true 로 되돌릴 것.
       // 줌 기반 클러스터링 — 줌아웃 시 가까운 마커를 지역별 원(개수)으로 병합,
       // 확대하면 개별 마커로 분리. 렌더 마커 수가 급감해 팬/줌이 부드러워짐.
       clusterOptions: NaverMapClusteringOptions(

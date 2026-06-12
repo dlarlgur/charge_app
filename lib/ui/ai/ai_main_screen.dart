@@ -608,8 +608,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         consumeSymbolTapEvents: _isSelectMode,
         tiltGesturesEnable: false,
       ),
-      // ignore: invalid_use_of_visible_for_testing_member
-      forceHybridComposition: true,
+      // forceHybridComposition 제거 → 기본 TLHC(텍스처) 경로. 과거 Flutter 3.24.3
+      // 엔진 회귀(flutter#157463) 우회용이었으나 3.38.5 에서 해소. 강제 HC 가
+      // 팬/줌 버벅임 주원인이라 제거 — 핀치 깨지면 true 로 롤백. (map_screen 과 동일)
       onMapReady: _onMapReady,
       onCameraIdle: _onCameraIdle,
       onSymbolTapped: _onSymbolTapped,
