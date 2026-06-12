@@ -365,30 +365,34 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       await c.deleteOverlay(_searchMarker!.info);
       _searchMarker = null;
     }
-    // 이름 알약을 핀과 한 이미지로 그림 — 네이티브 캡션(투박한 폰트/외곽선) 대신
-    // Flutter 폰트로 깔끔하게. 가변 길이라 TextPainter 로 실제 폭을 재서 캔버스 산정.
-    const double pinH = 44, pinW = 44, gap = 3;
+    // 말풍선 콜아웃(아래 꼬리가 좌표를 가리킴) + 작은 로즈 위치아이콘을 한 이미지로.
+    // 네이티브 캡션(투박) 대신 Flutter 폰트. 가변 길이라 TextPainter 로 실폭 측정.
+    const double iconSize = 14, iconGap = 5;
+    const double padL = 11, padR = 13, padV = 7;
+    const double tailH = 8; // 꼬리 높이 (폭 14 < 말풍선 폭이라 캔버스폭은 말풍선 기준)
+    const double pinFallback = 44; // 이름 없을 때 단순 핀
     final hasName = name.isNotEmpty;
     const nameStyle = TextStyle(
       fontSize: 13, fontWeight: FontWeight.w700,
-      color: Color(0xFF1F2937), height: 1.15,
+      color: Color(0xFF111827), height: 1.1,
     );
-    double pillW = 0, pillH = 0;
+    double bubbleW = 0, bubbleH = 0, textW = 0;
     if (hasName) {
       final tp = TextPainter(
         text: TextSpan(text: name, style: nameStyle),
         maxLines: 1, textDirection: TextDirection.ltr,
       )..layout();
-      pillW = (tp.width + 22).clamp(34, 220).toDouble(); // 좌우 패딩 11*2, 최대 220
-      pillH = tp.height + 10; // 상하 패딩 5*2
+      textW = math.min(tp.width, 180.0); // 너무 긴 이름은 말줄임
+      bubbleW = padL + iconSize + iconGap + textW + padR;
+      bubbleH = math.max(iconSize, tp.height) + padV * 2;
     }
-    final canvasW = math.max(pinW, hasName ? pillW : pinW);
-    // +4: TextPainter 높이와 실제 위젯 렌더 높이의 반올림 차이로 인한 2px 오버플로 방지.
-    final canvasH = (hasName ? pillH + gap + pinH : pinH) + 4;
+    final canvasW = hasName ? bubbleW : pinFallback;
+    // +4: TextPainter 높이와 실제 렌더 높이 반올림 차이로 인한 오버플로 방지 여유.
+    final canvasH = (hasName ? bubbleH + tailH : pinFallback) + 4;
 
     final icon = await NOverlayImage.fromWidget(
       widget: _SearchPin(
-        name: name, nameStyle: nameStyle, pillWidth: pillW,
+        name: name, nameStyle: nameStyle, bubbleWidth: bubbleW,
         canvasWidth: canvasW, canvasHeight: canvasH,
       ),
       size: Size(canvasW, canvasH),
@@ -1615,87 +1619,142 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
 }
 
-/// 검색한 장소를 가리키는 핀 + 이름 알약. 스테이션 마커(파랑/초록)와 구분되되
-/// 너무 튀지 않는 차분한 로즈 톤. 이름은 흰 알약 위 Flutter 폰트로 깔끔하게.
+/// 검색한 장소 콜아웃 — 흰 말풍선(작은 로즈 위치아이콘 + 이름) + 아래 꼬리가
+/// 좌표를 가리킴. 스테이션 마커(파랑/초록)와 구분되되 차분하고 깔끔하게.
 class _SearchPin extends StatelessWidget {
   final String name;
   final TextStyle nameStyle;
-  final double pillWidth;
+  final double bubbleWidth;
   final double canvasWidth;
   final double canvasHeight;
   const _SearchPin({
     required this.name,
     required this.nameStyle,
-    required this.pillWidth,
+    required this.bubbleWidth,
     required this.canvasWidth,
     required this.canvasHeight,
   });
 
-  // 차분한 로즈 (스테이션 파랑/초록과 충돌 없이, 빨강만큼 튀지 않음).
-  static const Color _pin = Color(0xFFE0455E);
+  static const Color _accent = Color(0xFFE0455E); // 차분한 로즈
+  static const Color _border = Color(0xFFE5E7EB); // 옅은 슬레이트 테두리
 
   @override
   Widget build(BuildContext context) {
-    // 캔버스 크기를 고정하고 콘텐츠를 하단 정렬 — 여유(+4)는 위쪽 투명으로 가고
-    // 핀 끝이 캔버스 맨 아래(앵커 0.5,1.0)에 오게 해 좌표를 정확히 가리킴.
+    // 캔버스 고정 + 콘텐츠 하단정렬 → 여유(+4)는 위 투명으로, 꼬리 끝이 캔버스
+    // 맨 아래(앵커 0.5,1.0)에 와 좌표를 정확히 가리킴.
     return SizedBox(
       width: canvasWidth,
       height: canvasHeight,
       child: Align(
         alignment: Alignment.bottomCenter,
-        child: Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        if (name.isNotEmpty) ...[
-          Container(
-            width: pillWidth,
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(13),
-              border: Border.all(color: _pin.withValues(alpha: 0.55), width: 1),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.18),
-                  blurRadius: 5,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Text(
-              name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: nameStyle,
-            ),
-          ),
-          const SizedBox(height: 3),
-        ],
-        SizedBox(
-          width: 44,
-          height: 44,
-          child: Stack(
-            alignment: Alignment.topCenter,
-            children: [
-              const Icon(Icons.location_on, size: 44, color: Colors.white),
-              const Padding(
-                padding: EdgeInsets.only(top: 1),
-                child: Icon(Icons.location_on, size: 40, color: _pin),
+        child: name.isEmpty
+            ? _pinOnly()
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    width: bubbleWidth,
+                    padding: const EdgeInsets.fromLTRB(11, 7, 13, 7),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _border, width: 0.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.16),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.location_on, size: 14, color: _accent),
+                        const SizedBox(width: 5),
+                        Flexible(
+                          child: Text(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: nameStyle,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // 꼬리 — 말풍선 바로 아래, 1px 겹쳐 이음새 자연스럽게.
+                  Transform.translate(
+                    offset: const Offset(0, -0.5),
+                    child: CustomPaint(
+                      size: const Size(14, 8),
+                      painter: _CalloutTail(),
+                    ),
+                  ),
+                ],
               ),
-              const Positioned(
-                top: 11,
-                child: CircleAvatar(radius: 4.5, backgroundColor: Colors.white),
-              ),
-            ],
-          ),
-        ),
-      ],
-        ),
       ),
     );
   }
+
+  // 이름이 없을 때(드묾) 단순 로즈 핀.
+  Widget _pinOnly() => SizedBox(
+        width: 44,
+        height: 44,
+        child: Stack(
+          alignment: Alignment.topCenter,
+          children: const [
+            Icon(Icons.location_on, size: 44, color: Colors.white),
+            Padding(
+              padding: EdgeInsets.only(top: 1),
+              child: Icon(Icons.location_on, size: 40, color: _accent),
+            ),
+            Positioned(
+              top: 11,
+              child: CircleAvatar(radius: 4.5, backgroundColor: Colors.white),
+            ),
+          ],
+        ),
+      );
+}
+
+/// 콜아웃 아래 꼬리(아래로 뾰족) — 흰 채움 + 양 빗변에 옅은 슬레이트 스트로크.
+class _CalloutTail extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(w, 0)
+      ..lineTo(w / 2, h)
+      ..close();
+    // 옅은 그림자로 말풍선과 자연스럽게 이어짐.
+    canvas.drawShadow(path, Colors.black.withValues(alpha: 0.16), 1.5, false);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.fill
+        ..isAntiAlias = true,
+    );
+    // 빗변만 테두리 (윗변은 말풍선에 가려짐).
+    final edges = Path()
+      ..moveTo(0, 0)
+      ..lineTo(w / 2, h)
+      ..lineTo(w, 0);
+    canvas.drawPath(
+      edges,
+      Paint()
+        ..color = const Color(0xFFE5E7EB)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.5
+        ..isAntiAlias = true,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 
