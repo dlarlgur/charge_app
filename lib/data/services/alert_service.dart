@@ -26,6 +26,10 @@ class AlertService {
   static const _alertHourKey = 'alert_hour';
   static const _alertMinuteKey = 'alert_minute';
   static const _soundModeKey = 'alert_sound_mode'; // 0=소리, 1=진동, 2=무음
+  // 방해 금지 시간(DND) — gas/ev_alarm 알림 억제. ev_watch 는 항상 수신(예외).
+  static const _dndEnabledKey = 'dnd_enabled';
+  static const _dndStartMinKey = 'dnd_start_min'; // 분(0~1439), 기본 23:00
+  static const _dndEndMinKey = 'dnd_end_min';     // 분(0~1439), 기본 07:00
 
   final _dio = Dio(BaseOptions(
     baseUrl: ApiConstants.baseUrl,
@@ -58,6 +62,31 @@ class AlertService {
 
   void setAlertSoundMode(int mode) =>
       Hive.box(_boxKey).put(_soundModeKey, mode);
+
+  // ─── 방해 금지 시간(DND) ───
+  bool get dndEnabled =>
+      Hive.box(_boxKey).get(_dndEnabledKey, defaultValue: false) as bool;
+  int get dndStartMin =>
+      (Hive.box(_boxKey).get(_dndStartMinKey, defaultValue: 1380) as int?) ?? 1380;
+  int get dndEndMin =>
+      (Hive.box(_boxKey).get(_dndEndMinKey, defaultValue: 420) as int?) ?? 420;
+
+  void setDnd({bool? enabled, int? startMin, int? endMin}) {
+    final box = Hive.box(_boxKey);
+    if (enabled != null) box.put(_dndEnabledKey, enabled);
+    if (startMin != null) box.put(_dndStartMinKey, startMin);
+    if (endMin != null) box.put(_dndEndMinKey, endMin);
+  }
+
+  /// 현재(또는 주어진 시각)가 방해 금지 구간인지. 자정 넘김 처리 포함.
+  bool isWithinDnd([DateTime? at]) {
+    if (!dndEnabled) return false;
+    final start = dndStartMin, end = dndEndMin;
+    if (start == end) return false;
+    final now = at ?? DateTime.now();
+    final n = now.hour * 60 + now.minute;
+    return start < end ? (n >= start && n < end) : (n >= start || n < end);
+  }
 
   /// 알림 시각 설정 (로컬 저장 + 서버 동기화)
   Future<void> setAlertTime(int hour, int minute) async {

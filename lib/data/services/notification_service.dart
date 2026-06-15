@@ -1,10 +1,31 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import 'station_alias_service.dart';
 
 final notificationPlugin = FlutterLocalNotificationsPlugin();
+
+/// 방해 금지 시간(DND) 구간인지 — 시스템 알림 표시를 막을지 판단.
+/// 포그라운드/백그라운드 isolate 양쪽에서 호출되므로 AlertService 의존 없이
+/// Hive 'settings' 박스를 직접 읽는다(백그라운드 핸들러에서 이미 openBox 됨).
+/// 자정 넘김(예 23:00~07:00) 처리 포함. 박스 미오픈 등 예외 시 false(=알림 표시).
+/// 주의: ev_watch(자리변동알림)는 이 게이트를 거치지 않고 항상 표시한다.
+bool _isWithinDnd() {
+  try {
+    final box = Hive.box('settings');
+    if (box.get('dnd_enabled', defaultValue: false) != true) return false;
+    final start = (box.get('dnd_start_min', defaultValue: 1380) as int?) ?? 1380;
+    final end = (box.get('dnd_end_min', defaultValue: 420) as int?) ?? 420;
+    if (start == end) return false;
+    final now = DateTime.now();
+    final n = now.hour * 60 + now.minute;
+    return start < end ? (n >= start && n < end) : (n >= start || n < end);
+  } catch (_) {
+    return false;
+  }
+}
 
 /// 알림 "상세보기" 액션 탭 시 increment → HomeScreen에서 알림 페이지로 이동
 final navigateToAlertsNotifier = ValueNotifier<int>(0);
@@ -14,6 +35,10 @@ final navigateToEvStationNotifier = ValueNotifier<String>('');
 
 /// 문의 답변 알림 탭 시 그 문의 id 전달 → HomeScreen이 1:1 문의 상세로 이동.
 final navigateToInquiryNotifier = ValueNotifier<int>(0);
+
+/// 이벤트/공지 알림 탭 시 그 id 전달 → HomeScreen이 해당 상세로 이동 (포그라운드 로컬알림 탭 경로).
+final navigateToEventNotifier = ValueNotifier<int>(0);
+final navigateToNoticeNotifier = ValueNotifier<int>(0);
 
 /// 홈 위젯(주유소) 탭 시 stationId 전달 → HomeScreen에서 주유소 상세로 이동
 final navigateToGasStationNotifier = ValueNotifier<String>('');
@@ -103,6 +128,8 @@ List<AndroidNotificationAction> _autoActions() => const <AndroidNotificationActi
 /// 서버에서 보낸 data payload 파싱 후 스타일 알림 표시
 /// soundMode: 0=소리, 1=진동, 2=무음
 void showGasPriceNotification(Map<String, dynamic> data, {int soundMode = 0}) {
+  // 방해 금지 시간: 시스템 알림만 건너뜀. 알림 내역 저장은 호출부에서 별도로 수행.
+  if (_isWithinDnd()) return;
   final raw = data['stations'];
   if (raw == null) return;
 
@@ -267,6 +294,9 @@ void showEvWatchNotification(Map<String, dynamic> data, {int soundMode = 0}) {
 /// EV 충전소 자리 알림 표시
 /// soundMode: 0=소리, 1=진동, 2=무음
 void showEvAlarmNotification(Map<String, dynamic> data, {int soundMode = 0}) {
+  // 방해 금지 시간: 시스템 알림만 건너뜀. 알림 내역 저장은 호출부에서 별도로 수행.
+  // (ev_watch/showEvWatchNotification 은 게이트 없이 항상 표시 — 자리변동알림은 무조건 수신)
+  if (_isWithinDnd()) return;
   final stationId = data['stationId'] as String? ?? '';
   final originalStationName = data['stationName'] as String? ?? '';
   final stationName = stationId.isEmpty
@@ -349,5 +379,47 @@ void showInquiryReplyNotification({String? title, String? body, int? inquiryId})
       ),
     ),
     payload: 'inquiry_reply:${inquiryId ?? ''}',
+  );
+}
+
+/// 이벤트·공지 포그라운드 알림 채널.
+const eventNoticeChannel = AndroidNotificationChannel(
+  'event_notice',
+  '이벤트·공지 알림',
+  description: '새 이벤트와 공지를 알려드립니다',
+  importance: Importance.high,
+);
+
+/// 포그라운드(앱 실행 중) 이벤트 FCM 수신 시 로컬 알림 표시.
+/// 백그라운드/종료 상태에선 시스템이 자동 표시하므로 이 함수는 포그라운드 전용.
+void showEventNotification({String? title, String? body, int? eventId}) {
+  _showContentNotification(1005, '🎉 새 이벤트', title, body, 'event:${eventId ?? ''}');
+}
+
+/// 포그라운드 공지 FCM 수신 시 로컬 알림 표시.
+void showNoticeNotification({String? title, String? body, int? noticeId}) {
+  _showContentNotification(1006, '📢 새 공지', title, body, 'notice:${noticeId ?? ''}');
+}
+
+void _showContentNotification(
+    int id, String fallbackTitle, String? title, String? body, String payload) {
+  final t = (title == null || title.isEmpty) ? fallbackTitle : title;
+  final b = body ?? '';
+  notificationPlugin.show(
+    id,
+    t,
+    b,
+    NotificationDetails(
+      android: AndroidNotificationDetails(
+        eventNoticeChannel.id,
+        eventNoticeChannel.name,
+        channelDescription: eventNoticeChannel.description,
+        importance: eventNoticeChannel.importance,
+        priority: Priority.high,
+        visibility: NotificationVisibility.public,
+        styleInformation: BigTextStyleInformation(b),
+      ),
+    ),
+    payload: payload,
   );
 }

@@ -86,6 +86,7 @@ class SettingsScreen extends ConsumerWidget {
               children: [
                 _AlertSettingTile(isDark: isDark),
                 _EvAlarmSettingTile(isDark: isDark),
+                _DndSettingTile(isDark: isDark),
               ],
             ),
           ),
@@ -771,43 +772,36 @@ class _SupportSectionState extends State<_SupportSection> {
       future: _future,
       initialData: seed,
       builder: (context, snap) {
-        final c = snap.data;
-        if (c == null) return const SizedBox.shrink();
-        final hasNotices = c.notices > 0;
-        final hasEvents = c.events > 0;
-        final hasFaqs = c.faqs > 0;
-        if (!hasNotices && !hasEvents && !hasFaqs) return const SizedBox.shrink();
-
+        // 로딩 전·실패해도 섹션은 항상 노출 (글 0개여도 공지/이벤트/FAQ 메뉴 보이게).
+        final c = snap.data ?? const _SupportCounts(0, 0, 0);
+        // 공지/이벤트/FAQ 는 글이 없어도 항상 노출 (chat_llm 과 동일). 빈 화면은 각 화면이 안내.
         final parts = <String>[];
-        if (hasNotices) parts.add('공지 ${c.notices}');
-        if (hasEvents) parts.add('이벤트 ${c.events}');
-        if (hasFaqs) parts.add('FAQ ${c.faqs}');
+        if (c.notices > 0) parts.add('공지 ${c.notices}');
+        if (c.events > 0) parts.add('이벤트 ${c.events}');
+        if (c.faqs > 0) parts.add('FAQ ${c.faqs}');
 
         return _SectionCard(
           isDark: widget.isDark,
           icon: Icons.support_agent_rounded,
           accent: AppColors.warning,
           title: '고객 지원',
-          summary: parts.join(' · '),
+          summary: parts.isEmpty ? '공지 · 이벤트 · FAQ' : parts.join(' · '),
           children: [
-            if (hasNotices)
-              _supportTile(context,
-                  icon: Icons.campaign_rounded,
-                  title: '공지사항',
-                  count: c.notices,
-                  onTap: () => context.push('/notices')),
-            if (hasEvents)
-              _supportTile(context,
-                  icon: Icons.celebration_rounded,
-                  title: '이벤트',
-                  count: c.events,
-                  onTap: () => context.push('/events')),
-            if (hasFaqs)
-              _supportTile(context,
-                  icon: Icons.help_outline_rounded,
-                  title: '자주 묻는 질문',
-                  count: c.faqs,
-                  onTap: () => context.push('/faq')),
+            _supportTile(context,
+                icon: Icons.campaign_rounded,
+                title: '공지사항',
+                count: c.notices,
+                onTap: () => context.push('/notices')),
+            _supportTile(context,
+                icon: Icons.celebration_rounded,
+                title: '이벤트',
+                count: c.events,
+                onTap: () => context.push('/events')),
+            _supportTile(context,
+                icon: Icons.help_outline_rounded,
+                title: '자주 묻는 질문',
+                count: c.faqs,
+                onTap: () => context.push('/faq')),
           ],
         );
       },
@@ -828,11 +822,126 @@ class _SupportSectionState extends State<_SupportSection> {
       leading: Icon(icon, size: 22, color: secondary),
       title: Text(title, style: Theme.of(context).textTheme.titleSmall),
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-        Text('$count', style: TextStyle(fontSize: 13, color: muted)),
-        const SizedBox(width: 4),
+        if (count > 0) Text('$count', style: TextStyle(fontSize: 13, color: muted)),
+        if (count > 0) const SizedBox(width: 4),
         Icon(Icons.chevron_right_rounded, size: 20, color: muted),
       ]),
       onTap: onTap,
+    );
+  }
+}
+
+/// 방해 금지 시간 — 토글 + 시작/종료 시간. gas/ev_alarm 알림을 이 시간엔
+/// 소리 없이 보관(시스템 알림 X, 내역 O). 자리변동알림(ev_watch)은 제외.
+class _DndSettingTile extends StatefulWidget {
+  final bool isDark;
+  const _DndSettingTile({required this.isDark});
+  @override
+  State<_DndSettingTile> createState() => _DndSettingTileState();
+}
+
+class _DndSettingTileState extends State<_DndSettingTile> {
+  late bool _enabled = AlertService().dndEnabled;
+  late int _startMin = AlertService().dndStartMin;
+  late int _endMin = AlertService().dndEndMin;
+
+  String _fmt(int m) =>
+      '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
+
+  Future<void> _pick(bool isStart) async {
+    final cur = isStart ? _startMin : _endMin;
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: cur ~/ 60, minute: cur % 60),
+      builder: (ctx, child) => MediaQuery(
+        data: MediaQuery.of(ctx).copyWith(alwaysUse24HourFormat: true),
+        child: child!,
+      ),
+    );
+    if (picked == null) return;
+    final m = picked.hour * 60 + picked.minute;
+    setState(() => isStart ? _startMin = m : _endMin = m);
+    AlertService().setDnd(startMin: _startMin, endMin: _endMin);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = widget.isDark;
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final secondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    return Column(
+      children: [
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+          leading: Icon(Icons.bedtime_outlined, size: 22,
+              color: _enabled ? AppColors.gasBlue : secondary),
+          title: Text('방해 금지 시간', style: Theme.of(context).textTheme.titleSmall),
+          subtitle: Text(
+            _enabled ? '${_fmt(_startMin)} ~ ${_fmt(_endMin)} · 알림 소리 없이 보관' : '꺼짐',
+            style: TextStyle(fontSize: 12, color: muted),
+          ),
+          trailing: Switch(
+            value: _enabled,
+            activeColor: AppColors.gasBlue,
+            onChanged: (v) {
+              setState(() => _enabled = v);
+              AlertService().setDnd(enabled: v);
+            },
+          ),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          child: !_enabled
+              ? const SizedBox.shrink()
+              : Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          _timeChip('시작', _startMin, () => _pick(true), secondary),
+                          const SizedBox(width: 8),
+                          Text('~', style: TextStyle(color: muted)),
+                          const SizedBox(width: 8),
+                          _timeChip('종료', _endMin, () => _pick(false), secondary),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '이 시간엔 알림이 소리 없이 보관돼요. 자리변동 알림은 제외돼요.',
+                        style: TextStyle(fontSize: 11, color: muted, height: 1.4),
+                      ),
+                    ],
+                  ),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _timeChip(String label, int min, VoidCallback onTap, Color secondary) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.gasBlue.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.gasBlue.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('$label  ', style: TextStyle(fontSize: 11, color: secondary)),
+            Text(_fmt(min),
+                style: const TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.gasBlue)),
+          ],
+        ),
+      ),
     );
   }
 }
