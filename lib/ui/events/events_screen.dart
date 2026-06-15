@@ -144,16 +144,20 @@ class EventDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    // 본문의 링크(<a>)는 네이티브 CTA 버튼으로 분리해 예쁘게 렌더.
+    final split = _splitEventCtas(event.bodyHtml);
     return Scaffold(
       appBar: AppBar(title: const Text('이벤트')),
       body: ListView(
         padding: EdgeInsets.zero,
         children: [
+          // 상세에서는 대표 이미지를 크롭하지 않고 원본 비율 전체(가로맞춤)로 표시.
           if (event.imageUrl != null && event.imageUrl!.isNotEmpty)
-            AspectRatio(
-              aspectRatio: 16 / 9,
-              child: CachedNetworkImage(imageUrl: event.imageUrl!, fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) => const SizedBox.shrink()),
+            CachedNetworkImage(
+              imageUrl: DkswCore.resolveAssetUrl(event.imageUrl!),
+              fit: BoxFit.fitWidth,
+              width: double.infinity,
+              errorWidget: (_, __, ___) => const SizedBox.shrink(),
             ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
@@ -175,13 +179,14 @@ class EventDetailScreen extends StatelessWidget {
                           height: 1.55)),
                 ],
                 const SizedBox(height: 18),
-                Html(
-                  data: event.bodyHtml,
-                  onLinkTap: (url, _, __) async {
-                    if (url == null) return;
-                    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-                  },
-                ),
+                if (split.body.replaceAll(RegExp(r'<[^>]*>|&nbsp;|\s'), '').isNotEmpty)
+                  Html(
+                    data: split.body,
+                    onLinkTap: (url, _, __) async {
+                      if (url != null) await _openEventLink(context, url);
+                    },
+                  ),
+                ...split.ctas.map((c) => _eventCtaButton(context, c)),
               ],
             ),
           ),
@@ -189,4 +194,63 @@ class EventDetailScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+// 본문 HTML 에서 링크(<a href>)를 추출해 네이티브 CTA 버튼으로 분리.
+({String body, List<({String href, String label})> ctas}) _splitEventCtas(String html) {
+  final ctas = <({String href, String label})>[];
+  final re = RegExp(r'<a\b[^>]*href="([^"]*)"[^>]*>(.*?)</a>',
+      caseSensitive: false, dotAll: true);
+  final body = html.replaceAllMapped(re, (m) {
+    final href = (m.group(1) ?? '').trim();
+    final label = _cleanLabel(m.group(2) ?? '');
+    if (href.isNotEmpty) {
+      ctas.add((href: href, label: label.isEmpty ? '바로가기' : label));
+    }
+    return '';
+  });
+  return (body: body, ctas: ctas);
+}
+
+// 버튼 라벨 정리: 태그 제거 + 화살표(→ / &rarr;) 제거 + 기본 엔티티 디코드.
+String _cleanLabel(String raw) {
+  return raw
+      .replaceAll(RegExp(r'<[^>]*>'), '')
+      .replaceAll('&rarr;', '')
+      .replaceAll('&#8594;', '')
+      .replaceAll('→', '')
+      .replaceAll('&amp;', '&')
+      .replaceAll('&nbsp;', ' ')
+      .trim();
+}
+
+// CTA 링크. http(s)=외부 브라우저. 그 외(내부 식별자)는 이 앱에 대상 화면이 없어 무시.
+Future<void> _openEventLink(BuildContext context, String url) async {
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  }
+}
+
+// 예쁜 네이티브 CTA 버튼 (둥근 테마색, 풀폭).
+Widget _eventCtaButton(BuildContext context, ({String href, String label}) cta) {
+  return Padding(
+    padding: const EdgeInsets.only(top: 10),
+    child: SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: () { _openEventLink(context, cta.href); },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+        child: Text(
+          cta.label,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+      ),
+    ),
+  );
 }

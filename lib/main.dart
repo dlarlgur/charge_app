@@ -266,6 +266,14 @@ Future<void> _initLocalNotifications() async {
         final idStr =
             payload.substring('inquiry_reply'.length).replaceFirst(':', '');
         navigateToInquiryNotifier.value = int.tryParse(idStr) ?? 0;
+      } else if (payload.startsWith('event:')) {
+        // 이벤트 알림 탭 → 그 이벤트 상세 (payload: event:id)
+        navigateToEventNotifier.value =
+            int.tryParse(payload.substring('event:'.length)) ?? 0;
+      } else if (payload.startsWith('notice:')) {
+        // 공지 알림 탭 → 그 공지 상세 (payload: notice:id)
+        navigateToNoticeNotifier.value =
+            int.tryParse(payload.substring('notice:'.length)) ?? 0;
       } else {
         // 알림 본문 탭 또는 "상세보기" 버튼 → 알림 페이지로 이동
         navigateToAlertsNotifier.value++;

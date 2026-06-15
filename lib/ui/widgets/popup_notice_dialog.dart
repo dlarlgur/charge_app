@@ -38,8 +38,16 @@ class PopupNoticeDialog extends StatelessWidget {
   void _skipToday(BuildContext context) {
     final now = DateTime.now();
     final tomorrow = DateTime(now.year, now.month, now.day + 1);
-    Hive.box(AppConstants.settingsBox)
-        .put('$_skipPrefix${notice.id}', tomorrow.millisecondsSinceEpoch);
+    _putSkip(context, tomorrow.millisecondsSinceEpoch);
+  }
+
+  void _skipMonth(BuildContext context) {
+    final until = DateTime.now().add(const Duration(days: 30));
+    _putSkip(context, until.millisecondsSinceEpoch);
+  }
+
+  void _putSkip(BuildContext context, int untilMs) {
+    Hive.box(AppConstants.settingsBox).put('$_skipPrefix${notice.id}', untilMs);
     Navigator.pop(context);
   }
 
@@ -81,21 +89,11 @@ class PopupNoticeDialog extends StatelessWidget {
                     if (hasImage)
                       CachedNetworkImage(
                         imageUrl: DkswCore.resolveAssetUrl(notice.imageUrl!),
-                        fit: BoxFit.cover,
+                        fit: BoxFit.fitWidth,
+                        width: double.infinity,
                         errorWidget: (_, __, ___) => const SizedBox.shrink(),
                       ),
-                    if (notice.body.isNotEmpty)
-                      Padding(
-                        padding: EdgeInsets.fromLTRB(20, hasImage ? 14 : 0, 20, 16),
-                        child: Html(
-                          data: notice.body,
-                          onLinkTap: (url, _, __) async {
-                            if (url == null) return;
-                            await launchUrl(Uri.parse(url),
-                                mode: LaunchMode.externalApplication);
-                          },
-                        ),
-                      ),
+                    ..._popupBodyWidgets(context, notice.body, hasImage),
                   ],
                 ),
               ),
@@ -110,26 +108,118 @@ class PopupNoticeDialog extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: const RoundedRectangleBorder(),
                   ),
-                  child: const Text('오늘 보지 않기', style: TextStyle(fontSize: 14)),
+                  child: const Text('오늘 하루 안 보기', style: TextStyle(fontSize: 13.5)),
                 ),
               ),
               Container(width: 1, height: 20, color: divider),
               Expanded(
                 child: TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => _skipMonth(context),
                   style: TextButton.styleFrom(
-                    foregroundColor: AppColors.gasBlue,
+                    foregroundColor: secondary,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: const RoundedRectangleBorder(),
                   ),
-                  child: const Text('닫기',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                  child: const Text('한 달 안 보기', style: TextStyle(fontSize: 13.5)),
                 ),
               ),
             ]),
+            Divider(height: 1, color: divider),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.gasBlue,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: const RoundedRectangleBorder(),
+              ),
+              child: const Text('닫기',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+            ),
           ],
         ),
       ),
     );
   }
+}
+
+// 팝업 본문 — 링크(<a>)를 네이티브 CTA 버튼으로 분리해 렌더.
+List<Widget> _popupBodyWidgets(BuildContext context, String body, bool hasImage) {
+  final split = _splitCtas(body);
+  final hasText = split.body.replaceAll(RegExp(r'<[^>]*>|&nbsp;|\s'), '').isNotEmpty;
+  if (!hasText && split.ctas.isEmpty) return const [];
+  return [
+    Padding(
+      padding: EdgeInsets.fromLTRB(20, hasImage ? 14 : 16, 20, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (hasText)
+            Html(
+              data: split.body,
+              onLinkTap: (url, _, __) async {
+                if (url != null) await _openPopupLink(context, url);
+              },
+            ),
+          ...split.ctas.map((c) => _popupCtaButton(context, c)),
+        ],
+      ),
+    ),
+  ];
+}
+
+({String body, List<({String href, String label})> ctas}) _splitCtas(String html) {
+  final ctas = <({String href, String label})>[];
+  final re = RegExp(r'<a\b[^>]*href="([^"]*)"[^>]*>(.*?)</a>',
+      caseSensitive: false, dotAll: true);
+  final body = html.replaceAllMapped(re, (m) {
+    final href = (m.group(1) ?? '').trim();
+    final label = _cleanLabel(m.group(2) ?? '');
+    if (href.isNotEmpty) {
+      ctas.add((href: href, label: label.isEmpty ? '바로가기' : label));
+    }
+    return '';
+  });
+  return (body: body, ctas: ctas);
+}
+
+String _cleanLabel(String raw) {
+  return raw
+      .replaceAll(RegExp(r'<[^>]*>'), '')
+      .replaceAll('&rarr;', '')
+      .replaceAll('&#8594;', '')
+      .replaceAll('→', '')
+      .replaceAll('&amp;', '&')
+      .replaceAll('&nbsp;', ' ')
+      .trim();
+}
+
+// 팝업 닫고 이동. http(s)=외부. 그 외(내부 식별자)는 이 앱에 대상 화면이 없어 무시.
+Future<void> _openPopupLink(BuildContext context, String url) async {
+  Navigator.of(context).pop();
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  }
+}
+
+Widget _popupCtaButton(BuildContext context, ({String href, String label}) cta) {
+  return Padding(
+    padding: const EdgeInsets.only(top: 8),
+    child: SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: () { _openPopupLink(context, cta.href); },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        child: Text(
+          cta.label,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+        ),
+      ),
+    ),
+  );
 }

@@ -175,23 +175,13 @@ class NoticeDetailScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
                 child: CachedNetworkImage(
                   imageUrl: DkswCore.resolveAssetUrl(notice.imageUrl!),
-                  fit: BoxFit.cover,
+                  fit: BoxFit.fitWidth,
+                  width: double.infinity,
                   errorWidget: (_, __, ___) => const SizedBox.shrink(),
                 ),
               ),
             ),
-          if (notice.body.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
-              child: Html(
-                data: notice.body,
-                onLinkTap: (url, _, __) async {
-                  if (url == null) return;
-                  await launchUrl(Uri.parse(url),
-                      mode: LaunchMode.externalApplication);
-                },
-              ),
-            ),
+          ..._noticeBodyWidgets(context, notice.body),
         ],
       ),
     );
@@ -201,4 +191,85 @@ class NoticeDetailScreen extends StatelessWidget {
     final l = dt.toLocal();
     return '${l.year}-${l.month.toString().padLeft(2, '0')}-${l.day.toString().padLeft(2, '0')}';
   }
+}
+
+// 공지 본문 — 링크(<a>)를 네이티브 CTA 버튼으로 분리해 렌더 (이벤트와 동일).
+List<Widget> _noticeBodyWidgets(BuildContext context, String body) {
+  final split = _splitCtas(body);
+  final hasText = split.body.replaceAll(RegExp(r'<[^>]*>|&nbsp;|\s'), '').isNotEmpty;
+  if (!hasText && split.ctas.isEmpty) return const [];
+  return [
+    Padding(
+      padding: EdgeInsets.fromLTRB(20, 4, 20, split.ctas.isEmpty ? 28 : 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (hasText)
+            Html(
+              data: split.body,
+              onLinkTap: (url, _, __) async {
+                if (url != null) await _openNoticeLink(context, url);
+              },
+            ),
+          ...split.ctas.map((c) => _noticeCtaButton(context, c)),
+        ],
+      ),
+    ),
+  ];
+}
+
+({String body, List<({String href, String label})> ctas}) _splitCtas(String html) {
+  final ctas = <({String href, String label})>[];
+  final re = RegExp(r'<a\b[^>]*href="([^"]*)"[^>]*>(.*?)</a>',
+      caseSensitive: false, dotAll: true);
+  final body = html.replaceAllMapped(re, (m) {
+    final href = (m.group(1) ?? '').trim();
+    final label = _cleanLabel(m.group(2) ?? '');
+    if (href.isNotEmpty) {
+      ctas.add((href: href, label: label.isEmpty ? '바로가기' : label));
+    }
+    return '';
+  });
+  return (body: body, ctas: ctas);
+}
+
+String _cleanLabel(String raw) {
+  return raw
+      .replaceAll(RegExp(r'<[^>]*>'), '')
+      .replaceAll('&rarr;', '')
+      .replaceAll('&#8594;', '')
+      .replaceAll('→', '')
+      .replaceAll('&amp;', '&')
+      .replaceAll('&nbsp;', ' ')
+      .trim();
+}
+
+Future<void> _openNoticeLink(BuildContext context, String url) async {
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  }
+  // 그 외(내부 식별자) — 이 앱엔 대상 화면이 없어 무시.
+}
+
+Widget _noticeCtaButton(BuildContext context, ({String href, String label}) cta) {
+  return Padding(
+    padding: const EdgeInsets.only(top: 10),
+    child: SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: () { _openNoticeLink(context, cta.href); },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+        child: Text(
+          cta.label,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+      ),
+    ),
+  );
 }

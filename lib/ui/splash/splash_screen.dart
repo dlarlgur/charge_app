@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -24,6 +25,9 @@ class SplashScreen extends ConsumerStatefulWidget {
 
 class _SplashScreenState extends ConsumerState<SplashScreen> {
   bool _adShownFromCache = false;
+  // bootstrap 결과(점검 여부 포함)를 광고 pop 경로에서도 보장하기 위해 future 보관 + 중복 라우팅 가드.
+  Future<BootstrapResult?>? _bootstrapFuture;
+  bool _routed = false;
 
   @override
   void initState() {
@@ -59,9 +63,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     }
 
     // 2단계: bootstrap 으로 캐시 갱신 + maintenance/update 처리.
+    // 타임아웃을 넉넉히(4s) — 점검 응답을 놓치지 않도록(특히 debug/느린망).
     debugPrint('[SplashScreen] bootstrap 시작 (cache=${cached != null})');
-    final result = await DkswCore.bootstrap();
-    debugPrint('[SplashScreen] bootstrap 결과: force=${result?.update.forceUpdate}, ad=${result?.ad != null}');
+    _bootstrapFuture = DkswCore.bootstrap(timeout: const Duration(seconds: 4));
+    final result = await _bootstrapFuture;
+    debugPrint('[SplashScreen] bootstrap 결과: force=${result?.update.forceUpdate}, ad=${result?.ad != null}, maintenance=${result?.maintenance != null}');
     if (!mounted) return;
 
     // 캐시 갱신: 새 광고/없음/동일 광고 케이스.
@@ -75,17 +81,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     }
 
     if (result?.maintenance != null) {
-      final m = result!.maintenance!;
-      FlutterNativeSplash.remove();
-      await Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-            builder: (_) => _MaintenanceScreen(
-                  title: m.title,
-                  body: m.body,
-                  imageUrl: m.imageUrl,
-                )),
-        (_) => false,
-      );
+      _showMaintenance(result!.maintenance!);
       return;
     }
 
@@ -117,9 +113,32 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     _navigateNext();
   }
 
-  void _afterAdOrSkip() {
-    if (!mounted) return;
+  // 캐시 광고가 닫힌 뒤 호출. bootstrap 이 아직이면 기다렸다가 점검 여부를 먼저 확인한다.
+  // (이전엔 광고 pop → 곧장 홈 이동하며 SplashScreen 이 unmount → 점검 체크를 놓치는 레이스가 있었음)
+  Future<void> _afterAdOrSkip() async {
+    if (_routed) return;
+    final result = await (_bootstrapFuture ?? Future.value(DkswCore.lastBootstrap));
+    if (!mounted || _routed) return;
+    if (result?.maintenance != null) {
+      _showMaintenance(result!.maintenance!);
+      return;
+    }
     _navigateNext();
+  }
+
+  void _showMaintenance(Maintenance m) {
+    if (_routed || !mounted) return;
+    _routed = true;
+    FlutterNativeSplash.remove();
+    Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+      MaterialPageRoute(
+          builder: (_) => _MaintenanceScreen(
+                title: m.title,
+                body: m.body,
+                imageUrl: m.imageUrl,
+              )),
+      (_) => false,
+    );
   }
 
   void _removeNativeSplashNextFrame() {
@@ -128,7 +147,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   }
 
   void _navigateNext() {
-    if (!mounted) return;
+    if (_routed || !mounted) return;
+    _routed = true;
     final settings = ref.read(settingsProvider);
     if (settings.onboardingDone) {
       context.go('/home');
@@ -161,52 +181,96 @@ class _MaintenanceScreen extends StatelessWidget {
       child: Scaffold(
         backgroundColor: isDark ? const Color(0xFF0C0E13) : Colors.white,
         body: SafeArea(
-          child: hasImage
-              ? Center(
-                  child: InteractiveViewer(
-                    minScale: 1,
-                    maxScale: 4,
-                    child: Image.network(
-                      DkswCore.resolveAssetUrl(imageUrl!),
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) =>
-                          _defaultBody(context, isDark),
+          child: Column(
+            children: [
+              Expanded(
+                child: hasImage
+                    ? Center(
+                        child: InteractiveViewer(
+                          minScale: 1,
+                          maxScale: 4,
+                          child: Image.network(
+                            DkswCore.resolveAssetUrl(imageUrl!),
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) =>
+                                _defaultBody(context, isDark),
+                          ),
+                        ),
+                      )
+                    : _defaultBody(context, isDark),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => SystemNavigator.pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isDark ? const Color(0xFF1E2330) : const Color(0xFF1F2937),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
+                    child: const Text('앱 종료',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                   ),
-                )
-              : _defaultBody(context, isDark),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _defaultBody(BuildContext context, bool isDark) {
+    final titleColor = isDark ? Colors.white : const Color(0xFF1F2937);
+    final bodyColor = isDark ? Colors.white70 : const Color(0xFF6B7280);
+    final iconBg = isDark ? const Color(0xFF1E2330) : const Color(0xFFF1F5F9);
+    final iconColor = isDark ? Colors.white70 : const Color(0xFF64748B);
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
+        padding: const EdgeInsets.symmetric(horizontal: 36),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.build_rounded,
-                size: 64,
-                color: isDark ? Colors.white54 : Colors.black45),
-            const SizedBox(height: 20),
-            Text(title.isEmpty ? '점검 중입니다' : title,
+            Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
+              child: Icon(Icons.build_rounded, size: 44, color: iconColor),
+            ),
+            const SizedBox(height: 28),
+            Text(_plainText(title).isEmpty ? '점검 중입니다' : _plainText(title),
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 22,
                     fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : Colors.black87)),
-            const SizedBox(height: 12),
-            Text(body.isEmpty ? '잠시 후 다시 이용해주세요.' : body,
+                    letterSpacing: -0.4,
+                    color: titleColor)),
+            const SizedBox(height: 14),
+            Text(
+                _plainText(body).isEmpty
+                    ? '더 나은 서비스를 위해 점검 중입니다.\n잠시 후 다시 이용해주세요.'
+                    : _plainText(body),
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 14,
-                    height: 1.55,
-                    color: isDark ? Colors.white70 : Colors.black54)),
+                style: TextStyle(fontSize: 15, height: 1.6, color: bodyColor)),
           ],
         ),
       ),
     );
   }
+}
+
+// 본문이 HTML(<p> 등)로 저장되므로 점검 화면 표시용으로 태그 제거 + 줄바꿈 보존.
+String _plainText(String html) {
+  return html
+      .replaceAll(RegExp(r'</p>|<br\s*/?>', caseSensitive: false), '\n')
+      .replaceAll(RegExp(r'<[^>]*>'), '')
+      .replaceAll('&nbsp;', ' ')
+      .replaceAll('&amp;', '&')
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .trim();
 }
