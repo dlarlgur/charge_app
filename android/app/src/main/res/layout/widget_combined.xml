@@ -29,7 +29,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:text="기름반 전기반"
+                android:text="전기차 기름차"
                 android:textSize="13sp"
                 android:textColor="@color/widget_ink"
                 android:fontFamily="@font/pretendard_extrabold"

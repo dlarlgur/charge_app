@@ -4,7 +4,7 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
     <application
-        android:label="기름반 전기반"
+        android:label="전기차 기름차"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="false"
@@ -71,7 +71,7 @@
                 android:resource="@xml/ev_widget_info" />
         </receiver>
 
-        <!-- 기름반 전기반 통합 (Large 4x4) -->
+        <!-- 전기차 기름차 통합 (Large 4x4) -->
         <receiver
             android:name=".CombinedWidgetProvider"
             android:label="@string/combined_widget_label"
@@ -137,7 +137,7 @@
             android:name="com.google.android.gms.car.application"
             android:resource="@xml/automotive_app_desc" />
 
-        <!-- AdMob App ID (charge — 기름반 전기반) -->
+        <!-- AdMob App ID (charge — 전기차 기름차) -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-8640148276009977~8762972754" />

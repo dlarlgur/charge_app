@@ -70,7 +70,7 @@ class ApiConstants {
 class AppConstants {
   AppConstants._();
 
-  static const appName = '기름반 전기반';
+  static const appName = '전기차 기름차';
   static const packageName = 'com.dksw.charge';  // Android: com.dksw.charge
 
   // 기본값

@@ -17,7 +17,9 @@ import '../../data/services/house_ad_service.dart';
 import '../../data/services/notification_service.dart';
 import '../../providers/providers.dart';
 import '../ai/ai_main_screen.dart';
+import '../events/events_screen.dart';
 import '../map/map_screen.dart';
+import '../notices/notices_screen.dart';
 import '../widgets/native_ad_card.dart';
 // popup_ad_dialog 는 dksw_app_core v0.3.2 부터 코어로 통합 — 위 import 로 사용.
 import '../widgets/popup_notice_dialog.dart';
@@ -60,6 +62,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     navigateToAlertsNotifier.addListener(_onNavigateToAlerts);
     // 1:1 문의 답변 알림 탭 → 그 문의 상세로 이동
     navigateToInquiryNotifier.addListener(_onNavigateToInquiry);
+    // 이벤트/공지 포그라운드 로컬알림 탭 → 그 상세로 이동
+    navigateToEventNotifier.addListener(_onNavigateToEvent);
+    navigateToNoticeNotifier.addListener(_onNavigateToNotice);
 
     // 포그라운드 FCM 메시지 수신 → 로컬 알림 표시 + 내역 저장
     _fcmOnMessageSub = FirebaseMessaging.onMessage.listen((message) {
@@ -81,6 +86,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           title: message.notification?.title,
           body: message.notification?.body,
           inquiryId: int.tryParse(message.data['inquiryId']?.toString() ?? ''),
+        );
+      } else if (message.data['type'] == 'event') {
+        // 이벤트 — 포그라운드 직접 표시 (탭하면 그 이벤트 상세로)
+        showEventNotification(
+          title: message.notification?.title,
+          body: message.notification?.body,
+          eventId: int.tryParse(message.data['id']?.toString() ?? ''),
+        );
+      } else if (message.data['type'] == 'notice') {
+        showNoticeNotification(
+          title: message.notification?.title,
+          body: message.notification?.body,
+          noticeId: int.tryParse(message.data['id']?.toString() ?? ''),
         );
       }
     });
@@ -145,6 +163,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       } else if (message.data['type'] == 'inquiry_reply') {
         navigateToInquiryNotifier.value =
             int.tryParse(message.data['inquiryId']?.toString() ?? '') ?? 0;
+      } else if (message.data['type'] == 'event') {
+        _openEventDetail(int.tryParse(message.data['id']?.toString() ?? '') ?? 0);
+      } else if (message.data['type'] == 'notice') {
+        _openNoticeDetail(int.tryParse(message.data['id']?.toString() ?? '') ?? 0);
       }
     });
 
@@ -183,6 +205,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         final id = int.tryParse(message.data['inquiryId']?.toString() ?? '') ?? 0;
         Future.delayed(const Duration(milliseconds: 600),
             () => navigateToInquiryNotifier.value = id);
+      } else if (message.data['type'] == 'event') {
+        final id = int.tryParse(message.data['id']?.toString() ?? '') ?? 0;
+        Future.delayed(const Duration(milliseconds: 600), () => _openEventDetail(id));
+      } else if (message.data['type'] == 'notice') {
+        final id = int.tryParse(message.data['id']?.toString() ?? '') ?? 0;
+        Future.delayed(const Duration(milliseconds: 600), () => _openNoticeDetail(id));
       }
     });
 
@@ -193,6 +221,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     WidgetsBinding.instance.removeObserver(this);
     navigateToAlertsNotifier.removeListener(_onNavigateToAlerts);
     navigateToInquiryNotifier.removeListener(_onNavigateToInquiry);
+    navigateToEventNotifier.removeListener(_onNavigateToEvent);
+    navigateToNoticeNotifier.removeListener(_onNavigateToNotice);
     navigateToEvStationNotifier.removeListener(_onNavigateToEvStation);
     navigateToGasStationNotifier.removeListener(_onNavigateToGasStation);
     requestEvReplanNotifier.removeListener(_onEvReplanRequested);
@@ -237,6 +267,61 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (id <= 0 || !mounted) return;
     navigateToInquiryNotifier.value = 0; // 소비
     context.push('/inquiry', extra: id);
+  }
+
+  // 포그라운드 로컬알림 탭(main.dart 핸들러가 notifier 세팅) → 상세 이동.
+  void _onNavigateToEvent() {
+    final id = navigateToEventNotifier.value;
+    if (id <= 0) return;
+    navigateToEventNotifier.value = 0; // 소비
+    _openEventDetail(id);
+  }
+
+  void _onNavigateToNotice() {
+    final id = navigateToNoticeNotifier.value;
+    if (id <= 0) return;
+    navigateToNoticeNotifier.value = 0; // 소비
+    _openNoticeDetail(id);
+  }
+
+  // 이벤트 푸시 탭 → 해당 이벤트 상세로. id 로 항목을 받아 push, 못 찾으면 목록으로 폴백.
+  Future<void> _openEventDetail(int id) async {
+    if (id <= 0 || !mounted) return;
+    List<EventItem> list;
+    try {
+      list = await DkswCore.fetchEvents();
+    } catch (_) {
+      list = const [];
+    }
+    if (!mounted) return;
+    EventItem? found;
+    for (final e in list) {
+      if (e.id == id) { found = e; break; }
+    }
+    Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
+      builder: (_) =>
+          found != null ? EventDetailScreen(event: found) : const EventsScreen(),
+    ));
+  }
+
+  // 공지 푸시 탭 → 해당 공지 상세로.
+  Future<void> _openNoticeDetail(int id) async {
+    if (id <= 0 || !mounted) return;
+    List<NoticeItem> list;
+    try {
+      list = await DkswCore.fetchNotices();
+    } catch (_) {
+      list = const [];
+    }
+    if (!mounted) return;
+    NoticeItem? found;
+    for (final n in list) {
+      if (n.id == id) { found = n; break; }
+    }
+    Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
+      builder: (_) =>
+          found != null ? NoticeDetailScreen(notice: found) : const NoticesScreen(),
+    ));
   }
 
   void _onNavigateToEvStation() {
@@ -455,7 +540,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
                   filterQuality: FilterQuality.medium,
                 ),
                 const SizedBox(width: 10),
-                Text('기름반 전기반', style: Theme.of(context).textTheme.headlineSmall),
+                Text('전기차 기름차', style: Theme.of(context).textTheme.headlineSmall),
                 const Spacer(),
                 Builder(builder: (_) {
                   final hasUnread = _msgCount > 0;
