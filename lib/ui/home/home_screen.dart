@@ -285,42 +285,49 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   // 이벤트 푸시 탭 → 해당 이벤트 상세로. id 로 항목을 받아 push, 못 찾으면 목록으로 폴백.
-  Future<void> _openEventDetail(int id) async {
+  // 푸시 탭 직후엔 네트워크가 덜 준비돼 첫 fetch 가 빌 수 있으므로, 못 찾으면 재시도 후 폴백.
+  Future<void> _openEventDetail(int id, {int attempt = 0}) async {
     if (id <= 0 || !mounted) return;
-    List<EventItem> list;
+    EventItem? found;
     try {
-      list = await DkswCore.fetchEvents();
-    } catch (_) {
-      list = const [];
+      final list = await DkswCore.fetchEvents();
+      for (final e in list) {
+        if (e.id == id) { found = e; break; }
+      }
+    } catch (_) {}
+    if (!mounted) return;
+    if (found == null && attempt < 4) {
+      await Future.delayed(const Duration(milliseconds: 600));
+      return _openEventDetail(id, attempt: attempt + 1);
     }
     if (!mounted) return;
-    EventItem? found;
-    for (final e in list) {
-      if (e.id == id) { found = e; break; }
-    }
+    final item = found;
     Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
       builder: (_) =>
-          found != null ? EventDetailScreen(event: found) : const EventsScreen(),
+          item != null ? EventDetailScreen(event: item) : const EventsScreen(),
     ));
   }
 
   // 공지 푸시 탭 → 해당 공지 상세로.
-  Future<void> _openNoticeDetail(int id) async {
+  Future<void> _openNoticeDetail(int id, {int attempt = 0}) async {
     if (id <= 0 || !mounted) return;
-    List<NoticeItem> list;
+    NoticeItem? found;
     try {
-      list = await DkswCore.fetchNotices();
-    } catch (_) {
-      list = const [];
+      final list = await DkswCore.fetchNotices();
+      for (final n in list) {
+        if (n.id == id) { found = n; break; }
+      }
+    } catch (_) {}
+    if (!mounted) return;
+    if (found == null && attempt < 4) {
+      await Future.delayed(const Duration(milliseconds: 600));
+      return _openNoticeDetail(id, attempt: attempt + 1);
     }
     if (!mounted) return;
-    NoticeItem? found;
-    for (final n in list) {
-      if (n.id == id) { found = n; break; }
-    }
+    final item = found;
     Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
       builder: (_) =>
-          found != null ? NoticeDetailScreen(notice: found) : const NoticesScreen(),
+          item != null ? NoticeDetailScreen(notice: item) : const NoticesScreen(),
     ));
   }
 
@@ -1579,6 +1586,8 @@ class SettingsScreenEmbed extends ConsumerWidget {
             _AlertSettingTileEmbed(isDark: isDark),
             settingsDivider(isDark),
             _EvAlarmSettingTileEmbed(isDark: isDark),
+            settingsDivider(isDark),
+            _DndSettingTileEmbed(isDark: isDark),
           ]),
           _sectionHeader(context, '앱 설정'),
           settingsCard(isDark, [
@@ -2218,6 +2227,115 @@ class _EvAlarmSettingTileEmbedState extends State<_EvAlarmSettingTileEmbed> {
               : const SizedBox.shrink(),
         ),
       ],
+    );
+  }
+}
+
+/// 방해 금지 시간 (바텀탭 설정 임베드) — gas/ev_alarm 알림을 지정 시간엔 소리 없이
+/// 보관(시스템 알림 X, 내역 O). 자리변동알림(ev_watch)은 제외. 시간은 드럼 피커.
+class _DndSettingTileEmbed extends StatefulWidget {
+  final bool isDark;
+  const _DndSettingTileEmbed({required this.isDark});
+  @override
+  State<_DndSettingTileEmbed> createState() => _DndSettingTileEmbedState();
+}
+
+class _DndSettingTileEmbedState extends State<_DndSettingTileEmbed> {
+  late bool _enabled = AlertService().dndEnabled;
+  late int _startMin = AlertService().dndStartMin;
+  late int _endMin = AlertService().dndEndMin;
+
+  String _fmt(int m) =>
+      '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
+
+  Future<void> _pick(bool isStart) async {
+    final cur = isStart ? _startMin : _endMin;
+    final picked = await showDrumTimePicker(
+      context,
+      initial: TimeOfDay(hour: cur ~/ 60, minute: cur % 60),
+    );
+    if (picked == null || !mounted) return;
+    final m = picked.hour * 60 + picked.minute;
+    setState(() => isStart ? _startMin = m : _endMin = m);
+    AlertService().setDnd(startMin: _startMin, endMin: _endMin);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = widget.isDark;
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final secondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    return Column(
+      children: [
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          leading: Icon(Icons.bedtime_rounded, size: 22,
+              color: _enabled ? AppColors.gasBlue : secondary),
+          title: Text('방해 금지 시간', style: Theme.of(context).textTheme.titleSmall),
+          subtitle: Text(
+            _enabled ? '${_fmt(_startMin)} ~ ${_fmt(_endMin)} · 알림 소리 없이 보관' : '꺼짐',
+            style: TextStyle(fontSize: 12, color: muted),
+          ),
+          trailing: Transform.scale(
+            scale: 0.85,
+            child: Switch(
+              value: _enabled,
+              onChanged: (v) {
+                setState(() => _enabled = v);
+                AlertService().setDnd(enabled: v);
+              },
+              activeThumbColor: AppColors.gasBlue,
+            ),
+          ),
+        ),
+        if (_enabled)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    _chip('시작', _startMin, () => _pick(true), secondary),
+                    const SizedBox(width: 8),
+                    Text('~', style: TextStyle(color: muted)),
+                    const SizedBox(width: 8),
+                    _chip('종료', _endMin, () => _pick(false), secondary),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '이 시간엔 알림이 소리 없이 보관돼요. 자리변동 알림은 제외돼요.',
+                  style: TextStyle(fontSize: 11, color: muted, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _chip(String label, int min, VoidCallback onTap, Color secondary) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: AppColors.gasBlue.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(color: AppColors.gasBlue.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('$label  ', style: TextStyle(fontSize: 11, color: secondary)),
+            Text(_fmt(min),
+                style: const TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.gasBlue)),
+          ],
+        ),
+      ),
     );
   }
 }
