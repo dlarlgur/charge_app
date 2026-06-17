@@ -146,13 +146,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         .addPostFrameCallback((_) => FlutterNativeSplash.remove());
   }
 
-  Future<void> _navigateNext() async {
+  void _navigateNext() {
     if (_routed || !mounted) return;
     _routed = true;
-    // 동의 게이트 — 신규/약관개정/기존 미동의자 공통. bootstrap 이후라 항목이 로드돼 있음.
-    // 콘솔에 활성 필수 동의 항목이 없으면 즉시 통과(아무것도 안 뜸).
-    await maybeShowConsentGate(context);
-    if (!mounted) return;
+    // 개인정보·마케팅 동의는 첫 실행 게이트가 아니라 "소셜 로그인(회원가입) 플로우"에서 받음.
+    // (비로그인 사용자에겐 동의 게이트를 띄우지 않음 — 정책결정)
     final settings = ref.read(settingsProvider);
     if (settings.onboardingDone) {
       context.go('/home');

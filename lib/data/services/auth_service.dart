@@ -71,8 +71,9 @@ class AuthService {
     return auth.idToken; // 서버가 tokeninfo 로 검증
   }
 
-  /// 소셜 로그인 → 서버 → JWT 저장 → AuthUser. 취소/실패 시 null.
-  static Future<AuthUser?> login(String provider) async {
+  /// 소셜 로그인 → 서버 → JWT 저장. 취소/실패 시 user=null.
+  /// isNew=true 면 신규 가입 → 앱이 회원가입 완료 화면(닉네임/이메일/동의) 띄움.
+  static Future<({AuthUser? user, bool isNew})> login(String provider) async {
     String? token;
     switch (provider) {
       case 'kakao':
@@ -85,7 +86,7 @@ class AuthService {
         token = await _googleToken();
         break;
     }
-    if (token == null) return null;
+    if (token == null) return (user: null, isNew: false);
 
     final res = await _dio.post('/auth/$provider', data: {
       'token': token,
@@ -93,10 +94,33 @@ class AuthService {
       'package': 'com.dksw.charge',
     });
     final d = res.data as Map;
-    if (d['ok'] != true) return null;
+    if (d['ok'] != true) return (user: null, isNew: false);
     await _storage.write(key: _kAccess, value: d['access'] as String?);
     await _storage.write(key: _kRefresh, value: d['refresh'] as String?);
-    return AuthUser.fromJson(Map<String, dynamic>.from(d['user'] as Map));
+    return (
+      user: AuthUser.fromJson(Map<String, dynamic>.from(d['user'] as Map)),
+      isNew: d['isNew'] == true,
+    );
+  }
+
+  /// 회원가입 완료 화면에서 닉네임/이메일 저장.
+  static Future<AuthUser?> updateProfile({String? nickname, String? email}) async {
+    final access = await _storage.read(key: _kAccess);
+    if (access == null) return null;
+    try {
+      final res = await _dio.patch(
+        '/auth/me',
+        data: {
+          if (nickname != null) 'nickname': nickname,
+          if (email != null) 'email': email,
+        },
+        options: Options(headers: {'Authorization': 'Bearer $access'}),
+      );
+      if (res.data['ok'] == true) {
+        return AuthUser.fromJson(Map<String, dynamic>.from(res.data['user'] as Map));
+      }
+    } catch (_) {}
+    return null;
   }
 
   /// 저장된 토큰으로 현재 사용자 조회 (앱 시작 시). 만료면 refresh 1회 시도.
@@ -168,12 +192,15 @@ class AuthNotifier extends StateNotifier<AuthUser?> {
     state = await AuthService.currentUser();
   }
 
-  /// 로그인 성공 시 true.
-  Future<bool> login(String provider) async {
-    final u = await AuthService.login(provider);
-    if (u != null) state = u;
-    return u != null;
+  /// 로그인 → { ok: 성공여부, isNew: 신규가입여부 }. 신규면 회원가입 완료 화면으로.
+  Future<({bool ok, bool isNew})> login(String provider) async {
+    final r = await AuthService.login(provider);
+    if (r.user != null) state = r.user;
+    return (ok: r.user != null, isNew: r.isNew);
   }
+
+  /// 프로필(닉네임/이메일) 갱신 후 상태 반영.
+  void setUser(AuthUser user) => state = user;
 
   Future<void> logout() async {
     await AuthService.logout();

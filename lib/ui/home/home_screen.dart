@@ -1566,7 +1566,7 @@ class _AccountCard extends ConsumerWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
-        onTap: () => loggedIn ? _showAccountSheet(context, ref, user) : context.push('/login'),
+        onTap: () => loggedIn ? context.push('/account') : context.push('/login'),
         child: Ink(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
@@ -1649,51 +1649,57 @@ class _AccountCard extends ConsumerWidget {
     );
   }
 
-  void _showAccountSheet(BuildContext context, WidgetRef ref, AuthUser user) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+}
+
+/// 마케팅(이벤트·혜택) 수신 동의 토글 — 설정 카드 톤(settingsIconChip + Switch)에 맞춤.
+/// DkswCore 동의 기록 사용. 정보통신망법상 상시 철회 가능.
+class _ChargeMarketingTile extends StatefulWidget {
+  final bool isDark;
+  const _ChargeMarketingTile({required this.isDark});
+
+  @override
+  State<_ChargeMarketingTile> createState() => _ChargeMarketingTileState();
+}
+
+class _ChargeMarketingTileState extends State<_ChargeMarketingTile> {
+  late bool _on = DkswCore.consentAgreed('marketing') == true;
+  bool _busy = false;
+
+  Future<void> _set(bool v) async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _on = v;
+    });
+    final version = DkswCore.signupConsents
+        .firstWhere(
+          (c) => c.key == 'marketing',
+          orElse: () => const SignupConsent(
+              key: 'marketing', title: '마케팅 정보 수신', required: false, version: '1.0'),
+        )
+        .version;
+    await DkswCore.postConsents([
+      ConsentChoice(key: 'marketing', agreed: v, version: version),
+    ]);
+    if (mounted) setState(() => _busy = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = widget.isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      leading: SettingsScreenEmbed.settingsIconChip(Icons.campaign_rounded, widget.isDark),
+      title: Text('이벤트·혜택 알림 받기',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+      subtitle: Text('이벤트·프로모션 등 광고성 정보 수신',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: muted)),
+      trailing: Switch(
+        value: _on,
+        onChanged: _busy ? null : _set,
+        activeColor: AppColors.gasBlue,
       ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            ListTile(
-              leading: const Icon(Icons.logout_rounded),
-              title: const Text('로그아웃'),
-              onTap: () async {
-                Navigator.of(ctx).pop();
-                await ref.read(authProvider.notifier).logout();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.person_remove_rounded, color: Colors.red),
-              title: const Text('회원탈퇴', style: TextStyle(color: Colors.red)),
-              onTap: () async {
-                Navigator.of(ctx).pop();
-                final ok = await showDialog<bool>(
-                  context: context,
-                  builder: (d) => AlertDialog(
-                    title: const Text('회원탈퇴'),
-                    content: const Text('탈퇴하면 계정 정보가 삭제되고 되돌릴 수 없어요. 진행할까요?'),
-                    actions: [
-                      TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('취소')),
-                      TextButton(
-                        onPressed: () => Navigator.pop(d, true),
-                        child: const Text('탈퇴', style: TextStyle(color: Colors.red)),
-                      ),
-                    ],
-                  ),
-                );
-                if (ok == true) await ref.read(authProvider.notifier).withdraw();
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
+      onTap: _busy ? null : () => _set(!_on),
     );
   }
 }
@@ -1758,7 +1764,7 @@ class SettingsScreenEmbed extends ConsumerWidget {
                   (i) => ref.read(themeModeProvider.notifier).setTheme(modes[i]));
             }),
             settingsDivider(isDark),
-            const MarketingConsentTile(),
+            _ChargeMarketingTile(isDark: isDark),
           ]),
           _SupportEmbed(isDark: isDark),
           _sectionHeader(context, '정보'),

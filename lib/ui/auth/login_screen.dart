@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../data/services/auth_service.dart';
+import 'signup_complete_screen.dart';
 
 /// 소셜 로그인 화면. 카카오 / 네이버 / 구글.
 class LoginScreen extends ConsumerStatefulWidget {
@@ -19,10 +20,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      final ok = await ref.read(authProvider.notifier).login(provider);
+      final r = await ref.read(authProvider.notifier).login(provider);
       if (!mounted) return;
-      if (ok) {
-        Navigator.of(context).pop(true); // 로그인 성공 → 닫기
+      if (r.ok) {
+        // 신규 가입이면 회원가입 완료(닉네임/이메일/동의) 후 닫기
+        if (r.isNew) {
+          final user = ref.read(authProvider);
+          if (user != null) {
+            await Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => SignupCompleteScreen(user: user),
+            ));
+          }
+        }
+        if (mounted) Navigator.of(context).pop(true);
         return;
       }
       // 사용자가 취소했거나 실패 — 화면 유지
