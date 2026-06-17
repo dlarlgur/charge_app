@@ -7,6 +7,7 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/update/app_updater.dart';
+import '../../data/services/auth_service.dart';
 import '../../data/services/splash_ad_cache.dart';
 import '../../providers/providers.dart';
 import '../widgets/update_dialog.dart';
@@ -149,13 +150,20 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   void _navigateNext() {
     if (_routed || !mounted) return;
     _routed = true;
-    // 개인정보·마케팅 동의는 첫 실행 게이트가 아니라 "소셜 로그인(회원가입) 플로우"에서 받음.
-    // (비로그인 사용자에겐 동의 게이트를 띄우지 않음 — 정책결정)
+    // 진입 결정표 (위치 권한은 소프트 — 라우팅 조건 아님):
+    //  - onboardingDone        → /home (재방문자)
+    //  - 로그인됨 or 게스트선택 → /permission (온보딩 재개)
+    //  - 그 외(완전 첫 실행)    → /login 게이트
     final settings = ref.read(settingsProvider);
     if (settings.onboardingDone) {
       context.go('/home');
-    } else {
+      return;
+    }
+    final loggedIn = ref.read(authProvider) != null;
+    if (loggedIn || settings.guestStarted) {
       context.go('/permission');
+    } else {
+      context.go('/login?gate=1');
     }
   }
 
