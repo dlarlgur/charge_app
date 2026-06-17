@@ -17,6 +17,7 @@ import '../../data/services/alert_service.dart';
 import '../../data/services/house_ad_service.dart';
 import '../../data/services/notification_service.dart';
 import '../../providers/providers.dart';
+import '../auth/signup_complete_screen.dart';
 import '../ai/ai_main_screen.dart';
 import '../events/events_screen.dart';
 import '../map/map_screen.dart';
@@ -118,6 +119,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       if (navigateToGasStationNotifier.value.isNotEmpty) {
         _onNavigateToGasStation();
       }
+      // 토큰 복원이 build 전에 끝난 경우 대비 — 미완성 계정이면 게이트.
+      _maybeGateSignup(ref.read(authProvider));
     });
 
     // 홈 팝업: 공지(type=popup) 우선, 없으면 광고 (둘 다 하루 1회 한도)
@@ -372,10 +375,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     ));
   }
 
+  // 완성 게이트: 로그인됐는데 가입 미완성(닉네임·동의 전)이면 가입완료 화면 강제.
+  // 재진입(앱 종료 후 재실행) 케이스 담당. 로그인 시점 케이스는 login_screen이 처리.
+  bool _signupGateOpen = false;
+  void _maybeGateSignup(AuthUser? user) {
+    if (_signupGateOpen || user == null || user.signupCompleted) return;
+    _signupGateOpen = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) { _signupGateOpen = false; return; }
+      // 다른 화면(로그인 등)이 위에 있으면 그쪽이 처리 → 중복 방지
+      if (ModalRoute.of(context)?.isCurrent != true) { _signupGateOpen = false; return; }
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => SignupCompleteScreen(user: user),
+      ));
+      _signupGateOpen = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottomIndex = ref.watch(bottomNavIndexProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    // 인증 상태가 미완성으로 바뀌면(앱 시작 시 토큰 복원 포함) 가입완료 강제.
+    ref.listen<AuthUser?>(authProvider, (_, next) => _maybeGateSignup(next));
 
     return PopScope(
       canPop: false,
@@ -1653,23 +1675,26 @@ class _AccountCard extends ConsumerWidget {
 
 /// 마케팅(이벤트·혜택) 수신 동의 토글 — 설정 카드 톤(settingsIconChip + Switch)에 맞춤.
 /// DkswCore 동의 기록 사용. 정보통신망법상 상시 철회 가능.
-class _ChargeMarketingTile extends StatefulWidget {
+class _ChargeMarketingTile extends ConsumerStatefulWidget {
   final bool isDark;
   const _ChargeMarketingTile({required this.isDark});
 
   @override
-  State<_ChargeMarketingTile> createState() => _ChargeMarketingTileState();
+  ConsumerState<_ChargeMarketingTile> createState() => _ChargeMarketingTileState();
 }
 
-class _ChargeMarketingTileState extends State<_ChargeMarketingTile> {
-  late bool _on = DkswCore.consentAgreed('marketing') == true;
+class _ChargeMarketingTileState extends ConsumerState<_ChargeMarketingTile> {
+  bool? _optimistic; // 토글 진행 중에만 사용. 평상시엔 source-of-truth(consentAgreed)를 읽는다.
   bool _busy = false;
+
+  // 매 build마다 실제 동의 상태를 읽어 stale 방지(회원가입 등 외부에서 바뀌어도 반영).
+  bool get _on => _optimistic ?? (DkswCore.consentAgreed('marketing') == true);
 
   Future<void> _set(bool v) async {
     if (_busy) return;
     setState(() {
       _busy = true;
-      _on = v;
+      _optimistic = v;
     });
     final version = DkswCore.signupConsents
         .firstWhere(
@@ -1681,12 +1706,30 @@ class _ChargeMarketingTileState extends State<_ChargeMarketingTile> {
     await DkswCore.postConsents([
       ConsentChoice(key: 'marketing', agreed: v, version: version),
     ]);
-    if (mounted) setState(() => _busy = false);
+    if (mounted) {
+      setState(() {
+        _busy = false;
+        _optimistic = null; // source-of-truth로 복귀
+      });
+    }
+  }
+
+  // 마케팅 동의는 계정 자산(앱푸시/문자/이메일) — 로그인 없이는 켤 수 없다.
+  void _promptLogin() {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: const Text('이벤트·혜택 알림은 회원가입 후 이용할 수 있어요.'),
+        action: SnackBarAction(label: '로그인', onPressed: () => context.push('/login')),
+      ));
   }
 
   @override
   Widget build(BuildContext context) {
     final muted = widget.isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final loggedIn = ref.watch(authProvider) != null; // 로그인 시 리빌드 → 가입 동의값 즉시 반영
+    final on = loggedIn && _on;
+    void handle(bool v) => loggedIn ? _set(v) : _promptLogin();
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       leading: SettingsScreenEmbed.settingsIconChip(Icons.campaign_rounded, widget.isDark),
@@ -1695,11 +1738,11 @@ class _ChargeMarketingTileState extends State<_ChargeMarketingTile> {
       subtitle: Text('이벤트·프로모션 등 광고성 정보 수신',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(color: muted)),
       trailing: Switch(
-        value: _on,
-        onChanged: _busy ? null : _set,
+        value: on,
+        onChanged: _busy ? null : handle,
         activeColor: AppColors.gasBlue,
       ),
-      onTap: _busy ? null : () => _set(!_on),
+      onTap: _busy ? null : () => handle(!on),
     );
   }
 }

@@ -45,6 +45,13 @@ class _SignupCompleteScreenState extends ConsumerState<SignupCompleteScreen> {
     Navigator.of(context).pop(true);
   }
 
+  // 취소 = 로그아웃. 미완성 계정을 로그인 상태로 남기지 않는다(완성 게이트).
+  Future<void> _cancel() async {
+    if (_busy) return;
+    await ref.read(authProvider.notifier).logout();
+    if (mounted) Navigator.of(context).pop();
+  }
+
   @override
   void dispose() {
     _nick.dispose();
@@ -62,7 +69,15 @@ class _SignupCompleteScreenState extends ConsumerState<SignupCompleteScreen> {
       canPop: false,
       child: Scaffold(
         backgroundColor: isDark ? AppColors.darkBg : AppColors.lightBg,
-        appBar: AppBar(title: const Text('회원가입'), automaticallyImplyLeading: false),
+        appBar: AppBar(
+          title: const Text('회원가입'),
+          automaticallyImplyLeading: false,
+          leading: IconButton(
+            icon: const Icon(Icons.close_rounded),
+            tooltip: '취소',
+            onPressed: _busy ? null : _cancel,
+          ),
+        ),
         body: Padding(
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
           child: Column(

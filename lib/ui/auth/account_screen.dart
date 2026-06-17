@@ -81,6 +81,11 @@ class AccountScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
+                IconButton(
+                  icon: Icon(Icons.edit_rounded, size: 20, color: textSecondary),
+                  tooltip: '닉네임 수정',
+                  onPressed: () => _editNickname(context, ref, user),
+                ),
               ],
             ),
           ),
@@ -127,6 +132,46 @@ class AccountScreen extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// 닉네임 수정 다이얼로그 → PATCH /me → authProvider 갱신.
+Future<void> _editNickname(BuildContext context, WidgetRef ref, AuthUser user) async {
+  final controller = TextEditingController(text: user.nickname ?? '');
+  final newNick = await showDialog<String>(
+    context: context,
+    builder: (d) => AlertDialog(
+      title: const Text('닉네임 수정'),
+      content: TextField(
+        controller: controller,
+        autofocus: true,
+        maxLength: 20,
+        decoration: const InputDecoration(hintText: '사용할 닉네임', counterText: ''),
+        onSubmitted: (v) => Navigator.pop(d, v.trim()),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(d), child: const Text('취소')),
+        TextButton(
+          onPressed: () => Navigator.pop(d, controller.text.trim()),
+          child: const Text('저장'),
+        ),
+      ],
+    ),
+  );
+  controller.dispose();
+  if (newNick == null || newNick.isEmpty || newNick == user.nickname) return;
+
+  final updated = await AuthService.updateProfile(nickname: newNick);
+  if (!context.mounted) return;
+  if (updated != null) {
+    ref.read(authProvider.notifier).setUser(updated);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('닉네임을 변경했어요.')),
+    );
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('변경에 실패했어요. 다시 시도해주세요.')),
     );
   }
 }

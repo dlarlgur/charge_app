@@ -12,15 +12,29 @@ class AuthUser {
   final String? email;
   final String? nickname;
   final String? profileImageUrl;
+  final bool signupCompleted; // 닉네임·약관동의까지 끝낸 "완성" 계정 여부.
 
-  const AuthUser({required this.id, this.email, this.nickname, this.profileImageUrl});
+  const AuthUser({
+    required this.id,
+    this.email,
+    this.nickname,
+    this.profileImageUrl,
+    this.signupCompleted = false,
+  });
 
   factory AuthUser.fromJson(Map<String, dynamic> j) => AuthUser(
         id: (j['id'] as num).toInt(),
         email: j['email'] as String?,
         nickname: j['nickname'] as String?,
         profileImageUrl: j['profile_image_url'] as String?,
+        signupCompleted: j['signup_completed'] == 1 || j['signup_completed'] == true,
       );
+}
+
+/// 같은 이메일이 다른 소셜로 이미 가입돼 있을 때 — login() 이 throw.
+class EmailInUseException implements Exception {
+  final String provider; // 기존 가입 프로바이더(kakao/naver/google)
+  EmailInUseException(this.provider);
 }
 
 /// 소셜 로그인(카카오/네이버/구글) → charge_server 인증 → JWT 보관.
@@ -59,8 +73,22 @@ class AuthService {
 
   static Future<String?> _naverToken() async {
     final res = await FlutterNaverLogin.logIn();
-    final token = res.accessToken?.accessToken;
-    return (token != null && token.isNotEmpty) ? token : null;
+    if (res.status.name != 'loggedIn') {
+      // 취소는 조용히 null, 그 외 실패는 사유 노출.
+      if (res.errorMessage == null || res.errorMessage!.isEmpty) return null;
+      throw Exception('naver status=${res.status.name}, msg=${res.errorMessage}');
+    }
+    // 이 플러그인(Android)은 logIn() 결과에 토큰을 안 담아오는 경우가 있다.
+    // → loggedIn이면 getCurrentAccessToken()으로 별도 조회해 보강.
+    var token = res.accessToken?.accessToken ?? '';
+    if (token.isEmpty) {
+      final t = await FlutterNaverLogin.getCurrentAccessToken();
+      token = t.accessToken;
+    }
+    if (token.isEmpty) {
+      throw Exception('naver: loggedIn인데 토큰을 못 받음(getCurrentAccessToken도 empty)');
+    }
+    return token;
   }
 
   static Future<String?> _googleToken() async {
@@ -88,11 +116,20 @@ class AuthService {
     }
     if (token == null) return (user: null, isNew: false);
 
-    final res = await _dio.post('/auth/$provider', data: {
-      'token': token,
-      'deviceId': DkswCore.deviceId,
-      'package': 'com.dksw.charge',
-    });
+    Response res;
+    try {
+      res = await _dio.post('/auth/$provider', data: {
+        'token': token,
+        'deviceId': DkswCore.deviceId,
+        'package': 'com.dksw.charge',
+      });
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      if (e.response?.statusCode == 409 && data is Map && data['error'] == 'email_in_use') {
+        throw EmailInUseException((data['provider'] as String?) ?? '');
+      }
+      rethrow;
+    }
     final d = res.data as Map;
     if (d['ok'] != true) return (user: null, isNew: false);
     await _storage.write(key: _kAccess, value: d['access'] as String?);

@@ -23,20 +23,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final r = await ref.read(authProvider.notifier).login(provider);
       if (!mounted) return;
       if (r.ok) {
-        // 신규 가입이면 회원가입 완료(닉네임/이메일/동의) 후 닫기
-        if (r.isNew) {
-          final user = ref.read(authProvider);
-          if (user != null) {
-            await Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => SignupCompleteScreen(user: user),
-            ));
+        final user = ref.read(authProvider);
+        // 미완성(닉네임·약관동의 전) 계정이면 가입완료 화면 강제.
+        if (user != null && !user.signupCompleted) {
+          await Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => SignupCompleteScreen(user: user),
+          ));
+          if (!mounted) return;
+          // 가입완료 화면에서 취소(로그아웃)했으면 로그인 화면 유지.
+          if (ref.read(authProvider) == null) {
+            setState(() => _busy = false);
+            return;
           }
         }
         if (mounted) Navigator.of(context).pop(true);
         return;
       }
-      // 사용자가 취소했거나 실패 — 화면 유지
+      // 사용자가 취소했거나 토큰 못 받음 — 조용히 화면 유지.
       setState(() => _busy = false);
+    } on EmailInUseException catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      _showEmailInUse(e.provider);
     } catch (_) {
       if (!mounted) return;
       setState(() => _busy = false);
@@ -44,6 +52,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         const SnackBar(content: Text('로그인에 실패했어요. 잠시 후 다시 시도해주세요.')),
       );
     }
+  }
+
+  void _showEmailInUse(String provider) {
+    const names = {'kakao': '카카오', 'naver': '네이버', 'google': '구글'};
+    final name = names[provider] ?? '다른 소셜';
+    showDialog<void>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: const Text('이미 가입된 이메일'),
+        content: Text('이 이메일은 이미 $name 계정으로 가입돼 있어요.\n$name 로그인을 이용해주세요.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(d).pop(), child: const Text('확인')),
+        ],
+      ),
+    );
   }
 
   @override
