@@ -6,10 +6,10 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/services/auth_service.dart';
 
-/// 회원가입 완료 — 소셜 로그인(신규) 직후. 닉네임/이메일 입력 + 개인정보(필수)·마케팅(선택) 동의.
-/// 완료해야 가입 확정. onDone() 으로 닫음.
+/// 회원가입 완료 — 소셜 로그인(신규) 직후. ① 닉네임 입력 → ② 약관 동의 시트.
+/// 이메일은 소셜 프로바이더값을 그대로 사용(별도 입력 X).
 class SignupCompleteScreen extends ConsumerStatefulWidget {
-  final AuthUser user; // 소셜 프로바이더에서 받은 초기값(prefill)
+  final AuthUser user;
   const SignupCompleteScreen({super.key, required this.user});
 
   @override
@@ -18,34 +18,26 @@ class SignupCompleteScreen extends ConsumerStatefulWidget {
 
 class _SignupCompleteScreenState extends ConsumerState<SignupCompleteScreen> {
   late final TextEditingController _nick = TextEditingController(text: widget.user.nickname ?? '');
-  late final TextEditingController _email = TextEditingController(text: widget.user.email ?? '');
-  final Map<String, bool> _checked = {};
-  late final List<SignupConsent> _consents = DkswCore.signupConsents;
   bool _busy = false;
 
-  static final _emailRe = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-
-  bool get _allRequiredChecked =>
-      _consents.where((c) => c.required).every((c) => _checked[c.key] == true);
-  bool get _canSubmit =>
-      _nick.text.trim().isNotEmpty && _emailRe.hasMatch(_email.text.trim()) && _allRequiredChecked && !_busy;
-
-  Future<void> _open(String url) async {
-    try {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-    } catch (_) {}
-  }
-
-  Future<void> _submit() async {
-    if (!_canSubmit) return;
-    setState(() => _busy = true);
-    final updated = await AuthService.updateProfile(
-      nickname: _nick.text.trim(),
-      email: _email.text.trim(),
+  Future<void> _onConfirm() async {
+    if (_nick.text.trim().isEmpty || _busy) return;
+    // ② 약관 동의 시트
+    final agreed = await showModalBottomSheet<Map<String, bool>>(
+      context: context,
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ConsentSheet(consents: DkswCore.signupConsents),
     );
+    if (agreed == null || !mounted) return; // 닫음(취소)
+
+    setState(() => _busy = true);
+    final updated = await AuthService.updateProfile(nickname: _nick.text.trim());
     await DkswCore.postConsents(
-      _consents
-          .map((c) => ConsentChoice(key: c.key, agreed: _checked[c.key] == true, version: c.version))
+      DkswCore.signupConsents
+          .map((c) => ConsentChoice(key: c.key, agreed: agreed[c.key] == true, version: c.version))
           .toList(),
     );
     if (updated != null) ref.read(authProvider.notifier).setUser(updated);
@@ -56,7 +48,6 @@ class _SignupCompleteScreenState extends ConsumerState<SignupCompleteScreen> {
   @override
   void dispose() {
     _nick.dispose();
-    _email.dispose();
     super.dispose();
   }
 
@@ -72,103 +63,205 @@ class _SignupCompleteScreenState extends ConsumerState<SignupCompleteScreen> {
       child: Scaffold(
         backgroundColor: isDark ? AppColors.darkBg : AppColors.lightBg,
         appBar: AppBar(title: const Text('회원가입'), automaticallyImplyLeading: false),
-        body: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          children: [
-            Text('가입을 완료해주세요',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: textPrimary)),
-            const SizedBox(height: 6),
-            Text('닉네임과 이메일을 입력하고 약관에 동의하면 가입이 완료돼요.',
-                style: TextStyle(fontSize: 13.5, color: textSecondary, height: 1.4)),
-            const SizedBox(height: 24),
-
-            Text('닉네임', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: textSecondary)),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _nick,
-              maxLength: 20,
-              onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(
-                hintText: '사용할 닉네임',
-                border: OutlineInputBorder(),
-                counterText: '',
+        body: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('회원 정보를 입력해주세요',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: textPrimary)),
+              const SizedBox(height: 8),
+              Text('서비스에서 사용할 닉네임을 정해주세요.',
+                  style: TextStyle(fontSize: 14, color: textSecondary, height: 1.4)),
+              const SizedBox(height: 28),
+              Text('닉네임',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: textSecondary)),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _nick,
+                maxLength: 20,
+                onChanged: (_) => setState(() {}),
+                decoration: const InputDecoration(
+                  hintText: '사용할 닉네임',
+                  border: OutlineInputBorder(),
+                  counterText: '',
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-
-            Text('이메일', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: textSecondary)),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _email,
-              keyboardType: TextInputType.emailAddress,
-              onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(
-                hintText: 'example@email.com',
-                border: OutlineInputBorder(),
+              const Spacer(),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: (_nick.text.trim().isNotEmpty && !_busy) ? _onConfirm : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: accent,
+                    disabledBackgroundColor: Colors.grey[300],
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: _busy
+                      ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('확인',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
+                ),
               ),
-            ),
-            const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
-            // 동의 항목 (콘솔 시드: 개인정보 필수 / 마케팅 선택)
-            ..._consents.map((c) {
-              final on = _checked[c.key] == true;
-              return InkWell(
+/// 약관 동의 바텀시트 — 전체동의 + 필수/선택 항목 + 마케팅 채널. 동의하기 시 체크맵 반환.
+class _ConsentSheet extends StatefulWidget {
+  final List<SignupConsent> consents;
+  const _ConsentSheet({required this.consents});
+
+  @override
+  State<_ConsentSheet> createState() => _ConsentSheetState();
+}
+
+class _ConsentSheetState extends State<_ConsentSheet> {
+  final Map<String, bool> _checked = {};
+  // 마케팅 채널(앱푸시/문자/이메일) — 마케팅 동의에 종속(표시용, 현재 단일 키).
+  static const _channels = ['앱 푸시', '문자', '이메일'];
+
+  bool get _allRequiredChecked =>
+      widget.consents.where((c) => c.required).every((c) => _checked[c.key] == true);
+  bool get _allChecked => widget.consents.every((c) => _checked[c.key] == true);
+
+  void _toggleAll(bool v) => setState(() {
+        for (final c in widget.consents) {
+          _checked[c.key] = v;
+        }
+      });
+
+  Future<void> _open(String url) async {
+    try {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = AppColors.gasBlue;
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final bg = isDark ? AppColors.darkCard : Colors.white;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      padding: EdgeInsets.fromLTRB(22, 18, 22, 18 + MediaQuery.of(context).viewPadding.bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text.rich(
+            TextSpan(children: [
+              const TextSpan(text: '서비스 이용을 위해\n'),
+              TextSpan(text: '약관에 동의', style: TextStyle(color: accent)),
+              const TextSpan(text: '해주세요.'),
+            ]),
+            style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, height: 1.35, color: textPrimary),
+          ),
+          const SizedBox(height: 18),
+
+          // 전체 동의
+          InkWell(
+            onTap: () => _toggleAll(!_allChecked),
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(children: [
+                Icon(_allChecked ? Icons.check_circle : Icons.check_circle_outline,
+                    color: _allChecked ? accent : Colors.grey),
+                const SizedBox(width: 10),
+                Text('약관 전체 동의',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: textPrimary)),
+              ]),
+            ),
+          ),
+          const Divider(height: 22),
+
+          // 항목들
+          ...widget.consents.expand((c) {
+            final on = _checked[c.key] == true;
+            final rows = <Widget>[
+              InkWell(
                 onTap: () => setState(() => _checked[c.key] = !on),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Row(
-                    children: [
-                      Icon(on ? Icons.check_circle : Icons.check_circle_outline,
-                          size: 22, color: on ? accent : Colors.grey),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text.rich(TextSpan(children: [
-                          TextSpan(
-                            text: c.required ? '[필수] ' : '[선택] ',
-                            style: TextStyle(
+                  padding: const EdgeInsets.symmetric(vertical: 9),
+                  child: Row(children: [
+                    Icon(on ? Icons.check_circle : Icons.check_circle_outline,
+                        size: 22, color: on ? accent : Colors.grey),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text.rich(TextSpan(children: [
+                        TextSpan(
+                          text: c.required ? '(필수) ' : '(선택) ',
+                          style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
-                              color: c.required ? accent : textSecondary,
-                            ),
-                          ),
-                          TextSpan(text: c.title, style: TextStyle(fontSize: 14, color: textPrimary)),
-                        ])),
-                      ),
-                      if (c.viewUrl != null)
-                        TextButton(
-                          onPressed: () => _open(c.viewUrl!),
-                          style: TextButton.styleFrom(
-                            minimumSize: const Size(0, 0),
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: const Text('보기', style: TextStyle(fontSize: 13)),
+                              color: c.required ? textSecondary : accent),
                         ),
-                    ],
-                  ),
+                        TextSpan(text: c.title, style: TextStyle(fontSize: 14, color: textPrimary)),
+                      ])),
+                    ),
+                    if (c.viewUrl != null)
+                      InkWell(
+                        onTap: () => _open(c.viewUrl!),
+                        child: Icon(Icons.chevron_right_rounded, size: 20, color: textSecondary),
+                      ),
+                  ]),
                 ),
-              );
-            }),
+              ),
+            ];
+            // 마케팅이면 채널(앱푸시/문자/이메일) 표시 — 마케팅 동의에 종속
+            if (c.isMarketing) {
+              rows.add(Padding(
+                padding: const EdgeInsets.only(left: 32, bottom: 6),
+                child: Wrap(
+                  spacing: 14,
+                  children: _channels
+                      .map((ch) => Row(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(on ? Icons.check : Icons.check_box_outline_blank,
+                                size: 15, color: on ? accent : Colors.grey),
+                            const SizedBox(width: 3),
+                            Text(ch, style: TextStyle(fontSize: 12, color: textSecondary)),
+                          ]))
+                      .toList(),
+                ),
+              ));
+            }
+            return rows;
+          }),
 
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                onPressed: _canSubmit ? _submit : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: accent,
-                  disabledBackgroundColor: Colors.grey[300],
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                child: _busy
-                    ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Text('가입 완료',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: _allRequiredChecked ? () => Navigator.of(context).pop(Map<String, bool>.from(_checked)) : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: accent,
+                disabledBackgroundColor: Colors.grey[300],
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: Text(
+                _allRequiredChecked ? '동의하고 가입 완료' : '필수 약관에 동의해주세요',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
