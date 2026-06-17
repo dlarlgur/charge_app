@@ -70,6 +70,7 @@ class SettingsState {
   final List<String> chargerTypes;
   final int radius;
   final int defaultTab;
+  final bool guestStarted;
 
   const SettingsState({
     this.onboardingDone = false,
@@ -79,11 +80,12 @@ class SettingsState {
     this.chargerTypes = const ['01', '04'],
     this.radius = 5000,
     this.defaultTab = 0,
+    this.guestStarted = false,
   });
 
   SettingsState copyWith({
     bool? onboardingDone, bool? aiOnboardingDone, VehicleType? vehicleType, FuelType? fuelType,
-    List<String>? chargerTypes, int? radius, int? defaultTab,
+    List<String>? chargerTypes, int? radius, int? defaultTab, bool? guestStarted,
   }) {
     return SettingsState(
       onboardingDone: onboardingDone ?? this.onboardingDone,
@@ -93,6 +95,7 @@ class SettingsState {
       chargerTypes: chargerTypes ?? this.chargerTypes,
       radius: radius ?? this.radius,
       defaultTab: defaultTab ?? this.defaultTab,
+      guestStarted: guestStarted ?? this.guestStarted,
     );
   }
 }
@@ -114,6 +117,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       chargerTypes: List<String>.from(_box.get(AppConstants.keyChargerTypes, defaultValue: ['01', '04'])),
       radius: _box.get(AppConstants.keyRadius, defaultValue: 5000),
       defaultTab: _box.get(AppConstants.keyDefaultTab, defaultValue: 0),
+      guestStarted: _box.get(AppConstants.keyGuestStarted, defaultValue: false),
     );
   }
 
@@ -153,6 +157,17 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     state = state.copyWith(aiOnboardingDone: true);
     _box.put(AppConstants.keyAiOnboardingDone, true);
   }
+
+  void markGuestStarted() {
+    state = state.copyWith(guestStarted: true);
+    _box.put(AppConstants.keyGuestStarted, true);
+  }
+
+  // 온보딩 끝낸 게스트 → 홈에서 이벤트 팝업 1회. UI 반응 불필요해 state 미포함.
+  bool get pendingEventOptin =>
+      _box.get(AppConstants.keyPendingEventOptin, defaultValue: false) as bool;
+
+  void setPendingEventOptin(bool v) => _box.put(AppConstants.keyPendingEventOptin, v);
 }
 
 // ─── Active Tab Provider ───

@@ -131,4 +131,8 @@ class AppConstants {
   static const keyAiSelectedVehicleId = 'ai_selected_vehicle_id'; // String
 
   static const keyHomeTabOrder = 'home_tab_order'; // 0=주유 먼저, 1=충전 먼저
+
+  // ── 진입 플로우 (Phase A) ──
+  static const keyGuestStarted = 'guest_started'; // 게스트 "그래도 시작" 선택 완료
+  static const keyPendingEventOptin = 'pending_event_optin'; // 온보딩 끝낸 게스트 홈 이벤트 팝업 대기
 }
