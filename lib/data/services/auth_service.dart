@@ -169,7 +169,8 @@ class AuthService {
     try { await GoogleSignIn().signOut(); } catch (_) {}
   }
 
-  /// 회원탈퇴 — 서버 개인정보 파기 후 로컬 토큰 삭제.
+  /// 회원탈퇴 — 서버 개인정보 파기 + 소셜 연결 완전 해제 + 로컬 토큰 삭제.
+  /// 소셜 unlink/disconnect 로 다음 로그인 시 동의화면이 다시 뜬다(완전 연결해제).
   static Future<void> withdraw() async {
     final access = await _storage.read(key: _kAccess);
     if (access != null) {
@@ -178,6 +179,9 @@ class AuthService {
             options: Options(headers: {'Authorization': 'Bearer $access'}));
       } catch (_) {}
     }
+    try { await UserApi.instance.unlink(); } catch (_) {}
+    try { await GoogleSignIn().disconnect(); } catch (_) {}
+    try { await FlutterNaverLogin.logOut(); } catch (_) {}
     await logout();
   }
 }
