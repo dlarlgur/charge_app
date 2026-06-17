@@ -11,6 +11,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/utils/helpers.dart';
 import '../../data/models/models.dart';
 import '../../data/services/ad_service.dart';
+import '../../data/services/auth_service.dart';
 import '../../data/services/exit_ad_service.dart';
 import '../../data/services/alert_service.dart';
 import '../../data/services/house_ad_service.dart';
@@ -1547,21 +1548,25 @@ class _SettingsTab extends StatelessWidget {
   }
 }
 
-/// 마이페이지 상단 계정 카드 — 비로그인 시 "로그인이 필요합니다" + 동기화 안내.
-/// 탭하면 소셜 로그인 화면(/login)으로. (로그인 상태 표시는 인증 연동 후 확장)
-class _AccountCard extends StatelessWidget {
+/// 마이페이지 상단 계정 카드.
+/// 비로그인 → "로그인이 필요합니다" + 동기화 안내 (탭 → /login).
+/// 로그인 → 닉네임/프로필 + 탭 시 로그아웃·회원탈퇴 시트.
+class _AccountCard extends ConsumerWidget {
   final bool isDark;
   const _AccountCard({required this.isDark});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authProvider);
     final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final loggedIn = user != null;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
-        onTap: () => context.push('/login'),
+        onTap: () => loggedIn ? _showAccountSheet(context, ref, user) : context.push('/login'),
         child: Ink(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
@@ -1592,7 +1597,12 @@ class _AccountCard extends StatelessWidget {
                     ),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.person_rounded, color: Colors.white, size: 30),
+                  clipBehavior: Clip.antiAlias,
+                  child: (loggedIn && (user.profileImageUrl?.isNotEmpty ?? false))
+                      ? Image.network(user.profileImageUrl!, fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              const Icon(Icons.person_rounded, color: Colors.white, size: 30))
+                      : const Icon(Icons.person_rounded, color: Colors.white, size: 30),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -1602,13 +1612,17 @@ class _AccountCard extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Text(
-                            '로그인이 필요합니다',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.3,
-                              color: textPrimary,
+                          Flexible(
+                            child: Text(
+                              loggedIn ? '${user.nickname ?? '사용자'}님' : '로그인이 필요합니다',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.3,
+                                color: textPrimary,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 4),
@@ -1617,7 +1631,11 @@ class _AccountCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '폰을 바꿔도 차량 정보·설정이 그대로 유지돼요',
+                        loggedIn
+                            ? (user.email ?? '계정 관리')
+                            : '폰을 바꿔도 차량 정보·설정이 그대로 유지돼요',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 12.5, height: 1.4, color: textSecondary),
                       ),
                     ],
@@ -1626,6 +1644,54 @@ class _AccountCard extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  void _showAccountSheet(BuildContext context, WidgetRef ref, AuthUser user) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.logout_rounded),
+              title: const Text('로그아웃'),
+              onTap: () async {
+                Navigator.of(ctx).pop();
+                await ref.read(authProvider.notifier).logout();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_remove_rounded, color: Colors.red),
+              title: const Text('회원탈퇴', style: TextStyle(color: Colors.red)),
+              onTap: () async {
+                Navigator.of(ctx).pop();
+                final ok = await showDialog<bool>(
+                  context: context,
+                  builder: (d) => AlertDialog(
+                    title: const Text('회원탈퇴'),
+                    content: const Text('탈퇴하면 계정 정보가 삭제되고 되돌릴 수 없어요. 진행할까요?'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('취소')),
+                      TextButton(
+                        onPressed: () => Navigator.pop(d, true),
+                        child: const Text('탈퇴', style: TextStyle(color: Colors.red)),
+                      ),
+                    ],
+                  ),
+                );
+                if (ok == true) await ref.read(authProvider.notifier).withdraw();
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
         ),
       ),
     );
