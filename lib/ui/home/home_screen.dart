@@ -484,9 +484,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               label: '즐겨찾기',
             ),
             NavigationDestination(
-              icon: Icon(Icons.settings_outlined),
-              selectedIcon: Icon(Icons.settings_rounded),
-              label: '설정',
+              icon: Icon(Icons.person_outline_rounded),
+              selectedIcon: Icon(Icons.person_rounded),
+              label: '마이페이지',
             ),
           ],
         ),
@@ -1547,6 +1547,91 @@ class _SettingsTab extends StatelessWidget {
   }
 }
 
+/// 마이페이지 상단 계정 카드 — 비로그인 시 "로그인이 필요합니다" + 동기화 안내.
+/// 탭하면 소셜 로그인 화면(/login)으로. (로그인 상태 표시는 인증 연동 후 확장)
+class _AccountCard extends StatelessWidget {
+  final bool isDark;
+  const _AccountCard({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () => context.push('/login'),
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            gradient: LinearGradient(
+              colors: isDark
+                  ? const [Color(0xFF162032), Color(0xFF0F1B17)]
+                  : const [Color(0xFFEFF6FF), Color(0xFFECFDF5)],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            border: Border.all(
+              color: isDark ? AppColors.darkCardBorder : const Color(0xFFDCE7F0),
+              width: 1,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+            child: Row(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: AppColors.logoGradient,
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.person_rounded, color: Colors.white, size: 30),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            '로그인이 필요합니다',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.3,
+                              color: textPrimary,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(Icons.chevron_right_rounded, size: 20, color: textSecondary),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '폰을 바꿔도 차량 정보·설정이 그대로 유지돼요',
+                        style: TextStyle(fontSize: 12.5, height: 1.4, color: textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// 설정 화면 임베드 (홈 탭에서 사용)
 class SettingsScreenEmbed extends ConsumerWidget {
   const SettingsScreenEmbed({super.key});
@@ -1563,11 +1648,15 @@ class SettingsScreenEmbed extends ConsumerWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
-            child: Text('설정',
+            child: Text('마이페이지',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.3,
                     )),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+            child: _AccountCard(isDark: isDark),
           ),
           _sectionHeader(context, '차량 설정'),
           settingsCard(isDark, [
@@ -1610,22 +1699,30 @@ class SettingsScreenEmbed extends ConsumerWidget {
           settingsCard(isDark, [
             _tile(context, isDark, Icons.description_outlined, '정책 및 약관', '',
                 () => context.push('/policies')),
-            settingsDivider(isDark),
-            _tile(context, isDark, Icons.info_outline_rounded, '앱 버전',
-                DkswCore.appVersion, null),
           ]),
-          const SizedBox(height: 20),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
-            child: Text(
-              '유가 정보 출처: 한국석유공사 오피넷(www.opinet.co.kr)\n충전소 정보 출처: 환경부 전기차 충전소 공공데이터',
-              style: TextStyle(
-                fontSize: 11,
-                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                height: 1.6,
-              ),
+          const SizedBox(height: 28),
+          Center(
+            child: Column(
+              children: [
+                Text(
+                  'App version: ${DkswCore.appVersion}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Copyright 2026. 동키소프트웨어 All rights reserved.',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                  ),
+                ),
+              ],
             ),
           ),
+          const SizedBox(height: 28),
         ],
       ),
     );
