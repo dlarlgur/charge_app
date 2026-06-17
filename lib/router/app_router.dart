@@ -45,7 +45,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
-      GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+      GoRoute(
+        path: '/login',
+        builder: (_, state) =>
+            LoginScreen(gate: state.uri.queryParameters['gate'] == '1'),
+      ),
       GoRoute(path: '/account', builder: (_, __) => const AccountScreen()),
       GoRoute(path: '/policies', builder: (_, __) => const PoliciesScreen()),
       GoRoute(path: '/notices', builder: (_, __) => const NoticesScreen()),
