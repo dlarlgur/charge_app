@@ -127,6 +127,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       Future.delayed(const Duration(milliseconds: 700), () async {
         if (!mounted) return;
         if (ModalRoute.of(context)?.isCurrent != true) return;
+        // 마케팅 동의 재요청 (콘솔 ON + 미동의자 + 오늘 미노출 시 하루 1회)
+        await maybeShowMarketingReprompt(context);
+        if (!mounted) return;
+        if (ModalRoute.of(context)?.isCurrent != true) return;
         await PopupNoticeDialog.showIfEligible(context);
         if (!mounted) return;
         if (ModalRoute.of(context)?.isCurrent != true) return;
@@ -1598,6 +1602,8 @@ class SettingsScreenEmbed extends ConsumerWidget {
                   modes.indexOf(themeMode == ThemeMode.system ? ThemeMode.light : themeMode),
                   (i) => ref.read(themeModeProvider.notifier).setTheme(modes[i]));
             }),
+            settingsDivider(isDark),
+            const MarketingConsentTile(),
           ]),
           _SupportEmbed(isDark: isDark),
           _sectionHeader(context, '정보'),
