@@ -286,8 +286,6 @@ Future<void> _initLocalNotifications() async {
 
 void main() async {
   final binding = WidgetsFlutterBinding.ensureInitialized();
-  // 카카오 로그인 SDK — 네이티브 앱 키로 초기화 (네이버는 매니페스트 meta-data, 구글은 코드 serverClientId).
-  KakaoSdk.init(nativeAppKey: '88122d611d07cc854eebf5b50d0920f4');
   // 네이티브 스플래시는 SplashScreen 이 광고 push 시점 또는 _navigateNext 직전에 직접 제거.
   // (이전 300ms 고정 타이머가 광고 push 전에 splash 를 떼서 빈 SplashScreen Scaffold(흰색)가 노출되던 갭 차단)
   // 안전 타임아웃 — 어떤 이유로 SplashScreen 이 remove 못 부르면 5초 후 강제 해제.
