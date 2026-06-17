@@ -59,9 +59,8 @@ class AuthService {
 
   static Future<String?> _naverToken() async {
     final res = await FlutterNaverLogin.logIn();
-    if (res.status != NaverLoginStatus.loggedIn) return null;
-    final t = await FlutterNaverLogin.currentAccessToken;
-    return t.accessToken;
+    final token = res.accessToken?.accessToken;
+    return (token != null && token.isNotEmpty) ? token : null;
   }
 
   static Future<String?> _googleToken() async {

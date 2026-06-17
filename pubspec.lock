@@ -416,10 +416,10 @@ packages:
     dependency: "direct main"
     description:
       name: flutter_naver_login
-      sha256: "69d62da60e866b09894f2d632d7d1cb36eee17164b9e46e33d86ebee4b91cd42"
+      sha256: "6acac40088d4d05cdb8d7dceb0cf690a80833de7bdbb7c53209fc1c1442add1c"
       url: "https://pub.dev"
     source: hosted
-    version: "1.8.0"
+    version: "2.1.1"
   flutter_naver_map:
     dependency: "direct main"
     description:
