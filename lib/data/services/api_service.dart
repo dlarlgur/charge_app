@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
+import 'auth_service.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../core/constants/api_constants.dart';
@@ -298,7 +299,13 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> postEvAiRecommend(Map<String, dynamic> body) async {
-    final res = await _dio.post(ApiConstants.evAiRecommend, data: body);
+    // 로그인 상태면 Bearer 토큰 첨부 → 서버가 사용자별 사용량/쿼터로 집계.
+    final token = await AuthService.accessToken();
+    final res = await _dio.post(
+      ApiConstants.evAiRecommend,
+      data: body,
+      options: token != null ? Options(headers: {'Authorization': 'Bearer $token'}) : null,
+    );
     return Map<String, dynamic>.from(res.data ?? {});
   }
 
