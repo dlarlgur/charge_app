@@ -2942,7 +2942,14 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     } catch (e) {
       if (kDebugMode) debugPrint('[ev-userselect] postEvAiRecommend 실패: $e');
       if (!mounted) return;
-      setState(() => _errorMessage = '충전소 목록을 불러오는데 실패했습니다.');
+      // 한도 초과(429)면 "오늘은 여기까지" 팝업 — 직접선택도 AI 분석과 합산 한도라서.
+      final rl = rateLimitMessage(e, feature: 'AI 충전 분석');
+      if (rl != null) {
+        showAppDialog<void>(context,
+            icon: Icons.schedule_rounded, title: '오늘은 여기까지!', message: rl, primaryLabel: '확인');
+      } else {
+        setState(() => _errorMessage = '충전소 목록을 불러오는데 실패했습니다.');
+      }
     } finally {
       if (mounted) setState(() => _userSelecting = false);
     }
@@ -3481,9 +3488,16 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         _userSelecting = false;
         _isSelectSheetVisible = true; // 실패하면 시트 복원
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('비교 실패: $e'), behavior: SnackBarBehavior.floating),
-      );
+      // 한도 초과(429)면 "오늘은 여기까지" 팝업 — 비교(직접선택)도 AI 분석과 합산 한도.
+      final rl = rateLimitMessage(e, feature: 'AI 주유 분석');
+      if (rl != null) {
+        showAppDialog<void>(context,
+            icon: Icons.schedule_rounded, title: '오늘은 여기까지!', message: rl, primaryLabel: '확인');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('비교 실패: $e'), behavior: SnackBarBehavior.floating),
+        );
+      }
     }
   }
 
