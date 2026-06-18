@@ -70,6 +70,7 @@ class UserDataSync {
             'targetChargePercent': v['targetChargePercent'] ?? 80.0,
           }).toList();
       box.put(AppConstants.keyAiVehicles, jsonEncode(list));
+      box.put(AppConstants.keyAiOnboardingDone, true); // 차량 복원됨 → AI 온보딩 스킵
       final sel = vehicles.whereType<Map>().firstWhere((v) => v['isSelected'] == true, orElse: () => vehicles.first as Map);
       if (sel['clientId'] != null) box.put(AppConstants.keyAiSelectedVehicleId, sel['clientId']);
     }

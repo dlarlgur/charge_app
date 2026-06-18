@@ -47,6 +47,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         // 회원 데이터 동기화: 서버에 있으면 로컬 적용(union)+알람 재구독, 없으면 로컬 이관.
         await UserDataSync.run();
         if (!mounted) return;
+        // 박스에 복원된 값을 provider 상태로 반영 (차종/유종·즐겨찾기 즉시 갱신).
+        ref.read(settingsProvider.notifier).reload();
+        ref.read(favoritesProvider.notifier).refresh();
         if (widget.gate) {
           context.go('/permission');
         } else {

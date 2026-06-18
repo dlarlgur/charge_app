@@ -109,6 +109,9 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     _load();
   }
 
+  /// 외부(로그인 복원 등)에서 박스를 직접 갱신한 뒤 상태를 다시 읽어 UI 반영.
+  void reload() => _load();
+
   void _load() {
     state = SettingsState(
       onboardingDone: _box.get(AppConstants.keyOnboardingDone, defaultValue: false),
