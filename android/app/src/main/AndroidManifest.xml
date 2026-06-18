@@ -129,13 +129,8 @@
             android:name="flutterEmbedding"
             android:value="2" />
 
-        <!-- Android Auto messaging notification 지원 자가 선언
-             res/xml/automotive_app_desc.xml 의 <uses name="notification"/> 가
-             차량 화면에 EV/주유 알림(MessagingStyle) 노출 + 액션 버튼/음성 readout
-             활성화. CarAppService 풀 통합 아니므로 Google 승인 불필요. -->
-        <meta-data
-            android:name="com.google.android.gms.car.application"
-            android:resource="@xml/automotive_app_desc" />
+        <!-- Android Auto 선언 제거 — 실제 Auto 앱(미디어/메시징/내비)이 아니라
+             Google Play 자동차 앱 품질 검수에서 거부됨(버전코드 10). 차량용 미통합. -->
 
         <!-- AdMob App ID (charge — 전기차 기름차) -->
         <meta-data
