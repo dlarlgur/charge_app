@@ -12,6 +12,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/constants/api_constants.dart';
+import '../../core/rate_limit_message.dart';
 import '../../core/navigation/app_route_observer.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/models.dart';
@@ -1548,7 +1549,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     } on DioException catch (e) {
       if (!mounted) return;
       debugPrint('[AI] 분석 통신 오류: ${e.message} / ${e.response?.data}');
-      setState(() => _errorMessage = '서버와 통신이 원활하지 않아요. 잠시 후 다시 시도해주세요.');
+      final rl = rateLimitMessage(e, feature: 'AI 추천 경로');
+      setState(() => _errorMessage = rl ?? '서버와 통신이 원활하지 않아요. 잠시 후 다시 시도해주세요.');
     } catch (e) {
       if (!mounted) return;
       debugPrint('[AI] 분석 예외: $e');
@@ -2735,7 +2737,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
     } catch (e) {
       if (!mounted) return;
-      setState(() => _errorMessage = '충전소 추천에 실패했습니다. 다시 시도해 주세요.');
+      final rl = rateLimitMessage(e, feature: 'AI 충전소 추천');
+      setState(() => _errorMessage = rl ?? '충전소 추천에 실패했습니다. 다시 시도해 주세요.');
     } finally {
       if (mounted) setState(() => _aiAnalyzing = false);
     }
