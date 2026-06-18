@@ -162,9 +162,11 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     showGasPriceNotification(message.data, soundMode: soundMode);
     await _saveGasPriceToHive(message.data);
   } else if (message.data['type'] == 'ev_alarm') {
-    final soundMode = (box.get('ev_alarm_sound_mode', defaultValue: 0) as int?) ?? 0;
-    showEvAlarmNotification(message.data, soundMode: soundMode);
-    await _saveEvAlarmToHive(box, message.data);
+    if (box.get('ev_alarm_enabled', defaultValue: true) == true) {
+      final soundMode = (box.get('ev_alarm_sound_mode', defaultValue: 0) as int?) ?? 0;
+      showEvAlarmNotification(message.data, soundMode: soundMode);
+      await _saveEvAlarmToHive(box, message.data);
+    }
   } else if (message.data['type'] == 'ev_watch') {
     final soundMode = (box.get('ev_alarm_sound_mode', defaultValue: 0) as int?) ?? 0;
     showEvWatchNotification(message.data, soundMode: soundMode);
@@ -311,14 +313,6 @@ void main() async {
   await Firebase.initializeApp();
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // 콘솔 공지/이벤트 FCM 토픽 구독 — fire-and-forget (실패해도 부팅 무관)
-  unawaited(() async {
-    try {
-      await FirebaseMessaging.instance.subscribeToTopic(DkswCore.noticesTopic());
-      await FirebaseMessaging.instance.subscribeToTopic(DkswCore.eventsTopic());
-    } catch (_) {}
-  }());
-
   // 로컬 알림 초기화는 fire-and-forget — 채널 생성은 idempotent,
   // 첫 알림이 발송되기 전에만 끝나면 됨. main() 을 0.3초 정도 줄임.
   unawaited(_initLocalNotifications());
@@ -342,6 +336,15 @@ void main() async {
     serverUrl: 'https://console.dksw4.com/console',
   );
   DkswCore.trackSession();
+
+  // 콘솔 공지/이벤트 FCM 토픽 구독 — fire-and-forget (실패해도 부팅 무관).
+  // 반드시 DkswCore.init 이후: 토픽명이 events_<package> 로 패키지명에 의존하기 때문.
+  unawaited(() async {
+    try {
+      await FirebaseMessaging.instance.subscribeToTopic(DkswCore.noticesTopic());
+      await FirebaseMessaging.instance.subscribeToTopic(DkswCore.eventsTopic());
+    } catch (_) {}
+  }());
 
   // 무거운 init들은 fire-and-forget. 첫 프레임/스플래시 시간만 늘리던 주범:
   //  - Workmanager: 백그라운드 작업 등록 (지도/주유 위젯) — 화면 빌드 전 끝날 필요 X

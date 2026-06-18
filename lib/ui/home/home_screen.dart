@@ -2001,7 +2001,6 @@ class _SupportEmbedState extends State<_SupportEmbed> {
       builder: (context, snap) {
         final c = snap.data;
         // 1:1 문의는 count 와 무관하게 항상 노출되므로 early-return 하지 않는다.
-        final hasN = c != null && c.notices > 0;
         final hasE = c != null && c.events > 0;
         final hasF = c != null && c.faqs > 0;
         final isDark = widget.isDark;
@@ -2013,15 +2012,16 @@ class _SupportEmbedState extends State<_SupportEmbed> {
           title: Text(title,
               style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
           trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-            Text('$count', style: TextStyle(fontSize: 13, color: muted)),
-            const SizedBox(width: 4),
+            if (count > 0) Text('$count', style: TextStyle(fontSize: 13, color: muted)),
+            if (count > 0) const SizedBox(width: 4),
             Icon(Icons.chevron_right_rounded, size: 20, color: muted),
           ]),
           onTap: () => context.push(route),
         );
 
         final tiles = <Widget>[
-          if (hasN) tile(Icons.campaign_rounded, '공지사항', c!.notices, '/notices'),
+          // 공지사항은 글이 없어도 항상 노출.
+          tile(Icons.campaign_rounded, '공지사항', c?.notices ?? 0, '/notices'),
           if (hasE) tile(Icons.celebration_rounded, '이벤트', c!.events, '/events'),
           if (hasF) tile(Icons.help_outline_rounded, '자주 묻는 질문', c!.faqs, '/faq'),
           // 1:1 문의하기 — 항상 노출
