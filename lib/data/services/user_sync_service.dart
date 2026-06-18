@@ -77,6 +77,22 @@ class UserSyncService {
     } catch (_) {}
   }
 
+  Future<void> addAlias(String type, String stationId, String alias) async {
+    final opt = await _auth();
+    if (opt == null) return;
+    try {
+      await _dio.post('/user/aliases', data: {'type': type, 'stationId': stationId, 'alias': alias}, options: opt);
+    } catch (_) {}
+  }
+
+  Future<void> removeAlias(String type, String stationId) async {
+    final opt = await _auth();
+    if (opt == null) return;
+    try {
+      await _dio.delete('/user/aliases/$type/$stationId', options: opt);
+    } catch (_) {}
+  }
+
   Future<void> addAlarm(Map<String, dynamic> alarm) async {
     final opt = await _auth();
     if (opt == null) return;

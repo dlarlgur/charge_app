@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
-import 'favorite_service.dart';
 import 'user_sync_service.dart';
 
 /// 별칭이 변경될 때마다 increment — UI 가 listen 하면 rebuild 트리거.
@@ -34,10 +33,11 @@ class StationAliasService {
 
   /// 별칭 저장. trim 후 빈 문자열이면 자동 삭제.
   /// [maxLength] 초과 시 잘라냄.
-  static Future<void> set(String stationId, String alias, {required String type}) async {
+  /// [mirror]=false 면 서버 미러 안 함(로그인 복원 시 루프 방지용).
+  static Future<void> set(String stationId, String alias, {required String type, bool mirror = true}) async {
     final trimmed = alias.trim();
     if (trimmed.isEmpty) {
-      await remove(stationId, type: type);
+      await remove(stationId, type: type, mirror: mirror);
       return;
     }
     final clipped = trimmed.length > _maxLength ? trimmed.substring(0, _maxLength) : trimmed;
@@ -47,31 +47,31 @@ class StationAliasService {
     await _box.flush();
     debugPrint('[StationAlias] SET $key = "$clipped"');
     stationAliasVersion.value++;
-    _mirrorAlias(stationId, type, clipped);
+    // 즐겨찾기 여부 무관 — 로그인 회원이면 별칭 전용 테이블에 미러(내부에서 skip).
+    if (mirror) UserSyncService.instance.addAlias(type, stationId, clipped);
   }
 
-  static Future<void> remove(String stationId, {required String type}) async {
+  static Future<void> remove(String stationId, {required String type, bool mirror = true}) async {
     final key = _key(stationId, type);
     await _box.delete(key);
     await _box.flush();
     debugPrint('[StationAlias] REMOVE $key');
     stationAliasVersion.value++;
-    _mirrorAlias(stationId, type, null);
+    if (mirror) UserSyncService.instance.removeAlias(type, stationId);
   }
 
-  /// 별칭 변경을 서버에 미러 — 즐겨찾기된 곳만(별칭은 user_favorites.alias 에 저장).
-  /// 로그인 회원이 아니면 UserSyncService 내부에서 조용히 skip.
-  static void _mirrorAlias(String stationId, String type, String? alias) {
-    if (!FavoriteService.isFavorite(stationId, type)) return;
-    final fav = FavoriteService.get(stationId, type);
-    UserSyncService.instance.addFavorite({
-      'type': type,
-      'stationId': stationId,
-      'name': fav?['name'],
-      'subtitle': fav?['subtitle'],
-      'brand': fav?['brand'],
-      'alias': alias,
-    });
+  /// 로컬의 모든 별칭 — [{type, stationId, alias}]. 게스트→회원 이관 스냅샷용.
+  static List<Map<String, dynamic>> allEntries() {
+    final out = <Map<String, dynamic>>[];
+    for (final k in _box.keys) {
+      final key = k.toString();
+      final v = _box.get(k);
+      if (v is! String || v.trim().isEmpty) continue;
+      final idx = key.indexOf('_'); // type('gas'|'ev') 뒤 첫 '_'
+      if (idx <= 0) continue;
+      out.add({'type': key.substring(0, idx), 'stationId': key.substring(idx + 1), 'alias': v.trim()});
+    }
+    return out;
   }
 
   /// 표시용 이름 결정 — 별칭 있으면 별칭, 없으면 원본.

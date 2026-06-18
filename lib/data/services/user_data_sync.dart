@@ -20,20 +20,22 @@ class UserDataSync {
     final vehicles = (remote['vehicles'] as List?) ?? const [];
     final favorites = (remote['favorites'] as List?) ?? const [];
     final alarms = (remote['alarms'] as List?) ?? const [];
+    final aliases = (remote['aliases'] as List?) ?? const [];
     final prefs = (remote['prefs'] as Map?) ?? const {};
     final hasRemote = vehicles.isNotEmpty ||
         favorites.isNotEmpty ||
         alarms.isNotEmpty ||
+        aliases.isNotEmpty ||
         prefs['vehicleType'] != null ||
         prefs['marketingConsent'] == true;
     if (hasRemote) {
-      await _applyRemote(prefs, vehicles, favorites, alarms);
+      await _applyRemote(prefs, vehicles, favorites, alarms, aliases);
     } else {
       await UserSyncService.instance.import(buildLocalSnapshot());
     }
   }
 
-  static Future<void> _applyRemote(Map prefs, List vehicles, List favorites, List alarms) async {
+  static Future<void> _applyRemote(Map prefs, List vehicles, List favorites, List alarms, List aliases) async {
     final box = Hive.box(AppConstants.settingsBox);
 
     // 기본 차량설정(서버 우선)
@@ -87,8 +89,15 @@ class UserDataSync {
           extra: f['brand'] != null ? {'brand': f['brand']} : null,
         );
       }
-      final alias = (f['alias'] ?? '').toString();
-      if (alias.isNotEmpty) await StationAliasService.set(id, alias, type: type);
+    }
+
+    // 별칭 복원 (즐겨찾기 여부 무관, mirror:false 로 루프 방지)
+    for (final a in aliases.whereType<Map>()) {
+      final id = (a['stationId'] ?? '').toString();
+      final type = (a['type'] ?? '').toString();
+      final alias = (a['alias'] ?? '').toString();
+      if (id.isEmpty || type.isEmpty || alias.isEmpty) continue;
+      await StationAliasService.set(id, alias, type: type, mirror: false);
     }
 
     // 알람 — 현재 기기로 재구독(device 테이블 등록)
@@ -160,6 +169,12 @@ class UserDataSync {
       alarms.add({'type': 'ev', 'stationId': id, 'name': svc.evAlarmNames[id] ?? ''});
     }
 
-    return {'prefs': prefs, 'vehicles': vehicles, 'favorites': favorites, 'alarms': alarms};
+    return {
+      'prefs': prefs,
+      'vehicles': vehicles,
+      'favorites': favorites,
+      'alarms': alarms,
+      'aliases': StationAliasService.allEntries(),
+    };
   }
 }
