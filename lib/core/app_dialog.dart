@@ -32,11 +32,17 @@ Future<T?> showAppDialog<T>(
       backgroundColor: bg,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       insetPadding: const EdgeInsets.symmetric(horizontal: 36),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 26, 24, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+      // 작은 화면·큰 시스템 폰트에서 내용이 길어도 넘치지 않게 스크롤 허용.
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(ctx).size.height * 0.85,
+        ),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 26, 24, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
             Container(
               width: 64,
               height: 64,
@@ -85,7 +91,9 @@ Future<T?> showAppDialog<T>(
                     style: TextStyle(fontSize: 14, color: textSecondary)),
               ),
             ],
-          ],
+              ],
+            ),
+          ),
         ),
       ),
     ),

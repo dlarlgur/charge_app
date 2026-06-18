@@ -191,9 +191,26 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
+  /// 선택 바텀시트 공용 래퍼 — 작은 화면·큰 폰트에서 항목이 많아도 넘치지 않게
+  /// 화면 85% 높이로 제한 + 스크롤. (isScrollControlled 로 기본 절반높이 한계 해제)
+  void _showPickerSheet(BuildContext context, Widget child) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.85,
+          ),
+          child: SingleChildScrollView(child: child),
+        ),
+      ),
+    );
+  }
+
   void _showVehicleTypePicker(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet(context: context, builder: (_) => SafeArea(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
+    _showPickerSheet(context,
+      Column(mainAxisSize: MainAxisSize.min, children: [
         const SizedBox(height: 16),
         Text('차량 타입', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
@@ -204,12 +221,12 @@ class SettingsScreen extends ConsumerWidget {
         )),
         const SizedBox(height: 16),
       ]),
-    ));
+    );
   }
 
   void _showFuelTypePicker(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet(context: context, builder: (_) => SafeArea(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
+    _showPickerSheet(context,
+      Column(mainAxisSize: MainAxisSize.min, children: [
         const SizedBox(height: 16),
         Text('유종 선택', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
@@ -220,47 +237,44 @@ class SettingsScreen extends ConsumerWidget {
         )),
         const SizedBox(height: 16),
       ]),
-    ));
+    );
   }
 
   void _showChargerTypePicker(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) => StatefulBuilder(
+    _showPickerSheet(context,
+      StatefulBuilder(
         builder: (ctx, setState) {
           final selected = List<String>.from(ref.read(settingsProvider).chargerTypes);
-          return SafeArea(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const SizedBox(height: 16),
-              Text('충전기 타입', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 8),
-              ..._chargerTypeOptions.map((t) {
-                final isSelected = selected.contains(t.code);
-                return ListTile(
-                  title: Text(t.label),
-                  trailing: isSelected
-                      ? const Icon(Icons.check_box_rounded, color: AppColors.evGreen)
-                      : const Icon(Icons.check_box_outline_blank_rounded),
-                  onTap: () {
-                    setState(() {
-                      if (isSelected) selected.remove(t.code);
-                      else selected.add(t.code);
-                    });
-                    ref.read(settingsProvider.notifier).setChargerTypes(List.from(selected));
-                  },
-                );
-              }),
-              const SizedBox(height: 16),
-            ]),
-          );
+          return Column(mainAxisSize: MainAxisSize.min, children: [
+            const SizedBox(height: 16),
+            Text('충전기 타입', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            ..._chargerTypeOptions.map((t) {
+              final isSelected = selected.contains(t.code);
+              return ListTile(
+                title: Text(t.label),
+                trailing: isSelected
+                    ? const Icon(Icons.check_box_rounded, color: AppColors.evGreen)
+                    : const Icon(Icons.check_box_outline_blank_rounded),
+                onTap: () {
+                  setState(() {
+                    if (isSelected) selected.remove(t.code);
+                    else selected.add(t.code);
+                  });
+                  ref.read(settingsProvider.notifier).setChargerTypes(List.from(selected));
+                },
+              );
+            }),
+            const SizedBox(height: 16),
+          ]);
         },
       ),
     );
   }
 
   void _showRadiusPicker(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet(context: context, builder: (_) => SafeArea(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
+    _showPickerSheet(context,
+      Column(mainAxisSize: MainAxisSize.min, children: [
         const SizedBox(height: 16),
         Text('검색 반경', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
@@ -271,12 +285,12 @@ class SettingsScreen extends ConsumerWidget {
         )),
         const SizedBox(height: 16),
       ]),
-    ));
+    );
   }
 
   void _showThemePicker(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet(context: context, builder: (_) => SafeArea(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
+    _showPickerSheet(context,
+      Column(mainAxisSize: MainAxisSize.min, children: [
         const SizedBox(height: 16),
         Text('테마', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
@@ -287,7 +301,7 @@ class SettingsScreen extends ConsumerWidget {
         )),
         const SizedBox(height: 16),
       ]),
-    ));
+    );
   }
 }
 

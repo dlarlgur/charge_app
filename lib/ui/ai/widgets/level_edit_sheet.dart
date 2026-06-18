@@ -76,7 +76,13 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-          child: Column(
+          // 키보드 + 다중 입력칸이 작은 화면을 넘으면 스크롤(오버플로 방지).
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.85,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -249,6 +255,8 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                 ),
               ),
             ],
+          ),
+            ),
           ),
         ),
       ),

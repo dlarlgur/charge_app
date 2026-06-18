@@ -172,10 +172,21 @@ class _ConsentSheetState extends State<_ConsentSheet> {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
       ),
       padding: EdgeInsets.fromLTRB(22, 18, 22, 18 + MediaQuery.of(context).viewPadding.bottom),
-      child: Column(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.9,
+        ),
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 약관 항목이 많거나 큰 폰트여도 넘치지 않게 스크롤, 가입 버튼은 하단 고정.
+          Flexible(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
           Text.rich(
             TextSpan(children: [
               const TextSpan(text: '서비스 이용을 위해\n'),
@@ -271,6 +282,10 @@ class _ConsentSheetState extends State<_ConsentSheet> {
             }
             return rows;
           }),
+                ],
+              ),
+            ),
+          ),
 
           const SizedBox(height: 16),
           SizedBox(
@@ -290,6 +305,7 @@ class _ConsentSheetState extends State<_ConsentSheet> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

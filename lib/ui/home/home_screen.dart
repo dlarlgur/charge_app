@@ -1939,19 +1939,31 @@ class SettingsScreenEmbed extends ConsumerWidget {
   }
 
   void _showPicker(BuildContext context, String title, List<String> options, int selected, ValueChanged<int> onSelect) {
-    showModalBottomSheet(context: context, builder: (_) => SafeArea(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const SizedBox(height: 16),
-        Text(title, style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        ...List.generate(options.length, (i) => ListTile(
-          title: Text(options[i]),
-          trailing: i == selected ? const Icon(Icons.check, color: AppColors.gasBlue) : null,
-          onTap: () { onSelect(i); Navigator.pop(context); },
-        )),
-        const SizedBox(height: 16),
-      ]),
-    ));
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        // 옵션이 많거나 큰 폰트여도 넘치지 않게 85% 높이 제한 + 스크롤.
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.85,
+          ),
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const SizedBox(height: 16),
+              Text(title, style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              ...List.generate(options.length, (i) => ListTile(
+                title: Text(options[i]),
+                trailing: i == selected ? const Icon(Icons.check, color: AppColors.gasBlue) : null,
+                onTap: () { onSelect(i); Navigator.pop(context); },
+              )),
+              const SizedBox(height: 16),
+            ]),
+          ),
+        ),
+      ),
+    );
   }
 }
 
