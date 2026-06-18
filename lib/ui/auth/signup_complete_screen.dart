@@ -18,10 +18,21 @@ class SignupCompleteScreen extends ConsumerStatefulWidget {
 
 class _SignupCompleteScreenState extends ConsumerState<SignupCompleteScreen> {
   late final TextEditingController _nick = TextEditingController(text: widget.user.nickname ?? '');
+  final TextEditingController _age = TextEditingController();
   bool _busy = false;
 
+  // 소셜(네이버)이 연령대를 이미 줬으면 입력 생략.
+  bool get _needAge => widget.user.ageGroup == null || widget.user.ageGroup!.isEmpty;
+  String? _ageToGroup() {
+    final n = int.tryParse(_age.text.trim());
+    if (n == null || n < 14 || n > 100) return null;
+    if (n >= 60) return '60대이상';
+    return '${(n ~/ 10) * 10}대'; // 14→10대, 27→20대
+  }
+  bool get _ageOk => !_needAge || _ageToGroup() != null;
+
   Future<void> _onConfirm() async {
-    if (_nick.text.trim().isEmpty || _busy) return;
+    if (_nick.text.trim().isEmpty || !_ageOk || _busy) return;
     // 동의 항목이 비어있으면(부트스트랩 미로드) 한 번 더 로드 후 진행.
     var consents = DkswCore.signupConsents;
     if (consents.isEmpty) {
@@ -41,7 +52,10 @@ class _SignupCompleteScreenState extends ConsumerState<SignupCompleteScreen> {
     if (agreed == null || !mounted) return; // 닫음(취소)
 
     setState(() => _busy = true);
-    final updated = await AuthService.updateProfile(nickname: _nick.text.trim());
+    final updated = await AuthService.updateProfile(
+      nickname: _nick.text.trim(),
+      ageGroup: _needAge ? _ageToGroup() : null,
+    );
     await DkswCore.postConsents(
       consents
           .map((c) => ConsentChoice(key: c.key, agreed: agreed[c.key] == true, version: c.version))
@@ -62,6 +76,7 @@ class _SignupCompleteScreenState extends ConsumerState<SignupCompleteScreen> {
   @override
   void dispose() {
     _nick.dispose();
+    _age.dispose();
     super.dispose();
   }
 
@@ -109,12 +124,32 @@ class _SignupCompleteScreenState extends ConsumerState<SignupCompleteScreen> {
                   counterText: '',
                 ),
               ),
+              if (_needAge) ...[
+                const SizedBox(height: 20),
+                Text('나이',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: textSecondary)),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: _age,
+                  keyboardType: TextInputType.number,
+                  maxLength: 3,
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                    hintText: '나이 입력 (14~100)',
+                    border: OutlineInputBorder(),
+                    counterText: '',
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text('연령대 통계용으로만 사용돼요.',
+                    style: TextStyle(fontSize: 12, color: textSecondary)),
+              ],
               const Spacer(),
               SizedBox(
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: (_nick.text.trim().isNotEmpty && !_busy) ? _onConfirm : null,
+                  onPressed: (_nick.text.trim().isNotEmpty && _ageOk && !_busy) ? _onConfirm : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: accent,
                     disabledBackgroundColor: Colors.grey[300],

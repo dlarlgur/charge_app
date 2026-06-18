@@ -15,6 +15,7 @@ class AuthUser {
   final String? nickname;
   final String? profileImageUrl;
   final bool signupCompleted; // 닉네임·약관동의까지 끝낸 "완성" 계정 여부.
+  final String? ageGroup; // 연령대(10대/20대/…/60대이상). 네이버 자동 또는 수동 입력.
 
   const AuthUser({
     required this.id,
@@ -22,6 +23,7 @@ class AuthUser {
     this.nickname,
     this.profileImageUrl,
     this.signupCompleted = false,
+    this.ageGroup,
   });
 
   factory AuthUser.fromJson(Map<String, dynamic> j) => AuthUser(
@@ -30,6 +32,7 @@ class AuthUser {
         nickname: j['nickname'] as String?,
         profileImageUrl: j['profile_image_url'] as String?,
         signupCompleted: j['signup_completed'] == 1 || j['signup_completed'] == true,
+        ageGroup: j['age_group'] as String?,
       );
 }
 
@@ -142,8 +145,8 @@ class AuthService {
     );
   }
 
-  /// 회원가입 완료 화면에서 닉네임/이메일 저장.
-  static Future<AuthUser?> updateProfile({String? nickname, String? email}) async {
+  /// 회원가입 완료 화면에서 닉네임/이메일/연령대 저장.
+  static Future<AuthUser?> updateProfile({String? nickname, String? email, String? ageGroup}) async {
     final access = await _storage.read(key: _kAccess);
     if (access == null) return null;
     try {
@@ -152,6 +155,7 @@ class AuthService {
         data: {
           if (nickname != null) 'nickname': nickname,
           if (email != null) 'email': email,
+          if (ageGroup != null) 'age_group': ageGroup,
         },
         options: Options(headers: {'Authorization': 'Bearer $access'}),
       );
