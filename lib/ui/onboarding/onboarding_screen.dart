@@ -2,7 +2,9 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/constants/api_constants.dart';
 import '../../data/models/models.dart';
 import '../../providers/providers.dart';
 import '../../data/services/alert_service.dart';
@@ -20,6 +22,36 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   FuelType _fuelType = FuelType.gasoline;
   List<String> _chargerTypes = ['02', '04'];
   int _radius = 5000;
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreDraft();
+  }
+
+  // 중간 종료 후 재진입: 저장된 진행 스텝/선택 복원.
+  void _restoreDraft() {
+    final box = Hive.box(AppConstants.settingsBox);
+    final step = box.get(AppConstants.keyOnboardingStep, defaultValue: 0) as int;
+    if (step <= 0) return; // 진행 이력 없으면 기본값 유지
+    setState(() {
+      _vehicleType =
+          VehicleType.fromCode(box.get(AppConstants.keyVehicleType, defaultValue: 'gas'));
+      _fuelType = FuelType.fromCode(box.get(AppConstants.keyFuelType, defaultValue: 'B027'));
+      _chargerTypes =
+          List<String>.from(box.get(AppConstants.keyChargerTypes, defaultValue: ['02', '04']));
+      _step = step.clamp(0, _totalSteps - 1); // 차종에 따른 총 스텝 범위 보정
+    });
+  }
+
+  // 현재까지의 선택 + 스텝을 저장 (중간 종료 대비).
+  void _persistDraft() {
+    final box = Hive.box(AppConstants.settingsBox);
+    box.put(AppConstants.keyVehicleType, _vehicleType.code);
+    box.put(AppConstants.keyFuelType, _fuelType.code);
+    box.put(AppConstants.keyChargerTypes, _chargerTypes);
+    box.put(AppConstants.keyOnboardingStep, _step);
+  }
 
   // 차종에 따라 스텝 수가 달라짐 (마지막은 항상 알림 권한)
   // gas:  0(차종) → 1(유종) → 2(알림)              = 3스텝
@@ -47,13 +79,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   void _next() {
     if (_step < _totalSteps - 1) {
       setState(() => _step++);
+      _persistDraft();
     } else {
       _finish();
     }
   }
 
   void _back() {
-    if (_step > 0) setState(() => _step--);
+    if (_step > 0) {
+      setState(() => _step--);
+      _persistDraft();
+    }
   }
 
   void _finish() async {
@@ -67,6 +103,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     notifier.setChargerTypes(_chargerTypes);
     notifier.setRadius(_radius);
     notifier.completeOnboarding();
+    Hive.box(AppConstants.settingsBox).delete(AppConstants.keyOnboardingStep); // 진행 스텝 정리
     // 게스트로 온보딩을 끝낸 경우에만 홈에서 이벤트·혜택 옵트인 팝업 1회 노출.
     // (회원은 가입 시트에서 이미 마케팅 동의를 받았으므로 제외)
     if (ref.read(authProvider) == null) {

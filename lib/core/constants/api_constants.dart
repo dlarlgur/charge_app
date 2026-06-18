@@ -135,4 +135,5 @@ class AppConstants {
   // ── 진입 플로우 (Phase A) ──
   static const keyGuestStarted = 'guest_started'; // 게스트 "그래도 시작" 선택 완료
   static const keyPendingEventOptin = 'pending_event_optin'; // 온보딩 끝낸 게스트 홈 이벤트 팝업 대기
+  static const keyOnboardingStep = 'onboarding_step'; // 온보딩 진행 스텝(중간 종료 후 재진입 복원용)
 }
