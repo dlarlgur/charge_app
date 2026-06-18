@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -301,6 +302,7 @@ class AlertService {
   }
 
   Future<void> _registerDevice(String fcmToken) async {
+    // charge_server 등록 (주유/EV 알림용, AlertService deviceId 기준)
     try {
       await _dio.post('/alerts/device', data: {
         'deviceId': deviceId,
@@ -309,6 +311,9 @@ class AlertService {
     } catch (e) {
       if (kDebugMode) debugPrint('[alerts] device 등록 실패: $e');
     }
+    // 콘솔(DkswCore) push_devices 등록 (이벤트/공지/문의답변 푸시용, DkswCore deviceId 기준).
+    // 콘솔의 이벤트 발송은 이 토큰을 찾으므로 필수.
+    await DkswCore.registerInquiryFcmToken(fcmToken);
   }
 
   /// 주유소 구독 (단일 유종 추가)
