@@ -6,6 +6,7 @@ import '../../core/theme/app_colors.dart';
 import '../../data/models/models.dart';
 import '../../providers/providers.dart';
 import '../../data/services/alert_service.dart';
+import '../../data/services/auth_service.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -66,6 +67,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     notifier.setChargerTypes(_chargerTypes);
     notifier.setRadius(_radius);
     notifier.completeOnboarding();
+    // 게스트로 온보딩을 끝낸 경우에만 홈에서 이벤트·혜택 옵트인 팝업 1회 노출.
+    // (회원은 가입 시트에서 이미 마케팅 동의를 받았으므로 제외)
+    if (ref.read(authProvider) == null) {
+      notifier.setPendingEventOptin(true);
+    }
 
     // 온보딩에서 선택한 커넥터 타입을 EV 필터에도 반영
     if (_vehicleType == VehicleType.ev || _vehicleType == VehicleType.both) {
