@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/app_dialog.dart';
 import '../../data/services/auth_service.dart';
 import '../../providers/providers.dart';
 import 'signup_complete_screen.dart';
@@ -69,16 +70,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void _showEmailInUse(String provider) {
     const names = {'kakao': '카카오', 'naver': '네이버', 'google': '구글'};
     final name = names[provider] ?? '다른 소셜';
-    showDialog<void>(
-      context: context,
-      builder: (d) => AlertDialog(
-        title: const Text('이미 가입된 이메일'),
-        content: Text('이 이메일은 이미 $name 계정으로 가입돼 있어요.\n$name 로그인을 이용해주세요.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.of(d).pop(), child: const Text('확인')),
-        ],
-      ),
+    showAppDialog<void>(
+      context,
+      icon: Icons.mark_email_read_rounded,
+      title: '이미 가입된 이메일',
+      message: '이 이메일은 이미 $name 계정으로 가입돼 있어요.\n$name 로그인을 이용해주세요.',
+      primaryLabel: '확인',
     );
   }
 

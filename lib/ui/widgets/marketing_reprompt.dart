@@ -3,6 +3,7 @@ import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/notif_permission.dart';
 
 /// 마케팅 동의 상태가 바뀔 때 bump — 설정의 동의 토글 등 구독 위젯이 즉시 갱신되도록.
 /// (DkswCore 동의는 listenable 이 없어 charge_app 측에서 신호를 돌린다.)
@@ -118,6 +119,8 @@ Future<void> maybeShowChargeMarketingReprompt(BuildContext context, {bool force 
                         key: marketing.key, agreed: true, version: marketing.version),
                   ]);
                   marketingConsentVersion.value++; // 설정 토글 즉시 갱신
+                  // 동의만으론 못 받음 — 실제 수신을 위해 OS 알림 권한도 요청.
+                  if (ctx.mounted) await ensureNotifPermission(ctx);
                   if (ctx.mounted) Navigator.of(ctx).pop();
                 },
                 style: ElevatedButton.styleFrom(

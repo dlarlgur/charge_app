@@ -4,6 +4,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/constants/api_constants.dart';
+import '../../core/app_dialog.dart';
 
 class PermissionScreen extends StatefulWidget {
   const PermissionScreen({super.key});
@@ -83,30 +84,21 @@ class _PermissionScreenState extends State<PermissionScreen>
     }
   }
 
-  void _showSettingsDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('위치 권한 필요'),
-        content: const Text(
-          '위치 권한이 거부되어 있습니다.\n설정에서 위치 권한을 허용해주세요.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              _awaitingSettingsReturn = true;
-              await openAppSettings();
-            },
-            child: const Text('설정 열기'),
-          ),
-        ],
-      ),
+  Future<void> _showSettingsDialog() async {
+    final go = await showAppDialog<bool>(
+      context,
+      icon: Icons.location_on_rounded,
+      title: '위치 권한이 필요해요',
+      message: '주변 주유소·충전소를 찾으려면\n설정에서 위치 권한을 허용해주세요.',
+      primaryLabel: '설정 열기',
+      primaryValue: true,
+      secondaryLabel: '취소',
+      secondaryValue: false,
     );
+    if (go == true) {
+      _awaitingSettingsReturn = true;
+      await openAppSettings();
+    }
   }
 
   @override

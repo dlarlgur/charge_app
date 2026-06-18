@@ -26,6 +26,7 @@ import '../widgets/native_ad_card.dart';
 // popup_ad_dialog 는 dksw_app_core v0.3.2 부터 코어로 통합 — 위 import 로 사용.
 import '../widgets/marketing_reprompt.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../../core/notif_permission.dart';
 import '../widgets/popup_notice_dialog.dart';
 import '../widgets/shared_widgets.dart';
 import '../widgets/watch_session_bar.dart';
@@ -1735,6 +1736,8 @@ class _ChargeMarketingTileState extends ConsumerState<_ChargeMarketingTile> {
       ConsentChoice(key: 'marketing', agreed: v, version: version),
     ]);
     marketingConsentVersion.value++; // 다른 구독 위젯도 갱신
+    // 동의(ON)만으론 못 받음 — 실제 수신 위해 OS 알림 권한도 요청.
+    if (v && mounted) await ensureNotifPermission(context);
     if (mounted) {
       setState(() {
         _busy = false;
@@ -2061,40 +2064,6 @@ class _SupportEmbedState extends State<_SupportEmbed> {
 }
 
 // ─── 알림 설정 타일 (홈 설정 탭용) ───
-/// 알림(푸시) 권한 보장. 허용되면 true.
-/// 미허용이면 OS 권한 요청 팝업을 먼저 띄우고, 영구 거부라 OS 팝업이 안 뜰 때만 설정으로 유도.
-Future<bool> _ensureNotifPermission(BuildContext context) async {
-  var status = await Permission.notification.status;
-  if (status.isGranted) return true;
-  // 영구거부 전이면 OS 허용 팝업을 먼저 시도 (시스템 다이얼로그가 뜸).
-  if (!status.isPermanentlyDenied) {
-    status = await Permission.notification.request();
-    if (status.isGranted) return true;
-  }
-  // 영구거부(안드13+는 한 번 거부하면 OS 팝업이 다시 안 뜸) → 설정에서 켜도록 안내.
-  if (context.mounted) {
-    await showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('알림 권한 필요'),
-        content: const Text('기기 설정에서 알림을 허용해주세요.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              openAppSettings();
-            },
-            child: const Text('설정 열기', style: TextStyle(color: AppColors.gasBlue)),
-          ),
-        ],
-      ),
-    );
-  }
-  return false;
-}
-
 class _AlertSettingTileEmbed extends StatefulWidget {
   final bool isDark;
   const _AlertSettingTileEmbed({required this.isDark});
@@ -2151,7 +2120,7 @@ class _AlertSettingTileEmbedState extends State<_AlertSettingTileEmbed> {
 
   Future<void> _toggleEnabled(bool value) async {
     if (value) {
-      final ok = await _ensureNotifPermission(context);
+      final ok = await ensureNotifPermission(context);
       if (!ok || !mounted) return;
       _notifGranted = true;
     }
@@ -2419,7 +2388,7 @@ class _EvAlarmSettingTileEmbedState extends State<_EvAlarmSettingTileEmbed> {
 
   Future<void> _toggleEnabled(bool value) async {
     if (value) {
-      final ok = await _ensureNotifPermission(context);
+      final ok = await ensureNotifPermission(context);
       if (!ok || !mounted) return;
       _notifGranted = true;
     }
