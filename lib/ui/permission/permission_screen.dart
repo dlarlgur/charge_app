@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/constants/api_constants.dart';
 
 class PermissionScreen extends StatefulWidget {
   const PermissionScreen({super.key});
@@ -36,12 +38,19 @@ class _PermissionScreenState extends State<PermissionScreen>
     }
   }
 
+  // 위치 단계 후 목적지: 신규/재개는 온보딩, 재방문자(위치 재허용 등)는 홈.
+  String get _nextRoute {
+    final done = Hive.box(AppConstants.settingsBox)
+        .get(AppConstants.keyOnboardingDone, defaultValue: false) as bool;
+    return done ? '/home' : '/onboarding';
+  }
+
   // 설정 다녀온 후 권한 자동 재체크 — 사용자가 다시 버튼 누르지 않아도 진행.
   Future<void> _recheckAfterSettings() async {
     final status = await Permission.locationWhenInUse.status;
     if (!mounted) return;
     if (status.isGranted || status.isLimited) {
-      context.go('/onboarding');
+      context.go(_nextRoute);
     }
   }
 
@@ -54,12 +63,12 @@ class _PermissionScreenState extends State<PermissionScreen>
     setState(() => _isLoading = false);
 
     if (status.isGranted || status.isLimited) {
-      context.go('/onboarding');
+      context.go(_nextRoute);
     } else if (status.isPermanentlyDenied) {
       _showSettingsDialog();
     } else {
       // denied - 온보딩은 진행할 수 있도록
-      context.go('/onboarding');
+      context.go(_nextRoute);
     }
   }
 
@@ -136,7 +145,7 @@ class _PermissionScreenState extends State<PermissionScreen>
               ),
               const SizedBox(height: 8),
               TextButton(
-                onPressed: _isLoading ? null : () => context.go('/onboarding'),
+                onPressed: _isLoading ? null : () => context.go(_nextRoute),
                 child: Text('나중에 설정할게요',
                   style: TextStyle(color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
               ),
