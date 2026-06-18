@@ -4,6 +4,10 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_colors.dart';
 
+/// 마케팅 동의 상태가 바뀔 때 bump — 설정의 동의 토글 등 구독 위젯이 즉시 갱신되도록.
+/// (DkswCore 동의는 listenable 이 없어 charge_app 측에서 신호를 돌린다.)
+final marketingConsentVersion = ValueNotifier<int>(0);
+
 /// charge_app 전용 마케팅(광고성) 수신 동의 재요청 팝업.
 /// [force]=false: 콘솔 재요청 ON + 미동의자 + 오늘 미노출일 때만 (게이팅 DkswCore).
 /// [force]=true: 게이팅 무시하고 무조건 노출 (온보딩 끝낸 게스트 1회용).
@@ -113,6 +117,7 @@ Future<void> maybeShowChargeMarketingReprompt(BuildContext context, {bool force 
                     ConsentChoice(
                         key: marketing.key, agreed: true, version: marketing.version),
                   ]);
+                  marketingConsentVersion.value++; // 설정 토글 즉시 갱신
                   if (ctx.mounted) Navigator.of(ctx).pop();
                 },
                 style: ElevatedButton.styleFrom(

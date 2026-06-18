@@ -1697,6 +1697,23 @@ class _ChargeMarketingTileState extends ConsumerState<_ChargeMarketingTile> {
   bool? _optimistic; // 토글 진행 중에만 사용. 평상시엔 source-of-truth(consentAgreed)를 읽는다.
   bool _busy = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // 온보딩 끝 팝업 등 외부에서 동의가 바뀌면(IndexedStack로 상시 mount 라 자동 리빌드 안 됨) 갱신.
+    marketingConsentVersion.addListener(_onConsentChanged);
+  }
+
+  @override
+  void dispose() {
+    marketingConsentVersion.removeListener(_onConsentChanged);
+    super.dispose();
+  }
+
+  void _onConsentChanged() {
+    if (mounted) setState(() {});
+  }
+
   // 매 build마다 실제 동의 상태를 읽어 stale 방지(회원가입 등 외부에서 바뀌어도 반영).
   bool get _on => _optimistic ?? (DkswCore.consentAgreed('marketing') == true);
 
@@ -1716,6 +1733,7 @@ class _ChargeMarketingTileState extends ConsumerState<_ChargeMarketingTile> {
     await DkswCore.postConsents([
       ConsentChoice(key: 'marketing', agreed: v, version: version),
     ]);
+    marketingConsentVersion.value++; // 다른 구독 위젯도 갱신
     if (mounted) {
       setState(() {
         _busy = false;
