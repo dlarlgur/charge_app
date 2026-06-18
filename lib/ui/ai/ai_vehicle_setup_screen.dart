@@ -26,7 +26,10 @@ class AiVehicleSetupScreen extends ConsumerStatefulWidget {
   /// null 이면 신규 등록, 값이 있으면 해당 ID 수정
   final String? editVehicleId;
 
-  const AiVehicleSetupScreen({super.key, this.editVehicleId});
+  /// 신규 등록 시 초기 차종 ('gas' | 'ev'). 충전분석에서 진입하면 'ev' 로 시작.
+  final String? initialType;
+
+  const AiVehicleSetupScreen({super.key, this.editVehicleId, this.initialType});
 
   bool get isEdit => editVehicleId != null;
 
@@ -83,6 +86,10 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
       );
       _applyVehicle(v);
     } else {
+      // 신규 — 진입 컨텍스트의 차종으로 시작 (충전분석 → 'ev')
+      if (widget.initialType == 'ev' || widget.initialType == 'gas') {
+        _vehicleType = widget.initialType!;
+      }
       // 기본값 세팅
       _tankController.text = '55';
       _effController.text = '12.5';
