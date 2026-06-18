@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
+import 'package:dksw_app_core/dksw_app_core.dart';
 import 'auth_service.dart';
 import 'package:flutter/foundation.dart';
 
@@ -299,28 +300,37 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> postEvAiRecommend(Map<String, dynamic> body) async {
-    // 로그인 상태면 Bearer 토큰 첨부 → 서버가 사용자별 사용량/쿼터로 집계.
-    final token = await AuthService.accessToken();
     final res = await _dio.post(
       ApiConstants.evAiRecommend,
       data: body,
-      options: token != null ? Options(headers: {'Authorization': 'Bearer $token'}) : null,
+      options: await _aiAuthOptions(),
     );
     return Map<String, dynamic>.from(res.data ?? {});
   }
 
+  // AI 호출 공통 헤더 — 서버 쿼터 식별자.
+  //   로그인: Bearer 토큰 → 사용자별(user_id) 쿼터
+  //   게스트: x-device-id → 기기별 쿼터 (없으면 서버가 IP 폴백이라 NAT 공유돼 부정확)
+  Future<Options?> _aiAuthOptions() async {
+    final headers = <String, dynamic>{};
+    if (DkswCore.deviceId.isNotEmpty) headers['x-device-id'] = DkswCore.deviceId;
+    final token = await AuthService.accessToken();
+    if (token != null) headers['Authorization'] = 'Bearer $token';
+    return headers.isEmpty ? null : Options(headers: headers);
+  }
+
   Future<Map<String, dynamic>> postRefuelAnalyze(Map<String, dynamic> body) async {
-    final res = await _dio.post(ApiConstants.refuelAnalyze, data: body);
+    final res = await _dio.post(ApiConstants.refuelAnalyze, data: body, options: await _aiAuthOptions());
     return Map<String, dynamic>.from(res.data ?? {});
   }
 
   Future<Map<String, dynamic>> postRefuelRouteStations(Map<String, dynamic> body) async {
-    final res = await _dio.post(ApiConstants.refuelRouteStations, data: body);
+    final res = await _dio.post(ApiConstants.refuelRouteStations, data: body, options: await _aiAuthOptions());
     return Map<String, dynamic>.from(res.data ?? {});
   }
 
   Future<Map<String, dynamic>> postRefuelCompare(Map<String, dynamic> body) async {
-    final res = await _dio.post(ApiConstants.refuelCompare, data: body);
+    final res = await _dio.post(ApiConstants.refuelCompare, data: body, options: await _aiAuthOptions());
     return Map<String, dynamic>.from(res.data ?? {});
   }
 
