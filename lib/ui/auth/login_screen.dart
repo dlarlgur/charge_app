@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/app_dialog.dart';
 import '../../data/services/auth_service.dart';
+import '../../data/services/user_data_sync.dart';
 import '../../providers/providers.dart';
 import 'signup_complete_screen.dart';
 
@@ -43,12 +44,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             return;
           }
         }
-        if (mounted) {
-          if (widget.gate) {
-            context.go('/permission');
-          } else {
-            Navigator.of(context).pop(true);
-          }
+        // 회원 데이터 동기화: 서버에 있으면 로컬 적용(union)+알람 재구독, 없으면 로컬 이관.
+        await UserDataSync.run();
+        if (!mounted) return;
+        if (widget.gate) {
+          context.go('/permission');
+        } else {
+          Navigator.of(context).pop(true);
         }
         return;
       }
