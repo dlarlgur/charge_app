@@ -27,6 +27,7 @@ import '../widgets/native_ad_card.dart';
 import '../widgets/marketing_reprompt.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../core/notif_permission.dart';
+import '../../core/app_dialog.dart';
 import '../../data/services/user_sync_service.dart';
 import '../widgets/popup_notice_dialog.dart';
 import '../widgets/shared_widgets.dart';
@@ -2036,7 +2037,26 @@ class _SupportEmbedState extends State<_SupportEmbed> {
             title: Text('1:1 문의하기',
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
             trailing: Icon(Icons.chevron_right_rounded, size: 20, color: muted),
-            onTap: () => context.push('/inquiry'),
+            onTap: () async {
+              // 1:1 문의는 로그인 전용 — 내역이 기기 바꿔도 유지되도록.
+              final token = await AuthService.accessToken();
+              if (!context.mounted) return;
+              if (token == null || token.isEmpty) {
+                final go = await showAppDialog<bool>(
+                  context,
+                  icon: Icons.lock_outline_rounded,
+                  title: '로그인이 필요해요',
+                  message: '1:1 문의는 로그인 후 이용할 수 있어요.\n문의 내역이 기기를 바꿔도 유지돼요.',
+                  primaryLabel: '로그인',
+                  primaryValue: true,
+                  secondaryLabel: '취소',
+                  secondaryValue: false,
+                );
+                if (go == true && context.mounted) context.push('/login');
+              } else {
+                context.push('/inquiry');
+              }
+            },
           ),
         ];
         // 타일 사이 구분선 삽입
