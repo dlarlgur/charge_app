@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dksw_app_core/dksw_app_core.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../data/services/auth_service.dart';
+import '../widgets/policy_sheet.dart';
 
 /// 회원가입 완료 — 소셜 로그인(신규) 직후. ① 닉네임 입력 → ② 약관 동의 시트.
 /// 이메일은 소셜 프로바이더값을 그대로 사용(별도 입력 X).
@@ -22,6 +22,13 @@ class _SignupCompleteScreenState extends ConsumerState<SignupCompleteScreen> {
 
   Future<void> _onConfirm() async {
     if (_nick.text.trim().isEmpty || _busy) return;
+    // 동의 항목이 비어있으면(부트스트랩 미로드) 한 번 더 로드 후 진행.
+    var consents = DkswCore.signupConsents;
+    if (consents.isEmpty) {
+      await DkswCore.bootstrap();
+      if (!mounted) return;
+      consents = DkswCore.signupConsents;
+    }
     // ② 약관 동의 시트
     final agreed = await showModalBottomSheet<Map<String, bool>>(
       context: context,
@@ -29,14 +36,14 @@ class _SignupCompleteScreenState extends ConsumerState<SignupCompleteScreen> {
       isDismissible: false,
       enableDrag: false,
       backgroundColor: Colors.transparent,
-      builder: (_) => _ConsentSheet(consents: DkswCore.signupConsents),
+      builder: (_) => _ConsentSheet(consents: consents),
     );
     if (agreed == null || !mounted) return; // 닫음(취소)
 
     setState(() => _busy = true);
     final updated = await AuthService.updateProfile(nickname: _nick.text.trim());
     await DkswCore.postConsents(
-      DkswCore.signupConsents
+      consents
           .map((c) => ConsentChoice(key: c.key, agreed: agreed[c.key] == true, version: c.version))
           .toList(),
     );
@@ -151,12 +158,6 @@ class _ConsentSheetState extends State<_ConsentSheet> {
         }
       });
 
-  Future<void> _open(String url) async {
-    try {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-    } catch (_) {}
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -231,9 +232,21 @@ class _ConsentSheetState extends State<_ConsentSheet> {
                       ])),
                     ),
                     if (c.viewUrl != null)
-                      InkWell(
-                        onTap: () => _open(c.viewUrl!),
-                        child: Icon(Icons.chevron_right_rounded, size: 20, color: textSecondary),
+                      GestureDetector(
+                        onTap: () => showPolicySheet(context, url: c.viewUrl!, title: c.title),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            Text('보기',
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    color: accent,
+                                    fontWeight: FontWeight.w600,
+                                    decoration: TextDecoration.underline,
+                                    decorationColor: accent)),
+                            Icon(Icons.chevron_right_rounded, size: 16, color: accent),
+                          ]),
+                        ),
                       ),
                   ]),
                 ),
