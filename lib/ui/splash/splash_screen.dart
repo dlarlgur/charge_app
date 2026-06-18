@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../core/update/app_updater.dart';
 import '../../data/services/auth_service.dart';
 import '../../data/services/splash_ad_cache.dart';
@@ -147,12 +148,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         .addPostFrameCallback((_) => FlutterNativeSplash.remove());
   }
 
-  void _navigateNext() {
+  Future<void> _navigateNext() async {
     if (_routed || !mounted) return;
     _routed = true;
-    // 진입 결정표 (위치 권한은 소프트 — 라우팅 조건 아님):
+    // 진입 결정표:
     //  - onboardingDone        → /home (재방문자)
-    //  - 로그인됨 or 게스트선택 → /permission (온보딩 재개)
+    //  - 로그인됨 or 게스트선택 → 온보딩 재개. 위치 이미 허용이면 권한화면 건너뛰고 바로 /onboarding
     //  - 그 외(완전 첫 실행)    → /login 게이트
     final settings = ref.read(settingsProvider);
     if (settings.onboardingDone) {
@@ -161,7 +162,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     }
     final loggedIn = ref.read(authProvider) != null;
     if (loggedIn || settings.guestStarted) {
-      context.go('/permission');
+      // 권한화면이 잠깐 떴다 사라지는 깜빡임 방지: 위치 허용 여부를 splash 에서 직접 판단.
+      final loc = await Permission.locationWhenInUse.status;
+      if (!mounted) return;
+      context.go((loc.isGranted || loc.isLimited) ? '/onboarding' : '/permission');
     } else {
       context.go('/login?gate=1');
     }
