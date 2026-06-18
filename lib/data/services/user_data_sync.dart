@@ -37,7 +37,11 @@ class UserDataSync {
     final box = Hive.box(AppConstants.settingsBox);
 
     // 기본 차량설정(서버 우선)
-    if (prefs['vehicleType'] != null) box.put(AppConstants.keyVehicleType, prefs['vehicleType']);
+    if (prefs['vehicleType'] != null) {
+      box.put(AppConstants.keyVehicleType, prefs['vehicleType']);
+      // 서버에 차량설정이 있다 = 이 계정은 온보딩을 완료함 → 재로그인/데이터삭제 후 온보딩 스킵.
+      box.put(AppConstants.keyOnboardingDone, true);
+    }
     if (prefs['fuelType'] != null) box.put(AppConstants.keyFuelType, prefs['fuelType']);
 
     // 마케팅 동의 — 이 기기(콘솔 device)로 재적용
