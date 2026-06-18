@@ -272,10 +272,11 @@ class AlertService {
     _notifySubsChanged();
   }
 
-  /// 온보딩 완료 시점에 호출 — 권한 요청 후 FCM 토큰 등록
+  /// 온보딩 완료 시점에 호출 — FCM 토큰 등록.
+  /// 알림 권한 요청은 호출 측(온보딩 화면)에서 이미 수행하므로 여기선 재요청하지 않는다
+  /// (중복 요청 시 두 번째 시스템 다이얼로그가 홈 도착 후 떠서 영구거부를 유발했음).
   Future<void> init() async {
     try {
-      await FirebaseMessaging.instance.requestPermission(alert: true, badge: true, sound: true);
       final token = await FirebaseMessaging.instance.getToken();
       if (token != null) await _registerDevice(token);
 
