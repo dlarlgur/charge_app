@@ -8,6 +8,7 @@ import '../../core/constants/api_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/models.dart';
 import '../../providers/providers.dart';
+import '../../data/services/user_sync_service.dart';
 
 // 앱 컨벤션과 정합 — 내연기관(gas)은 파랑, 전기차(ev)는 초록.
 // ai_main_screen 의 _kFuelAccent(#3B82F6) / _kEvAccent(#10B981) 와 동일.
@@ -272,6 +273,7 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
     }
 
     ref.read(settingsProvider.notifier).completeAiOnboarding();
+    mirrorAiVehiclesToServer(); // 로그인 회원이면 서버 미러(replace-all)
     Navigator.pop(context, true); // true = 저장 완료
   }
 

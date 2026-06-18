@@ -6,6 +6,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/models.dart';
+import '../../data/services/user_sync_service.dart';
 import 'ai_vehicle_setup_screen.dart';
 
 // Brand accents (앱 컨벤션과 정합 — gas=blue, ev=green)
@@ -61,6 +62,7 @@ class _AiVehicleListScreenState extends State<AiVehicleListScreen> {
       AppConstants.keyAiVehicles,
       jsonEncode(_vehicles.map((v) => v.toJson()).toList()),
     );
+    mirrorAiVehiclesToServer(); // 로그인 회원이면 서버 미러(삭제/순서 반영)
   }
 
   void _selectVehicle(VehicleProfile v) {

@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../core/constants/api_constants.dart';
 import 'auth_service.dart';
@@ -101,4 +104,34 @@ class UserSyncService {
       return false;
     }
   }
+}
+
+/// 현재 Hive 의 AI 차량 목록을 서버에 미러(replace-all). 로그인 회원만(내부 skip).
+/// 차량 저장/삭제 등 keyAiVehicles 가 바뀌는 모든 지점에서 호출.
+Future<void> mirrorAiVehiclesToServer() async {
+  final box = Hive.box(AppConstants.settingsBox);
+  final raw = box.get(AppConstants.keyAiVehicles);
+  final selectedId = box.get(AppConstants.keyAiSelectedVehicleId) as String?;
+  List list;
+  try {
+    list = (raw is String && raw.isNotEmpty) ? (jsonDecode(raw) as List) : const [];
+  } catch (_) {
+    return;
+  }
+  final vehicles = list.whereType<Map>().map<Map<String, dynamic>>((m) => {
+        'clientId': m['id'],
+        'name': m['name'],
+        'kind': m['vehicleType'],
+        'fuelType': m['fuelType'],
+        'tankCapacity': m['tankCapacity'],
+        'efficiency': m['efficiency'],
+        'targetMode': m['targetMode'],
+        'targetValue': m['targetValue'],
+        'batteryCapacity': m['batteryCapacity'],
+        'evEfficiency': m['evEfficiency'],
+        'targetChargePercent': m['targetChargePercent'],
+        'currentLevelPercent': m['currentLevelPercent'],
+        'isSelected': m['id'] == selectedId,
+      }).toList();
+  await UserSyncService.instance.putVehicles(vehicles);
 }

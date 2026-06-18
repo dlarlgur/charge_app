@@ -27,6 +27,7 @@ import '../widgets/native_ad_card.dart';
 import '../widgets/marketing_reprompt.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../core/notif_permission.dart';
+import '../../data/services/user_sync_service.dart';
 import '../widgets/popup_notice_dialog.dart';
 import '../widgets/shared_widgets.dart';
 import '../widgets/watch_session_bar.dart';
@@ -1736,6 +1737,7 @@ class _ChargeMarketingTileState extends ConsumerState<_ChargeMarketingTile> {
       ConsentChoice(key: 'marketing', agreed: v, version: version),
     ]);
     marketingConsentVersion.value++; // 다른 구독 위젯도 갱신
+    UserSyncService.instance.putPrefs(marketingConsent: v); // 로그인 회원이면 서버에 기억(새 기기 재적용용)
     // 동의(ON)만으론 못 받음 — 실제 수신 위해 OS 알림 권한도 요청.
     if (v && mounted) await ensureNotifPermission(context);
     if (mounted) {

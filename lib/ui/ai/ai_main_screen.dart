@@ -16,6 +16,7 @@ import '../../core/navigation/app_route_observer.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/models.dart';
 import '../../data/services/api_service.dart';
+import '../../data/services/user_sync_service.dart';
 import '../../data/services/notification_service.dart';
 import '../../data/services/station_alias_service.dart';
 import '../../data/services/location_service.dart';
@@ -350,6 +351,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         targetValue: price ?? all[idx].targetValue,
       );
       box.put(AppConstants.keyAiVehicles, jsonEncode(all.map((v) => v.toJson()).toList()));
+      mirrorAiVehiclesToServer(); // 로그인 회원이면 서버 미러
     } catch (_) {}
   }
 
