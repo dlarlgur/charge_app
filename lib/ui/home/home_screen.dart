@@ -24,6 +24,7 @@ import '../map/map_screen.dart';
 import '../notices/notices_screen.dart';
 import '../widgets/native_ad_card.dart';
 // popup_ad_dialog 는 dksw_app_core v0.3.2 부터 코어로 통합 — 위 import 로 사용.
+import '../widgets/marketing_reprompt.dart';
 import '../widgets/popup_notice_dialog.dart';
 import '../widgets/shared_widgets.dart';
 import '../widgets/watch_session_bar.dart';
@@ -75,9 +76,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         AlertService().addGasPriceMessage(message.data);
         _messageBadgeKey.currentState?.refreshCount();
       } else if (message.data['type'] == 'ev_alarm') {
-        showEvAlarmNotification(message.data, soundMode: AlertService().evAlarmSoundMode);
-        AlertService().addEvAlarmMessage(message.data);
-        _messageBadgeKey.currentState?.refreshCount();
+        if (AlertService().evAlarmEnabled) {
+          showEvAlarmNotification(message.data, soundMode: AlertService().evAlarmSoundMode);
+          AlertService().addEvAlarmMessage(message.data);
+          _messageBadgeKey.currentState?.refreshCount();
+        }
       } else if (message.data['type'] == 'ev_watch') {
         final stationId = message.data['stationId'] as String? ?? '';
         final newAvail = int.tryParse(message.data['newAvail'] as String? ?? '') ?? 0;
@@ -131,8 +134,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       Future.delayed(const Duration(milliseconds: 700), () async {
         if (!mounted) return;
         if (ModalRoute.of(context)?.isCurrent != true) return;
-        // 마케팅 동의 재요청 (콘솔 ON + 미동의자 + 오늘 미노출 시 하루 1회)
-        await maybeShowMarketingReprompt(context);
+        // 온보딩 끝낸 게스트 1회 이벤트 옵트인(게이팅 무시). 있으면 이걸로 처리하고 재요청은 스킵.
+        final settingsNotifier = ref.read(settingsProvider.notifier);
+        if (settingsNotifier.pendingEventOptin) {
+          settingsNotifier.setPendingEventOptin(false);
+          await maybeShowChargeMarketingReprompt(context, force: true);
+        } else {
+          // 마케팅 동의 재요청 (콘솔 ON + 미동의자 + 오늘 미노출 시 하루 1회)
+          await maybeShowChargeMarketingReprompt(context);
+        }
         if (!mounted) return;
         if (ModalRoute.of(context)?.isCurrent != true) return;
         await PopupNoticeDialog.showIfEligible(context);
@@ -1714,22 +1724,12 @@ class _ChargeMarketingTileState extends ConsumerState<_ChargeMarketingTile> {
     }
   }
 
-  // 마케팅 동의는 계정 자산(앱푸시/문자/이메일) — 로그인 없이는 켤 수 없다.
-  void _promptLogin() {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: const Text('이벤트·혜택 알림은 회원가입 후 이용할 수 있어요.'),
-        action: SnackBarAction(label: '로그인', onPressed: () => context.push('/login')),
-      ));
-  }
-
   @override
   Widget build(BuildContext context) {
     final muted = widget.isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    final loggedIn = ref.watch(authProvider) != null; // 로그인 시 리빌드 → 가입 동의값 즉시 반영
-    final on = loggedIn && _on;
-    void handle(bool v) => loggedIn ? _set(v) : _promptLogin();
+    ref.watch(authProvider); // 회원가입 등 외부 동의 변경 시 리빌드 트리거
+    final on = _on; // 게스트도 device 기반 consent 로 ON 가능
+    void handle(bool v) => _set(v);
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       leading: SettingsScreenEmbed.settingsIconChip(Icons.campaign_rounded, widget.isDark),
@@ -2305,6 +2305,7 @@ class _EvAlarmSettingTileEmbed extends StatefulWidget {
 class _EvAlarmSettingTileEmbedState extends State<_EvAlarmSettingTileEmbed> {
   late List<String> _ids;
   late int _soundMode;
+  late bool _enabled;
   bool _expanded = false;
 
   @override
@@ -2325,8 +2326,19 @@ class _EvAlarmSettingTileEmbedState extends State<_EvAlarmSettingTileEmbed> {
     setState(() {
       _ids = AlertService().evAlarmStationIds;
       _soundMode = AlertService().evAlarmSoundMode;
-      if (_ids.isEmpty) _expanded = false;
+      _enabled = AlertService().evAlarmEnabled;
+      if (_ids.isEmpty || !_enabled) _expanded = false;
     });
+  }
+
+  Future<void> _toggleEnabled(bool value) async {
+    await AlertService().setEvAlarmEnabled(value);
+    if (mounted) {
+      setState(() {
+        _enabled = value;
+        if (!value) _expanded = false;
+      });
+    }
   }
 
   Future<void> _unsubscribe(String id) async {
@@ -2344,17 +2356,22 @@ class _EvAlarmSettingTileEmbedState extends State<_EvAlarmSettingTileEmbed> {
         ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           leading: Icon(
-            Icons.ev_station_rounded,
+            _enabled ? Icons.ev_station_rounded : Icons.notifications_off_rounded,
             size: 22,
-            color: _ids.isEmpty ? secondaryColor : AppColors.evGreen,
+            color: (_enabled && _ids.isNotEmpty) ? AppColors.evGreen : secondaryColor,
           ),
           title: Text('충전소 현황 알림', style: Theme.of(context).textTheme.titleSmall),
           subtitle: Text(
-            _ids.isEmpty ? '알림 설정된 충전소 없음' : '${_ids.length}/${AlertService.evAlarmMaxCount}곳 설정됨',
+            !_enabled
+                ? '알림 꺼짐'
+                : (_ids.isEmpty ? '알림 설정된 충전소 없음' : '${_ids.length}/${AlertService.evAlarmMaxCount}곳 설정됨'),
             style: TextStyle(fontSize: 12, color: mutedColor),
           ),
-          trailing: _ids.isNotEmpty
-              ? GestureDetector(
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_enabled && _ids.isNotEmpty)
+                GestureDetector(
                   onTap: () => setState(() => _expanded = !_expanded),
                   child: Padding(
                     padding: const EdgeInsets.only(right: 4),
@@ -2364,11 +2381,20 @@ class _EvAlarmSettingTileEmbedState extends State<_EvAlarmSettingTileEmbed> {
                       child: Icon(Icons.keyboard_arrow_down_rounded, size: 22, color: mutedColor),
                     ),
                   ),
-                )
-              : null,
-          onTap: _ids.isNotEmpty ? () => setState(() => _expanded = !_expanded) : null,
+                ),
+              Transform.scale(
+                scale: 0.85,
+                child: Switch(
+                  value: _enabled,
+                  onChanged: _toggleEnabled,
+                  activeThumbColor: AppColors.evGreen,
+                ),
+              ),
+            ],
+          ),
+          onTap: (_enabled && _ids.isNotEmpty) ? () => setState(() => _expanded = !_expanded) : null,
         ),
-        if (_ids.isNotEmpty)
+        if (_enabled && _ids.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
             child: Row(
