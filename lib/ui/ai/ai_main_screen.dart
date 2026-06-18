@@ -3197,13 +3197,18 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _userSelecting = false;
-        _errorMessage = '주유소 목록을 불러오는데 실패했습니다.';
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('오류: $e'), behavior: SnackBarBehavior.floating),
-      );
+      setState(() => _userSelecting = false);
+      // 한도 초과(429)면 직접선택 버튼 단계에서 "오늘은 여기까지" 팝업 (fail-fast).
+      final rl = rateLimitMessage(e, feature: 'AI 주유 분석');
+      if (rl != null) {
+        showAppDialog<void>(context,
+            icon: Icons.schedule_rounded, title: '오늘은 여기까지!', message: rl, primaryLabel: '확인');
+      } else {
+        setState(() => _errorMessage = '주유소 목록을 불러오는데 실패했습니다.');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('오류: $e'), behavior: SnackBarBehavior.floating),
+        );
+      }
     }
   }
 
