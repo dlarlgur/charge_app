@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -192,10 +194,36 @@ class AuthService {
     return false;
   }
 
-  /// 서버 인증 호출용 access 토큰 (만료 시 refresh). AI 쿼터 등 보호 API 호출에 사용.
+  /// 서버 인증 호출용 access 토큰. 만료(또는 만료 임박)면 refresh 로 자동 갱신 후 반환.
   static Future<String?> accessToken() async {
     final access = await _storage.read(key: _kAccess);
+    if (access == null) return null;
+    if (_isExpired(access)) {
+      final ok = await _refresh();
+      if (!ok) return null;
+      return _storage.read(key: _kAccess);
+    }
     return access;
+  }
+
+  /// JWT exp 로컬 디코드 — 만료 60초 전이면 true(갱신 대상).
+  /// 파싱 실패나 exp 없음은 false(만료 아님으로 간주, 서버가 401 주면 다른 경로서 처리).
+  static bool _isExpired(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return true;
+      var p = parts[1].replaceAll('-', '+').replaceAll('_', '/');
+      while (p.length % 4 != 0) {
+        p += '=';
+      }
+      final payload = jsonDecode(utf8.decode(base64.decode(p))) as Map<String, dynamic>;
+      final exp = payload['exp'];
+      if (exp is! int) return false;
+      final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      return nowSec >= (exp - 60);
+    } catch (_) {
+      return false;
+    }
   }
 
   static Future<void> logout() async {
