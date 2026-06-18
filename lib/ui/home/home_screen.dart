@@ -2061,12 +2061,15 @@ class _SupportEmbedState extends State<_SupportEmbed> {
 }
 
 // ─── 알림 설정 타일 (홈 설정 탭용) ───
-/// 알림(푸시) 권한 보장. 허용되면 true. 미허용 시 시스템 요청 또는 설정 유도 후 결과 반환.
+/// 알림(푸시) 권한 보장. 허용되면 true.
+/// 미허용이면 OS 권한 요청 팝업을 먼저 띄우고, 영구 거부라 OS 팝업이 안 뜰 때만 설정으로 유도.
 Future<bool> _ensureNotifPermission(BuildContext context) async {
-  final status = await Permission.notification.status;
-  if (status.isGranted) return true;
-  if (status.isPermanentlyDenied) {
-    if (!context.mounted) return false;
+  if (await Permission.notification.isGranted) return true;
+  // 시스템 허용 팝업을 바로 시도 (가능한 상태면 OS 다이얼로그가 뜸).
+  final result = await Permission.notification.request();
+  if (result.isGranted) return true;
+  // 영구 거부 등으로 OS 팝업이 더는 안 뜨는 경우에만 설정 유도.
+  if (result.isPermanentlyDenied && context.mounted) {
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -2085,10 +2088,8 @@ Future<bool> _ensureNotifPermission(BuildContext context) async {
         ],
       ),
     );
-    return false;
   }
-  final result = await Permission.notification.request();
-  return result.isGranted;
+  return false;
 }
 
 class _AlertSettingTileEmbed extends StatefulWidget {
