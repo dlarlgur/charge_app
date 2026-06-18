@@ -22,6 +22,17 @@ class _PermissionScreenState extends State<PermissionScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // 이미 위치 권한이 있으면(재실행/재개) 권한 화면을 띄우지 않고 바로 다음으로.
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _skipIfAlreadyGranted());
+  }
+
+  Future<void> _skipIfAlreadyGranted() async {
+    final status = await Permission.locationWhenInUse.status;
+    if (!mounted) return;
+    if (status.isGranted || status.isLimited) {
+      context.go(_nextRoute);
+    }
   }
 
   @override
@@ -110,21 +121,29 @@ class _PermissionScreenState extends State<PermissionScreen>
             children: [
               const Spacer(flex: 2),
               Container(
-                width: 80, height: 80,
+                width: 80,
+                height: 80,
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0x1F3B82F6) : const Color(0xFFEFF6FF),
+                  color: isDark
+                      ? const Color(0x1F3B82F6)
+                      : const Color(0xFFEFF6FF),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.location_on_rounded, size: 36,
-                  color: isDark ? AppColors.gasBlue : AppColors.gasBlueDark),
+                child: Icon(Icons.location_on_rounded,
+                    size: 36,
+                    color: isDark ? AppColors.gasBlue : AppColors.gasBlueDark),
               ),
               const SizedBox(height: 24),
-              Text('위치 권한이 필요해요', style: Theme.of(context).textTheme.headlineSmall),
+              Text('위치 권한이 필요해요',
+                  style: Theme.of(context).textTheme.headlineSmall),
               const SizedBox(height: 8),
               Text(
                 '주변 주유소와 충전소를 찾고\n거리 정보를 보여드리기 위해 필요합니다.',
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.6),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(height: 1.6),
               ),
               const SizedBox(height: 32),
               _checkItem(context, '내 위치 기반 주유소/충전소 거리 계산'),
@@ -137,8 +156,10 @@ class _PermissionScreenState extends State<PermissionScreen>
                   onPressed: _isLoading ? null : _requestPermission,
                   child: _isLoading
                       ? const SizedBox(
-                          height: 20, width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
                         )
                       : const Text('위치 권한 허용하기'),
                 ),
@@ -147,7 +168,10 @@ class _PermissionScreenState extends State<PermissionScreen>
               TextButton(
                 onPressed: _isLoading ? null : () => context.go(_nextRoute),
                 child: Text('나중에 설정할게요',
-                  style: TextStyle(color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                    style: TextStyle(
+                        color: isDark
+                            ? AppColors.darkTextMuted
+                            : AppColors.lightTextMuted)),
               ),
               const SizedBox(height: 20),
             ],
@@ -162,7 +186,8 @@ class _PermissionScreenState extends State<PermissionScreen>
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Icon(Icons.check_circle_outline_rounded, size: 20, color: AppColors.success),
+          Icon(Icons.check_circle_outline_rounded,
+              size: 20, color: AppColors.success),
           const SizedBox(width: 10),
           Text(text, style: Theme.of(context).textTheme.bodyMedium),
         ],

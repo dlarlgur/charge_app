@@ -84,33 +84,78 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _startGuest() async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? AppColors.darkCard : Colors.white;
+    final textPrimary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     final textSecondary =
         isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    const accent = AppColors.gasBlue;
+
     final proceed = await showDialog<bool>(
       context: context,
-      builder: (d) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('게스트로 시작할까요?',
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
-        content: const Text(
-          '게스트는 차량 정보·즐겨찾기·설정이 이 기기에만 저장돼요.\n'
-          '기기를 바꾸거나 앱을 지우면 복구할 수 없어요.\n\n'
-          '회원가입하면 어디서든 그대로 이어서 쓸 수 있어요.',
-          style: TextStyle(height: 1.5, fontSize: 14),
-        ),
-        actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(d).pop(true),
-            child: Text('게스트로 시작', style: TextStyle(color: textSecondary)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(d).pop(false),
-            child: const Text('회원가입할게요',
+      builder: (ctx) => Dialog(
+        backgroundColor: bg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 36),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 26, 24, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.10),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.devices_other_rounded,
+                    size: 32, color: accent),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                '게스트로 시작할까요?',
+                textAlign: TextAlign.center,
                 style: TextStyle(
-                    color: AppColors.gasBlue, fontWeight: FontWeight.w700)),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: textPrimary),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '게스트는 차량 정보·즐겨찾기·설정이\n이 기기에만 저장돼요.\n'
+                '기기를 바꾸거나 앱을 지우면 복구할 수 없어요.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 13.5, height: 1.55, color: textSecondary),
+              ),
+              const SizedBox(height: 22),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(ctx).pop(false),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: accent,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('회원가입하고 시작',
+                      style: TextStyle(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white)),
+                ),
+              ),
+              const SizedBox(height: 4),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: Text('게스트로 계속하기',
+                    style: TextStyle(fontSize: 14, color: textSecondary)),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
     if (proceed != true || !mounted) return;
