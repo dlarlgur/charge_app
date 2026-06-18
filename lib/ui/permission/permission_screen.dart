@@ -1,3 +1,4 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -32,7 +33,7 @@ class _PermissionScreenState extends State<PermissionScreen>
     final status = await Permission.locationWhenInUse.status;
     if (!mounted) return;
     if (status.isGranted || status.isLimited) {
-      context.go(_nextRoute);
+      _goNext();
     }
   }
 
@@ -50,11 +51,18 @@ class _PermissionScreenState extends State<PermissionScreen>
     }
   }
 
-  // 위치 단계 후 목적지: 신규/재개는 온보딩, 재방문자(위치 재허용 등)는 홈.
-  String get _nextRoute {
+  // 위치 단계 후 진행. 온보딩 미완료면 온보딩으로(알림 권한은 온보딩 마지막 스텝에서 요청).
+  // 온보딩 완료(서버 복원 등으로 스킵) 시엔 온보딩의 알림 권한 스텝도 건너뛰므로 여기서 요청 후 홈.
+  Future<void> _goNext() async {
     final done = Hive.box(AppConstants.settingsBox)
         .get(AppConstants.keyOnboardingDone, defaultValue: false) as bool;
-    return done ? '/home' : '/onboarding';
+    if (done) {
+      await FirebaseMessaging.instance.requestPermission(alert: true, badge: true, sound: true);
+      if (!mounted) return;
+      context.go('/home');
+    } else {
+      context.go('/onboarding');
+    }
   }
 
   // 설정 다녀온 후 권한 자동 재체크 — 사용자가 다시 버튼 누르지 않아도 진행.
@@ -62,7 +70,7 @@ class _PermissionScreenState extends State<PermissionScreen>
     final status = await Permission.locationWhenInUse.status;
     if (!mounted) return;
     if (status.isGranted || status.isLimited) {
-      context.go(_nextRoute);
+      _goNext();
     }
   }
 
@@ -75,12 +83,12 @@ class _PermissionScreenState extends State<PermissionScreen>
     setState(() => _isLoading = false);
 
     if (status.isGranted || status.isLimited) {
-      context.go(_nextRoute);
+      _goNext();
     } else if (status.isPermanentlyDenied) {
       _showSettingsDialog();
     } else {
       // denied - 온보딩은 진행할 수 있도록
-      context.go(_nextRoute);
+      _goNext();
     }
   }
 
@@ -158,7 +166,7 @@ class _PermissionScreenState extends State<PermissionScreen>
               ),
               const SizedBox(height: 8),
               TextButton(
-                onPressed: _isLoading ? null : () => context.go(_nextRoute),
+                onPressed: _isLoading ? null : () => _goNext(),
                 child: Text('나중에 설정할게요',
                     style: TextStyle(
                         color: isDark
