@@ -1,6 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import 'favorite_service.dart';
+import 'user_sync_service.dart';
+
 /// 별칭이 변경될 때마다 increment — UI 가 listen 하면 rebuild 트리거.
 /// favoritesProvider 만으로는 list 의 name 필드는 안 바뀌어 Consumer 가
 /// 갱신 못 하는 케이스 발견 → 별도 notifier 로 명시적 invalidation.
@@ -44,6 +47,7 @@ class StationAliasService {
     await _box.flush();
     debugPrint('[StationAlias] SET $key = "$clipped"');
     stationAliasVersion.value++;
+    _mirrorAlias(stationId, type, clipped);
   }
 
   static Future<void> remove(String stationId, {required String type}) async {
@@ -52,6 +56,22 @@ class StationAliasService {
     await _box.flush();
     debugPrint('[StationAlias] REMOVE $key');
     stationAliasVersion.value++;
+    _mirrorAlias(stationId, type, null);
+  }
+
+  /// 별칭 변경을 서버에 미러 — 즐겨찾기된 곳만(별칭은 user_favorites.alias 에 저장).
+  /// 로그인 회원이 아니면 UserSyncService 내부에서 조용히 skip.
+  static void _mirrorAlias(String stationId, String type, String? alias) {
+    if (!FavoriteService.isFavorite(stationId, type)) return;
+    final fav = FavoriteService.get(stationId, type);
+    UserSyncService.instance.addFavorite({
+      'type': type,
+      'stationId': stationId,
+      'name': fav?['name'],
+      'subtitle': fav?['subtitle'],
+      'brand': fav?['brand'],
+      'alias': alias,
+    });
   }
 
   /// 표시용 이름 결정 — 별칭 있으면 별칭, 없으면 원본.
