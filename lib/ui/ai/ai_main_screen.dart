@@ -1551,7 +1551,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     } on DioException catch (e) {
       if (!mounted) return;
       debugPrint('[AI] 분석 통신 오류: ${e.message} / ${e.response?.data}');
-      final rl = rateLimitMessage(e, feature: 'AI 추천 경로');
+      final rl = rateLimitMessage(e, feature: 'AI 주유 분석');
       if (rl != null) {
         showAppDialog<void>(context,
             icon: Icons.schedule_rounded, title: '오늘은 여기까지!', message: rl, primaryLabel: '확인');
@@ -2744,7 +2744,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
     } catch (e) {
       if (!mounted) return;
-      final rl = rateLimitMessage(e, feature: 'AI 충전소 추천');
+      final rl = rateLimitMessage(e, feature: 'AI 충전 분석');
       if (rl != null) {
         showAppDialog<void>(context,
             icon: Icons.schedule_rounded, title: '오늘은 여기까지!', message: rl, primaryLabel: '확인');
