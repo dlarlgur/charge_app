@@ -25,6 +25,7 @@ import '../notices/notices_screen.dart';
 import '../widgets/native_ad_card.dart';
 // popup_ad_dialog 는 dksw_app_core v0.3.2 부터 코어로 통합 — 위 import 로 사용.
 import '../widgets/marketing_reprompt.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../widgets/popup_notice_dialog.dart';
 import '../widgets/shared_widgets.dart';
 import '../widgets/watch_session_bar.dart';
@@ -2060,6 +2061,36 @@ class _SupportEmbedState extends State<_SupportEmbed> {
 }
 
 // ─── 알림 설정 타일 (홈 설정 탭용) ───
+/// 알림(푸시) 권한 보장. 허용되면 true. 미허용 시 시스템 요청 또는 설정 유도 후 결과 반환.
+Future<bool> _ensureNotifPermission(BuildContext context) async {
+  final status = await Permission.notification.status;
+  if (status.isGranted) return true;
+  if (status.isPermanentlyDenied) {
+    if (!context.mounted) return false;
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('알림 권한 필요'),
+        content: const Text('기기 설정에서 알림을 허용해주세요.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              openAppSettings();
+            },
+            child: const Text('설정 열기', style: TextStyle(color: AppColors.gasBlue)),
+          ),
+        ],
+      ),
+    );
+    return false;
+  }
+  final result = await Permission.notification.request();
+  return result.isGranted;
+}
+
 class _AlertSettingTileEmbed extends StatefulWidget {
   final bool isDark;
   const _AlertSettingTileEmbed({required this.isDark});
@@ -2076,11 +2107,13 @@ class _AlertSettingTileEmbedState extends State<_AlertSettingTileEmbed> {
   late int _soundMode; // 0=소리, 1=진동, 2=무음
   bool _expanded = false;
   bool _toggling = false;
+  bool _notifGranted = true; // OS 알림 권한 — 미허용이면 토글 표시 OFF
 
   @override
   void initState() {
     super.initState();
     _refresh();
+    _checkNotifPermission();
     AlertService().subsChanged.addListener(_refresh);
   }
 
@@ -2090,9 +2123,20 @@ class _AlertSettingTileEmbedState extends State<_AlertSettingTileEmbed> {
     super.dispose();
   }
 
+  Future<void> _checkNotifPermission() async {
+    final granted = await Permission.notification.isGranted;
+    if (mounted) {
+      setState(() {
+        _notifGranted = granted;
+        _enabled = AlertService().alertsEnabled && granted;
+      });
+    }
+  }
+
   void _refresh() {
     setState(() {
-      _enabled = AlertService().alertsEnabled;
+      // 권한 없으면 저장값과 무관하게 OFF 로 표시 (실제 푸시 못 받으므로).
+      _enabled = AlertService().alertsEnabled && _notifGranted;
       _ids = AlertService().subscribedStationIds;
       _alertHour = AlertService().alertHour;
       _alertMinute = AlertService().alertMinute;
@@ -2102,8 +2146,14 @@ class _AlertSettingTileEmbedState extends State<_AlertSettingTileEmbed> {
   }
 
   Future<void> _toggleEnabled(bool value) async {
+    if (value) {
+      final ok = await _ensureNotifPermission(context);
+      if (!ok || !mounted) return;
+      _notifGranted = true;
+    }
     setState(() => _toggling = true);
     await AlertService().setAlertsEnabled(value);
+    if (!mounted) return;
     setState(() {
       _enabled = value;
       _toggling = false;
@@ -2325,11 +2375,13 @@ class _EvAlarmSettingTileEmbedState extends State<_EvAlarmSettingTileEmbed> {
   late int _soundMode;
   late bool _enabled;
   bool _expanded = false;
+  bool _notifGranted = true; // OS 알림 권한 — 미허용이면 토글 표시 OFF
 
   @override
   void initState() {
     super.initState();
     _refresh();
+    _checkNotifPermission();
     AlertService().subsChanged.addListener(_refresh);
   }
 
@@ -2339,17 +2391,34 @@ class _EvAlarmSettingTileEmbedState extends State<_EvAlarmSettingTileEmbed> {
     super.dispose();
   }
 
+  Future<void> _checkNotifPermission() async {
+    final granted = await Permission.notification.isGranted;
+    if (mounted) {
+      setState(() {
+        _notifGranted = granted;
+        _enabled = AlertService().evAlarmEnabled && granted;
+        if (!_enabled) _expanded = false;
+      });
+    }
+  }
+
   void _refresh() {
     if (!mounted) return;
     setState(() {
       _ids = AlertService().evAlarmStationIds;
       _soundMode = AlertService().evAlarmSoundMode;
-      _enabled = AlertService().evAlarmEnabled;
+      // 권한 없으면 저장값과 무관하게 OFF 로 표시.
+      _enabled = AlertService().evAlarmEnabled && _notifGranted;
       if (_ids.isEmpty || !_enabled) _expanded = false;
     });
   }
 
   Future<void> _toggleEnabled(bool value) async {
+    if (value) {
+      final ok = await _ensureNotifPermission(context);
+      if (!ok || !mounted) return;
+      _notifGranted = true;
+    }
     await AlertService().setEvAlarmEnabled(value);
     if (mounted) {
       setState(() {
