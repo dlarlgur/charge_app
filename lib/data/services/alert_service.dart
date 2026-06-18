@@ -7,6 +7,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/constants/api_constants.dart';
 import 'station_alias_service.dart';
+import 'user_sync_service.dart';
 
 class AlertService {
   static final AlertService _instance = AlertService._();
@@ -352,6 +353,7 @@ class AlertService {
         names[stationId] = stationName;
         box.put(_subsNamesKey, names);
         _notifySubsChanged();
+        UserSyncService.instance.addAlarm({'type': 'gas', 'stationId': stationId, 'fuelTypes': existingFuels.join(','), 'name': stationName});
         return true;
       }
     } catch (e) {
@@ -390,6 +392,7 @@ class AlertService {
         names[stationId] = stationName;
         box.put(_subsNamesKey, names);
         _notifySubsChanged();
+        UserSyncService.instance.addAlarm({'type': 'gas', 'stationId': stationId, 'fuelTypes': fuelTypes.join(','), 'name': stationName});
         return true;
       }
     } catch (e) {
@@ -428,6 +431,12 @@ class AlertService {
       if (kDebugMode) debugPrint('[alerts] unsubscribeFuelType 서버 동기화 실패: $e');
     }
 
+    // 회원 서버 미러: 유종 다 빠지면 삭제, 남으면 갱신
+    if (fuels.isEmpty) {
+      UserSyncService.instance.removeAlarm('gas', stationId);
+    } else {
+      UserSyncService.instance.addAlarm({'type': 'gas', 'stationId': stationId, 'fuelTypes': fuels.join(','), 'name': subscribedStationNames[stationId] ?? ''});
+    }
     _notifySubsChanged();
   }
 
@@ -487,6 +496,7 @@ class AlertService {
         final names = evAlarmNames..[stationId] = stationName;
         Hive.box(_boxKey).put(_evAlarmNamesKey, names);
         _notifySubsChanged();
+        UserSyncService.instance.addAlarm({'type': 'ev', 'stationId': stationId, 'name': stationName});
         return true;
       }
     } catch (e) {
@@ -542,6 +552,7 @@ class AlertService {
     final names = evAlarmNames..remove(stationId);
     Hive.box(_boxKey).put(_evAlarmNamesKey, names);
     _notifySubsChanged();
+    UserSyncService.instance.removeAlarm('ev', stationId);
   }
 
   /// 주유소 전체 해제 (모든 유종)
@@ -565,5 +576,6 @@ class AlertService {
     }
 
     _notifySubsChanged();
+    UserSyncService.instance.removeAlarm('gas', stationId);
   }
 }
