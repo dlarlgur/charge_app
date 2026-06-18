@@ -2064,12 +2064,15 @@ class _SupportEmbedState extends State<_SupportEmbed> {
 /// 알림(푸시) 권한 보장. 허용되면 true.
 /// 미허용이면 OS 권한 요청 팝업을 먼저 띄우고, 영구 거부라 OS 팝업이 안 뜰 때만 설정으로 유도.
 Future<bool> _ensureNotifPermission(BuildContext context) async {
-  if (await Permission.notification.isGranted) return true;
-  // 시스템 허용 팝업을 바로 시도 (가능한 상태면 OS 다이얼로그가 뜸).
-  final result = await Permission.notification.request();
-  if (result.isGranted) return true;
-  // 영구 거부 등으로 OS 팝업이 더는 안 뜨는 경우에만 설정 유도.
-  if (result.isPermanentlyDenied && context.mounted) {
+  var status = await Permission.notification.status;
+  if (status.isGranted) return true;
+  // 영구거부 전이면 OS 허용 팝업을 먼저 시도 (시스템 다이얼로그가 뜸).
+  if (!status.isPermanentlyDenied) {
+    status = await Permission.notification.request();
+    if (status.isGranted) return true;
+  }
+  // 영구거부(안드13+는 한 번 거부하면 OS 팝업이 다시 안 뜸) → 설정에서 켜도록 안내.
+  if (context.mounted) {
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
