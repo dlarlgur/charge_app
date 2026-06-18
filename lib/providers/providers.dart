@@ -10,6 +10,7 @@ import '../data/services/favorite_service.dart';
 import '../data/services/location_service.dart';
 import '../data/services/station_alias_service.dart';
 import '../data/services/widget_service.dart';
+import '../data/services/user_sync_service.dart';
 
 /// 두 좌표 사이 거리(m) — 즐겨찾기처럼 distance가 서버에서 안 내려오는 경우
 /// 사용자 현재 위치로 클라이언트에서 보정해서 표시.
@@ -128,6 +129,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     );
     _box.put(AppConstants.keyVehicleType, type.code);
     _box.put(AppConstants.keyDefaultTab, state.defaultTab);
+    UserSyncService.instance.putPrefs(vehicleType: type.code); // 로그인 회원이면 서버 미러
   }
 
   void setFuelType(FuelType type) {
@@ -136,6 +138,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     // 홈 목록 gas filter 도 동일 유종으로 동기 — 사용자가 설정에서 유종 바꿨다면 목록도 그 유종.
     // filter 측에서 사용자가 직접 필터를 변경한 건 그대로 (단방향 동기 only).
     _ref.read(gasFilterProvider.notifier).setFuelTypes([type.code]);
+    UserSyncService.instance.putPrefs(fuelType: type.code); // 로그인 회원이면 서버 미러
   }
 
   void setChargerTypes(List<String> types) {
@@ -241,6 +244,19 @@ class FavoritesNotifier extends StateNotifier<List<Map<String, dynamic>>> {
       WidgetService.updateGasWidget();
     } else if (type == 'ev') {
       WidgetService.updateEvWidget();
+    }
+    // 로그인 회원이면 서버 미러 (result=true면 추가됨)
+    if (result) {
+      UserSyncService.instance.addFavorite({
+        'type': type,
+        'stationId': id,
+        'name': name,
+        'subtitle': subtitle,
+        if (extra != null && extra['brand'] != null) 'brand': extra['brand'],
+        'alias': StationAliasService.get(id, type: type),
+      });
+    } else {
+      UserSyncService.instance.removeFavorite(type, id);
     }
     return result;
   }
