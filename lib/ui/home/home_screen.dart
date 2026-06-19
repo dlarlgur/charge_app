@@ -2121,6 +2121,7 @@ class _AlertSettingTileEmbedState extends State<_AlertSettingTileEmbed> {
     super.initState();
     _refresh();
     _checkNotifPermission();
+    AlertService().fetchLimits(); // 설정 열 때 알림 한도 최신화(콘솔 변경 반영)
     AlertService().subsChanged.addListener(_refresh);
   }
 
@@ -2389,6 +2390,7 @@ class _EvAlarmSettingTileEmbedState extends State<_EvAlarmSettingTileEmbed> {
     super.initState();
     _refresh();
     _checkNotifPermission();
+    AlertService().fetchLimits(); // 설정 열 때 알림 한도 최신화(콘솔 변경 반영)
     AlertService().subsChanged.addListener(_refresh);
   }
 
