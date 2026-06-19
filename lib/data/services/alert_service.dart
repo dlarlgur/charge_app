@@ -335,6 +335,7 @@ class AlertService {
       existingFuels.add(fuelType);
     }
     
+    await fetchLimits(); // 콘솔 원격설정 변경 즉시 반영(앱 재시작 불필요)
     // 주유소 한도 체크 (서버 원격설정값)
     if (!subs.containsKey(stationId) && subs.length >= gasAlarmMaxCount) {
       return false;
@@ -374,6 +375,7 @@ class AlertService {
     final box = Hive.box(_boxKey);
     final subs = _subsMap;
     
+    await fetchLimits(); // 콘솔 원격설정 변경 즉시 반영(앱 재시작 불필요)
     // 주유소 한도 체크 (서버 원격설정값)
     if (!subs.containsKey(stationId) && subs.length >= gasAlarmMaxCount) {
       return false;
@@ -462,6 +464,7 @@ class AlertService {
         final g = d['gas'], e = d['ev'];
         if (g is num && g > 0) gasAlarmMaxCount = g.toInt();
         if (e is num && e > 0) evAlarmMaxCount = e.toInt();
+        _notifySubsChanged(); // 표시(N/MAX) 즉시 갱신
       }
     } catch (_) {}
   }
