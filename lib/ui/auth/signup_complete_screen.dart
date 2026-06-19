@@ -124,11 +124,12 @@ class _SignupCompleteScreenState extends ConsumerState<SignupCompleteScreen> {
                   counterText: '',
                 ),
               ),
-              if (_needAge) ...[
-                const SizedBox(height: 20),
-                Text('나이',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: textSecondary)),
-                const SizedBox(height: 6),
+              const SizedBox(height: 20),
+              Text(_needAge ? '나이' : '연령대',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: textSecondary)),
+              const SizedBox(height: 6),
+              if (_needAge)
+                // 소셜이 연령대를 안 줬으면 직접 입력(필수, 14~100).
                 TextField(
                   controller: _age,
                   keyboardType: TextInputType.number,
@@ -139,11 +140,17 @@ class _SignupCompleteScreenState extends ConsumerState<SignupCompleteScreen> {
                     border: OutlineInputBorder(),
                     counterText: '',
                   ),
+                )
+              else
+                // 소셜(네이버/카카오)이 준 연령대 → 디폴트 표시, 수정 불가.
+                TextFormField(
+                  initialValue: widget.user.ageGroup,
+                  enabled: false,
+                  decoration: const InputDecoration(border: OutlineInputBorder()),
                 ),
-                const SizedBox(height: 6),
-                Text('연령대 통계용으로만 사용돼요.',
-                    style: TextStyle(fontSize: 12, color: textSecondary)),
-              ],
+              const SizedBox(height: 6),
+              Text(_needAge ? '연령대 통계용으로만 사용돼요.' : '소셜 계정에서 가져온 연령대예요.',
+                  style: TextStyle(fontSize: 12, color: textSecondary)),
               const Spacer(),
               SizedBox(
                 width: double.infinity,
