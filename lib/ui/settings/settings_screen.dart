@@ -487,7 +487,7 @@ class _AlertSettingTileState extends State<_AlertSettingTile> {
           title: Text('주유 가격 알림', style: Theme.of(context).textTheme.titleSmall),
           subtitle: Text(
             _enabled
-                ? '${_ids.isEmpty ? '알림 주유소 없음' : '${_ids.length}곳 설정됨'} · 매일 $_alertTimeText 발송'
+                ? '${_ids.isEmpty ? '알림 주유소 없음' : '${_ids.length}/${AlertService.gasAlarmMaxCount}곳 설정됨'} · 매일 $_alertTimeText 발송'
                 : '알림 꺼짐',
             style: TextStyle(fontSize: 12, color: mutedColor),
           ),

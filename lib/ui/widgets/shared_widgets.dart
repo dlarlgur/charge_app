@@ -433,7 +433,7 @@ void showAlertLimitDialog(BuildContext context) {
             const SizedBox(height: 16),
             const Text('알림 한도 초과', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
-            Text('가격 알림은 최대 50개 주유소까지\n설정할 수 있어요.\n설정 화면에서 기존 알림을 해제한 후\n다시 시도해주세요.',
+            Text('가격 알림은 최대 ${AlertService.gasAlarmMaxCount}개 주유소까지\n설정할 수 있어요.\n설정 화면에서 기존 알림을 해제한 후\n다시 시도해주세요.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 14, height: 1.6,
                 color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),

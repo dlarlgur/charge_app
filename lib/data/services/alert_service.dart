@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:dksw_app_core/dksw_app_core.dart';
@@ -277,6 +278,7 @@ class AlertService {
   /// 알림 권한 요청은 호출 측(온보딩 화면)에서 이미 수행하므로 여기선 재요청하지 않는다
   /// (중복 요청 시 두 번째 시스템 다이얼로그가 홈 도착 후 떠서 영구거부를 유발했음).
   Future<void> init() async {
+    unawaited(fetchLimits()); // 알림 한도 서버에서 갱신(비차단)
     try {
       final token = await FirebaseMessaging.instance.getToken();
       if (token != null) await _registerDevice(token);
@@ -333,8 +335,8 @@ class AlertService {
       existingFuels.add(fuelType);
     }
     
-    // 주유소 3개 제한 체크
-    if (!subs.containsKey(stationId) && subs.length >= 3) {
+    // 주유소 한도 체크 (서버 원격설정값)
+    if (!subs.containsKey(stationId) && subs.length >= gasAlarmMaxCount) {
       return false;
     }
     
@@ -372,8 +374,8 @@ class AlertService {
     final box = Hive.box(_boxKey);
     final subs = _subsMap;
     
-    // 주유소 3개 제한 체크
-    if (!subs.containsKey(stationId) && subs.length >= 3) {
+    // 주유소 한도 체크 (서버 원격설정값)
+    if (!subs.containsKey(stationId) && subs.length >= gasAlarmMaxCount) {
       return false;
     }
     
@@ -447,7 +449,22 @@ class AlertService {
   static const _evAlarmEnabledKey = 'ev_alarm_enabled';      // bool
   static const _evAlarmSoundModeKey = 'ev_alarm_sound_mode'; // 0=소리, 1=진동, 2=무음
 
-  static const int evAlarmMaxCount = 50;
+  // 알림 한도 — 서버 원격설정(alarm.gas.max/alarm.ev.max)에서 받아와 갱신. 기본 50.
+  static int evAlarmMaxCount = 50;
+  static int gasAlarmMaxCount = 50;
+
+  /// 서버에서 주유/충전 알림 한도를 받아 갱신(표시 N/MAX·사전체크용). init에서 호출.
+  Future<void> fetchLimits() async {
+    try {
+      final res = await _dio.get('/alerts/limits');
+      final d = res.data;
+      if (d is Map) {
+        final g = d['gas'], e = d['ev'];
+        if (g is num && g > 0) gasAlarmMaxCount = g.toInt();
+        if (e is num && e > 0) evAlarmMaxCount = e.toInt();
+      }
+    } catch (_) {}
+  }
 
   bool get evAlarmEnabled =>
       Hive.box(_boxKey).get(_evAlarmEnabledKey, defaultValue: true) as bool;

@@ -230,7 +230,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
         if (!ids.contains(sid) && ids.length >= AlertService.evAlarmMaxCount) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('충전소 현황 알림은 최대 50개까지 설정할 수 있어요')),
+              SnackBar(content: Text('충전소 현황 알림은 최대 ${AlertService.evAlarmMaxCount}개까지 설정할 수 있어요')),
             );
           }
           return;
