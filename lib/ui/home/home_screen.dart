@@ -10,8 +10,10 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/helpers.dart';
 import '../../data/models/models.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../data/services/ad_service.dart';
 import '../../data/services/auth_service.dart';
+import '../../data/services/rating_prompt_service.dart';
 import '../../data/services/exit_ad_service.dart';
 import '../../data/services/alert_service.dart';
 import '../../data/services/house_ad_service.dart';
@@ -64,6 +66,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     WidgetsBinding.instance.addObserver(this);
     AlertService().refreshToken();
     WatchService().restore();
+
+    // 앱 진입 시 평점 안내(2번째 진입부터·하루 1회). 첫 프레임 후 호출.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) RatingPromptService.maybeShow(context);
+    });
 
     // 로컬 알림 "상세보기" 액션 탭 → 알림 페이지로 이동
     navigateToAlertsNotifier.addListener(_onNavigateToAlerts);
@@ -1840,6 +1847,14 @@ class SettingsScreenEmbed extends ConsumerWidget {
           _SupportEmbed(isDark: isDark),
           _sectionHeader(context, '정보'),
           settingsCard(isDark, [
+            _tile(context, isDark, Icons.star_rounded, '리뷰를 남겨주세요', '',
+                () => RatingPromptService.openReview()),
+            settingsDivider(isDark),
+            _tile(context, isDark, Icons.share_rounded, '친구에게 추천하기', '',
+                () => Share.share(
+                    '전기차 기름차 - 충전소·주유소 실시간 최저가·빈자리 알림 앱\n'
+                    'https://play.google.com/store/apps/details?id=com.dksw.charge')),
+            settingsDivider(isDark),
             _tile(context, isDark, Icons.description_outlined, '정책 및 약관', '',
                 () => context.push('/policies')),
           ]),
