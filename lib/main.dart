@@ -145,6 +145,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await androidPlugin?.createNotificationChannel(evAlarmChannel);
   await androidPlugin?.createNotificationChannel(evAlarmChannelVibrate);
   await androidPlugin?.createNotificationChannel(evAlarmChannelSilent);
+  await androidPlugin?.createNotificationChannel(evWatchOngoingChannel);
   await notificationPlugin.initialize(
     const InitializationSettings(
       android: AndroidInitializationSettings('@mipmap/ic_launcher'),
@@ -232,6 +233,7 @@ Future<void> _initLocalNotifications() async {
   await androidPlugin?.createNotificationChannel(evAlarmChannel);
   await androidPlugin?.createNotificationChannel(evAlarmChannelVibrate);
   await androidPlugin?.createNotificationChannel(evAlarmChannelSilent);
+  await androidPlugin?.createNotificationChannel(evWatchOngoingChannel);
   await notificationPlugin.initialize(
     const InitializationSettings(
       android: AndroidInitializationSettings('@mipmap/ic_launcher'),
@@ -245,6 +247,10 @@ Future<void> _initLocalNotifications() async {
         final stationId = payload.substring('ev_watch:'.length);
         excludeStationOnReplanNotifier.value = stationId;
         requestEvReplanNotifier.value++;
+      } else if (payload.startsWith('ev_watch_ongoing:')) {
+        // 자리변동 감시 상시 알림 탭 → 충전소 상세로 이동
+        final stationId = payload.substring('ev_watch_ongoing:'.length);
+        if (stationId.isNotEmpty) navigateToEvStationNotifier.value = stationId;
       } else if (payload.startsWith('ev_alarm:')) {
         // payload 형식: ev_alarm:stationId:encodedTitle:encodedBody
         final rest = payload.substring('ev_alarm:'.length);

@@ -291,6 +291,58 @@ void showEvWatchNotification(Map<String, dynamic> data, {int soundMode = 0}) {
   );
 }
 
+// ── 자리변동 감시 상시 알림 (ongoing) — 감시 중 항상 표시, 스와이프로 안 사라짐 ──
+const evWatchOngoingChannel = AndroidNotificationChannel(
+  'ev_watch_ongoing',
+  '자리변동 감시 중',
+  description: '충전소 자리변동 감시 상태를 상시 표시합니다.',
+  importance: Importance.low, // 소리·헤드업 없음 (상태 표시용)
+);
+
+/// 자리변동 감시 중 상시 알림 표시/갱신. ongoing=스와이프로 안 사라짐.
+/// 같은 id(1010) 재호출로 내용만 갱신(onlyAlertOnce=소리/진동 없음).
+void showWatchOngoingNotification({
+  required String stationId,
+  required String stationName,
+  int? avail,
+  required int remainingMin,
+}) {
+  final name = stationId.isEmpty
+      ? stationName
+      : StationAliasService.resolveEv(stationId, stationName);
+  final body = avail != null
+      ? '현재 $avail자리  ·  $remainingMin분 남음'
+      : '$remainingMin분 남음';
+  notificationPlugin.show(
+    1010,
+    '⚡ $name 자리 변동 감시 중',
+    body,
+    NotificationDetails(
+      android: AndroidNotificationDetails(
+        evWatchOngoingChannel.id,
+        evWatchOngoingChannel.name,
+        channelDescription: evWatchOngoingChannel.description,
+        importance: Importance.low,
+        priority: Priority.low,
+        ongoing: true,
+        autoCancel: false,
+        onlyAlertOnce: true,
+        playSound: false,
+        enableVibration: false,
+        category: AndroidNotificationCategory.status,
+        visibility: NotificationVisibility.public,
+        // 만료시각에 OS가 자동 제거 (앱이 죽어있어도). 갱신 때마다 남은시간으로 재설정.
+        timeoutAfter: remainingMin > 0 ? remainingMin * 60 * 1000 : 1000,
+      ),
+    ),
+    payload: 'ev_watch_ongoing:$stationId',
+  );
+}
+
+void cancelWatchOngoingNotification() {
+  notificationPlugin.cancel(1010);
+}
+
 /// EV 충전소 자리 알림 표시
 /// soundMode: 0=소리, 1=진동, 2=무음
 void showEvAlarmNotification(Map<String, dynamic> data, {int soundMode = 0}) {

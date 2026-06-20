@@ -81,7 +81,8 @@ class _WatchSessionBarState extends State<WatchSessionBar> {
     if (session == null) return const SizedBox.shrink();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? const Color(0xFF1A1F2C) : Colors.white;
+    // 시인성 ↑ — 은은한 블루 틴트(흰 콘텐츠와 구분) + 또렷한 보더(아래 Container)
+    final bg = isDark ? const Color(0xFF18222F) : const Color(0xFFF3F8FF);
     final iconBg = isDark ? _kBlue.withValues(alpha: 0.18) : _kBlueLight;
     final primary = isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A1A);
     final muted = isDark ? AppColors.darkTextSecondary : const Color(0xFF888888);
@@ -104,7 +105,9 @@ class _WatchSessionBarState extends State<WatchSessionBar> {
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: _kBlue.withValues(alpha: isDark ? 0.45 : 0.28)),
+              border: Border.all(
+                  color: _kBlue.withValues(alpha: isDark ? 0.55 : 0.5),
+                  width: 1.4),
             ),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),

@@ -55,6 +55,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     with WidgetsBindingObserver {
   final _messageBadgeKey = GlobalKey<_HomeTabState>();
   DateTime? _lastBackPressTime;
+  double _watchDragDy = 0; // 자리변동알림 플로팅 바 세로 드래그 오프셋(아래에서 위로)
   // FCM 리스너는 hot reload / re-create 시 중복 등록되면 알림 2회 저장 등 부작용.
   // dispose 에서 명시적으로 cancel 하기 위해 subscription 보관.
   StreamSubscription<RemoteMessage>? _fcmOnMessageSub;
@@ -471,11 +472,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
           // 자리변동알림 — 홈 탭에서 하단 플로팅 (스크롤해도 항상 보임, content 안 밀림)
           if (bottomIndex == 0)
-            const Positioned(
+            Positioned(
               left: 0,
               right: 0,
-              bottom: 0,
-              child: WatchSessionBar(),
+              bottom: _watchDragDy,
+              child: GestureDetector(
+                // 세로 드래그로 위치 이동 (아래↔위). 내부 버튼 탭과 충돌 없음.
+                onVerticalDragUpdate: (d) {
+                  final maxUp = MediaQuery.of(context).size.height * 0.62;
+                  setState(() => _watchDragDy =
+                      (_watchDragDy - d.delta.dy).clamp(0.0, maxUp));
+                },
+                child: const WatchSessionBar(),
+              ),
             ),
         ],
       ),

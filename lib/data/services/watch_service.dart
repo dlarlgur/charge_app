@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/constants/api_constants.dart';
 import 'alert_service.dart';
+import 'notification_service.dart';
 
 /// 일회성 워치 세션 모델
 class WatchSession {
@@ -61,7 +62,26 @@ class WatchService {
 
   // UI 갱신 알림용
   final sessionChanged = ValueNotifier<int>(0);
-  void _notify() => sessionChanged.value++;
+  void _notify() {
+    sessionChanged.value++;
+    _syncOngoing();
+  }
+
+  /// 활성 세션이면 상시 알림(ongoing) 표시/갱신, 없으면 제거. _notify 마다 호출돼
+  /// start/stop/restore/extend/자리갱신 전부 커버. (앱 내려도 알림 영역에 항상 표시)
+  void _syncOngoing() {
+    final s = session;
+    if (s == null) {
+      cancelWatchOngoingNotification();
+    } else {
+      showWatchOngoingNotification(
+        stationId: s.statId,
+        stationName: s.stationName,
+        avail: s.currentAvail,
+        remainingMin: s.remaining.inMinutes.clamp(0, 9999),
+      );
+    }
+  }
 
   /// 앱 시작 시 로컬 캐시 + 서버 복원
   Future<void> restore() async {
@@ -100,7 +120,14 @@ class WatchService {
   /// 현재 충전소 자리 수를 서버에서 실시간으로 조회해 업데이트
   Future<void> refreshAvail() async {
     final s = _session;
-    if (s == null || !s.isActive) return;
+    if (s == null) return;
+    if (!s.isActive) {
+      // 만료 — 세션 정리 + 상시 알림 제거 (_notify → _syncOngoing cancel)
+      _session = null;
+      _clearLocal();
+      _notify();
+      return;
+    }
     try {
       final res = await _dio.get('/stations/ev/${s.statId}');
       final data = res.data['data'];
