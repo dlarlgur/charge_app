@@ -135,6 +135,66 @@ class _TopBannerAdmobCardState extends State<TopBannerAdmobCard> {
   }
 }
 
+/// 주유소·충전소 상세 화면 상단 카드 바로 아래 네이티브 광고.
+/// 강조형(factoryId=stationCardTop, native_ad_top.xml) 카드 — 상세 헤더 카드와
+/// 동일한 좌우 마진(16) + 14dp 라운드로 디자인 일관성 유지.
+/// 로드 전·실패 시 높이 0(SizedBox.shrink) → 레이아웃 점프/방해 없음.
+class StationDetailNativeAd extends StatefulWidget {
+  const StationDetailNativeAd({super.key});
+
+  @override
+  State<StationDetailNativeAd> createState() => _StationDetailNativeAdState();
+}
+
+class _StationDetailNativeAdState extends State<StationDetailNativeAd> {
+  NativeAd? _ad;
+  bool _loaded = false;
+  bool _failed = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_ad == null) _load();
+  }
+
+  void _load() {
+    _ad = NativeAd(
+      adUnitId: AdUnitIds.stationDetailNative,
+      factoryId: 'stationCardTop',
+      request: const AdRequest(),
+      listener: NativeAdListener(
+        onAdLoaded: (_) {
+          if (mounted) setState(() => _loaded = true);
+        },
+        onAdFailedToLoad: (ad, _) {
+          ad.dispose();
+          if (mounted) setState(() => _failed = true);
+        },
+      ),
+    )..load();
+  }
+
+  @override
+  void dispose() {
+    _ad?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_failed || !_loaded || _ad == null) return const SizedBox.shrink();
+    return Padding(
+      // 헤더 카드 바로 아래 — 좌우 16(카드와 동일), 위 약간 띄우고 탭과 간격.
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: SizedBox(
+            height: 116, child: RepaintBoundary(child: AdWidget(ad: _ad!))),
+      ),
+    );
+  }
+}
+
 /// 콘솔에서 등록한 house ad 카드. 우리가 직접 그림 (자유 디자인).
 class HouseAdCard extends StatefulWidget {
   final HouseAd ad;

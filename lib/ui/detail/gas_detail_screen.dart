@@ -15,6 +15,7 @@ import '../../data/services/station_alias_service.dart';
 import '../../data/services/widget_service.dart';
 import '../../providers/providers.dart' show favoritesProvider, settingsProvider;
 import '../widgets/shared_widgets.dart' show showFuelTypeAlertSheet, BrandLogo;
+import '../widgets/native_ad_card.dart' show StationDetailNativeAd;
 
 // gas_detail.html 디자인 토큰 — 헤더/가격/그래프 카드 공용.
 // 길안내·즐겨찾기·알림 액션만 앱 기존 AppColors.gasBlue 사용, 그 외는 HTML 양식 색.
@@ -359,6 +360,8 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
         slivers: [
           if (widget.sheetMode) SliverToBoxAdapter(child: _dragHandle(isDark)),
           SliverToBoxAdapter(child: _headerCard(name, brand, d, isDark)),
+          // 상단 카드 바로 아래 네이티브 광고 (로드 전/실패 시 높이 0).
+          const SliverToBoxAdapter(child: StationDetailNativeAd()),
           SliverPersistentHeader(
             pinned: true,
             delegate: _GasTabsDelegate(

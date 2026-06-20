@@ -30,9 +30,14 @@ class AdUnitIds {
   static const String _topBannerAndroid =
       'ca-app-pub-8640148276009977/6658354489'; // charge_top_banner
 
+  // ─── 상세화면 상단(주유소/충전소 카드 바로 아래) 네이티브 광고 (Android) ───
+  static const String _stationDetailNativeAndroid =
+      'ca-app-pub-8640148276009977/5929557058'; // charge_detail_native
+
   // ─── iOS — TODO: iOS 단위 ID 발급 후 교체 (현재 Android 재사용) ───
   static const Map<int, String> _listBannerIos = _listBannerAndroid;
   static const String _topBannerIos = _topBannerAndroid;
+  static const String _stationDetailNativeIos = _stationDetailNativeAndroid;
 
   /// 리스트 list_position 에 매핑되는 광고 단위 ID.
   /// admobSlots 외 position 호출 시 list_banner1 으로 fallback.
@@ -44,4 +49,8 @@ class AdUnitIds {
   /// 상단 배너 광고 단위 ID — 현재 호출처 없음 (추후 상단 자리 추가 시).
   static String get topBanner =>
       Platform.isIOS ? _topBannerIos : _topBannerAndroid;
+
+  /// 주유소·충전소 상세 상단 네이티브 광고 단위 ID (카드 바로 아래).
+  static String get stationDetailNative =>
+      Platform.isIOS ? _stationDetailNativeIos : _stationDetailNativeAndroid;
 }

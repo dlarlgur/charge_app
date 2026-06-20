@@ -10,6 +10,7 @@ import '../../data/models/models.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/alert_service.dart';
 import '../widgets/shared_widgets.dart';
+import '../widgets/native_ad_card.dart' show StationDetailNativeAd;
 import '../../data/services/favorite_service.dart';
 import '../../data/services/station_alias_service.dart';
 import '../../data/services/widget_service.dart';
@@ -325,6 +326,8 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
         if (widget.sheetMode)
           SliverToBoxAdapter(child: _dragHandle(isDark)),
         SliverToBoxAdapter(child: _heroCard(s, isDark)),
+        // 상단 카드 바로 아래 네이티브 광고 (로드 전/실패 시 높이 0).
+        const SliverToBoxAdapter(child: StationDetailNativeAd()),
         SliverPersistentHeader(
           pinned: true,
           delegate: _TabsDelegate(
