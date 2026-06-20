@@ -3253,16 +3253,21 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
     await _mapController!.clearOverlays();
 
-    // 경로 그리기
+    // 경로 그리기 — 목적지 입력 경로(_drawResultOnMap)와 동일 스타일로 통일.
+    // (혼잡도 기본색 + 방향 패턴 이미지 + 너비8 + 외곽선 투명 + smooth/densify)
     if (_lastPathPoints.length >= 2) {
-      final coords = _lastPathPoints.map((p) => NLatLng(p['lat'] as double, p['lng'] as double)).toList();
+      final coordsRaw = _lastPathPoints.map((p) => NLatLng(p['lat'] as double, p['lng'] as double)).toList();
+      final coords = _densifyPath(_smoothPath(coordsRaw));
+      final patternImg = await _buildPatternImage();
       final pathOverlay = NPathOverlay(
         id: 'select_route',
         coords: coords,
-        color: const Color(0xFF1D9E75),
-        width: 6,
-        outlineColor: Colors.white,
-        outlineWidth: 2,
+        color: _congestionColor(-1),
+        width: 8,
+        outlineColor: Colors.transparent,
+        outlineWidth: 0,
+        patternImage: patternImg,
+        patternInterval: 50,
       );
       await _mapController!.addOverlay(pathOverlay);
     }
