@@ -23,6 +23,16 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _busy = false;
+  // 간편로그인 노출 여부(콘솔 원격설정). 기본 전부 노출, 서버 응답으로 갱신.
+  Map<String, bool> _enabled = const {'kakao': true, 'naver': true, 'google': true};
+
+  @override
+  void initState() {
+    super.initState();
+    AuthService.fetchEnabledProviders().then((m) {
+      if (mounted) setState(() => _enabled = m);
+    });
+  }
 
   Future<void> _onProvider(String provider) async {
     if (_busy) return;
@@ -179,38 +189,43 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
                       child: Column(
                         children: [
-                          _SocialButton(
-                            label: '카카오로 시작하기',
-                            bg: const Color(0xFFFEE500),
-                            fg: const Color(0xFF191600),
-                            icon: Icons.chat_bubble_rounded,
-                            onTap: () => _onProvider('kakao'),
-                          ),
-                          const SizedBox(height: 10),
-                          _SocialButton(
-                            label: '네이버로 시작하기',
-                            bg: const Color(0xFF03C75A),
-                            fg: Colors.white,
-                            iconChild: const Text('N',
-                                style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.white)),
-                            onTap: () => _onProvider('naver'),
-                          ),
-                          const SizedBox(height: 10),
-                          _SocialButton(
-                            label: '구글로 시작하기',
-                            bg: Colors.white,
-                            fg: const Color(0xFF1F1F1F),
-                            border: const Color(0xFFDADCE0),
-                            iconChild: const Text('G',
-                                style: TextStyle(
-                                    fontSize: 19,
-                                    fontWeight: FontWeight.w800,
-                                    color: Color(0xFF4285F4))),
-                            onTap: () => _onProvider('google'),
-                          ),
+                          if (_enabled['kakao'] ?? true) ...[
+                            _SocialButton(
+                              label: '카카오로 시작하기',
+                              bg: const Color(0xFFFEE500),
+                              fg: const Color(0xFF191600),
+                              icon: Icons.chat_bubble_rounded,
+                              onTap: () => _onProvider('kakao'),
+                            ),
+                            const SizedBox(height: 10),
+                          ],
+                          if (_enabled['naver'] ?? true) ...[
+                            _SocialButton(
+                              label: '네이버로 시작하기',
+                              bg: const Color(0xFF03C75A),
+                              fg: Colors.white,
+                              iconChild: const Text('N',
+                                  style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white)),
+                              onTap: () => _onProvider('naver'),
+                            ),
+                            const SizedBox(height: 10),
+                          ],
+                          if (_enabled['google'] ?? true)
+                            _SocialButton(
+                              label: '구글로 시작하기',
+                              bg: Colors.white,
+                              fg: const Color(0xFF1F1F1F),
+                              border: const Color(0xFFDADCE0),
+                              iconChild: const Text('G',
+                                  style: TextStyle(
+                                      fontSize: 19,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF4285F4))),
+                              onTap: () => _onProvider('google'),
+                            ),
                         ],
                       ),
                     ),

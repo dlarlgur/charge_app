@@ -166,6 +166,22 @@ class AuthService {
     return null;
   }
 
+  /// 간편로그인 노출 여부 (콘솔 원격설정). 실패 시 전부 노출(fail-open).
+  static Future<Map<String, bool>> fetchEnabledProviders() async {
+    try {
+      final res = await _dio.get('/auth/providers');
+      final d = res.data;
+      if (d is Map) {
+        return {
+          'kakao': d['kakao'] != false,
+          'naver': d['naver'] != false,
+          'google': d['google'] != false,
+        };
+      }
+    } catch (_) {}
+    return {'kakao': true, 'naver': true, 'google': true};
+  }
+
   /// 저장된 토큰으로 현재 사용자 조회 (앱 시작 시). 만료면 refresh 1회 시도.
   static Future<AuthUser?> currentUser() async {
     final access = await _storage.read(key: _kAccess);
