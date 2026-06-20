@@ -272,13 +272,19 @@ class AuthService {
 }
 
 /// 인증 상태 — 마이페이지/로그인화면이 watch.
+/// 앱 시작 시 저장 토큰으로 currentUser 복원이 끝났는지.
+/// 복원 전(false)엔 state=null 을 '로그아웃'으로 단정하지 않게 — 마이페이지 깜빡임 방지.
+final authInitializedProvider = StateProvider<bool>((ref) => false);
+
 class AuthNotifier extends StateNotifier<AuthUser?> {
-  AuthNotifier() : super(null) {
+  final Ref _ref;
+  AuthNotifier(this._ref) : super(null) {
     _load();
   }
 
   Future<void> _load() async {
     state = await AuthService.currentUser();
+    _ref.read(authInitializedProvider.notifier).state = true;
   }
 
   /// 로그인 → { ok: 성공여부, isNew: 신규가입여부 }. 신규면 회원가입 완료 화면으로.
@@ -302,4 +308,4 @@ class AuthNotifier extends StateNotifier<AuthUser?> {
   }
 }
 
-final authProvider = StateNotifierProvider<AuthNotifier, AuthUser?>((ref) => AuthNotifier());
+final authProvider = StateNotifierProvider<AuthNotifier, AuthUser?>((ref) => AuthNotifier(ref));

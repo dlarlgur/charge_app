@@ -1594,6 +1594,7 @@ class _AccountCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider);
+    final ready = ref.watch(authInitializedProvider); // 복원 완료 전엔 로그인 상태 단정 X
     final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
     final loggedIn = user != null;
@@ -1650,7 +1651,7 @@ class _AccountCard extends ConsumerWidget {
                         children: [
                           Flexible(
                             child: Text(
-                              loggedIn ? '${user.nickname ?? '사용자'}님' : '로그인이 필요합니다',
+                              !ready ? '불러오는 중…' : (loggedIn ? '${user.nickname ?? '사용자'}님' : '로그인이 필요합니다'),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
@@ -1667,9 +1668,11 @@ class _AccountCard extends ConsumerWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        loggedIn
-                            ? (user.email ?? '계정 관리')
-                            : '폰을 바꿔도 차량 정보·설정이 그대로 유지돼요',
+                        !ready
+                            ? ''
+                            : (loggedIn
+                                ? (user.email ?? '계정 관리')
+                                : '폰을 바꿔도 차량 정보·설정이 그대로 유지돼요'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 12.5, height: 1.4, color: textSecondary),
