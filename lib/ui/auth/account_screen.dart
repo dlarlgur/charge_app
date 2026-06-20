@@ -86,6 +86,24 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 13.5, color: textSecondary),
                       ),
+                      if (user.ageGroup?.isNotEmpty ?? false) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.gasBlue.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          child: Text(
+                            user.ageGroup!,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.gasBlue,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
