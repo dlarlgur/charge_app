@@ -3248,19 +3248,58 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     unawaited(_drawSelectModeMap());
   }
 
-  Future<void> _drawSelectModeMap() async {
-    if (_mapController == null || _selectableStations == null) return;
+  /// 메인 경로 폴리라인을 _drawResultOnMap 과 동일하게 그린다.
+  /// 혼잡도 세그먼트(pathSegments)가 있으면 구간별 색(NMultipartPathOverlay),
+  /// 없으면 단색 폴백. 직접선택/비교 등 다른 화면도 이걸 써서 스타일을 통일.
+  Future<void> _drawMainRoute(
+    String id,
+    List<Map<String, dynamic>> pathPoints,
+    List<Map<String, dynamic>>? pathSegments,
+  ) async {
+    if (_mapController == null) return;
+    final patternImg = await _buildPatternImage();
 
-    await _mapController!.clearOverlays();
+    if (pathSegments != null && pathSegments.isNotEmpty) {
+      final multiPaths = <NMultipartPath>[];
+      for (final seg in pathSegments) {
+        final rawCoords = seg['coords'];
+        if (rawCoords is! List || rawCoords.length < 2) continue;
+        final coordsRaw = rawCoords
+            .whereType<Map>()
+            .map((c) => NLatLng((c['lat'] as num).toDouble(), (c['lng'] as num).toDouble()))
+            .toList();
+        if (coordsRaw.length < 2) continue;
+        final coords = _densifyPath(_smoothPath(coordsRaw));
+        final congestion = seg['congestion'] is num ? (seg['congestion'] as num).toInt() : -1;
+        final color = _congestionColor(congestion);
+        multiPaths.add(NMultipartPath(
+          coords: coords,
+          color: color,
+          outlineColor: Colors.transparent,
+          passedColor: color.withValues(alpha: 0.28),
+          passedOutlineColor: Colors.transparent,
+        ));
+      }
+      if (multiPaths.isNotEmpty) {
+        await _mapController!.addOverlay(NMultipartPathOverlay(
+          id: id,
+          paths: multiPaths,
+          width: 8,
+          outlineWidth: 0,
+          patternImage: patternImg,
+          patternInterval: 30,
+        ));
+        return;
+      }
+    }
 
-    // 경로 그리기 — 목적지 입력 경로(_drawResultOnMap)와 동일 스타일로 통일.
-    // (혼잡도 기본색 + 방향 패턴 이미지 + 너비8 + 외곽선 투명 + smooth/densify)
-    if (_lastPathPoints.length >= 2) {
-      final coordsRaw = _lastPathPoints.map((p) => NLatLng(p['lat'] as double, p['lng'] as double)).toList();
+    if (pathPoints.length >= 2) {
+      final coordsRaw = pathPoints
+          .map((p) => NLatLng((p['lat'] as num).toDouble(), (p['lng'] as num).toDouble()))
+          .toList();
       final coords = _densifyPath(_smoothPath(coordsRaw));
-      final patternImg = await _buildPatternImage();
-      final pathOverlay = NPathOverlay(
-        id: 'select_route',
+      await _mapController!.addOverlay(NPathOverlay(
+        id: id,
         coords: coords,
         color: _congestionColor(-1),
         width: 8,
@@ -3268,9 +3307,17 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         outlineWidth: 0,
         patternImage: patternImg,
         patternInterval: 50,
-      );
-      await _mapController!.addOverlay(pathOverlay);
+      ));
     }
+  }
+
+  Future<void> _drawSelectModeMap() async {
+    if (_mapController == null || _selectableStations == null) return;
+
+    await _mapController!.clearOverlays();
+
+    // 경로 그리기 — 목적지 입력 경로(_drawResultOnMap)와 동일 렌더(혼잡도 구간색).
+    await _drawMainRoute('select_route', _lastPathPoints, _lastPathSegments);
 
     // 출발지 마커
     final originMarker = NMarker(
@@ -3517,19 +3564,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     
     await _mapController!.clearOverlays();
     
-    // 경로
-    if (_lastPathPoints.length >= 2) {
-      final coords = _lastPathPoints.map((p) => NLatLng(p['lat'] as double, p['lng'] as double)).toList();
-      final pathOverlay = NPathOverlay(
-        id: 'compare_route',
-        coords: coords,
-        color: const Color(0xFF1D9E75),
-        width: 6,
-        outlineColor: Colors.white,
-        outlineWidth: 2,
-      );
-      await _mapController!.addOverlay(pathOverlay);
-    }
+    // 경로 — 목적지 입력 경로와 동일 렌더(혼잡도 구간색)
+    await _drawMainRoute('compare_route', _lastPathPoints, _lastPathSegments);
     
     // 출발지/목적지 마커
     final originMarker = NMarker(
