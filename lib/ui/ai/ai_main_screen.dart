@@ -1551,7 +1551,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     } on DioException catch (e) {
       if (!mounted) return;
       debugPrint('[AI] 분석 통신 오류: ${e.message} / ${e.response?.data}');
-      final rl = rateLimitMessage(e, feature: 'AI 주유 분석');
+      final rl = rateLimitMessage(e, feature: 'AI 주유소 추천');
       if (rl != null) {
         showAppDialog<void>(context,
             icon: Icons.schedule_rounded, title: '오늘은 여기까지!', message: rl, primaryLabel: '확인');
@@ -2744,7 +2744,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
     } catch (e) {
       if (!mounted) return;
-      final rl = rateLimitMessage(e, feature: 'AI 충전 분석');
+      final rl = rateLimitMessage(e, feature: 'AI 충전소 추천');
       if (rl != null) {
         showAppDialog<void>(context,
             icon: Icons.schedule_rounded, title: '오늘은 여기까지!', message: rl, primaryLabel: '확인');
@@ -2943,7 +2943,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       if (kDebugMode) debugPrint('[ev-userselect] postEvAiRecommend 실패: $e');
       if (!mounted) return;
       // 한도 초과(429)면 "오늘은 여기까지" 팝업 — 직접선택도 AI 분석과 합산 한도라서.
-      final rl = rateLimitMessage(e, feature: 'AI 충전 분석');
+      final rl = rateLimitMessage(e, feature: 'AI 충전소 추천');
       if (rl != null) {
         showAppDialog<void>(context,
             icon: Icons.schedule_rounded, title: '오늘은 여기까지!', message: rl, primaryLabel: '확인');
@@ -3199,7 +3199,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       if (!mounted) return;
       setState(() => _userSelecting = false);
       // 한도 초과(429)면 직접선택 버튼 단계에서 "오늘은 여기까지" 팝업 (fail-fast).
-      final rl = rateLimitMessage(e, feature: 'AI 주유 분석');
+      final rl = rateLimitMessage(e, feature: 'AI 주유소 추천');
       if (rl != null) {
         showAppDialog<void>(context,
             icon: Icons.schedule_rounded, title: '오늘은 여기까지!', message: rl, primaryLabel: '확인');
@@ -3546,7 +3546,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         _isSelectSheetVisible = true; // 실패하면 시트 복원
       });
       // 한도 초과(429)면 "오늘은 여기까지" 팝업 — 비교(직접선택)도 AI 분석과 합산 한도.
-      final rl = rateLimitMessage(e, feature: 'AI 주유 분석');
+      final rl = rateLimitMessage(e, feature: 'AI 주유소 추천');
       if (rl != null) {
         showAppDialog<void>(context,
             icon: Icons.schedule_rounded, title: '오늘은 여기까지!', message: rl, primaryLabel: '확인');
@@ -4126,7 +4126,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                   Expanded(
                                     child: ModeSegment(
                                       icon: Icons.local_gas_station_rounded,
-                                      label: 'AI 주유 분석',
+                                      label: 'AI 주유소 추천',
                                       active: !isEvVehicle,
                                       accent: kFuelAccent,
                                       onTap: () => _switchModeTo(ev: false),
@@ -4135,7 +4135,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                   Expanded(
                                     child: ModeSegment(
                                       icon: Icons.bolt_rounded,
-                                      label: 'AI 충전 분석',
+                                      label: 'AI 충전소 추천',
                                       active: isEvVehicle,
                                       accent: kEvAccent,
                                       onTap: () => _switchModeTo(ev: true),

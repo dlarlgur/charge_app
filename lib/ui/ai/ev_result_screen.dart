@@ -1404,7 +1404,7 @@ class _EvAiMessageBanner extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('AI 충전 분석',
+                const Text('AI 충전소 추천',
                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _kBlue)),
                 const SizedBox(height: 6),
                 MarkdownBody(
