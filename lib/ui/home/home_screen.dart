@@ -455,10 +455,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         }
       },
       child: Scaffold(
-      body: Column(
+      body: Stack(
         children: [
-          if (bottomIndex == 0) const WatchSessionBar(),
-          Expanded(
+          Positioned.fill(
             child: IndexedStack(
               index: bottomIndex,
               children: [
@@ -470,6 +469,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               ],
             ),
           ),
+          // 자리변동알림 — 홈 탭에서 하단 플로팅 (스크롤해도 항상 보임, content 안 밀림)
+          if (bottomIndex == 0)
+            const Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: WatchSessionBar(),
+            ),
         ],
       ),
       bottomNavigationBar: NavigationBarTheme(

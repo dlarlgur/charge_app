@@ -92,18 +92,19 @@ class _WatchSessionBarState extends State<WatchSessionBar> {
     final avail = session.currentAvail;
 
     return SafeArea(
-      bottom: false,
+      top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+        // 하단 플로팅 — 바텀 네비 바로 위에 떠서 스크롤해도 항상 보임.
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
         child: Material(
           color: bg,
-          borderRadius: BorderRadius.circular(14),
-          elevation: 4,
-          shadowColor: _kBlue.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(16),
+          elevation: 12,
+          shadowColor: _kBlue.withValues(alpha: 0.38),
           child: Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: _kBlue.withValues(alpha: isDark ? 0.4 : 0.25)),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _kBlue.withValues(alpha: isDark ? 0.45 : 0.28)),
             ),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
