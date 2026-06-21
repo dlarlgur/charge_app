@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 
-import '../../../core/constants/api_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../ai_constants.dart';
 
@@ -13,6 +11,10 @@ class LevelEditSheet extends StatefulWidget {
   final TextEditingController literController;
   final void Function(double level, String mode) onSave;
   final bool isEv;
+  /// 선택 차량 용량(가스 L / EV kWh)·효율(가스 km/L / EV km/kWh).
+  /// 주행가능거리 → % 환산에 사용 (글로벌 키 대신 선택 차량 기준 — EV/다차량 꼬임 방지).
+  final double capacity;
+  final double efficiency;
 
   const LevelEditSheet({
     super.key,
@@ -22,6 +24,8 @@ class LevelEditSheet extends StatefulWidget {
     required this.literController,
     required this.onSave,
     this.isEv = false,
+    this.capacity = 55.0,
+    this.efficiency = 12.5,
   });
 
   @override
@@ -55,16 +59,17 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
   }
 
   void _applyDte(String val) {
-    final box = Hive.box(AppConstants.settingsBox);
-    final tank = (box.get(AppConstants.keyAiTankCapacity, defaultValue: 55.0) as num).toDouble();
-    final eff = (box.get(AppConstants.keyAiEfficiency, defaultValue: 12.5) as num).toDouble();
     final dte = double.tryParse(val.replaceAll(',', '.'));
     if (dte == null || dte <= 0) {
       setState(() => _dteError = '올바른 거리를 입력해주세요');
       return;
     }
-    final liters = dte / eff;
-    final pct = (liters / tank * 100).clamp(0.0, 100.0);
+    // 선택 차량 기준 만충 주행거리 = 용량 × 효율 (가스: L×km/L, EV: kWh×km/kWh).
+    // 글로벌 가스값(55L/12.5)을 쓰던 버그 수정 — EV/다차량에서 % 가 엉터리로 나오던 원인.
+    final fullRangeKm = widget.capacity * widget.efficiency;
+    final pct = fullRangeKm > 0
+        ? (dte / fullRangeKm * 100).clamp(0.0, 100.0)
+        : 0.0;
     setState(() { _level = pct; _dteError = null; });
   }
 

@@ -64,15 +64,43 @@ class HeroCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // 큰 원형 게이지 (108x108)
+                // 큰 원형 게이지 (108x108) — 탭하면 잔량 편집. 우하단 연필 배지로 편집 가능 표시.
                 GestureDetector(
                   onTap: onTapLevel,
-                  child: GaugeRing(
-                    percent: currentLevel,
-                    reachableKm: reachableKm,
-                    color: accent,
-                    colorDeep: accentDeep,
-                    isEv: isEv,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      GaugeRing(
+                        percent: currentLevel,
+                        reachableKm: reachableKm,
+                        color: accent,
+                        colorDeep: accentDeep,
+                        isEv: isEv,
+                      ),
+                      Positioned(
+                        right: -1,
+                        bottom: -1,
+                        child: Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: accent,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isDark ? const Color(0xFF12141A) : Colors.white,
+                              width: 2,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: accent.withValues(alpha: 0.4),
+                                blurRadius: 6,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(Icons.edit_rounded, size: 12, color: Colors.white),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -110,9 +138,20 @@ class HeroCard extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 3),
-                      Text(
-                        isEv ? '현재 배터리 · 잔량 편집' : '현재 잔유량 · 잔량 편집',
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kMuted),
+                      Row(
+                        children: [
+                          Text(
+                            isEv ? '현재 배터리' : '현재 잔유량',
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kMuted),
+                          ),
+                          const SizedBox(width: 6),
+                          Icon(Icons.touch_app_rounded, size: 11, color: accent),
+                          const SizedBox(width: 2),
+                          Text(
+                            '탭하여 수정',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: accent),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 10),
                       Row(

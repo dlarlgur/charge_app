@@ -3671,7 +3671,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     }
   }
 
-  void _showLevelEditSheet({bool isEv = false}) {
+  void _showLevelEditSheet({bool isEv = false, required double capacity, required double efficiency}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
@@ -3686,6 +3686,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         priceController: _priceController,
         literController: _literController,
         isEv: isEv,
+        capacity: capacity,     // 선택 차량 용량(가스 L / EV kWh)
+        efficiency: efficiency, // 선택 차량 효율(가스 km/L / EV km/kWh)
         onSave: (level, mode) {
           setState(() { _currentLevelPercent = level; _targetMode = mode; });
           final box = Hive.box(AppConstants.settingsBox);
@@ -3789,17 +3791,19 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       });
     }
 
-    // 차량 전환 감지 → 슬라이더/목표 값을 해당 차량 프로필 기준으로 갱신
+    // 차량 전환 감지 → 잔량/목표를 해당 차량 프로필 기준으로 갱신.
+    // 표시값(_currentLevelPercent/_targetMode)은 이 빌드에서 '즉시' 동기화한다.
+    //   - postFrame 으로 미루면: ① 한 프레임 동안 이전 차량 % 가 새 차량에 섞여 보이고,
+    //     ② 빠른 탭전환 시 늦게 발화한 콜백이 stale sv 로 현재값을 덮어써 영구 꼬임.
+    //   - _lastSyncedVehicleId 와 _currentLevelPercent 를 같은 시점에 맞춰 desync 제거.
     if (selectedVehicle != null && selectedVehicle.id != _lastSyncedVehicleId) {
       final sv = selectedVehicle!;
       _lastSyncedVehicleId = sv.id;
+      _currentLevelPercent = sv.currentLevelPercent;
+      _targetMode = sv.targetMode;
+      // 컨트롤러 text 는 build 중 변경 위험 → postFrame 으로만(표시값과 무관).
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        setState(() {
-          _currentLevelPercent = sv.currentLevelPercent;
-          _targetMode = sv.targetMode;
-          _priceController.text = sv.targetValue.toStringAsFixed(0);
-        });
+        if (mounted) _priceController.text = sv.targetValue.toStringAsFixed(0);
       });
     }
 
@@ -4275,7 +4279,16 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             : tankCapacity,
                         highwayOnly: isEvVehicle ? _evHighwayOnly : _gasHighwayOnly,
                         chargerMode: isEvVehicle ? _evChargerType : null,
-                        onTapLevel: () => _showLevelEditSheet(isEv: isEvVehicle),
+                        onTapLevel: () => _showLevelEditSheet(
+                          isEv: isEvVehicle,
+                          // 카드 표시와 동일한 차량 기준 용량/효율 (편집 시트 % 계산 일치)
+                          capacity: isEvVehicle
+                              ? (selectedVehicle?.batteryCapacity ?? tankCapacity)
+                              : tankCapacity,
+                          efficiency: isEvVehicle
+                              ? (selectedVehicle?.evEfficiency ?? efficiency)
+                              : efficiency,
+                        ),
                         // 편집 아이콘 → 현재 차량 setup(편집) 화면 직접 진입.
                         // 차량 미등록(selectedVehicle==null) 시에만 신규 추가 모드로.
                         onTapVehicle: () async {
