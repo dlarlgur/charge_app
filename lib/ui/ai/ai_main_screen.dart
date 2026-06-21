@@ -1225,12 +1225,16 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   // ── 분석 실행 ──
   Future<void> _runAnalyze() async {
     final box = Hive.box(AppConstants.settingsBox);
-    final fuelCode =
-        box.get(AppConstants.keyAiFuelType, defaultValue: FuelType.gasoline.code) as String;
-    final tankCapacity =
-        (box.get(AppConstants.keyAiTankCapacity, defaultValue: 55.0) as num).toDouble();
-    final efficiency =
-        (box.get(AppConstants.keyAiEfficiency, defaultValue: 12.5) as num).toDouble();
+    // 선택 차량 프로필 = 단일 소스. 글로벌 키는 차량 없을 때만 fallback.
+    final sv = _readSelectedVehicle(box);
+    final fuelCode = sv?.fuelType ??
+        (box.get(AppConstants.keyAiFuelType, defaultValue: FuelType.gasoline.code) as String);
+    final tankCapacity = sv == null
+        ? (box.get(AppConstants.keyAiTankCapacity, defaultValue: 55.0) as num).toDouble()
+        : (sv.isEV ? sv.batteryCapacity : sv.tankCapacity);
+    final efficiency = sv == null
+        ? (box.get(AppConstants.keyAiEfficiency, defaultValue: 12.5) as num).toDouble()
+        : (sv.isEV ? sv.evEfficiency : sv.efficiency);
 
     if (_destLat == null || _destLng == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -3145,9 +3149,17 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
     // 경로상 주유소 목록 불러오기
     final box = Hive.box(AppConstants.settingsBox);
-    final fuelCode = box.get(AppConstants.keyAiFuelType, defaultValue: FuelType.gasoline.code) as String;
-    final tankCapacity = (box.get(AppConstants.keyAiTankCapacity, defaultValue: 55.0) as num).toDouble();
-    final efficiency = (box.get(AppConstants.keyAiEfficiency, defaultValue: 12.5) as num).toDouble();
+    // 선택 차량 프로필 = 단일 소스. 글로벌 키(keyAiTankCapacity 등)는 '차량 없을 때만' fallback.
+    // (글로벌 키는 가스/EV·다차량이 공유하는 단일 슬롯이라 프로필과 어긋났음 → 카드·계산 불일치 버그)
+    final sv = _readSelectedVehicle(box);
+    final fuelCode = sv?.fuelType ??
+        (box.get(AppConstants.keyAiFuelType, defaultValue: FuelType.gasoline.code) as String);
+    final tankCapacity = sv == null
+        ? (box.get(AppConstants.keyAiTankCapacity, defaultValue: 55.0) as num).toDouble()
+        : (sv.isEV ? sv.batteryCapacity : sv.tankCapacity);
+    final efficiency = sv == null
+        ? (box.get(AppConstants.keyAiEfficiency, defaultValue: 12.5) as num).toDouble()
+        : (sv.isEV ? sv.evEfficiency : sv.efficiency);
 
     final body = <String, dynamic>{
       'vehicle_info': {
@@ -3490,9 +3502,17 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     });
     
     final box = Hive.box(AppConstants.settingsBox);
-    final fuelCode = box.get(AppConstants.keyAiFuelType, defaultValue: FuelType.gasoline.code) as String;
-    final tankCapacity = (box.get(AppConstants.keyAiTankCapacity, defaultValue: 55.0) as num).toDouble();
-    final efficiency = (box.get(AppConstants.keyAiEfficiency, defaultValue: 12.5) as num).toDouble();
+    // 선택 차량 프로필 = 단일 소스. 글로벌 키(keyAiTankCapacity 등)는 '차량 없을 때만' fallback.
+    // (글로벌 키는 가스/EV·다차량이 공유하는 단일 슬롯이라 프로필과 어긋났음 → 카드·계산 불일치 버그)
+    final sv = _readSelectedVehicle(box);
+    final fuelCode = sv?.fuelType ??
+        (box.get(AppConstants.keyAiFuelType, defaultValue: FuelType.gasoline.code) as String);
+    final tankCapacity = sv == null
+        ? (box.get(AppConstants.keyAiTankCapacity, defaultValue: 55.0) as num).toDouble()
+        : (sv.isEV ? sv.batteryCapacity : sv.tankCapacity);
+    final efficiency = sv == null
+        ? (box.get(AppConstants.keyAiEfficiency, defaultValue: 12.5) as num).toDouble()
+        : (sv.isEV ? sv.evEfficiency : sv.efficiency);
     
     final priceTarget = _targetMode == 'PRICE'
         ? (double.tryParse(_priceController.text.replaceAll(',', '.')) ?? 0.0) : 0.0;
@@ -3691,10 +3711,22 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         onSave: (level, mode) {
           setState(() { _currentLevelPercent = level; _targetMode = mode; });
           final box = Hive.box(AppConstants.settingsBox);
-          _saveVehicleLevel(box, level: level, mode: mode);
+          // 목표값(금액/리터)도 프로필에 저장 — 안 그러면 차량정보 화면에 목표가 반영 안 됨
+          // (기존엔 level/mode만 저장돼 목표값이 누락됐음).
+          double? targetValue;
+          if (mode == 'PRICE') {
+            targetValue = double.tryParse(_priceController.text.replaceAll(',', '.'));
+          } else if (mode == 'LITER') {
+            targetValue = double.tryParse(_literController.text.replaceAll(',', '.'));
+          }
+          _saveVehicleLevel(box, level: level, mode: mode, price: targetValue);
           // 글로벌 fallback도 유지
           box.put(AppConstants.keyAiCurrentLevelPercent, level);
           box.put(AppConstants.keyAiTargetMode, mode);
+          if (targetValue != null) {
+            if (mode == 'PRICE') box.put(AppConstants.keyAiTargetValue, targetValue);
+            if (mode == 'LITER') box.put(AppConstants.keyAiLiterTarget, targetValue);
+          }
           Navigator.pop(ctx);
         },
       ),
@@ -3746,9 +3778,17 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     }
 
     final box = Hive.box(AppConstants.settingsBox);
-    final fuelCode = box.get(AppConstants.keyAiFuelType, defaultValue: FuelType.gasoline.code) as String;
-    final tankCapacity = (box.get(AppConstants.keyAiTankCapacity, defaultValue: 55.0) as num).toDouble();
-    final efficiency = (box.get(AppConstants.keyAiEfficiency, defaultValue: 12.5) as num).toDouble();
+    // 선택 차량 프로필 = 단일 소스. 글로벌 키(keyAiTankCapacity 등)는 '차량 없을 때만' fallback.
+    // (글로벌 키는 가스/EV·다차량이 공유하는 단일 슬롯이라 프로필과 어긋났음 → 카드·계산 불일치 버그)
+    final sv = _readSelectedVehicle(box);
+    final fuelCode = sv?.fuelType ??
+        (box.get(AppConstants.keyAiFuelType, defaultValue: FuelType.gasoline.code) as String);
+    final tankCapacity = sv == null
+        ? (box.get(AppConstants.keyAiTankCapacity, defaultValue: 55.0) as num).toDouble()
+        : (sv.isEV ? sv.batteryCapacity : sv.tankCapacity);
+    final efficiency = sv == null
+        ? (box.get(AppConstants.keyAiEfficiency, defaultValue: 12.5) as num).toDouble()
+        : (sv.isEV ? sv.evEfficiency : sv.efficiency);
     final fuelLabel = FuelType.fromCode(fuelCode).label;
 
     // 멀티 차량 — 선택된 차량 프로필
@@ -3797,7 +3837,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     //     ② 빠른 탭전환 시 늦게 발화한 콜백이 stale sv 로 현재값을 덮어써 영구 꼬임.
     //   - _lastSyncedVehicleId 와 _currentLevelPercent 를 같은 시점에 맞춰 desync 제거.
     if (selectedVehicle != null && selectedVehicle.id != _lastSyncedVehicleId) {
-      final sv = selectedVehicle!;
+      final sv = selectedVehicle;
       _lastSyncedVehicleId = sv.id;
       _currentLevelPercent = sv.currentLevelPercent;
       _targetMode = sv.targetMode;
@@ -4296,7 +4336,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             context,
                             MaterialPageRoute(
                               builder: (_) => selectedVehicle != null
-                                  ? AiVehicleSetupScreen(editVehicleId: selectedVehicle!.id)
+                                  ? AiVehicleSetupScreen(editVehicleId: selectedVehicle.id)
                                   : const AiVehicleSetupScreen(),
                             ),
                           );
