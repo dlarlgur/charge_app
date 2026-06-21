@@ -90,17 +90,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     if (result != null &&
         (result.update.forceUpdate || result.update.optionalUpdate)) {
       FlutterNativeSplash.remove();
-      final native = result.update.forceUpdate
-          ? await AppUpdater.tryImmediateUpdate()
-          : await AppUpdater.tryFlexibleUpdate();
+      if (result.update.forceUpdate) {
+        // 강제 업데이트 = 우리 커스텀 팝업 우선(브랜드 통일·홈 진입 차단).
+        // 구글 네이티브 즉시업데이트는 띄우지 않음(그게 커스텀 팝업을 가렸음).
+        await UpdateDialog.showIfNeeded(context, result.update);
+        return; // 강제면 홈으로 넘어가지 않음 (팝업 non-dismissible)
+      }
+      // 선택 업데이트: 구글 flexible 시도 → 안 되면 커스텀 안내.
+      final native = await AppUpdater.tryFlexibleUpdate();
       if (!mounted) return;
-
-      if (native == InAppUpdateResult.started) {
-        if (result.update.forceUpdate) return;
-      } else {
+      if (native != InAppUpdateResult.started) {
         await UpdateDialog.showIfNeeded(context, result.update);
         if (!mounted) return;
-        if (result.update.forceUpdate) return;
       }
     }
 

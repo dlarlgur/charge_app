@@ -73,8 +73,9 @@ class _UpdateDialogState extends State<UpdateDialog> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final latestVersion = widget.policy.latestVersion ?? '';
     final releaseNote = widget.policy.releaseNote ?? '';
-    final accent = isForced ? AppColors.error : AppColors.gasBlue;
-    final accentDark = isForced ? const Color(0xFFB91C1C) : AppColors.gasBlueDark;
+    // 강제든 선택이든 브랜드 톤(블루)로 통일 — 알람 느낌(빨강) 대신 깔끔하게.
+    final accent = AppColors.gasBlue;
+    final accentDark = AppColors.gasBlueDark;
 
     final bg = isDark ? const Color(0xFF161B24) : Colors.white;
     final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
@@ -106,13 +107,13 @@ class _UpdateDialogState extends State<UpdateDialog> {
                 // Hero header with gradient
                 Container(
                   padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [accent, accentDark],
+                      colors: AppColors.logoGradient, // 브랜드 블루→그린
                     ),
-                    borderRadius: const BorderRadius.only(
+                    borderRadius: BorderRadius.only(
                       topLeft: Radius.circular(24),
                       topRight: Radius.circular(24),
                     ),
@@ -130,7 +131,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Icon(
-                              isForced ? Icons.warning_amber_rounded : Icons.rocket_launch_rounded,
+                              isForced ? Icons.system_update_rounded : Icons.rocket_launch_rounded,
                               color: Colors.white,
                               size: 24,
                             ),
