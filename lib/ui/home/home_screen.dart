@@ -1389,6 +1389,7 @@ class _AlertPageState extends State<_AlertPage> {
       backgroundColor: isDark ? AppColors.darkBg : const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: isDark ? AppColors.darkCard : Colors.white,
+        foregroundColor: isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a),
         elevation: 0,
         leading: _selectionMode
             ? TextButton(

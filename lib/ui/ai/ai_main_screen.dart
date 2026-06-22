@@ -4112,7 +4112,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                   padding: const EdgeInsets.symmetric(vertical: 12),
                                 ),
-                                child: const Text('취소', style: TextStyle(color: Color(0xFF666666))),
+                                child: Text('취소',
+                                    style: TextStyle(
+                                        color: isDark
+                                            ? AppColors.darkTextSecondary
+                                            : const Color(0xFF666666))),
                               ),
                             ),
                             const SizedBox(width: 10),

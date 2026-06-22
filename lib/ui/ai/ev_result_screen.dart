@@ -752,7 +752,7 @@ class _StationCardState extends State<_StationCard> {
                     _InfoChip(
                       icon: Icons.bolt_rounded,
                       label: unitPrice != null ? '${_wonFmt.format(unitPrice)}원/kWh' : '가격 미공개',
-                      color: const Color(0xFF444444),
+                      color: isDark ? AppColors.darkTextPrimary : const Color(0xFF444444),
                     ),
                     if (originDistLabel != null)
                       _InfoChip(

@@ -274,6 +274,7 @@ class _AiResultBodyState extends State<AiResultBody> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final data = widget.data;
     final computed = data['computed'] is Map ? data['computed'] as Map<String, dynamic> : null;
     final reachable = computed?['reachable'] is Map ? computed!['reachable'] as Map<String, dynamic> : null;
@@ -597,7 +598,9 @@ class _AiResultBodyState extends State<AiResultBody> {
           Center(
             child: Text(
               '목표 주유량 약 ${goalL.toStringAsFixed(1)}L 기준',
-              style: const TextStyle(fontSize: 11, color: Color(0xFF999999)),
+              style: TextStyle(
+                  fontSize: 11,
+                  color: isDark ? AppColors.darkTextMuted : const Color(0xFF999999)),
             ),
           ),
       ];
@@ -758,6 +761,7 @@ class _FuelChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final color = _fuelColors[label] ?? _kPrimary;
     final icon  = _fuelIcons[label]  ?? Icons.local_gas_station_rounded;
 
@@ -787,9 +791,11 @@ class _FuelChip extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 6),
-        const Text(
+        Text(
           '기준 분석',
-          style: TextStyle(fontSize: 11, color: Color(0xFF999999)),
+          style: TextStyle(
+              fontSize: 11,
+              color: isDark ? AppColors.darkTextMuted : const Color(0xFF999999)),
         ),
       ],
     );
@@ -1239,6 +1245,7 @@ class _RecStatCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Expanded(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1251,7 +1258,9 @@ class _RecStatCell extends StatelessWidget {
           const SizedBox(height: 2),
           Text(label,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 10, color: Color(0xFF999999))),
+              style: TextStyle(
+                  fontSize: 10,
+                  color: isDark ? AppColors.darkTextMuted : const Color(0xFF999999))),
         ],
       ),
     );
@@ -2019,11 +2028,15 @@ class _OptionCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          const Icon(Icons.access_time_rounded, size: 14, color: Color(0xFF888888)),
+                          Icon(Icons.access_time_rounded,
+                              size: 14,
+                              color: isDark ? AppColors.darkTextSecondary : const Color(0xFF888888)),
                           const SizedBox(width: 6),
                           Text(
                             '대신 ${extraInfo!.timeMins}분 더 소요',
-                            style: const TextStyle(fontSize: 12, color: Color(0xFF666666)),
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: isDark ? AppColors.darkTextMuted : const Color(0xFF666666)),
                           ),
                         ],
                       ),
@@ -2100,6 +2113,7 @@ class _AltSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final valid = alternatives.whereType<Map>().toList();
     if (valid.isEmpty) return const SizedBox.shrink();
 
@@ -2110,12 +2124,15 @@ class _AltSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Row(
+        Row(
           children: [
-            Text('다른 후보',
+            const Text('다른 후보',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1a1a1a))),
-            SizedBox(width: 6),
-            Text('가격 순', style: TextStyle(fontSize: 11, color: Color(0xFF999999))),
+            const SizedBox(width: 6),
+            Text('가격 순',
+                style: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? AppColors.darkTextMuted : const Color(0xFF999999))),
           ],
         ),
         const SizedBox(height: 8),
@@ -2245,7 +2262,9 @@ class _AltSection extends StatelessWidget {
                                     if (price != null) '${wonFmt.format(price.round())}원/L',
                                     detourText,
                                   ].join(' · '),
-                                  style: const TextStyle(fontSize: 11, color: Color(0xFF999999)),
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: isDark ? AppColors.darkTextMuted : const Color(0xFF999999)),
                                 ),
                               ],
                             ),
@@ -2464,6 +2483,7 @@ class CompareResultBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final comparison = data['comparison'] is Map ? data['comparison'] as Map<String, dynamic> : null;
     final winner = comparison?['winner']?.toString() ?? 'station_a';
     final uiMessage = comparison?['ui_message']?.toString() ?? '';
@@ -2538,7 +2558,9 @@ class CompareResultBody extends StatelessWidget {
           Center(
             child: Text(
               '목표 주유량 약 ${goalL.toStringAsFixed(1)}L 기준',
-              style: const TextStyle(fontSize: 11, color: Color(0xFF999999)),
+              style: TextStyle(
+                  fontSize: 11,
+                  color: isDark ? AppColors.darkTextMuted : const Color(0xFF999999)),
             ),
           ),
         ],

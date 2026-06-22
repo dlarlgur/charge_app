@@ -161,6 +161,7 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
     final result = await showDialog<String?>(
       context: context,
       builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
         return AlertDialog(
           title: const Text('주유소 별칭'),
           content: Column(
@@ -169,7 +170,9 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
             children: [
               Text(
                 '원본: $originalName',
-                style: const TextStyle(fontSize: 12, color: Color(0xFF888888)),
+                style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? AppColors.darkTextSecondary : const Color(0xFF888888)),
               ),
               const SizedBox(height: 12),
               TextField(

@@ -164,7 +164,9 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                 const SizedBox(height: 8),
                 Text(
                   '→ 잔량 약 ${_level.toStringAsFixed(1)}%로 계산됨',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF888888)),
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? AppColors.darkTextSecondary : const Color(0xFF888888)),
                 ),
               ] else ...[
                 Row(
@@ -198,8 +200,11 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
               ],
               if (widget.isEv) ...[
                 const SizedBox(height: 18),
-                const Text('목표 충전',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF999999))),
+                Text('목표 충전',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? AppColors.darkTextMuted : const Color(0xFF999999))),
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -229,13 +234,18 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                   ],
                 ),
                 const SizedBox(height: 4),
-                const Text('이 충전량까지 채우는 기준으로 추천해요.',
-                    style: TextStyle(fontSize: 11, color: Color(0xFF888888))),
+                Text('이 충전량까지 채우는 기준으로 추천해요.',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? AppColors.darkTextSecondary : const Color(0xFF888888))),
               ],
               if (!widget.isEv) ...[
               const SizedBox(height: 16),
-              const Text('목표 주유',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF999999))),
+              Text('목표 주유',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? AppColors.darkTextMuted : const Color(0xFF999999))),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,

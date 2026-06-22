@@ -240,7 +240,9 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
                                   subtitle: address.isNotEmpty
                                       ? Text(
                                           address,
-                                          style: const TextStyle(fontSize: 12, color: Color(0xFF999999)),
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              color: isDark ? AppColors.darkTextMuted : const Color(0xFF999999)),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         )
@@ -276,8 +278,9 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
                                             color: kPrimary)),
                                     subtitle: widget.currentLocationAddress != null
                                         ? Text(widget.currentLocationAddress!,
-                                            style: const TextStyle(
-                                                fontSize: 12, color: Color(0xFF888888)),
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: isDark ? AppColors.darkTextSecondary : const Color(0xFF888888)),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis)
                                         : null,
@@ -320,7 +323,9 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
                                                   if (category != null && category.isNotEmpty) ...[
                                                     const SizedBox(width: 6),
                                                     Text(category,
-                                                        style: const TextStyle(fontSize: 11, color: Color(0xFF888888))),
+                                                        style: TextStyle(
+                                                            fontSize: 11,
+                                                            color: isDark ? AppColors.darkTextSecondary : const Color(0xFF888888))),
                                                   ],
                                                   if (distStr != null) ...[
                                                     const SizedBox(width: 6),
@@ -331,7 +336,9 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
                                               ),
                                               if ((r['address']?.toString() ?? '').isNotEmpty)
                                                 Text(r['address'].toString(),
-                                                    style: const TextStyle(fontSize: 12, color: Color(0xFF999999)),
+                                                    style: TextStyle(
+                                                        fontSize: 12,
+                                                        color: isDark ? AppColors.darkTextMuted : const Color(0xFF999999)),
                                                     maxLines: 1,
                                                     overflow: TextOverflow.ellipsis),
                                             ],

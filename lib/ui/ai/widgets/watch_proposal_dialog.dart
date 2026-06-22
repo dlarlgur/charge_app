@@ -62,9 +62,11 @@ class WatchProposalDialog extends StatelessWidget {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(vertical: 13),
                     ),
-                    child: const Text(
+                    child: Text(
                       '나중에',
-                      style: TextStyle(color: Color(0xFF888888), fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                          color: isDark ? AppColors.darkTextSecondary : const Color(0xFF888888),
+                          fontWeight: FontWeight.w600),
                     ),
                   ),
                 ),

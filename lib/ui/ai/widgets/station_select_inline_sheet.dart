@@ -118,7 +118,9 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
                             )),
                         const SizedBox(width: 6),
                         Text('(${stations.length}곳)',
-                            style: const TextStyle(fontSize: 13, color: Color(0xFF999999))),
+                            style: TextStyle(
+                                fontSize: 13,
+                                color: isDark ? AppColors.darkTextMuted : const Color(0xFF999999))),
                         const Spacer(),
                         GestureDetector(
                           onTap: widget.onClose,
@@ -128,7 +130,9 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
                               color: const Color(0xFFF5F5F5),
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.close_rounded, size: 17, color: Color(0xFF666666)),
+                            child: Icon(Icons.close_rounded,
+                                size: 17,
+                                color: isDark ? AppColors.darkTextSecondary : const Color(0xFF666666)),
                           ),
                         ),
                       ],
@@ -161,11 +165,14 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
             // ─ 주유소 목록 ─
             Expanded(
               child: stations.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
                         '고속도로 후보가 없습니다.\n필터를 해제해 전체 후보를 확인하세요.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 13, color: Color(0xFF999999), height: 1.4),
+                        style: TextStyle(
+                            fontSize: 13,
+                            color: isDark ? AppColors.darkTextMuted : const Color(0xFF999999),
+                            height: 1.4),
                       ),
                     )
                   : ListView.builder(
@@ -244,7 +251,10 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
                                   ],
                                 ),
                                 if (addr.isNotEmpty)
-                                  Text(addr, style: const TextStyle(fontSize: 11, color: Color(0xFF999999)),
+                                  Text(addr,
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: isDark ? AppColors.darkTextMuted : const Color(0xFF999999)),
                                       overflow: TextOverflow.ellipsis),
                               ],
                             ),
