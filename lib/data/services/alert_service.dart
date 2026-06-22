@@ -33,6 +33,7 @@ class AlertService {
   static const _dndEnabledKey = 'dnd_enabled';
   static const _dndStartMinKey = 'dnd_start_min'; // 분(0~1439), 기본 23:00
   static const _dndEndMinKey = 'dnd_end_min';     // 분(0~1439), 기본 07:00
+  static const _dndAllDayKey = 'dnd_all_day';     // true 면 24시간 항상 방해금지
 
   final _dio = Dio(BaseOptions(
     baseUrl: ApiConstants.baseUrl,
@@ -73,17 +74,21 @@ class AlertService {
       (Hive.box(_boxKey).get(_dndStartMinKey, defaultValue: 1380) as int?) ?? 1380;
   int get dndEndMin =>
       (Hive.box(_boxKey).get(_dndEndMinKey, defaultValue: 420) as int?) ?? 420;
+  bool get dndAllDay =>
+      Hive.box(_boxKey).get(_dndAllDayKey, defaultValue: false) as bool;
 
-  void setDnd({bool? enabled, int? startMin, int? endMin}) {
+  void setDnd({bool? enabled, int? startMin, int? endMin, bool? allDay}) {
     final box = Hive.box(_boxKey);
     if (enabled != null) box.put(_dndEnabledKey, enabled);
     if (startMin != null) box.put(_dndStartMinKey, startMin);
     if (endMin != null) box.put(_dndEndMinKey, endMin);
+    if (allDay != null) box.put(_dndAllDayKey, allDay);
   }
 
   /// 현재(또는 주어진 시각)가 방해 금지 구간인지. 자정 넘김 처리 포함.
   bool isWithinDnd([DateTime? at]) {
     if (!dndEnabled) return false;
+    if (dndAllDay) return true; // 24시간 항상 방해금지
     final start = dndStartMin, end = dndEndMin;
     if (start == end) return false;
     final now = at ?? DateTime.now();

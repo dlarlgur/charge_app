@@ -2619,6 +2619,7 @@ class _DndSettingTileEmbedState extends State<_DndSettingTileEmbed> {
   late bool _enabled = AlertService().dndEnabled;
   late int _startMin = AlertService().dndStartMin;
   late int _endMin = AlertService().dndEndMin;
+  late bool _allDay = AlertService().dndAllDay;
 
   String _fmt(int m) =>
       '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
@@ -2649,7 +2650,11 @@ class _DndSettingTileEmbedState extends State<_DndSettingTileEmbed> {
               color: _enabled ? AppColors.gasBlue : secondary),
           title: Text('방해 금지 시간', style: Theme.of(context).textTheme.titleSmall),
           subtitle: Text(
-            _enabled ? '${_fmt(_startMin)} ~ ${_fmt(_endMin)} · 알림 소리 없이 보관' : '꺼짐',
+            !_enabled
+                ? '꺼짐'
+                : (_allDay
+                    ? '24시간 · 알림 소리 없이 보관'
+                    : '${_fmt(_startMin)} ~ ${_fmt(_endMin)} · 알림 소리 없이 보관'),
             style: TextStyle(fontSize: 12, color: muted),
           ),
           trailing: Transform.scale(
@@ -2672,16 +2677,38 @@ class _DndSettingTileEmbedState extends State<_DndSettingTileEmbed> {
               children: [
                 Row(
                   children: [
-                    _chip('시작', _startMin, () => _pick(true), secondary),
-                    const SizedBox(width: 8),
-                    Text('~', style: TextStyle(color: muted)),
-                    const SizedBox(width: 8),
-                    _chip('종료', _endMin, () => _pick(false), secondary),
+                    Expanded(
+                      child: Text('24시간 (항상)',
+                          style: TextStyle(fontSize: 13, color: secondary)),
+                    ),
+                    Transform.scale(
+                      scale: 0.8,
+                      child: Switch(
+                        value: _allDay,
+                        onChanged: (v) {
+                          setState(() => _allDay = v);
+                          AlertService().setDnd(allDay: v);
+                        },
+                        activeThumbColor: AppColors.gasBlue,
+                      ),
+                    ),
                   ],
                 ),
+                if (!_allDay)
+                  Row(
+                    children: [
+                      _chip('시작', _startMin, () => _pick(true), secondary),
+                      const SizedBox(width: 8),
+                      Text('~', style: TextStyle(color: muted)),
+                      const SizedBox(width: 8),
+                      _chip('종료', _endMin, () => _pick(false), secondary),
+                    ],
+                  ),
                 const SizedBox(height: 8),
                 Text(
-                  '이 시간엔 알림이 소리 없이 보관돼요. 자리변동 알림은 제외돼요.',
+                  _allDay
+                      ? '항상 알림을 소리 없이 보관해요. 자리변동 알림은 제외돼요.'
+                      : '이 시간엔 알림이 소리 없이 보관돼요. 자리변동 알림은 제외돼요.',
                   style: TextStyle(fontSize: 11, color: muted, height: 1.4),
                 ),
               ],

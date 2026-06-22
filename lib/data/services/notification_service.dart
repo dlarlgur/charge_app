@@ -16,6 +16,7 @@ bool _isWithinDnd() {
   try {
     final box = Hive.box('settings');
     if (box.get('dnd_enabled', defaultValue: false) != true) return false;
+    if (box.get('dnd_all_day', defaultValue: false) == true) return true; // 24시간 항상
     final start = (box.get('dnd_start_min', defaultValue: 1380) as int?) ?? 1380;
     final end = (box.get('dnd_end_min', defaultValue: 420) as int?) ?? 420;
     if (start == end) return false;
