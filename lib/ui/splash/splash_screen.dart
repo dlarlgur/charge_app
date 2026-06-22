@@ -82,38 +82,39 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       unawaited(SplashAdCache.clear());
     }
 
+    // 캐시 스플래시 광고를 띄웠다면 이후 maintenance/update/네비게이션은 _afterAdOrSkip
+    // 한 곳에서 일괄 처리한다. (메인 경로가 광고 위로 다이얼로그를 이중 노출하거나,
+    //  반대로 광고 경로가 강제업뎃 게이트를 건너뛰던 문제 방지)
+    if (_adShownFromCache) return;
+
     if (result?.maintenance != null) {
       _showMaintenance(result!.maintenance!);
       return;
     }
-
-    if (result != null &&
-        (result.update.forceUpdate || result.update.optionalUpdate)) {
-      FlutterNativeSplash.remove();
-      if (result.update.forceUpdate) {
-        // 강제 업데이트 = 우리 커스텀 팝업 우선(브랜드 통일·홈 진입 차단).
-        // 구글 네이티브 즉시업데이트는 띄우지 않음(그게 커스텀 팝업을 가렸음).
-        await UpdateDialog.showIfNeeded(context, result.update);
-        return; // 강제면 홈으로 넘어가지 않음 (팝업 non-dismissible)
-      }
-      // 선택 업데이트: 구글 flexible 시도 → 안 되면 커스텀 안내.
-      final native = await AppUpdater.tryFlexibleUpdate();
-      if (!mounted) return;
-      if (native != InAppUpdateResult.started) {
-        await UpdateDialog.showIfNeeded(context, result.update);
-        if (!mounted) return;
-      }
-    }
-
+    if (result != null && await _handleUpdateGate(result)) return; // 강제면 홈 진입 차단
     if (!mounted) return;
-
-    // 광고를 캐시로 이미 보여줬다면 SplashAdScreen 의 displayMs 만료까지
-    // 후속 네비게이션은 _afterAdOrSkip 에서 일어남.
-    if (_adShownFromCache) return;
 
     // 캐시 없을 때(첫 실행 등): 광고 스킵, 바로 다음 화면.
     _removeNativeSplashNextFrame();
     _navigateNext();
+  }
+
+  /// 강제/선택 업데이트 처리(메인·광고 경로 공용).
+  /// 강제 → 커스텀 팝업으로 홈 진입 차단(true). 선택 → 구글 flexible 시도 후 안 되면
+  /// 커스텀 안내(차단 아님, false). 구글 네이티브 즉시업데이트는 쓰지 않음(커스텀 팝업을 가렸음).
+  Future<bool> _handleUpdateGate(BootstrapResult result) async {
+    if (!(result.update.forceUpdate || result.update.optionalUpdate)) return false;
+    FlutterNativeSplash.remove();
+    if (result.update.forceUpdate) {
+      await UpdateDialog.showIfNeeded(context, result.update);
+      return true;
+    }
+    final native = await AppUpdater.tryFlexibleUpdate();
+    if (!mounted) return false;
+    if (native != InAppUpdateResult.started) {
+      await UpdateDialog.showIfNeeded(context, result.update);
+    }
+    return false;
   }
 
   // 캐시 광고가 닫힌 뒤 호출. bootstrap 이 아직이면 기다렸다가 점검 여부를 먼저 확인한다.
@@ -126,6 +127,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       _showMaintenance(result!.maintenance!);
       return;
     }
+    // 강제업뎃 게이트 — 캐시 스플래시 광고 경로에서도 반드시 거쳐야 함(놓치던 버그).
+    if (result != null && await _handleUpdateGate(result)) return; // 강제면 홈 진입 차단
+    if (!mounted) return;
     _navigateNext();
   }
 
