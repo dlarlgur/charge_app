@@ -338,8 +338,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     }
   }
 
-  // 차량 프로필 currentLevelPercent / targetMode / targetValue 저장
-  void _saveVehicleLevel(Box box, {required double level, required String mode, double? price}) {
+  // 차량 프로필 currentLevelPercent / targetMode / targetValue / targetChargePercent 저장
+  void _saveVehicleLevel(Box box, {required double level, required String mode, double? price, double? targetChargePercent}) {
     final rawVehicles = box.get(AppConstants.keyAiVehicles);
     final selectedId = box.get(AppConstants.keyAiSelectedVehicleId) as String?;
     if (rawVehicles == null || selectedId == null) return;
@@ -352,6 +352,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         currentLevelPercent: level,
         targetMode: mode,
         targetValue: price ?? all[idx].targetValue,
+        targetChargePercent: targetChargePercent ?? all[idx].targetChargePercent,
       );
       box.put(AppConstants.keyAiVehicles, jsonEncode(all.map((v) => v.toJson()).toList()));
       mirrorAiVehiclesToServer(); // 로그인 회원이면 서버 미러
@@ -2709,6 +2710,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'batteryPercent': selectedVehicle.currentLevelPercent,
         'batteryCapacityKwh': selectedVehicle.batteryCapacity,
         'efficiencyKmPerKwh': selectedVehicle.evEfficiency,
+        'targetSocPercent': selectedVehicle.targetChargePercent, // 목표 충전 %
         'chargerType': _evChargerType,
         'originLat': startLat,
         'originLng': startLng,
@@ -2904,6 +2906,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'batteryPercent': selectedVehicle.currentLevelPercent,
         'batteryCapacityKwh': selectedVehicle.batteryCapacity,
         'efficiencyKmPerKwh': selectedVehicle.evEfficiency,
+        'targetSocPercent': selectedVehicle.targetChargePercent, // 목표 충전 %
         'chargerType': _evChargerType,
         'originLat': startLat,
         'originLng': startLng,
@@ -3691,7 +3694,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     }
   }
 
-  void _showLevelEditSheet({bool isEv = false, required double capacity, required double efficiency}) {
+  void _showLevelEditSheet({bool isEv = false, required double capacity, required double efficiency, double targetChargePercent = 80.0}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
@@ -3708,7 +3711,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         isEv: isEv,
         capacity: capacity,     // 선택 차량 용량(가스 L / EV kWh)
         efficiency: efficiency, // 선택 차량 효율(가스 km/L / EV km/kWh)
-        onSave: (level, mode) {
+        initialTargetChargePercent: targetChargePercent, // EV 목표 충전 %
+        onSave: (level, mode, targetCharge) {
           setState(() { _currentLevelPercent = level; _targetMode = mode; });
           final box = Hive.box(AppConstants.settingsBox);
           // 목표값(금액/리터)도 프로필에 저장 — 안 그러면 차량정보 화면에 목표가 반영 안 됨
@@ -3719,7 +3723,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           } else if (mode == 'LITER') {
             targetValue = double.tryParse(_literController.text.replaceAll(',', '.'));
           }
-          _saveVehicleLevel(box, level: level, mode: mode, price: targetValue);
+          _saveVehicleLevel(box, level: level, mode: mode, price: targetValue,
+              targetChargePercent: isEv ? targetCharge : null);
           // 글로벌 fallback도 유지
           box.put(AppConstants.keyAiCurrentLevelPercent, level);
           box.put(AppConstants.keyAiTargetMode, mode);
@@ -4328,6 +4333,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           efficiency: isEvVehicle
                               ? (selectedVehicle?.evEfficiency ?? efficiency)
                               : efficiency,
+                          targetChargePercent:
+                              selectedVehicle?.targetChargePercent ?? 80.0,
                         ),
                         // 편집 아이콘 → 현재 차량 setup(편집) 화면 직접 진입.
                         // 차량 미등록(selectedVehicle==null) 시에만 신규 추가 모드로.

@@ -9,12 +9,14 @@ class LevelEditSheet extends StatefulWidget {
   final String initialMode;
   final TextEditingController priceController;
   final TextEditingController literController;
-  final void Function(double level, String mode) onSave;
+  final void Function(double level, String mode, double targetChargePercent) onSave;
   final bool isEv;
   /// 선택 차량 용량(가스 L / EV kWh)·효율(가스 km/L / EV km/kWh).
   /// 주행가능거리 → % 환산에 사용 (글로벌 키 대신 선택 차량 기준 — EV/다차량 꼬임 방지).
   final double capacity;
   final double efficiency;
+  /// EV 목표 충전 % (기본 80). 가스는 미사용.
+  final double initialTargetChargePercent;
 
   const LevelEditSheet({
     super.key,
@@ -26,6 +28,7 @@ class LevelEditSheet extends StatefulWidget {
     this.isEv = false,
     this.capacity = 55.0,
     this.efficiency = 12.5,
+    this.initialTargetChargePercent = 80.0,
   });
 
   @override
@@ -35,6 +38,7 @@ class LevelEditSheet extends StatefulWidget {
 class _LevelEditSheetState extends State<LevelEditSheet> {
   late double _level;
   late String _mode;
+  late double _targetChargePercent;
   bool _useDte = false;
   final _dteController = TextEditingController();
   String? _dteError;
@@ -44,6 +48,7 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
     super.initState();
     _level = widget.initialLevel;
     _mode = widget.initialMode;
+    _targetChargePercent = widget.initialTargetChargePercent;
   }
 
   @override
@@ -191,6 +196,42 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                   ],
                 ),
               ],
+              if (widget.isEv) ...[
+                const SizedBox(height: 18),
+                const Text('목표 충전',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF999999))),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          activeTrackColor: kPrimary,
+                          inactiveTrackColor: const Color(0xFFF0F0F0),
+                          thumbColor: kPrimary,
+                          overlayColor: kPrimary.withValues(alpha: 0.12),
+                          trackHeight: 8,
+                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+                        ),
+                        child: Slider(
+                          value: _targetChargePercent.clamp(0, 100),
+                          min: 0, max: 100, divisions: 100,
+                          onChanged: (v) => setState(() => _targetChargePercent = v),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 44,
+                      child: Text('${_targetChargePercent.toStringAsFixed(0)}%',
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: kPrimary)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                const Text('이 충전량까지 채우는 기준으로 추천해요.',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF888888))),
+              ],
               if (!widget.isEv) ...[
               const SizedBox(height: 16),
               const Text('목표 주유',
@@ -249,7 +290,7 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: () => widget.onSave(_level, _mode),
+                  onPressed: () => widget.onSave(_level, _mode, _targetChargePercent),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kPrimary,
                     foregroundColor: Colors.white,
