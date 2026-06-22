@@ -32,7 +32,7 @@ class RouteCard extends StatelessWidget {
     final usingGps = originName == null;
     final originLabel = originName ?? currentLocationAddress ?? '현재 위치';
 
-    final cardBg = isDark ? AppColors.darkCard : Colors.white;
+    final cardBg = isDark ? AppColors.darkMapOverlay : Colors.white; // 지도 위 → 불투명
     final dotLineColor = isDark ? AppColors.darkCardBorder : const Color(0xFFEEEEEE);
     final dividerColor = isDark ? AppColors.darkCardBorder : const Color(0xFFF0F0F0);
     final primaryText = isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a);

@@ -45,7 +45,7 @@ class HeroCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : Colors.white,
+        color: isDark ? AppColors.darkMapOverlay : Colors.white,
         borderRadius: BorderRadius.circular(22),
         border: isDark ? Border.all(color: AppColors.darkCardBorder, width: 1) : null,
         boxShadow: [

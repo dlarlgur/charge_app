@@ -15,6 +15,8 @@ class AppColors {
   static const darkBg = Color(0xFF0C0E13);
   // 카드: 흰색 7% 알파 (이전 3% → 7% 로 살짝 lift, OLED 가독성 ↑)
   static const darkCard = Color(0x12FFFFFF);
+  // 지도 위 오버레이 카드 — 반투명 darkCard 는 지도가 비쳐 묻히므로 '불투명' 색 사용.
+  static const darkMapOverlay = Color(0xFF1A1F2A);
   // 보더: 흰색 14% 알파 (이전 8% → 14%, 카드 경계 명확)
   static const darkCardBorder = Color(0x24FFFFFF);
   static const darkTextPrimary = Color(0xFFF1F5F9);

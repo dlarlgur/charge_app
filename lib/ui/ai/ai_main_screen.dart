@@ -1036,7 +1036,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           decoration: BoxDecoration(
-            color: isDark ? AppColors.darkCard : Colors.white,
+            color: isDark ? AppColors.darkMapOverlay : Colors.white,
             borderRadius: BorderRadius.circular(99),
             boxShadow: [
               BoxShadow(
@@ -1068,7 +1068,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = isEv ? const Color(0xFF10B981) : const Color(0xFF3B82F6);
-    final bg = isDark ? AppColors.darkCard : Colors.white;
+    final bg = isDark ? AppColors.darkMapOverlay : Colors.white;
     final ink = isDark ? AppColors.darkTextPrimary : const Color(0xFF0F172A);
     final muted = isDark ? AppColors.darkTextMuted : const Color(0xFF64748B);
     return GestureDetector(
@@ -3002,7 +3002,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         decoration: BoxDecoration(
           color: (_isLocating || _isAtMyLocation)
               ? kPrimary
-              : (isDark ? AppColors.darkCard : Colors.white),
+              : (isDark ? AppColors.darkMapOverlay : Colors.white),
           shape: BoxShape.circle,
           border: isDark && !(_isLocating || _isAtMyLocation)
               ? Border.all(color: AppColors.darkCardBorder, width: 1)
@@ -4031,7 +4031,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
                     decoration: BoxDecoration(
-                      color: isDark ? AppColors.darkCard : Colors.white,
+                      color: isDark ? AppColors.darkMapOverlay : Colors.white,
                       borderRadius: BorderRadius.circular(14),
                       border: isDark ? Border.all(color: AppColors.darkCardBorder, width: 1) : null,
                       boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 12)],
@@ -4069,7 +4069,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                   child: Container(
                     padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
                     decoration: BoxDecoration(
-                      color: isDark ? AppColors.darkCard : Colors.white,
+                      color: isDark ? AppColors.darkMapOverlay : Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: isDark ? Border.all(color: AppColors.darkCardBorder, width: 1) : null,
                       boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 16)],
@@ -4163,7 +4163,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                               height: 46,
                               padding: const EdgeInsets.all(4),
                               decoration: BoxDecoration(
-                                color: isDark ? AppColors.darkCard : Colors.white,
+                                color: isDark ? AppColors.darkMapOverlay : Colors.white,
                                 borderRadius: BorderRadius.circular(14),
                                 border: isDark ? Border.all(color: AppColors.darkCardBorder, width: 1) : null,
                                 boxShadow: [
@@ -4208,7 +4208,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             child: Container(
                               width: 42, height: 42,
                               decoration: BoxDecoration(
-                                color: isDark ? AppColors.darkCard : Colors.white,
+                                color: isDark ? AppColors.darkMapOverlay : Colors.white,
                                 borderRadius: BorderRadius.circular(11),
                                 border: isDark ? Border.all(color: AppColors.darkCardBorder, width: 1) : null,
                                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8)],
@@ -4474,7 +4474,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                         child: Container(
                           width: 38, height: 38,
                           decoration: BoxDecoration(
-                            color: isDark ? AppColors.darkCard : Colors.white,
+                            color: isDark ? AppColors.darkMapOverlay : Colors.white,
                             shape: BoxShape.circle,
                             border: isDark ? Border.all(color: AppColors.darkCardBorder, width: 1) : null,
                             boxShadow: [BoxShadow(
@@ -4494,7 +4494,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 14, vertical: 9),
                           decoration: BoxDecoration(
-                            color: isDark ? AppColors.darkCard : Colors.white,
+                            color: isDark ? AppColors.darkMapOverlay : Colors.white,
                             borderRadius: BorderRadius.circular(12),
                             border: isDark ? Border.all(color: AppColors.darkCardBorder, width: 1) : null,
                             boxShadow: [BoxShadow(
@@ -4622,7 +4622,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                   decoration: BoxDecoration(
                     color: (_isLocating || _isAtMyLocation)
                         ? kPrimary
-                        : (isDark ? AppColors.darkCard : Colors.white),
+                        : (isDark ? AppColors.darkMapOverlay : Colors.white),
                     shape: BoxShape.circle,
                     border: isDark && !(_isLocating || _isAtMyLocation)
                         ? Border.all(color: AppColors.darkCardBorder, width: 1)
@@ -4701,7 +4701,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                       decoration: BoxDecoration(
-                        color: isDark ? AppColors.darkCard : Colors.white,
+                        color: isDark ? AppColors.darkMapOverlay : Colors.white,
                         borderRadius: BorderRadius.circular(12),
                         border: isDark ? Border.all(color: AppColors.darkCardBorder, width: 1) : null,
                         boxShadow: [
@@ -4750,7 +4750,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                       decoration: BoxDecoration(
-                        color: isDark ? AppColors.darkCard : Colors.white,
+                        color: isDark ? AppColors.darkMapOverlay : Colors.white,
                         borderRadius: BorderRadius.circular(12),
                         border: isDark ? Border.all(color: AppColors.darkCardBorder, width: 1) : null,
                         boxShadow: [
