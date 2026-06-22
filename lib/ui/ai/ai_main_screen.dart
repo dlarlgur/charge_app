@@ -3680,7 +3680,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           content: const Text(
             '한 번 더 누르시면 종료됩니다.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.white),
           ),
           duration: const Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
