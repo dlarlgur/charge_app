@@ -904,6 +904,13 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
               _priceRow('회원', AppColors.evGreen,
                   s.unitPriceFastMember, s.unitPriceSlowMember, isDark),
             ],
+            const SizedBox(height: 10),
+            Text(
+              '실제 충전소 요금과 다를 수 있습니다',
+              style: TextStyle(
+                  fontSize: 11,
+                  color: isDark ? AppColors.darkTextMuted : Colors.black45),
+            ),
           ],
         ],
       ),

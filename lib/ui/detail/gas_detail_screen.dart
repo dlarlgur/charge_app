@@ -854,21 +854,31 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
           ),
           // 데이터 출처 표기 (한국석유공사 오피넷)
           const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text.rich(
-              TextSpan(
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: isDark ? AppColors.darkTextMuted : _kMute2),
-                children: const [
-                  TextSpan(text: '한국석유공사 '),
-                  TextSpan(text: '오피넷', style: TextStyle(fontWeight: FontWeight.w800)),
-                  TextSpan(text: ' 제공'),
-                ],
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '실제 주유소 가격과 다를 수 있습니다',
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: isDark ? AppColors.darkTextMuted : _kMute2),
+                ),
               ),
-            ),
+              const SizedBox(width: 8),
+              Text.rich(
+                TextSpan(
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: isDark ? AppColors.darkTextMuted : _kMute2),
+                  children: const [
+                    TextSpan(text: '한국석유공사 '),
+                    TextSpan(text: '오피넷', style: TextStyle(fontWeight: FontWeight.w800)),
+                    TextSpan(text: ' 제공'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
