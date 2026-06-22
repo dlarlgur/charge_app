@@ -5,6 +5,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:dksw_app_core/dksw_app_core.dart';
 import '../../core/utils/navigation_util.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/models.dart';
@@ -360,8 +361,15 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
         slivers: [
           if (widget.sheetMode) SliverToBoxAdapter(child: _dragHandle(isDark)),
           SliverToBoxAdapter(child: _headerCard(name, brand, d, isDark)),
-          // 상단 카드 바로 아래 네이티브 광고 (로드 전/실패 시 높이 0).
-          const SliverToBoxAdapter(child: StationDetailNativeAd()),
+          // 상단 카드 바로 아래 광고 — 콘솔(placement=station_detail) house ad 우선,
+          // 없으면 AdMob 네이티브 폴백 (로드 전/실패 시 높이 0).
+          const SliverToBoxAdapter(
+            child: DkswTopBanner(
+              placement: 'station_detail',
+              margin: EdgeInsets.fromLTRB(16, 4, 16, 8),
+              admobFallback: StationDetailNativeAd(),
+            ),
+          ),
           SliverPersistentHeader(
             pinned: true,
             delegate: _GasTabsDelegate(
