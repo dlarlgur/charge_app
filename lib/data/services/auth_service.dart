@@ -146,7 +146,11 @@ class AuthService {
   }
 
   /// 회원가입 완료 화면에서 닉네임/이메일/연령대 저장.
+  /// updateProfile 최근 실패 사유 코드 (서버 error 필드: no_phone/invalid_nickname 등).
+  static String? lastProfileError;
+
   static Future<AuthUser?> updateProfile({String? nickname, String? email, String? ageGroup}) async {
+    lastProfileError = null;
     final access = await _storage.read(key: _kAccess);
     if (access == null) return null;
     try {
@@ -161,6 +165,11 @@ class AuthService {
       );
       if (res.data['ok'] == true) {
         return AuthUser.fromJson(Map<String, dynamic>.from(res.data['user'] as Map));
+      }
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      if (data is Map && data['error'] is String) {
+        lastProfileError = data['error'] as String;
       }
     } catch (_) {}
     return null;

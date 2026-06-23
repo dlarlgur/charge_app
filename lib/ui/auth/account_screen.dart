@@ -185,7 +185,13 @@ Future<void> _editNickname(BuildContext context, WidgetRef ref, AuthUser user) a
     ref.read(authProvider.notifier).setUser(updated);
     showAppToast(context, '닉네임을 변경했어요.');
   } else {
-    showAppToast(context, '변경에 실패했어요. 다시 시도해주세요.', isError: true);
+    final code = AuthService.lastProfileError;
+    final msg = code == 'no_phone'
+        ? '닉네임에 전화번호는 넣을 수 없어요.'
+        : code == 'invalid_nickname'
+            ? '닉네임엔 특수문자·기호를 쓸 수 없어요.'
+            : '변경에 실패했어요. 다시 시도해주세요.';
+    showAppToast(context, msg, isError: true);
   }
 }
 
