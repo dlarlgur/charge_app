@@ -2,22 +2,34 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 
-/// 평점 요청 다이얼로그 (전기차 기름차 톤 — gasBlue 액센트, 다크모드 대응).
+/// 만족도 게이트 다이얼로그 (전기차 기름차 톤 — gasBlue 액센트, 다크모드 대응).
+/// 👍 좋아요 → [onPositive](스토어 별점) / 👎 아쉬워요 → [onNegative](1:1 문의).
 class RatingDialog extends StatelessWidget {
-  final Future<void> Function() onConfirm;
+  final Future<void> Function() onPositive;
+  final VoidCallback onNegative;
   final VoidCallback? onLater;
 
-  const RatingDialog({super.key, required this.onConfirm, this.onLater});
+  const RatingDialog({
+    super.key,
+    required this.onPositive,
+    required this.onNegative,
+    this.onLater,
+  });
 
   static Future<void> show({
     required BuildContext context,
-    required Future<void> Function() onConfirm,
+    required Future<void> Function() onPositive,
+    required VoidCallback onNegative,
     VoidCallback? onLater,
   }) {
     return showDialog(
       context: context,
       barrierDismissible: true,
-      builder: (_) => RatingDialog(onConfirm: onConfirm, onLater: onLater),
+      builder: (_) => RatingDialog(
+        onPositive: onPositive,
+        onNegative: onNegative,
+        onLater: onLater,
+      ),
     );
   }
 
@@ -90,7 +102,7 @@ class RatingDialog extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             Text(
-              '전기차 기름차가 마음에 드시나요?',
+              '전기차 기름차, 써보니 어떠세요?',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 17,
@@ -101,7 +113,7 @@ class RatingDialog extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              '평점 한 번이면 저희에게\n정말 큰 힘이 됩니다 🙏',
+              '솔직한 의견 한마디가\n저희에게 큰 힘이 됩니다 🙏',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
@@ -115,25 +127,25 @@ class RatingDialog extends StatelessWidget {
               children: [
                 Expanded(
                   child: _Btn(
-                    label: '나중에',
+                    label: '아쉬워요',
                     bg: Colors.transparent,
                     fg: textSecondary,
                     border: border,
                     onTap: () async {
                       Navigator.of(context).pop();
-                      onLater?.call();
+                      onNegative();
                     },
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: _Btn(
-                    label: '평점 남기기',
+                    label: '좋아요 👍',
                     bg: AppColors.gasBlue,
                     fg: Colors.white,
                     onTap: () async {
                       Navigator.of(context).pop();
-                      await onConfirm();
+                      await onPositive();
                     },
                   ),
                 ),

@@ -68,9 +68,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     AlertService().refreshToken();
     WatchService().restore();
 
-    // 앱 진입 시 평점 안내(2번째 진입부터·하루 1회). 첫 프레임 후 호출.
+    // 앱 진입 시 만족도 게이트(2번째 진입부터·백오프 7/30일·평생 3회). 첫 프레임 후.
+    // 👎(아쉬워요) → 공개 별점 대신 1:1 문의로 유도(불만 비공개 수집).
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) RatingPromptService.maybeShow(context);
+      if (mounted) {
+        RatingPromptService.maybeShow(
+          context,
+          onNegativeFeedback: () {
+            if (mounted) context.push('/inquiry');
+          },
+        );
+      }
     });
 
     // 로컬 알림 "상세보기" 액션 탭 → 알림 페이지로 이동

@@ -38,6 +38,7 @@ import 'ai_vehicle_setup_screen.dart';
 import 'ev_result_screen.dart';
 import '../widgets/gas_station_map_badge.dart';
 import 'ai_constants.dart';
+import '../../data/services/rating_prompt_service.dart';
 
 
 class AiMainScreen extends ConsumerStatefulWidget {
@@ -2756,6 +2757,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             icon: Icons.schedule_rounded, title: '오늘은 여기까지!', message: rl, primaryLabel: '확인');
       } else {
         setState(() => _errorMessage = '충전소 추천에 실패했습니다. 다시 시도해 주세요.');
+        unawaited(RatingPromptService.markNegativeSignal()); // 짜증 직후 평점 안내 스킵
       }
     } finally {
       if (mounted) setState(() => _aiAnalyzing = false);
@@ -2924,6 +2926,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
       if (candidates.isEmpty) {
         setState(() => _errorMessage = '경로 내 이용 가능한 충전소가 없어요.');
+        unawaited(RatingPromptService.markNegativeSignal());
         return;
       }
 
@@ -3189,6 +3192,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       final stations = data['stations'] is List ? data['stations'] as List : [];
       if (stations.isEmpty) {
         setState(() => _userSelecting = false);
+        unawaited(RatingPromptService.markNegativeSignal());
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('경로상 주유소를 찾을 수 없습니다.'), behavior: SnackBarBehavior.floating),
