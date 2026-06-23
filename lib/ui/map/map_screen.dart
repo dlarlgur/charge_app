@@ -19,6 +19,7 @@ import '../detail/gas_detail_screen.dart';
 import '../filter/ev_filter_sheet.dart';
 import '../filter/gas_filter_sheet.dart';
 import '../widgets/gas_station_map_badge.dart';
+import '../widgets/shared_widgets.dart';
 
 // HomeScreen의 PopScope가 시트 닫기와 앱종료 토스트를 동시에 띄우는 걸 막기 위한 플래그
 final ValueNotifier<bool> mapSheetOpen = ValueNotifier(false);
@@ -61,6 +62,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   bool _isAtMyLocation = false;
   bool _suppressCameraChange = false;
   DraggableScrollableController? _sheetController;
+
+  // ─── 이 지역 목록 시트 ───
+  // 상세/클러스터 시트(_sheetController)와 별개의 컨트롤러 — 두 시트가 동시에
+  // 안 뜨므로 충돌 없음. 정렬 토글은 로컬 state.
+  final DraggableScrollableController _listSheetController =
+      DraggableScrollableController();
+  // 정렬: true=가격순, false=거리순. 기본값은 vehicleType 따라 _resetListSort 에서 결정.
+  bool _listSortByPrice = true;
+  bool _listSortInitialized = false;
 
   // 검색
   bool _isSearchMode = false;
@@ -132,7 +142,17 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _searchDebounce?.cancel();
     _searchController.dispose();
     _sheetController?.dispose();
+    _listSheetController.dispose();
     super.dispose();
+  }
+
+  /// 목록 시트 정렬 기본값 — 주유=가격순, 충전=거리순. 둘 다 보이면 주유 기준(가격순).
+  /// 첫 1회만 vehicleType 기준으로 세팅하고, 이후엔 사용자 토글 유지.
+  void _ensureListSortDefault() {
+    if (_listSortInitialized) return;
+    _listSortInitialized = true;
+    // 충전만 보이는 모드면 거리순, 그 외(주유 포함)는 가격순.
+    _listSortByPrice = !(_showEv && !_showGas);
   }
 
   void _selectStation(dynamic station) {
@@ -642,7 +662,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           // ─── 현재 위치 버튼 ───
           Positioned(
             right: 16,
-            bottom: MediaQuery.of(context).padding.bottom + (_selectedStation != null ? 200 : 24),
+            // 목록 시트 peek(~0.12) 위로 올려 가리지 않게. 상세 시트 떠 있으면 더 높게.
+            bottom: MediaQuery.of(context).padding.bottom +
+                (_selectedStation != null
+                    ? 200
+                    : (_selectedCluster == null && !_isSearchMode
+                        ? MediaQuery.of(context).size.height * 0.12 + 20
+                        : 24)),
             child: GestureDetector(
               onTap: _moveToMyLocation,
               child: AnimatedContainer(
@@ -670,6 +696,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               ),
             ),
           ),
+
+          // ─── 이 지역 목록 시트 ───
+          // 상세 시트/클러스터 시트가 떠 있지 않을 때만 — 겹침 방지.
+          // 검색 모드 중엔 상단 결과 패널에 집중하도록 숨김.
+          if (_selectedStation == null &&
+              _selectedCluster == null &&
+              !_isSearchMode)
+            _buildAreaListSheet(isDark, vehicleType),
 
           // ─── 하단 상세 시트 ───
           if (_selectedCluster != null && _sheetController != null)
@@ -1615,6 +1649,276 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         );
       },
     );
+  }
+
+  // ─── 이 지역 목록 시트 (지금 지도에 보이는 주유/충전소) ───
+  // mapGas/EvStationsProvider 는 지도 영역·필터까지 이미 적용된 리스트.
+  // 지도 이동 시 자동 재조회되므로 별도 '재검색' 버튼 없이 갱신됨.
+  static const double _listPeek = 0.12;
+  static const double _listMid = 0.45;
+  static const double _listFull = 0.9;
+
+  Widget _buildAreaListSheet(bool isDark, VehicleType vehicleType) {
+    _ensureListSortDefault();
+    final bg = isDark ? AppColors.darkMapOverlay : Colors.white;
+    final handleColor =
+        isDark ? AppColors.darkCardBorder : const Color(0xFFD0D5DA);
+
+    // 어떤 종류를 보여줄지 — 기존 _showGas/_showEv 로직 그대로.
+    final gasAsync = ref.watch(mapGasStationsProvider);
+    final evAsync = ref.watch(mapEvStationsProvider);
+    final showGasList = _showGas && vehicleType != VehicleType.ev;
+    final showEvList = _showEv && vehicleType != VehicleType.gas;
+
+    final loading = (showGasList && gasAsync.isLoading) ||
+        (showEvList && evAsync.isLoading);
+
+    // 표시 대상 합치기 (둘 다 켜진 both 모드면 가스+EV 함께).
+    final gasList = showGasList ? (gasAsync.valueOrNull ?? const <GasStation>[]) : const <GasStation>[];
+    final evList = showEvList ? (evAsync.valueOrNull ?? const <EvStation>[]) : const <EvStation>[];
+    final items = <dynamic>[...gasList, ...evList];
+    _sortAreaItems(items);
+    final count = items.length;
+
+    return DraggableScrollableSheet(
+      controller: _listSheetController,
+      initialChildSize: _listPeek,
+      minChildSize: _listPeek,
+      maxChildSize: _listFull,
+      snap: true,
+      snapSizes: const [_listPeek, _listMid, _listFull],
+      builder: (ctx, scrollCtrl) {
+        return Material(
+          color: bg,
+          elevation: 12,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              // drag handle — 시트 전체 영역에서 드래그 되도록 헤더는 ListView 밖.
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                width: 36, height: 4,
+                decoration: BoxDecoration(
+                  color: handleColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 8),
+              _buildAreaListHeader(isDark, count, showGasList, showEvList),
+              const SizedBox(height: 4),
+              Divider(
+                height: 1, thickness: 0.5,
+                color: isDark ? AppColors.darkCardBorder : const Color(0xFFEEEEEE),
+              ),
+              Expanded(
+                child: loading
+                    ? const Center(
+                        child: SizedBox(
+                          width: 22, height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2.2),
+                        ),
+                      )
+                    : items.isEmpty
+                        ? ListView(
+                            // 빈 상태에서도 시트를 드래그할 수 있게 스크롤 가능 영역 유지.
+                            controller: scrollCtrl,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 24, vertical: 48),
+                                child: Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.location_off_rounded,
+                                          size: 32,
+                                          color: isDark
+                                              ? AppColors.darkTextMuted
+                                              : AppColors.lightTextMuted),
+                                      const SizedBox(height: 10),
+                                      Text('이 지역에 표시할 곳이 없어요',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: isDark
+                                                ? AppColors.darkTextSecondary
+                                                : AppColors.lightTextSecondary,
+                                          )),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : ListView.builder(
+                            controller: scrollCtrl,
+                            padding: EdgeInsets.fromLTRB(
+                                0, 6, 0,
+                                MediaQuery.of(context).padding.bottom + 12),
+                            itemCount: items.length,
+                            itemBuilder: (_, i) => _buildAreaListCard(items[i]),
+                          ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAreaListHeader(
+      bool isDark, int count, bool showGasList, bool showEvList) {
+    // 정렬 칩은 가스가 있을 때만 가격순이 의미 있음. EV 전용이면 회원/비회원 가격이
+    // 카드 sortMode 에 따르므로 여기선 가격/거리 토글만 제공(공통).
+    final primary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Text('이 지역 $count곳',
+              style: TextStyle(
+                fontSize: 14, fontWeight: FontWeight.w700, color: primary,
+              )),
+          const Spacer(),
+          _buildSortChip('가격순', _listSortByPrice, isDark, () {
+            if (!_listSortByPrice) setState(() => _listSortByPrice = true);
+          }),
+          const SizedBox(width: 6),
+          _buildSortChip('거리순', !_listSortByPrice, isDark, () {
+            if (_listSortByPrice) setState(() => _listSortByPrice = false);
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSortChip(String label, bool active, bool isDark, VoidCallback onTap) {
+    final activeColor = AppColors.gasBlue;
+    final fg = active
+        ? Colors.white
+        : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary);
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: active
+              ? activeColor
+              : (isDark ? AppColors.darkCard : const Color(0xFFF1F3F6)),
+          borderRadius: BorderRadius.circular(16),
+          border: active
+              ? null
+              : Border.all(
+                  color: isDark
+                      ? AppColors.darkCardBorder
+                      : const Color(0xFFE0E4EA),
+                  width: 0.8),
+        ),
+        child: Text(label,
+            style: TextStyle(
+              fontSize: 12, fontWeight: FontWeight.w700, color: fg,
+            )),
+      ),
+    );
+  }
+
+  /// 카드 탭 공통 흐름 — 마커 탭과 동일: 카메라 이동(중앙) + 마커 강조 + 상세 진입.
+  /// 시트는 mid 로 살짝 내려 지도/마커가 보이게 함.
+  Future<void> _onAreaListTap(dynamic s) async {
+    // 시트를 중간 스냅으로 내려 지도+강조 마커가 보이도록.
+    if (_listSheetController.isAttached &&
+        _listSheetController.size > _listMid + 0.02) {
+      _listSheetController.animateTo(
+        _listMid,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+      );
+    }
+    final controller = _mapController;
+    final prev = _selectedStation;
+    await _restoreMarkerIcon(prev, _lastMinGasPrice);
+    if (controller != null) {
+      final lat = s is GasStation ? s.lat : (s as EvStation).lat;
+      final lng = s is GasStation ? s.lng : (s as EvStation).lng;
+      _suppressCameraChange = true;
+      await controller.updateCamera(
+        NCameraUpdate.scrollAndZoomTo(
+          target: NLatLng(lat, lng),
+          zoom: 16,
+        )..setAnimation(
+            animation: NCameraAnimation.easing,
+            duration: const Duration(milliseconds: 300)),
+      );
+      Future.delayed(const Duration(milliseconds: 650),
+          () => _suppressCameraChange = false);
+    }
+    if (!mounted) return;
+    // 마커 강조 + 상세 시트 진입 (마커 탭 흐름 재사용).
+    if (s is GasStation) {
+      final markerId = 'gas_${s.id}';
+      final displayName = StationAliasService.resolveGas(s.id, s.name);
+      _selectStation(s);
+      await _highlightMarker(markerId, s.priceText,
+          brand: s.brand, stationName: displayName);
+    } else if (s is EvStation) {
+      final markerId = 'ev_${s.statId}';
+      final label = s.isTesla ? 'Tesla' : '${s.availableCount}/${s.totalCount}';
+      _selectStation(s);
+      await _highlightMarker(markerId, label, isEv: true);
+    }
+  }
+
+  Widget _buildAreaListCard(dynamic s) {
+    if (s is GasStation) {
+      return GasStationCard(
+        key: ValueKey('arealist_gas_${s.id}'),
+        station: s,
+        onTap: () => _onAreaListTap(s),
+      );
+    }
+    if (s is EvStation) {
+      return EvStationCard(
+        key: ValueKey('arealist_ev_${s.statId}'),
+        station: s,
+        onTap: () => _onAreaListTap(s),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  /// 정렬 — 가격순/거리순. EV distance 는 nullable 이라 null 은 뒤로.
+  void _sortAreaItems(List<dynamic> items) {
+    int byPrice(dynamic a, dynamic b) {
+      final pa = _itemPrice(a);
+      final pb = _itemPrice(b);
+      if (pa == null && pb == null) return 0;
+      if (pa == null) return 1;
+      if (pb == null) return -1;
+      return pa.compareTo(pb);
+    }
+    int byDist(dynamic a, dynamic b) {
+      final da = _itemDistance(a);
+      final db = _itemDistance(b);
+      if (da == null && db == null) return 0;
+      if (da == null) return 1;
+      if (db == null) return -1;
+      return da.compareTo(db);
+    }
+    items.sort(_listSortByPrice ? byPrice : byDist);
+  }
+
+  num? _itemPrice(dynamic s) {
+    if (s is GasStation) return s.price;
+    if (s is EvStation) return s.unitPriceFast ?? s.unitPriceSlow;
+    return null;
+  }
+
+  double? _itemDistance(dynamic s) {
+    if (s is GasStation) return s.distance;
+    if (s is EvStation) return s.distance;
+    return null;
   }
 
 }
