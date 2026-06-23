@@ -624,16 +624,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       // 줌 기반 클러스터링 — 줌아웃 시 가까운 마커를 지역별 원(개수)으로 병합,
       // 확대하면 개별 마커로 분리. 렌더 마커 수가 급감해 팬/줌이 부드러워짐.
       clusterOptions: NaverMapClusteringOptions(
-        // 클러스터링은 아주 많이 줌아웃(≤8, 광역)했을 때만. 줌 9+ 에선 개별 마커 그대로.
-        // (13 → 11 → 9 → 8 로 점점 더 늦게 뭉치게 — 마커가 덜 뭉치고 보이게)
-        enableZoomRange: const NInclusiveRange(0, 8),
-        // 화면상 거리 기준 병합. 거리 작게 → 가까운 것만 묶고 덜 뭉침.
+        // 줌 ≤11(시/도~시군구)에선 클러스터로 묶고, 12+ (동네·거리)에선 개별 마커.
+        // (8 로 너무 줄여 일반 줌에서 클러스터가 사라졌던 것 → 11 로 되살림. 원래 13보단 덜 공격적)
+        enableZoomRange: const NInclusiveRange(0, 11),
+        // 화면상 거리 기준 병합.
         mergeStrategy: const NClusterMergeStrategy(
           willMergedScreenDistance: {
-            NInclusiveRange(0, 5): 78,   // 전국 — 크게 묶음
-            NInclusiveRange(6, 8): 44,   // 광역 — 가까운 것만
+            NInclusiveRange(0, 8): 100,   // 광역 — 크게 묶음
+            NInclusiveRange(9, 11): 70,   // 시군구 — 적당히
           },
-          maxMergeableScreenDistance: 48,
+          maxMergeableScreenDistance: 85,
         ),
         clusterMarkerBuilder: _buildClusterMarker,
       ),
@@ -872,7 +872,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         decoration: BoxDecoration(
           color: active ? color : (isDark ? AppColors.darkBg : Colors.white),
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.10), blurRadius: 6, offset: const Offset(0, 2))],
+          boxShadow: [BoxShadow(
+              color: active ? color.withValues(alpha: 0.32) : Colors.black.withValues(alpha: 0.10),
+              blurRadius: active ? 8 : 6, offset: const Offset(0, 2))],
           border: active ? null : Border.all(
               color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder, width: 0.8),
         ),
@@ -1824,7 +1826,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
     // 최소화 높이를 헤더 픽셀 기준으로 환산 — 기종(화면 높이) 달라도 헤더가 안 잘리고
     // 오버플로(BOTTOM OVERFLOWED) 안 나게. 둘 다 모드면 세그먼트 탭만큼 더 확보.
-    final double headerPx = (showGasList && showEvList) ? 136.0 : 78.0;
+    final double headerPx = (showGasList && showEvList) ? 130.0 : 78.0;
     final double screenH = MediaQuery.of(context).size.height;
     _listCollapsed = (headerPx / (screenH <= 0 ? 720.0 : screenH)).clamp(0.12, 0.30);
 
@@ -1987,19 +1989,20 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   // ─── 주유/충전 세그먼트 탭 (둘 다 모드 한정) ───
   Widget _buildTypeSegment(bool isDark, bool tabIsGas) {
-    // 옅은 트랙 위에 선택 탭만 브랜드색으로 꽉 채워 위계를 줌(떠있는 알약 X).
-    final trackColor = isDark ? AppColors.darkCard : const Color(0xFFF1F4F8);
+    // 엣지투엣지 솔리드 — 두 칸을 딱 맞붙여 한 덩어리 바. 선택칸 솔리드 / 비선택칸 옅은 틴트.
+    // 바깥에서 clip 하므로 각 칸은 라운드 없이 자기 절반을 가장자리까지 채움.
     final borderColor =
         isDark ? AppColors.darkCardBorder : const Color(0xFFE3E8EF);
     return Container(
-      height: 52,
-      padding: const EdgeInsets.all(2),
+      height: 46,
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: trackColor,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: borderColor, width: 0.8),
       ),
       child: Row(
+        // stretch — 각 칸이 바 높이까지 세로로 꽉 차게(위아래 흰 띠 제거).
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildSegmentTab('주유', Icons.local_gas_station_rounded,
               AppColors.gasBlue, tabIsGas, isDark, () {
@@ -2016,10 +2019,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   Widget _buildSegmentTab(String label, IconData icon, Color accent,
       bool active, bool isDark, VoidCallback onTap) {
-    // 선택: 브랜드색 채움 + 흰 글씨/아이콘 w700. 비선택: 투명 + muted.
-    final Color fg = active
-        ? Colors.white
-        : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary);
+    // 선택: 브랜드색 솔리드 + 흰 글씨/아이콘 w800. 비선택: 옅은 브랜드 틴트 + 브랜드색 글씨.
+    // → 양쪽 다 색이 차서 빈 회색 없이 꽉 찬 느낌(이전엔 비선택이 투명 회색이라 허전했음).
+    final Color fg = active ? Colors.white : accent;
+    final Color segBg =
+        active ? accent : accent.withValues(alpha: isDark ? 0.22 : 0.12);
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
@@ -2027,19 +2031,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOutCubic,
-          decoration: BoxDecoration(
-            color: active ? accent : null,
-            borderRadius: BorderRadius.circular(13),
-            boxShadow: active
-                ? [
-                    BoxShadow(
-                      color: accent.withValues(alpha: 0.34),
-                      blurRadius: 9,
-                      offset: const Offset(0, 3),
-                    ),
-                  ]
-                : null,
-          ),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(color: segBg),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
