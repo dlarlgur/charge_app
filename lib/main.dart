@@ -22,6 +22,7 @@ import 'core/constants/secrets.dart';
 import 'data/services/admob_warmup.dart';
 import 'data/services/exit_ad_service.dart';
 import 'data/services/alert_service.dart';
+import 'data/services/map_runtime_config.dart';
 import 'data/services/house_ad_service.dart';
 import 'data/services/notification_service.dart';
 import 'data/services/widget_service.dart';
@@ -403,4 +404,6 @@ Future<void> _initBackgroundTasks() async {
   }
   // house ad — 디스크 캐시는 main 에서 이미 install 됨. 여기선 백그라운드 갱신.
   unawaited(HouseAdCache.fetch());
+  // 지도 런타임 설정(클러스터 줌 등) — 원격설정으로 빌드 없이 조정. 지도 열기 전에 미리 받아둠.
+  unawaited(MapRuntimeConfig.fetch());
 }

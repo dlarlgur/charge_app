@@ -12,6 +12,7 @@ import '../../core/theme/app_colors.dart';
 import '../../data/models/models.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/location_service.dart';
+import '../../data/services/map_runtime_config.dart';
 import '../../data/services/station_alias_service.dart';
 import '../../providers/providers.dart';
 import '../detail/ev_detail_screen.dart';
@@ -626,9 +627,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       // 줌 기반 클러스터링 — 줌아웃 시 가까운 마커를 지역별 원(개수)으로 병합,
       // 확대하면 개별 마커로 분리. 렌더 마커 수가 급감해 팬/줌이 부드러워짐.
       clusterOptions: NaverMapClusteringOptions(
-        // 줌 ≤11(시/도~시군구)에선 클러스터로 묶고, 12+ (동네·거리)에선 개별 마커.
-        // (8 로 너무 줄여 일반 줌에서 클러스터가 사라졌던 것 → 11 로 되살림. 원래 13보단 덜 공격적)
-        enableZoomRange: const NInclusiveRange(0, 11),
+        // 줌 ≤N(기본 11)에선 클러스터로 묶고, 그 위(동네·거리)에선 개별 마커.
+        // N(상한)은 원격설정(map.cluster.zoom_max)으로 빌드 없이 조정 — startup 에 받아둔 값.
+        enableZoomRange: NInclusiveRange(0, MapRuntimeConfig.clusterZoomMax),
         // 화면상 거리 기준 병합.
         mergeStrategy: const NClusterMergeStrategy(
           willMergedScreenDistance: {
