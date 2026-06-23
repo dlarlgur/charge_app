@@ -8,7 +8,7 @@ void showAppToast(BuildContext context, String message, {bool isError = false}) 
   messenger.clearSnackBars();
   messenger.showSnackBar(
     SnackBar(
-      content: Text(message),
+      content: Text(message, textAlign: TextAlign.center),
       duration: const Duration(milliseconds: 2200),
       backgroundColor: isError ? const Color(0xFF8A2E2E) : null,
     ),

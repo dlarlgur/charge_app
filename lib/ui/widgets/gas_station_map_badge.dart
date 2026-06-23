@@ -96,7 +96,7 @@ class GasStationMapBadge {
         (showLogo ? logoSize + logoGap : (isEv ? 14.0 + logoGap : 0.0))
         + (unreachable ? warningSize + warningGap : 0.0)
         + textW;
-    final double w = contentW + 18.0;
+    final double w = contentW + 14.0;
     final double h = highlighted ? 30.0 : 26.0;
 
     const double tailW = 12.0;
@@ -109,10 +109,13 @@ class GasStationMapBadge {
         showRecommend ? _medalPill(recommendRank!) : (Colors.transparent, Colors.white);
     final Color pillColor = medal.$1;
     final Color pillTextColor = medal.$2;
-    // 알약을 가격배지 폭(w)에 딱 맞춰 채움 → 좁은 알약이 떠서 생기던 양옆 공백 제거.
+    // 추천 알약 — 텍스트를 딱 감싸는 컴팩트 메달(양옆 여백 최소). 가격배지 폭에 늘리지 않음.
     const double pillH = 16.0;
     const double pillGap = 3.0;
-    final double canvasW = w;
+    final String pillText = showRecommend ? '추천 $recommendRank위' : '';
+    final double pillW = showRecommend ? pillText.length * 9.0 + 14.0 : 0.0;
+    // 알약이 배지보다 넓을 때만 알약 폭을 캔버스 기준으로 (텍스트 잘림 방지).
+    final double canvasW = pillW > w ? pillW : w;
     final double extraTop = showRecommend ? pillH + pillGap : 0.0;
 
     return NOverlayImage.fromWidget(
@@ -124,7 +127,7 @@ class GasStationMapBadge {
         children: [
           if (showRecommend) ...[
             Container(
-              width: w,
+              width: pillW,
               height: pillH,
               alignment: Alignment.center,
               decoration: BoxDecoration(
@@ -139,7 +142,7 @@ class GasStationMapBadge {
                 ],
               ),
               child: Text(
-                '추천 $recommendRank위',
+                pillText,
                 style: TextStyle(
                   fontFamily: 'Pretendard',
                   color: pillTextColor,
