@@ -20,6 +20,8 @@ class HeroCard extends StatelessWidget {
   final VoidCallback onTapVehicle;
   final VoidCallback onToggleHighway;
   final ValueChanged<String>? onChangeChargerMode;
+  /// 카드 상단 안쪽에 얹는 그랩 핸들 — 카드와 한 덩어리로 렌더(배경/그림자 자체엔 없음).
+  final Widget? topHandle;
 
   const HeroCard({
     super.key,
@@ -35,6 +37,7 @@ class HeroCard extends StatelessWidget {
     required this.onTapVehicle,
     required this.onToggleHighway,
     this.onChangeChargerMode,
+    this.topHandle,
   });
 
   @override
@@ -43,7 +46,8 @@ class HeroCard extends StatelessWidget {
     final accent = modeAccent(isEv);
     final accentDeep = modeAccentDeep(isEv);
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+      // 핸들이 카드 안 최상단에 오면 top 패딩을 줄여 핸들이 곧 카드 윗부분이 되게.
+      padding: EdgeInsets.fromLTRB(18, topHandle != null ? 6 : 18, 18, 16),
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkMapOverlay : Colors.white,
         borderRadius: BorderRadius.circular(22),
@@ -59,6 +63,7 @@ class HeroCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (topHandle != null) topHandle!,
           // 1) 상단 row — 게이지 + 차량 정보
           IntrinsicHeight(
             child: Row(

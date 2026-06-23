@@ -53,9 +53,12 @@ class GasStationMapBadge {
   static const Color _unreachableBg = Color(0xFFFFECEC);
   static const Color _unreachableAccent = Color(0xFFD32F2F);
 
-  /// 추천 알약 색 — 1위는 진한 강조, 2·3위는 옅은 톤. 스크린샷 톤(어두운 알약 + 흰 글씨).
-  static const Color _recommendPrimary = Color(0xFF1F2937); // slate-800, 1위
-  static const Color _recommendSecondary = Color(0xFF64748B); // slate-500, 2·3위
+  /// 추천 알약 색 — 위계: 1위는 브랜드 진한 파랑(채움+흰 글씨), 2·3위는 옅은 회색(muted 글씨).
+  static const Color _recommendPrimary = Color(0xFF3B82F6); // gasBlue, 1위
+  static const Color _recommendPrimaryText = Colors.white;
+  static const Color _recommendSecondary = Color(0xFFEDF1F6); // 옅은 회색 채움, 2·3위
+  static const Color _recommendSecondaryText = Color(0xFF64748B); // slate-500 글씨
+  static const Color _recommendSecondaryBorder = Color(0xFFD7DEE7);
 
   static Future<NOverlayImage> overlayImage(
     BuildContext context, {
@@ -93,10 +96,13 @@ class GasStationMapBadge {
     const double tailH = 10.0;
     final double borderWidth = highlighted ? 2.0 : 1.0;
 
-    // 추천 알약 — 가격 배지 위에 작게. 1위는 진한 강조색, 2·3위는 옅게.
+    // 추천 알약 — 가격 배지 위에 작게. 1위는 진한 파랑 채움, 2·3위는 옅은 회색.
     final bool showRecommend = recommendRank != null;
+    final bool recommendFirst = recommendRank == 1;
     final Color pillColor =
-        recommendRank == 1 ? _recommendPrimary : _recommendSecondary;
+        recommendFirst ? _recommendPrimary : _recommendSecondary;
+    final Color pillTextColor =
+        recommendFirst ? _recommendPrimaryText : _recommendSecondaryText;
     // 알약 폭/높이 — 텍스트("추천 N위") 기준 고정 톤.
     const double pillH = 16.0;
     const double pillGap = 3.0;
@@ -120,9 +126,12 @@ class GasStationMapBadge {
               decoration: BoxDecoration(
                 color: pillColor,
                 borderRadius: BorderRadius.circular(pillH / 2),
+                border: recommendFirst
+                    ? null
+                    : Border.all(color: _recommendSecondaryBorder, width: 1),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.18),
+                    color: Colors.black.withValues(alpha: recommendFirst ? 0.18 : 0.10),
                     blurRadius: 3,
                     offset: const Offset(0, 1),
                   ),
@@ -130,11 +139,11 @@ class GasStationMapBadge {
               ),
               child: Text(
                 '추천 $recommendRank위',
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'Pretendard',
-                  color: Colors.white,
+                  color: pillTextColor,
                   fontSize: 10,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: recommendFirst ? FontWeight.w800 : FontWeight.w700,
                   height: 1,
                 ),
               ),

@@ -139,16 +139,13 @@ class GasStationCard extends ConsumerWidget {
 
   const GasStationCard({super.key, required this.station, this.isTop = false, this.topBadgeLabel = '최저가', this.recommendRank, this.onTap});
 
-  // 추천 알약 색 — 마커 알약과 톤 통일(1위 진한, 2·3위 옅은).
-  static const Color _recommendPrimary = Color(0xFF1F2937);
-  static const Color _recommendSecondary = Color(0xFF64748B);
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isFav = ref.watch(favoritesProvider).any((f) => f['type'] == 'gas' && f['id'] == station.id);
-    // 추천 카드는 상단 강조 스타일을 재사용(테두리/배경)하되 배지는 "추천 N위".
-    final bool emphasize = isTop || recommendRank != null;
+    // 위계: 추천 1위(또는 최저가/최단거리 isTop)만 파란 틴트+테두리 강조.
+    // 추천 2·3위는 일반 카드(테두리 약하게) — 1위만 확 도드라지게.
+    final bool emphasize = isTop || recommendRank == 1;
 
     return GestureDetector(
       onTap: onTap,
@@ -176,11 +173,22 @@ class GasStationCard extends ConsumerWidget {
                 children: [
                   ValueListenableBuilder<int>(
                     valueListenable: stationAliasVersion,
-                    builder: (_, __, ___) => Text(
-                      StationAliasService.resolveGas(station.id, station.name),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                    builder: (_, __, ___) => Row(
+                      children: [
+                        // 추천 N위 라벨 — 가게 이름 바로 앞(좌상단). 1위만 채움 강조, 2·3위 옅게.
+                        if (recommendRank != null) ...[
+                          _RecommendBadge(rank: recommendRank!, isDark: isDark),
+                          const SizedBox(width: 6),
+                        ],
+                        Flexible(
+                          child: Text(
+                            StationAliasService.resolveGas(station.id, station.name),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -197,17 +205,8 @@ class GasStationCard extends ConsumerWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                if (recommendRank != null)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: recommendRank == 1 ? _recommendPrimary : _recommendSecondary,
-                      borderRadius: BorderRadius.circular(7),
-                    ),
-                    child: Text('추천 $recommendRank위', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.white)),
-                  )
-                else if (isTop)
+                // 추천 라벨은 이름 앞으로 이동(D). 여기 가격 영역은 가격만 깔끔하게.
+                if (recommendRank == null && isTop)
                   Container(
                     margin: const EdgeInsets.only(bottom: 4),
                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -275,6 +274,44 @@ class GasStationCard extends ConsumerWidget {
         );
       }
     }
+  }
+}
+
+// ─── 추천 N위 라벨 (이름 앞) ───
+// 위계: 1위 = 브랜드 파랑 채움 + 흰 글씨 w800. 2·3위 = 옅은 회색 채움 + muted 글씨.
+class _RecommendBadge extends StatelessWidget {
+  final int rank;
+  final bool isDark;
+  const _RecommendBadge({required this.rank, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    final bool first = rank == 1;
+    final Color bg = first
+        ? AppColors.gasBlue
+        : (isDark ? const Color(0x1FFFFFFF) : const Color(0xFFEDF1F6));
+    final Color fg = first
+        ? Colors.white
+        : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+        border: first
+            ? null
+            : Border.all(
+                color: isDark ? AppColors.darkCardBorder : const Color(0xFFD7DEE7),
+                width: 0.8),
+      ),
+      child: Text('추천 $rank위',
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: first ? FontWeight.w800 : FontWeight.w700,
+            color: fg,
+            height: 1.1,
+          )),
+    );
   }
 }
 

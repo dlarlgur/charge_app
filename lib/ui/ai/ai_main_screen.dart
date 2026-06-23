@@ -1030,30 +1030,17 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           setState(() => _heroCollapsed = false);
         }
       },
+      // 카드와 한 덩어리 — 배경/그림자 없이 카드 상단 안쪽에 핸들만 (주유 시트와 동일 톤).
       child: Container(
         width: double.infinity,
         alignment: Alignment.center,
-        padding: const EdgeInsets.only(top: 2, bottom: 10),
+        padding: const EdgeInsets.only(top: 10, bottom: 8),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          width: 40,
+          height: 4,
           decoration: BoxDecoration(
-            color: isDark ? AppColors.darkMapOverlay : Colors.white,
+            color: isDark ? AppColors.darkCardBorder : const Color(0xFFD0D5DA),
             borderRadius: BorderRadius.circular(99),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.14),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Container(
-            width: 44,
-            height: 5,
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkTextMuted : const Color(0xFF94A3B8),
-              borderRadius: BorderRadius.circular(99),
-            ),
           ),
         ),
       ),
@@ -4293,7 +4280,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                         ),
                       ],
                       // ─── 접기 핸들 + HeroCard (네이버처럼 접어 지도 확보) ───
-                      _buildHeroToggleHandle(),
+                      // 펼침 상태에선 핸들을 HeroCard 안 최상단(topHandle)으로 넣어 한 덩어리로.
+                      // 접힘 요약 바 위에선 카드 밖 핸들 유지.
+                      if (_heroCollapsed) _buildHeroToggleHandle(),
                       if (_heroCollapsed)
                         _buildCollapsedHeroBar(
                           isEv: isEvVehicle,
@@ -4312,6 +4301,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                         )
                       else
                         HeroCard(
+                        topHandle: _buildHeroToggleHandle(),
                         currentLevel: _currentLevelPercent,
                         isEv: isEvVehicle,
                         reachableKm: _currentLevelPercent / 100 *

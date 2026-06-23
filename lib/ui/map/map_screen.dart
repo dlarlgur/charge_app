@@ -622,14 +622,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       clusterOptions: NaverMapClusteringOptions(
         // 클러스터링이 동작할 줌 범위. 초기 줌(14)에선 개별 마커 그대로 보이고,
         // 한 단계 줌아웃(≤13)하면 지역별 원으로 묶이게 — 첫화면 묶임/과도한 줌아웃의 중간.
-        enableZoomRange: const NInclusiveRange(0, 13),
+        enableZoomRange: const NInclusiveRange(0, 11),
         // 화면상 거리 기준 병합. 줌아웃일수록 더 넓게 묶어 개수를 확 줄임.
+        // 동네 줌(12+)에선 개별 마커 → 추천 1~3위가 안 뭉치고 보이게.
         mergeStrategy: const NClusterMergeStrategy(
           willMergedScreenDistance: {
-            NInclusiveRange(0, 9): 120,   // 광역(시/도) — 크게 묶음
-            NInclusiveRange(10, 12): 90,  // 시군구 단위
+            NInclusiveRange(0, 9): 100,   // 광역(시/도) — 크게 묶음
+            NInclusiveRange(10, 11): 70,  // 시군구 단위
           },
-          maxMergeableScreenDistance: 120,
+          maxMergeableScreenDistance: 80,
         ),
         clusterMarkerBuilder: _buildClusterMarker,
       ),
@@ -1694,6 +1695,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   // 지도 이동 시 자동 재조회되므로 별도 '재검색' 버튼 없이 갱신됨.
   // peek 은 헤더("이 지역 N곳"+정렬칩)와 카드 1개가 하단 탭바 위로 온전히 보이도록
   // 충분히 키운 값. (이전 0.12 는 핸들/헤더 일부만 노출돼 탭바에 가려 터치가 어려웠음.)
+  // 핸들만 보이게 거의 다 내린 상태(완전 접힘). peek 보다 더 내려가 지도를 확보.
+  static const double _listCollapsed = 0.07;
   static const double _listPeek = 0.22;
   static const double _listMid = 0.45;
   static const double _listFull = 0.9;
@@ -1707,7 +1710,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final h = MediaQuery.of(context).size.height;
     if (h <= 0) return;
     final next = (_listSheetController.size - d.primaryDelta! / h)
-        .clamp(_listPeek, _listFull);
+        .clamp(_listCollapsed, _listFull);
     _listSheetController.jumpTo(next);
   }
 
@@ -1720,9 +1723,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (v < -350) {
       target = _listFull; // 위로 빠르게 → 펼침
     } else if (v > 350) {
-      target = _listPeek; // 아래로 빠르게 → 접힘
+      target = _listCollapsed; // 아래로 빠르게 → 핸들만 남기고 접힘
     } else {
-      const snaps = [_listPeek, _listMid, _listFull];
+      const snaps = [_listCollapsed, _listPeek, _listMid, _listFull];
       target = snaps.first;
       var best = (cur - target).abs();
       for (final s in snaps) {
@@ -1793,10 +1796,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     return DraggableScrollableSheet(
       controller: _listSheetController,
       initialChildSize: _listPeek,
-      minChildSize: _listPeek,
+      minChildSize: _listCollapsed,
       maxChildSize: _listFull,
       snap: true,
-      snapSizes: const [_listPeek, _listMid, _listFull],
+      snapSizes: const [_listCollapsed, _listPeek, _listMid, _listFull],
       builder: (ctx, scrollCtrl) {
         return Material(
           color: bg,
@@ -1936,15 +1939,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   // ─── 주유/충전 세그먼트 탭 (둘 다 모드 한정) ───
   Widget _buildTypeSegment(bool isDark, bool tabIsGas) {
-    final trackColor = isDark ? AppColors.darkCard : const Color(0xFFF1F3F6);
+    // 옅은 트랙 위에 선택 탭만 브랜드색으로 꽉 채워 위계를 줌(떠있는 알약 X).
+    final trackColor = isDark ? AppColors.darkCard : const Color(0xFFF1F4F8);
     final borderColor =
-        isDark ? AppColors.darkCardBorder : const Color(0xFFE0E4EA);
+        isDark ? AppColors.darkCardBorder : const Color(0xFFE3E8EF);
     return Container(
-      height: 36,
+      height: 38,
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: trackColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(11),
         border: Border.all(color: borderColor, width: 0.8),
       ),
       child: Row(
@@ -1964,6 +1968,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   Widget _buildSegmentTab(String label, IconData icon, Color accent,
       bool active, bool isDark, VoidCallback onTap) {
+    // 선택: 브랜드색 채움 + 흰 글씨/아이콘 w700. 비선택: 투명 + muted.
+    final Color fg = active
+        ? Colors.white
+        : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary);
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
@@ -1972,16 +1980,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
           decoration: BoxDecoration(
-            color: active
-                ? (isDark ? accent.withValues(alpha: 0.22) : Colors.white)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(9),
-            boxShadow: active && !isDark
+            color: active ? accent : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: active
                 ? [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1),
+                      color: accent.withValues(alpha: 0.30),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
                     ),
                   ]
                 : null,
@@ -1989,23 +1995,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon,
-                  size: 15,
-                  color: active
-                      ? accent
-                      : (isDark
-                          ? AppColors.darkTextSecondary
-                          : AppColors.lightTextSecondary)),
+              Icon(icon, size: 16, color: fg),
               const SizedBox(width: 5),
               Text(label,
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: active
-                        ? accent
-                        : (isDark
-                            ? AppColors.darkTextSecondary
-                            : AppColors.lightTextSecondary),
+                    color: fg,
                   )),
             ],
           ),
