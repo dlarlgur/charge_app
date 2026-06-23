@@ -1693,8 +1693,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   // mapGas/EvStationsProvider 는 지도 영역·필터까지 이미 적용된 리스트.
   // 지도 이동 시 자동 재조회되므로 별도 '재검색' 버튼 없이 갱신됨.
   // peek 은 헤더("이 지역 N곳"+정렬칩)와 카드 1개가 하단 탭바 위로 온전히 보이도록
-  // 목록 시트 3단 스냅: 최소화(헤더만) / 중간 / 넓게. 딱딱 걸리게.
-  static const double _listCollapsed = 0.13; // 최소화 — 핸들+'이 지역 N곳'·탭만, 리스트 숨김
+  // 목록 시트 3단 스냅: 최소화(헤더만) / 중간 / 넓게.
+  // 최소화는 헤더(핸들+탭+정렬) 픽셀 높이를 기기 화면비로 환산해 채움 → 어떤 기종에서도
+  // 헤더가 안 잘리고 오버플로 안 나게(_buildAreaListSheet 에서 런타임 계산).
+  double _listCollapsed = 0.15; // 최소화(런타임 보정)
   static const double _listMid = 0.46; // 중간
   static const double _listFull = 0.9; // 넓게
   // 홈 Scaffold 의 NavigationBar(탭바) 높이 — 시트 콘텐츠 바닥에 이만큼 패딩을 줘
@@ -1722,7 +1724,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     } else if (v > 350) {
       target = _listCollapsed; // 아래로 빠르게 → 핸들만 남기고 접힘
     } else {
-      const snaps = [_listCollapsed, _listMid, _listFull];
+      final snaps = [_listCollapsed, _listMid, _listFull];
       target = snaps.first;
       var best = (cur - target).abs();
       for (final s in snaps) {
@@ -1790,13 +1792,19 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
     final count = items.length;
 
+    // 최소화 높이를 헤더 픽셀 기준으로 환산 — 기종(화면 높이) 달라도 헤더가 안 잘리고
+    // 오버플로(BOTTOM OVERFLOWED) 안 나게. 둘 다 모드면 세그먼트 탭만큼 더 확보.
+    final double headerPx = (showGasList && showEvList) ? 136.0 : 78.0;
+    final double screenH = MediaQuery.of(context).size.height;
+    _listCollapsed = (headerPx / (screenH <= 0 ? 720.0 : screenH)).clamp(0.12, 0.30);
+
     return DraggableScrollableSheet(
       controller: _listSheetController,
       initialChildSize: _listCollapsed,
       minChildSize: _listCollapsed,
       maxChildSize: _listFull,
       snap: true,
-      snapSizes: const [_listCollapsed, _listMid, _listFull],
+      snapSizes: [_listCollapsed, _listMid, _listFull],
       builder: (ctx, scrollCtrl) {
         return Material(
           color: bg,
@@ -1907,6 +1915,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           // 주유·충전 둘 다 모드일 때만 세그먼트 탭(이쁜 토글) — 한 타입씩.
           if (bothModes) ...[
