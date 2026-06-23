@@ -143,8 +143,8 @@ class _EvFilterSheetState extends ConsumerState<EvFilterSheet> {
     });
   }
 
-  // 이용 구분: 'open'=개방, 'restricted'=이용제한 (빈 리스트=전체)
-  static const _allAccessLevels = ['open', 'restricted'];
+  // 이용 구분: 'open'=완전개방, 'partial'=부분개방, 'restricted'=이용제한 (빈 리스트=전체)
+  static const _allAccessLevels = ['open', 'partial', 'restricted'];
 
   void _toggleAccess(String level) {
     setState(() {
@@ -293,6 +293,8 @@ class _EvFilterSheetState extends ConsumerState<EvFilterSheet> {
                             () => setState(() => _options = _options.copyWith(availableOnly: true))),
                         ],
                       ),
+                      const SizedBox(height: 14),
+                      _accessSection(isDark, accent),
                     ],
                   )),
                   const SizedBox(height: 10),
@@ -301,8 +303,6 @@ class _EvFilterSheetState extends ConsumerState<EvFilterSheet> {
                   _card(isDark, child: _operatorSection(isDark, accent)),
                   const SizedBox(height: 10),
                   _card(isDark, child: _kindSection(isDark, accent)),
-                  const SizedBox(height: 10),
-                  _card(isDark, child: _accessSection(isDark, accent)),
                   const SizedBox(height: 8),
                 ],
               ),
@@ -503,7 +503,7 @@ class _EvFilterSheetState extends ConsumerState<EvFilterSheet> {
   }
 
   Widget _accessSection(bool isDark, Color accent) {
-    const levels = [('open', '개방'), ('restricted', '이용제한')];
+    const levels = [('open', '완전개방'), ('partial', '부분개방'), ('restricted', '이용제한')];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

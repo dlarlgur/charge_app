@@ -472,10 +472,9 @@ final evStationsProvider = Provider<AsyncValue<List<EvStation>>>((ref) {
             nonFavStations = nonFavStations.where((s) => filter.kinds.contains(s.kind)).toList();
           }
           if (filter.accessLevels.isNotEmpty) {
-            nonFavStations = nonFavStations.where((s) {
-              final isRestricted = s.limitYn;
-              return filter.accessLevels.contains(isRestricted ? 'restricted' : 'open');
-            }).toList();
+            nonFavStations = nonFavStations
+                .where((s) => filter.accessLevels.contains(s.accessLevel))
+                .toList();
           }
 
           int cmpPrice(int? a, int? b) {
@@ -586,10 +585,9 @@ final mapEvStationsProvider = FutureProvider<List<EvStation>>((ref) async {
     stations = stations.where((s) => filter.kinds.contains(s.kind)).toList();
   }
   if (filter.accessLevels.isNotEmpty) {
-    stations = stations.where((s) {
-      final isRestricted = s.limitYn;
-      return filter.accessLevels.contains(isRestricted ? 'restricted' : 'open');
-    }).toList();
+    stations = stations
+        .where((s) => filter.accessLevels.contains(s.accessLevel))
+        .toList();
   }
 
   return stations;

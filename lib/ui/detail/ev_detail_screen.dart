@@ -939,13 +939,21 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
             _infoDivider(isDark),
             _infoRow('주차요금', s.parkingFree ? '무료' : '유료', isDark,
                 valueColor: s.parkingFree ? AppColors.success : null),
-            if (s.limitYn || (s.limitDetail?.isNotEmpty == true)) ...[
+            if (s.accessLevel == 'restricted') ...[
               _infoDivider(isDark),
               _infoRow(
                 '이용제한',
                 s.limitDetail?.isNotEmpty == true ? s.limitDetail! : '외부인 이용 제한',
                 isDark,
                 valueColor: AppColors.statusOffline,
+              ),
+            ] else if (s.accessLevel == 'partial') ...[
+              _infoDivider(isDark),
+              _infoRow(
+                '부분개방',
+                s.limitDetail?.isNotEmpty == true ? s.limitDetail! : '조건부 이용 (입주민·시설 상황 등)',
+                isDark,
+                valueColor: AppColors.warning,
               ),
             ],
             if (s.note?.isNotEmpty == true) ...[
@@ -960,6 +968,13 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
               ),
             ],
           ]),
+          const SizedBox(height: 10),
+          Text(
+            '충전소 정보는 환경부 제공 자료로 실제와 다를 수 있습니다',
+            style: TextStyle(
+                fontSize: 11,
+                color: isDark ? AppColors.darkTextMuted : Colors.black45),
+          ),
         ],
       ),
     );
