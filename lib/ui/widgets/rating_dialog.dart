@@ -4,7 +4,7 @@ import '../../core/theme/app_colors.dart';
 
 /// 만족도 게이트 다이얼로그 (전기차 기름차 톤 — gasBlue 액센트, 다크모드 대응).
 /// 👍 좋아요 → [onPositive](스토어 별점) / 👎 아쉬워요 → [onNegative](1:1 문의).
-class RatingDialog extends StatelessWidget {
+class RatingDialog extends StatefulWidget {
   final Future<void> Function() onPositive;
   final VoidCallback onNegative;
   final VoidCallback? onLater;
@@ -32,6 +32,14 @@ class RatingDialog extends StatelessWidget {
       ),
     );
   }
+
+  @override
+  State<RatingDialog> createState() => _RatingDialogState();
+}
+
+class _RatingDialogState extends State<RatingDialog> {
+  // '아쉬워요' 선택 후 → 바로 문의창으로 던지지 않고 1:1 문의 유도 단계로 전환.
+  bool _negative = false;
 
   @override
   Widget build(BuildContext context) {
@@ -77,7 +85,7 @@ class RatingDialog extends StatelessWidget {
                 behavior: HitTestBehavior.opaque,
                 onTap: () {
                   Navigator.of(context).pop();
-                  onLater?.call();
+                  widget.onLater?.call();
                 },
                 child: Padding(
                   padding: const EdgeInsets.all(4),
@@ -86,7 +94,7 @@ class RatingDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 2),
-            // 아이콘 — 별 (gasBlue→evGreen 그라데이션 원)
+            // 아이콘 — 만족도 단계는 별, 피드백 유도 단계는 말풍선.
             Container(
               width: 64,
               height: 64,
@@ -98,11 +106,15 @@ class RatingDialog extends StatelessWidget {
                   colors: [AppColors.gasBlue, AppColors.evGreen],
                 ),
               ),
-              child: const Icon(Icons.star_rounded, size: 36, color: Colors.white),
+              child: Icon(
+                _negative ? Icons.forum_rounded : Icons.star_rounded,
+                size: 34,
+                color: Colors.white,
+              ),
             ),
             const SizedBox(height: 18),
             Text(
-              '전기차 기름차, 써보니 어떠세요?',
+              _negative ? '의견을 들려주세요 🙏' : '전기차 기름차, 써보니 어떠세요?',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 17,
@@ -113,7 +125,9 @@ class RatingDialog extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              '솔직한 의견 한마디가\n저희에게 큰 힘이 됩니다 🙏',
+              _negative
+                  ? '아쉬운 점을 1:1 문의로 남겨주시면\n꼭 확인하고 빠르게 개선할게요.'
+                  : '솔직한 의견 한마디가\n저희에게 큰 힘이 됩니다 🙏',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
@@ -123,34 +137,64 @@ class RatingDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 22),
-            Row(
-              children: [
-                Expanded(
-                  child: _Btn(
-                    label: '아쉬워요',
-                    bg: Colors.transparent,
-                    fg: textSecondary,
-                    border: border,
-                    onTap: () async {
-                      Navigator.of(context).pop();
-                      onNegative();
-                    },
+            // 1단계: 좋아요/아쉬워요 → 아쉬워요는 같은 다이얼로그를 문의 유도로 전환.
+            // 2단계(_negative): 다음에 / 문의 남기기.
+            _negative
+                ? Row(
+                    children: [
+                      Expanded(
+                        child: _Btn(
+                          label: '다음에',
+                          bg: Colors.transparent,
+                          fg: textSecondary,
+                          border: border,
+                          onTap: () async {
+                            Navigator.of(context).pop();
+                            widget.onLater?.call();
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _Btn(
+                          label: '문의 남기기',
+                          bg: AppColors.gasBlue,
+                          fg: Colors.white,
+                          onTap: () async {
+                            Navigator.of(context).pop();
+                            widget.onNegative();
+                          },
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(
+                        child: _Btn(
+                          label: '아쉬워요',
+                          bg: Colors.transparent,
+                          fg: textSecondary,
+                          border: border,
+                          onTap: () async {
+                            setState(() => _negative = true);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _Btn(
+                          label: '좋아요 👍',
+                          bg: AppColors.gasBlue,
+                          fg: Colors.white,
+                          onTap: () async {
+                            Navigator.of(context).pop();
+                            await widget.onPositive();
+                          },
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _Btn(
-                    label: '좋아요 👍',
-                    bg: AppColors.gasBlue,
-                    fg: Colors.white,
-                    onTap: () async {
-                      Navigator.of(context).pop();
-                      await onPositive();
-                    },
-                  ),
-                ),
-              ],
-            ),
           ],
         ),
       ),
