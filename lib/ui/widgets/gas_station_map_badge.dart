@@ -53,12 +53,17 @@ class GasStationMapBadge {
   static const Color _unreachableBg = Color(0xFFFFECEC);
   static const Color _unreachableAccent = Color(0xFFD32F2F);
 
-  /// 추천 알약 색 — 위계: 1위는 브랜드 진한 파랑(채움+흰 글씨), 2·3위는 옅은 회색(muted 글씨).
-  static const Color _recommendPrimary = Color(0xFF3B82F6); // gasBlue, 1위
-  static const Color _recommendPrimaryText = Colors.white;
-  static const Color _recommendSecondary = Color(0xFFEDF1F6); // 옅은 회색 채움, 2·3위
-  static const Color _recommendSecondaryText = Color(0xFF64748B); // slate-500 글씨
-  static const Color _recommendSecondaryBorder = Color(0xFFD7DEE7);
+  /// 추천 알약 메달색 — 1위 골드 / 2위 실버 / 3위 브론즈 (카드 배지와 동일 톤).
+  static Color _medalPill(int rank) {
+    switch (rank) {
+      case 1:
+        return const Color(0xFFEFA51E); // 골드
+      case 2:
+        return const Color(0xFF9AA6B3); // 실버
+      default:
+        return const Color(0xFFB57440); // 브론즈
+    }
+  }
 
   static Future<NOverlayImage> overlayImage(
     BuildContext context, {
@@ -96,13 +101,10 @@ class GasStationMapBadge {
     const double tailH = 10.0;
     final double borderWidth = highlighted ? 2.0 : 1.0;
 
-    // 추천 알약 — 가격 배지 위에 작게. 1위는 진한 파랑 채움, 2·3위는 옅은 회색.
+    // 추천 알약 — 가격 배지 위에 작게. 1위 골드 / 2위 실버 / 3위 브론즈 (흰 글씨 채움).
     final bool showRecommend = recommendRank != null;
-    final bool recommendFirst = recommendRank == 1;
-    final Color pillColor =
-        recommendFirst ? _recommendPrimary : _recommendSecondary;
-    final Color pillTextColor =
-        recommendFirst ? _recommendPrimaryText : _recommendSecondaryText;
+    final Color pillColor = showRecommend ? _medalPill(recommendRank!) : Colors.transparent;
+    const Color pillTextColor = Colors.white;
     // 알약 폭/높이 — 텍스트("추천 N위") 기준 고정 톤.
     const double pillH = 16.0;
     const double pillGap = 3.0;
@@ -126,24 +128,21 @@ class GasStationMapBadge {
               decoration: BoxDecoration(
                 color: pillColor,
                 borderRadius: BorderRadius.circular(pillH / 2),
-                border: recommendFirst
-                    ? null
-                    : Border.all(color: _recommendSecondaryBorder, width: 1),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: recommendFirst ? 0.18 : 0.10),
-                    blurRadius: 3,
+                    color: pillColor.withValues(alpha: 0.45),
+                    blurRadius: 4,
                     offset: const Offset(0, 1),
                   ),
                 ],
               ),
               child: Text(
                 '추천 $recommendRank위',
-                style: TextStyle(
+                style: const TextStyle(
                   fontFamily: 'Pretendard',
                   color: pillTextColor,
                   fontSize: 10,
-                  fontWeight: recommendFirst ? FontWeight.w800 : FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                   height: 1,
                 ),
               ),

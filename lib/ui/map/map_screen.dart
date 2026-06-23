@@ -1944,11 +1944,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final borderColor =
         isDark ? AppColors.darkCardBorder : const Color(0xFFE3E8EF);
     return Container(
-      height: 38,
-      padding: const EdgeInsets.all(3),
+      height: 42,
+      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: trackColor,
-        borderRadius: BorderRadius.circular(11),
+        borderRadius: BorderRadius.circular(13),
         border: Border.all(color: borderColor, width: 0.8),
       ),
       child: Row(
@@ -1977,16 +1977,22 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
           decoration: BoxDecoration(
-            color: active ? accent : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
+            gradient: active
+                ? LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [accent, Color.lerp(accent, Colors.black, 0.16)!],
+                  )
+                : null,
+            borderRadius: BorderRadius.circular(9),
             boxShadow: active
                 ? [
                     BoxShadow(
-                      color: accent.withValues(alpha: 0.30),
-                      blurRadius: 6,
+                      color: accent.withValues(alpha: 0.36),
+                      blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
                   ]
@@ -1995,13 +2001,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 16, color: fg),
-              const SizedBox(width: 5),
+              Icon(icon, size: 17, color: fg),
+              const SizedBox(width: 6),
               Text(label,
                   style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 13.5,
+                    fontWeight: active ? FontWeight.w800 : FontWeight.w600,
                     color: fg,
+                    letterSpacing: -0.2,
                   )),
             ],
           ),

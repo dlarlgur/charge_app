@@ -143,9 +143,11 @@ class GasStationCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isFav = ref.watch(favoritesProvider).any((f) => f['type'] == 'gas' && f['id'] == station.id);
-    // 위계: 추천 1위(또는 최저가/최단거리 isTop)만 파란 틴트+테두리 강조.
-    // 추천 2·3위는 일반 카드(테두리 약하게) — 1위만 확 도드라지게.
-    final bool emphasize = isTop || recommendRank == 1;
+    // 추천 1·2·3위는 금/은/동 메달 톤으로 카드 배경·테두리를 각각 다르게(딱 봐도 순위 구분).
+    // 추천 아닌 isTop(최저가/최단거리)은 기존 파란 강조 유지.
+    final RecommendMedal? medal =
+        recommendRank != null ? RecommendMedal.of(recommendRank!, isDark) : null;
+    final bool blueEmphasize = medal == null && isTop;
 
     return GestureDetector(
       onTap: onTap,
@@ -154,13 +156,22 @@ class GasStationCard extends ConsumerWidget {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         decoration: BoxDecoration(
-          color: emphasize
-              ? (isDark ? AppColors.darkGasActiveCard : AppColors.lightGasActiveCard)
-              : (isDark ? AppColors.darkCard : AppColors.lightCard),
+          color: medal != null
+              ? medal.cardTint
+              : (blueEmphasize
+                  ? (isDark ? AppColors.darkGasActiveCard : AppColors.lightGasActiveCard)
+                  : (isDark ? AppColors.darkCard : AppColors.lightCard)),
           borderRadius: BorderRadius.circular(14),
-          border: emphasize
-              ? Border.all(color: isDark ? AppColors.darkGasActiveBorder : AppColors.gasBlue, width: 1.5)
-              : Border.all(color: isDark ? AppColors.darkCardBorder : const Color(0xFFDDE3EC), width: 1),
+          border: Border.all(
+            color: medal != null
+                ? medal.cardBorder
+                : (blueEmphasize
+                    ? (isDark ? AppColors.darkGasActiveBorder : AppColors.gasBlue)
+                    : (isDark ? AppColors.darkCardBorder : const Color(0xFFDDE3EC))),
+            width: medal != null
+                ? (recommendRank == 1 ? 1.6 : 1.2)
+                : (blueEmphasize ? 1.5 : 1),
+          ),
         ),
         child: Row(
           children: [
@@ -220,7 +231,7 @@ class GasStationCard extends ConsumerWidget {
                   station.priceText,
                   style: TextStyle(
                     fontSize: 17, fontWeight: FontWeight.w700,
-                    color: emphasize ? AppColors.gasBlue : (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
+                    color: (medal != null || blueEmphasize) ? AppColors.gasBlue : (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
                   ),
                 ),
               ],
@@ -279,6 +290,34 @@ class GasStationCard extends ConsumerWidget {
 
 // ─── 추천 N위 라벨 (이름 앞) ───
 // 위계: 1위 = 브랜드 파랑 채움 + 흰 글씨 w800. 2·3위 = 옅은 회색 채움 + muted 글씨.
+/// 추천 순위 메달 톤 — 1위 골드 / 2위 실버 / 3위 브론즈. 마커·카드 공통.
+class RecommendMedal {
+  final List<Color> badgeGradient; // 배지 채움(그라데이션)
+  final Color cardTint; // 카드 옅은 배경 틴트
+  final Color cardBorder; // 카드 테두리
+  const RecommendMedal(this.badgeGradient, this.cardTint, this.cardBorder);
+
+  static RecommendMedal of(int rank, bool isDark) {
+    switch (rank) {
+      case 1: // 골드
+        return RecommendMedal(
+          const [Color(0xFFF6B83C), Color(0xFFE08E0B)],
+          isDark ? const Color(0x1FE0941A) : const Color(0xFFFFF6E4),
+          isDark ? const Color(0x66E0941A) : const Color(0xFFF0C460));
+      case 2: // 실버
+        return RecommendMedal(
+          const [Color(0xFFB2BBC7), Color(0xFF8C98A6)],
+          isDark ? const Color(0x16FFFFFF) : const Color(0xFFF2F5F8),
+          isDark ? AppColors.darkCardBorder : const Color(0xFFC7D0DB));
+      default: // 브론즈
+        return RecommendMedal(
+          const [Color(0xFFCF8E52), Color(0xFFA9683A)],
+          isDark ? const Color(0x16C0814D) : const Color(0xFFFBF1E7),
+          isDark ? const Color(0x55C0814D) : const Color(0xFFE0BA93));
+    }
+  }
+}
+
 class _RecommendBadge extends StatelessWidget {
   final int rank;
   final bool isDark;
@@ -286,30 +325,31 @@ class _RecommendBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool first = rank == 1;
-    final Color bg = first
-        ? AppColors.gasBlue
-        : (isDark ? const Color(0x1FFFFFFF) : const Color(0xFFEDF1F6));
-    final Color fg = first
-        ? Colors.white
-        : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary);
+    final m = RecommendMedal.of(rank, isDark);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
       decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(6),
-        border: first
-            ? null
-            : Border.all(
-                color: isDark ? AppColors.darkCardBorder : const Color(0xFFD7DEE7),
-                width: 0.8),
+        gradient: LinearGradient(
+          colors: m.badgeGradient,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(7),
+        boxShadow: [
+          BoxShadow(
+            color: m.badgeGradient.last.withValues(alpha: 0.38),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Text('추천 $rank위',
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 10,
-            fontWeight: first ? FontWeight.w800 : FontWeight.w700,
-            color: fg,
+            fontWeight: FontWeight.w800,
+            color: Colors.white,
             height: 1.1,
+            letterSpacing: -0.2,
           )),
     );
   }
