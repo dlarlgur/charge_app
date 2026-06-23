@@ -612,8 +612,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         nightModeEnable: isDark,
         locationButtonEnable: false,
         consumeSymbolTapEvents: false,
-        // 평면 지도라 틸트 불필요 + 수직 핀치줌이 틸트 제스처에 먹히는 것 방지.
+        // 평면 지도라 틸트·회전 불필요. 핀치줌 시 손가락이 살짝 비틀려 회전/틸트가
+        // 먹히면 화면이 '팅기는' 느낌이 남 → 둘 다 꺼서 줌/팬만 안정적으로.
         tiltGesturesEnable: false,
+        rotationGesturesEnable: false,
       ),
       // forceHybridComposition 제거 → 기본 TLHC(텍스처) 합성 경로 사용.
       // 과거 Flutter 3.24.3 의 엔진 회귀(translateMotionEvent, flutter#157463)로
