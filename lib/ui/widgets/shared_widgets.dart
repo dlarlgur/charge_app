@@ -182,24 +182,18 @@ class GasStationCard extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 추천 N위 라벨 — 이름 '위'에(좌상단). 이름이 오른쪽으로 안 밀리게.
+                  if (recommendRank != null) ...[
+                    _RecommendBadge(rank: recommendRank!, isDark: isDark),
+                    const SizedBox(height: 4),
+                  ],
                   ValueListenableBuilder<int>(
                     valueListenable: stationAliasVersion,
-                    builder: (_, __, ___) => Row(
-                      children: [
-                        // 추천 N위 라벨 — 가게 이름 바로 앞(좌상단). 1위만 채움 강조, 2·3위 옅게.
-                        if (recommendRank != null) ...[
-                          _RecommendBadge(rank: recommendRank!, isDark: isDark),
-                          const SizedBox(width: 6),
-                        ],
-                        Flexible(
-                          child: Text(
-                            StationAliasService.resolveGas(station.id, station.name),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ],
+                    builder: (_, __, ___) => Text(
+                      StationAliasService.resolveGas(station.id, station.name),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
                     ),
                   ),
                   const SizedBox(height: 3),

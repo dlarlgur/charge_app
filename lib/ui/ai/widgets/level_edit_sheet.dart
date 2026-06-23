@@ -63,6 +63,40 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
     return const Color(0xFF22C55E);
   }
 
+  // 네이티브 느낌 슬라이더 — 두꺼운 라운드 트랙 + 흰 썸(그림자) + 드래그 시 값 말풍선.
+  Widget _premiumSlider({
+    required double value,
+    required Color color,
+    required ValueChanged<double> onChanged,
+  }) {
+    return SliderTheme(
+      data: SliderTheme.of(context).copyWith(
+        activeTrackColor: color,
+        inactiveTrackColor: color.withValues(alpha: 0.14),
+        thumbColor: Colors.white,
+        overlayColor: color.withValues(alpha: 0.14),
+        trackHeight: 12,
+        trackShape: const RoundedRectSliderTrackShape(),
+        thumbShape: const RoundSliderThumbShape(
+            enabledThumbRadius: 11, elevation: 3, pressedElevation: 6),
+        overlayShape: const RoundSliderOverlayShape(overlayRadius: 22),
+        showValueIndicator: ShowValueIndicator.always,
+        valueIndicatorShape: const PaddleSliderValueIndicatorShape(),
+        valueIndicatorColor: color,
+        valueIndicatorTextStyle: const TextStyle(
+            color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13),
+      ),
+      child: Slider(
+        value: value.clamp(0, 100),
+        min: 0,
+        max: 100,
+        divisions: 100,
+        label: '${value.round()}%',
+        onChanged: onChanged,
+      ),
+    );
+  }
+
   void _applyDte(String val) {
     final dte = double.tryParse(val.replaceAll(',', '.'));
     if (dte == null || dte <= 0) {
@@ -172,20 +206,10 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                 Row(
                   children: [
                     Expanded(
-                      child: SliderTheme(
-                        data: SliderTheme.of(context).copyWith(
-                          activeTrackColor: _thumbColor,
-                          inactiveTrackColor: const Color(0xFFF0F0F0),
-                          thumbColor: _thumbColor,
-                          overlayColor: _thumbColor.withValues(alpha: 0.12),
-                          trackHeight: 8,
-                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
-                        ),
-                        child: Slider(
-                          value: _level,
-                          min: 0, max: 100, divisions: 100,
-                          onChanged: (v) => setState(() => _level = v),
-                        ),
+                      child: _premiumSlider(
+                        value: _level,
+                        color: _thumbColor,
+                        onChanged: (v) => setState(() => _level = v),
                       ),
                     ),
                     SizedBox(
@@ -209,20 +233,10 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                 Row(
                   children: [
                     Expanded(
-                      child: SliderTheme(
-                        data: SliderTheme.of(context).copyWith(
-                          activeTrackColor: kPrimary,
-                          inactiveTrackColor: const Color(0xFFF0F0F0),
-                          thumbColor: kPrimary,
-                          overlayColor: kPrimary.withValues(alpha: 0.12),
-                          trackHeight: 8,
-                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
-                        ),
-                        child: Slider(
-                          value: _targetChargePercent.clamp(0, 100),
-                          min: 0, max: 100, divisions: 100,
-                          onChanged: (v) => setState(() => _targetChargePercent = v),
-                        ),
+                      child: _premiumSlider(
+                        value: _targetChargePercent.clamp(0, 100).toDouble(),
+                        color: kPrimary,
+                        onChanged: (v) => setState(() => _targetChargePercent = v),
                       ),
                     ),
                     SizedBox(
