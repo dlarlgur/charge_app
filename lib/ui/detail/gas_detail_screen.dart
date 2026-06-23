@@ -272,13 +272,13 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
     final name = d?['OS_NM'] ?? d?['name'] ?? widget.station?.name ?? '주유소';
     final address = d?['NEW_ADR'] ?? d?['address'] ?? widget.station?.address ?? '';
     final brand = (d?['brand'] ?? d?['POLL_DIV_CD'] ?? d?['POLL_DIV_CO'] ?? widget.station?.brand ?? '').toString();
-    final result = FavoriteService.toggle(
+    // provider.toggle 이 로컬 저장 + 서버 동기화(회원) + 위젯/상태 갱신 모두 처리.
+    // (기존 FavoriteService.toggle 은 로컬 전용 → 서버 미동기화로 재설치/재로그인 시 풀림)
+    final result = ref.read(favoritesProvider.notifier).toggle(
       id: widget.stationId, type: 'gas', name: name, subtitle: address,
       extra: brand.isNotEmpty ? {'brand': brand} : null,
     );
     setState(() => _isFavorite = result);
-    ref.read(favoritesProvider.notifier).refresh();
-    WidgetService.updateGasWidget();
   }
 
   void _openAlertSheet() {

@@ -250,12 +250,12 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
 
   void _toggleFavorite() {
     final s = widget.station;
-    final result = FavoriteService.toggle(
+    // provider.toggle 이 로컬 저장 + 서버 동기화(회원) + 위젯/상태 갱신을 모두 처리.
+    // (기존엔 FavoriteService.toggle 로컬만 호출 → 서버 미동기화로 재설치/재로그인 시 풀렸음)
+    final result = ref.read(favoritesProvider.notifier).toggle(
       id: s.statId, type: 'ev', name: s.name, subtitle: s.address,
     );
     setState(() => _isFavorite = result);
-    ref.read(favoritesProvider.notifier).refresh();
-    WidgetService.updateEvWidget();
   }
 
   Future<void> _loadNearby() async {
