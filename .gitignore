@@ -66,3 +66,6 @@ ios_info_plist_additions.xml
 
 # 브레인스토밍 비주얼 컴패니언 산출물
 .superpowers/
+
+# Android Kotlin 빌드 캐시
+android/.kotlin/
