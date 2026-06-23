@@ -299,27 +299,27 @@ class RecommendMedal {
   const RecommendMedal(
       this.badgeGradient, this.textColor, this.cardTint, this.cardBorder);
 
-  // 웜 그라데이션(추천강도): 1등 빨강 → 2등 주황 → 3등 앰버.
+  // 메달 톤(흰 글씨 통일): 1등 골드 → 2등 슬레이트 → 3등 브론즈(동).
   static RecommendMedal of(int rank, bool isDark) {
     switch (rank) {
-      case 1: // 빨강 #E53935
+      case 1: // 골드(노란-금)
         return RecommendMedal(
-          const [Color(0xFFEF5350), Color(0xFFE53935)],
+          const [Color(0xFFF2B33D), Color(0xFFDF9A0C)],
           Colors.white,
-          isDark ? const Color(0x24E53935) : const Color(0xFFFFEBEE),
-          isDark ? const Color(0x66E53935) : const Color(0xFFF3B0AD));
-      case 2: // 주황 #FB8C00
+          isDark ? const Color(0x24E3A008) : const Color(0xFFFFF6E0),
+          isDark ? const Color(0x66E3A008) : const Color(0xFFE9C266));
+      case 2: // 슬레이트(쿨 그레이)
         return RecommendMedal(
-          const [Color(0xFFFFA726), Color(0xFFFB8C00)],
+          const [Color(0xFF7C8AA0), Color(0xFF5C6B7F)],
           Colors.white,
-          isDark ? const Color(0x24FB8C00) : const Color(0xFFFFF3E0),
-          isDark ? const Color(0x66FB8C00) : const Color(0xFFF8C887));
-      default: // 앰버 #FDD835 — 노랑이라 진한 갈색 글씨
+          isDark ? const Color(0x247C8AA0) : const Color(0xFFF1F4F8),
+          isDark ? AppColors.darkCardBorder : const Color(0xFFC2CCD8));
+      default: // 브론즈(갈색-동)
         return RecommendMedal(
-          const [Color(0xFFFFE45C), Color(0xFFFDD835)],
-          const Color(0xFF7A5A00),
-          isDark ? const Color(0x2AFDD835) : const Color(0xFFFFFBE6),
-          isDark ? const Color(0x66FDD835) : const Color(0xFFEFD675));
+          const [Color(0xFFC68A52), Color(0xFFA2632F)],
+          Colors.white,
+          isDark ? const Color(0x24B06A33) : const Color(0xFFF8EFE6),
+          isDark ? const Color(0x66B06A33) : const Color(0xFFDCBC99));
     }
   }
 }

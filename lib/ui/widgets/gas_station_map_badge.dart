@@ -53,16 +53,15 @@ class GasStationMapBadge {
   static const Color _unreachableBg = Color(0xFFFFECEC);
   static const Color _unreachableAccent = Color(0xFFD32F2F);
 
-  /// 추천 알약 색(배경, 글씨) — 웜 그라데이션 1위 빨강 / 2위 주황 / 3위 앰버.
-  /// 앰버는 노랑이라 흰 글씨가 안 보여 진한 갈색 글씨.
+  /// 추천 알약 색(배경, 글씨) — 메달 톤. 1위 골드 / 2위 슬레이트 / 3위 브론즈, 흰 글씨 통일.
   static (Color, Color) _medalPill(int rank) {
     switch (rank) {
       case 1:
-        return (const Color(0xFFE53935), Colors.white); // 빨강
+        return (const Color(0xFFE3A008), Colors.white); // 골드
       case 2:
-        return (const Color(0xFFFB8C00), Colors.white); // 주황
+        return (const Color(0xFF647488), Colors.white); // 슬레이트
       default:
-        return (const Color(0xFFFDD835), const Color(0xFF7A5A00)); // 앰버
+        return (const Color(0xFFAE6A34), Colors.white); // 브론즈
     }
   }
 
