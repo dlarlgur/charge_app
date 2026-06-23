@@ -685,7 +685,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 (_selectedStation != null
                     ? 200
                     : (_selectedCluster == null && !_isSearchMode
-                        ? MediaQuery.of(context).size.height * _listPeek + 20
+                        ? MediaQuery.of(context).size.height * _listCollapsed + 20
                         : 24)),
             child: GestureDetector(
               onTap: _moveToMyLocation,
@@ -1694,12 +1694,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   // mapGas/EvStationsProvider 는 지도 영역·필터까지 이미 적용된 리스트.
   // 지도 이동 시 자동 재조회되므로 별도 '재검색' 버튼 없이 갱신됨.
   // peek 은 헤더("이 지역 N곳"+정렬칩)와 카드 1개가 하단 탭바 위로 온전히 보이도록
-  // 충분히 키운 값. (이전 0.12 는 핸들/헤더 일부만 노출돼 탭바에 가려 터치가 어려웠음.)
-  // 핸들만 보이게 거의 다 내린 상태(완전 접힘). peek 보다 더 내려가 지도를 확보.
-  static const double _listCollapsed = 0.07;
-  static const double _listPeek = 0.22;
-  static const double _listMid = 0.45;
-  static const double _listFull = 0.9;
+  // 목록 시트 3단 스냅: 최소화(헤더만) / 중간 / 넓게. 딱딱 걸리게.
+  static const double _listCollapsed = 0.13; // 최소화 — 핸들+'이 지역 N곳'·탭만, 리스트 숨김
+  static const double _listMid = 0.46; // 중간
+  static const double _listFull = 0.9; // 넓게
   // 홈 Scaffold 의 NavigationBar(탭바) 높이 — 시트 콘텐츠 바닥에 이만큼 패딩을 줘
   // 마지막 카드/리스트가 탭바에 가려지거나 바짝 붙지 않게 함.
   static const double _homeTabBarHeight = 64;
@@ -1725,7 +1723,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     } else if (v > 350) {
       target = _listCollapsed; // 아래로 빠르게 → 핸들만 남기고 접힘
     } else {
-      const snaps = [_listCollapsed, _listPeek, _listMid, _listFull];
+      const snaps = [_listCollapsed, _listMid, _listFull];
       target = snaps.first;
       var best = (cur - target).abs();
       for (final s in snaps) {
@@ -1795,11 +1793,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
     return DraggableScrollableSheet(
       controller: _listSheetController,
-      initialChildSize: _listPeek,
+      initialChildSize: _listCollapsed,
       minChildSize: _listCollapsed,
       maxChildSize: _listFull,
       snap: true,
-      snapSizes: const [_listCollapsed, _listPeek, _listMid, _listFull],
+      snapSizes: const [_listCollapsed, _listMid, _listFull],
       builder: (ctx, scrollCtrl) {
         return Material(
           color: bg,
