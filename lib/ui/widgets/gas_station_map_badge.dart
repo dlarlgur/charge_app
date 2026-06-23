@@ -65,6 +65,9 @@ class GasStationMapBadge {
     }
   }
 
+  /// 마커 테두리 등 외부에서 쓰도록 메달 배경색만 노출.
+  static Color medalColor(int rank) => _medalPill(rank).$1;
+
   static Future<NOverlayImage> overlayImage(
     BuildContext context, {
     required String label,

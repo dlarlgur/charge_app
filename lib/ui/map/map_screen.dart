@@ -70,6 +70,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   // 안 뜨므로 충돌 없음. 정렬 토글은 로컬 state.
   final DraggableScrollableController _listSheetController =
       DraggableScrollableController();
+  // 목록 시트가 최소화보다 올라와 있나(뒤로가기로 종료 대신 접기 위해 추적).
+  bool _listExpanded = false;
   // 정렬: true=가격순, false=거리순. 기본값은 vehicleType 따라 _resetListSort 에서 결정.
   bool _listSortByPrice = true;
   bool _listSortInitialized = false;
@@ -125,6 +127,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   @override
   void initState() {
     super.initState();
+    _listSheetController.addListener(_onListSheetChanged);
     _searchHistory = _loadHistory();
     final vehicleType = ref.read(settingsProvider).vehicleType;
     if (vehicleType == VehicleType.gas) {
@@ -720,7 +723,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           if (_selectedStation == null &&
               _selectedCluster == null &&
               !_isSearchMode)
-            _buildAreaListSheet(isDark, vehicleType),
+            // 시트가 올라와 있으면 뒤로가기로 종료 대신 최소화로 접음.
+            PopScope(
+              canPop: !_listExpanded,
+              onPopInvokedWithResult: (didPop, __) {
+                if (!didPop) _collapseListSheet();
+              },
+              child: _buildAreaListSheet(isDark, vehicleType),
+            ),
 
           // ─── 하단 상세 시트 ───
           if (_selectedCluster != null && _sheetController != null)
@@ -1183,8 +1193,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     bool isHighlighted = false,
     int? recommendRank,
   }) async {
-    // 추천 1위는 (선택 안 됐을 때) 가격 배지도 강조색 테두리로 통합 — 기존 최저가 빨강 대체.
-    final bool emphasizeRank1 = recommendRank == 1 && !isHighlighted;
+    // 추천(1~3위)은 선택 안 됐을 때 가격 배지 테두리를 메달색(라벨과 동일)으로 — 검정 테두리 대신.
+    final bool emphasizeRank = recommendRank != null && !isHighlighted;
     final key = '$label|$brand|$stationName|$isEv|$isHighlighted|$recommendRank';
     final cached = _badgeIconCache[key];
     if (cached != null) {
@@ -1197,7 +1207,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final future = () async {
       final Color borderColor = isHighlighted
           ? _kSelectedColor
-          : (emphasizeRank1 ? _kRecommendAccent : const Color(0xFFDDDDDD));
+          : (recommendRank != null
+              ? GasStationMapBadge.medalColor(recommendRank)
+              : const Color(0xFFDDDDDD));
       final Color textColor = isHighlighted
           ? _kSelectedColor
           : const Color(0xFF1a1a1a);
@@ -1209,7 +1221,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         isEv: isEv,
         borderColor: borderColor,
         textColor: textColor,
-        emphasizeBorder: isHighlighted || emphasizeRank1,
+        emphasizeBorder: isHighlighted || emphasizeRank,
         recommendRank: recommendRank,
       );
       _badgeIconCache[key] = icon;
@@ -1702,6 +1714,23 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   // 홈 Scaffold 의 NavigationBar(탭바) 높이 — 시트 콘텐츠 바닥에 이만큼 패딩을 줘
   // 마지막 카드/리스트가 탭바에 가려지거나 바짝 붙지 않게 함.
   static const double _homeTabBarHeight = 64;
+
+  // 시트 크기 변화 추적 — 최소화보다 올라와 있으면 _listExpanded=true (threshold 교차 시에만 setState).
+  void _onListSheetChanged() {
+    if (!_listSheetController.isAttached) return;
+    final expanded = _listSheetController.size > _listCollapsed + 0.04;
+    if (expanded != _listExpanded && mounted) {
+      setState(() => _listExpanded = expanded);
+    }
+  }
+
+  // 뒤로가기 등으로 시트를 최소화로 내림.
+  void _collapseListSheet() {
+    if (_listSheetController.isAttached) {
+      _listSheetController.animateTo(_listCollapsed,
+          duration: const Duration(milliseconds: 220), curve: Curves.easeOut);
+    }
+  }
 
   // 핸들/헤더(스크롤러블 밖)에서의 세로 드래그를 시트 크기로 직접 변환.
   void _onListHandleDrag(DragUpdateDetails d) {
