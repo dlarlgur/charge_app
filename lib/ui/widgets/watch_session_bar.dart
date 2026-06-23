@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/util/app_toast.dart';
 import '../../core/utils/helpers.dart';
 import '../../data/services/watch_service.dart';
 import '../detail/ev_detail_screen.dart';
@@ -60,9 +61,7 @@ class _WatchSessionBarState extends State<WatchSessionBar> {
     if (mounted) {
       setState(() => _extending = false);
       if (!ok) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('연장에 실패했어요. 다시 시도해주세요.')),
-        );
+        showAppToast(context, '연장에 실패했어요. 다시 시도해주세요.', isError: true);
       }
     }
   }

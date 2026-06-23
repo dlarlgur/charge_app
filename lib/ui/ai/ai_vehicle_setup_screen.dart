@@ -6,6 +6,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../core/constants/api_constants.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/util/app_toast.dart';
 import '../../data/models/models.dart';
 import '../../providers/providers.dart';
 import '../../data/services/user_sync_service.dart';
@@ -302,9 +303,7 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
-    );
+    showAppToast(context, msg, isError: true);
   }
 
   // ─── Build ────────────────────────────────────────────────────────────────

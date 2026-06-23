@@ -7,6 +7,7 @@ import 'package:dksw_app_core/dksw_app_core.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/utils/navigation_util.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/util/app_toast.dart';
 import '../../data/models/models.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/alert_service.dart';
@@ -234,9 +235,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
         final ids = AlertService().evAlarmStationIds;
         if (!ids.contains(sid) && ids.length >= AlertService.evAlarmMaxCount) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('충전소 현황 알림은 최대 ${AlertService.evAlarmMaxCount}개까지 설정할 수 있어요')),
-            );
+            showAppToast(context, '충전소 현황 알림은 최대 ${AlertService.evAlarmMaxCount}개까지 설정할 수 있어요');
           }
           return;
         }
@@ -831,17 +830,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
   Future<void> _copyAddress(String addr) async {
     await Clipboard.setData(ClipboardData(text: addr));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('주소를 복사했어요'),
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.fromLTRB(40, 0, 40, 80),
-        backgroundColor: const Color(0xFF1E293B),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      ),
-    );
+    showAppToast(context, '주소를 복사했어요');
   }
 
   // ─── 섹션: 충전기 ───
@@ -1469,9 +1458,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
     if (await launchUrl(webUri, mode: LaunchMode.externalApplication)) return;
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${p.name} 을(를) 열 수 없어요')),
-      );
+      showAppToast(context, '${p.name} 을(를) 열 수 없어요', isError: true);
     }
   }
 

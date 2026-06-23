@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/util/app_toast.dart';
 import '../../core/utils/helpers.dart';
 import '../../data/models/models.dart';
 import 'package:share_plus/share_plus.dart';
@@ -443,21 +444,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         if (_lastBackPressTime == null ||
             now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
           _lastBackPressTime = now;
-          ScaffoldMessenger.of(context).clearSnackBars();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text(
-                '한 번 더 누르시면 종료됩니다.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.white),
-              ),
-              duration: const Duration(seconds: 2),
-              behavior: SnackBarBehavior.floating,
-              backgroundColor: const Color(0xFF2D3748).withValues(alpha: 0.95),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-              margin: const EdgeInsets.only(bottom: 8, left: 40, right: 40),
-            ),
-          );
+          showAppToast(context, '한 번 더 누르시면 종료됩니다.');
         } else {
           // 종료 전 전면광고 — 준비됐으면 보여주고 닫히면 종료, 없으면 즉시 종료.
           ExitAdService.instance.showThenExit(() => SystemNavigator.pop());

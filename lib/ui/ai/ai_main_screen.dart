@@ -16,6 +16,7 @@ import '../../core/rate_limit_message.dart';
 import '../../core/app_dialog.dart';
 import '../../core/navigation/app_route_observer.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/util/app_toast.dart';
 import '../../data/models/models.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/user_sync_service.dart';
@@ -1226,9 +1227,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         : (sv.isEV ? sv.evEfficiency : sv.efficiency);
 
     if (_destLat == null || _destLng == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('목적지를 선택해 주세요.'), behavior: SnackBarBehavior.floating),
-      );
+      showAppToast(context, '목적지를 선택해 주세요.');
       return;
     }
 
@@ -1249,9 +1248,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       final loc = await _resolveCurrentLocationForStart();
       if (loc == null) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('현재 위치를 가져올 수 없습니다.'), behavior: SnackBarBehavior.floating),
-        );
+        showAppToast(context, '현재 위치를 가져올 수 없습니다.', isError: true);
         return;
       }
       startLat = loc.lat;
@@ -2609,9 +2606,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
   Future<void> _runEvAnalyze() async {
     if (_destLat == null || _destLng == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('목적지를 선택해 주세요.'), behavior: SnackBarBehavior.floating),
-      );
+      showAppToast(context, '목적지를 선택해 주세요.');
       return;
     }
 
@@ -2630,9 +2625,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       }
     }
     if (selectedVehicle == null || !selectedVehicle.isEV) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('전기차 프로필을 선택해 주세요.'), behavior: SnackBarBehavior.floating),
-      );
+      showAppToast(context, '전기차 프로필을 선택해 주세요.');
       return;
     }
 
@@ -2644,9 +2637,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       final loc = await _resolveCurrentLocationForStart();
       if (loc == null) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('현재 위치를 가져올 수 없습니다.'), behavior: SnackBarBehavior.floating),
-        );
+        showAppToast(context, '현재 위치를 가져올 수 없습니다.', isError: true);
         return;
       }
       startLat = loc.lat;
@@ -2826,9 +2817,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   // EV 사용자 선택 모드 — 경로상 충전소 목록 불러오기
   Future<void> _runEvUserSelect() async {
     if (_destLat == null || _destLng == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('목적지를 선택해 주세요.'), behavior: SnackBarBehavior.floating),
-      );
+      showAppToast(context, '목적지를 선택해 주세요.');
       return;
     }
 
@@ -3072,9 +3061,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
   Future<void> _runUserSelect() async {
     if (_destLat == null || _destLng == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('목적지를 선택해 주세요.'), behavior: SnackBarBehavior.floating),
-      );
+      showAppToast(context, '목적지를 선택해 주세요.');
       return;
     }
 
@@ -3086,9 +3073,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       final loc = await _resolveCurrentLocationForStart();
       if (loc == null) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('현재 위치를 가져올 수 없습니다.'), behavior: SnackBarBehavior.floating),
-        );
+        showAppToast(context, '현재 위치를 가져올 수 없습니다.', isError: true);
         return;
       }
       startLat = loc.lat;
@@ -3181,9 +3166,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         setState(() => _userSelecting = false);
         unawaited(RatingPromptService.markNegativeSignal());
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('경로상 주유소를 찾을 수 없습니다.'), behavior: SnackBarBehavior.floating),
-        );
+        showAppToast(context, '경로상 주유소를 찾을 수 없습니다.', isError: true);
         return;
       }
 
@@ -3211,9 +3194,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             icon: Icons.schedule_rounded, title: '오늘은 여기까지!', message: rl, primaryLabel: '확인');
       } else {
         setState(() => _errorMessage = '주유소 목록을 불러오는데 실패했습니다.');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('오류: $e'), behavior: SnackBarBehavior.floating),
-        );
+        showAppToast(context, '오류: $e', isError: true);
       }
     }
   }
@@ -3565,9 +3546,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         showAppDialog<void>(context,
             icon: Icons.schedule_rounded, title: '오늘은 여기까지!', message: rl, primaryLabel: '확인');
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('비교 실패: $e'), behavior: SnackBarBehavior.floating),
-        );
+        showAppToast(context, '비교 실패: $e', isError: true);
       }
     }
   }
@@ -3665,21 +3644,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     if (_lastExitBackPressTime == null ||
         now.difference(_lastExitBackPressTime!) > const Duration(seconds: 2)) {
       _lastExitBackPressTime = now;
-      ScaffoldMessenger.of(context).clearSnackBars();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            '한 번 더 누르시면 종료됩니다.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.white),
-          ),
-          duration: const Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: const Color(0xFF2D3748).withValues(alpha: 0.95),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          margin: const EdgeInsets.only(bottom: 8, left: 40, right: 40),
-        ),
-      );
+      showAppToast(context, '한 번 더 누르시면 종료됩니다.');
     } else {
       SystemNavigator.pop();
     }

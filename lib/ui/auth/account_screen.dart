@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/app_dialog.dart';
+import '../../core/util/app_toast.dart';
 import '../../data/services/auth_service.dart';
 
 /// 계정 관리 화면 — 닉네임·이메일 표시 + 로그아웃 / 회원탈퇴.
@@ -182,13 +183,9 @@ Future<void> _editNickname(BuildContext context, WidgetRef ref, AuthUser user) a
   if (!context.mounted) return;
   if (updated != null) {
     ref.read(authProvider.notifier).setUser(updated);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('닉네임을 변경했어요.')),
-    );
+    showAppToast(context, '닉네임을 변경했어요.');
   } else {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('변경에 실패했어요. 다시 시도해주세요.')),
-    );
+    showAppToast(context, '변경에 실패했어요. 다시 시도해주세요.', isError: true);
   }
 }
 

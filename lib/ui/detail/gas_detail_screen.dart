@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:dksw_app_core/dksw_app_core.dart';
 import '../../core/utils/navigation_util.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/util/app_toast.dart';
 import '../../data/models/models.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/alert_service.dart';
@@ -640,17 +641,7 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
   Future<void> _copyAddress(String addr) async {
     await Clipboard.setData(ClipboardData(text: addr));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('주소를 복사했어요'),
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.fromLTRB(40, 0, 40, 80),
-        backgroundColor: const Color(0xFF1E293B),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      ),
-    );
+    showAppToast(context, '주소를 복사했어요');
   }
 
   // 브랜드 로고 이미지 (상세화면 hero용 46x46).

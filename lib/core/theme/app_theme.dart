@@ -59,6 +59,16 @@ class AppTheme {
     ),
     textTheme: _textTheme(Brightness.light),
     dividerTheme: const DividerThemeData(color: AppColors.lightCardBorder, thickness: 0.5),
+    // 토스트 — 순검정 기본 대신 부드러운 다크 슬레이트 + 둥근 플로팅(이쁘게).
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: const Color(0xFF2B313C),
+      contentTextStyle: const TextStyle(
+          fontFamily: _fontFamily, fontSize: 13.5, fontWeight: FontWeight.w600, color: Colors.white),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      elevation: 6,
+    ),
   );
 
   // ─── Dark Theme ───
@@ -112,6 +122,16 @@ class AppTheme {
     ),
     textTheme: _textTheme(Brightness.dark),
     dividerTheme: const DividerThemeData(color: AppColors.darkCardBorder, thickness: 0.5),
+    // 토스트 — 다크모드에선 살짝 밝은 슬레이트로(다크 배경에서 떠보이게).
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: const Color(0xFF3A4250),
+      contentTextStyle: const TextStyle(
+          fontFamily: _fontFamily, fontSize: 13.5, fontWeight: FontWeight.w600, color: Colors.white),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      elevation: 6,
+    ),
   );
 
   static TextTheme _textTheme(Brightness brightness) {

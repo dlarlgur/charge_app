@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/app_dialog.dart';
+import '../../core/util/app_toast.dart';
 import '../../data/services/auth_service.dart';
 import '../../data/services/user_data_sync.dart';
 import '../../providers/providers.dart';
@@ -76,9 +77,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _busy = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('로그인에 실패했어요. 잠시 후 다시 시도해주세요.')),
-      );
+      showAppToast(context, '로그인에 실패했어요. 잠시 후 다시 시도해주세요.', isError: true);
     }
   }
 
