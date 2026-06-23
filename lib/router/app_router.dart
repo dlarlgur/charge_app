@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import '../data/models/models.dart';
 import '../ui/permission/permission_screen.dart';
 import '../ui/onboarding/onboarding_screen.dart';
@@ -24,7 +25,10 @@ import '../core/constants/api_constants.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    observers: [appRouteObserver],
+    observers: [
+      appRouteObserver,
+      FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance),
+    ],
     initialLocation: '/splash',
     routes: [
       GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
