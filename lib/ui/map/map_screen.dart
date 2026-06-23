@@ -310,6 +310,19 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     ref.read(mapRadiusProvider.notifier).state = radius;
     if (_selectedStation != null) await _dismissSheet();
     setState(() { _showSearchHere = false; });
+    // 검색 트리거 후 목록 시트를 중간 스냅까지 자동으로 올려 결과가 바로 보이게.
+    // 시트는 _selectedStation==null 등 조건일 때만 트리에 mount → 컨트롤러 attach
+    // 보장을 위해 다음 프레임에 isAttached 확인 후 animateTo.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_listSheetController.isAttached) {
+        _listSheetController.animateTo(
+          _listMid,
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   // ─── 검색 ───
@@ -662,12 +675,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           // ─── 현재 위치 버튼 ───
           Positioned(
             right: 16,
-            // 목록 시트 peek(~0.12) 위로 올려 가리지 않게. 상세 시트 떠 있으면 더 높게.
+            // 목록 시트 peek 위로 올려 가리지 않게. 상세 시트 떠 있으면 더 높게.
             bottom: MediaQuery.of(context).padding.bottom +
                 (_selectedStation != null
                     ? 200
                     : (_selectedCluster == null && !_isSearchMode
-                        ? MediaQuery.of(context).size.height * 0.12 + 20
+                        ? MediaQuery.of(context).size.height * _listPeek + 20
                         : 24)),
             child: GestureDetector(
               onTap: _moveToMyLocation,
@@ -1654,9 +1667,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   // ─── 이 지역 목록 시트 (지금 지도에 보이는 주유/충전소) ───
   // mapGas/EvStationsProvider 는 지도 영역·필터까지 이미 적용된 리스트.
   // 지도 이동 시 자동 재조회되므로 별도 '재검색' 버튼 없이 갱신됨.
-  static const double _listPeek = 0.12;
+  // peek 은 헤더("이 지역 N곳"+정렬칩)와 카드 1개가 하단 탭바 위로 온전히 보이도록
+  // 충분히 키운 값. (이전 0.12 는 핸들/헤더 일부만 노출돼 탭바에 가려 터치가 어려웠음.)
+  static const double _listPeek = 0.22;
   static const double _listMid = 0.45;
   static const double _listFull = 0.9;
+  // 홈 Scaffold 의 NavigationBar(탭바) 높이 — 시트 콘텐츠 바닥에 이만큼 패딩을 줘
+  // 마지막 카드/리스트가 탭바에 가려지거나 바짝 붙지 않게 함.
+  static const double _homeTabBarHeight = 64;
 
   Widget _buildAreaListSheet(bool isDark, VehicleType vehicleType) {
     _ensureListSortDefault();
@@ -1752,9 +1770,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                           )
                         : ListView.builder(
                             controller: scrollCtrl,
+                            // 바닥에 탭바 높이만큼 패딩 — 마지막 카드가 탭바에 가리지 않게.
                             padding: EdgeInsets.fromLTRB(
                                 0, 6, 0,
-                                MediaQuery.of(context).padding.bottom + 12),
+                                MediaQuery.of(context).padding.bottom +
+                                    _homeTabBarHeight +
+                                    12),
                             itemCount: items.length,
                             itemBuilder: (_, i) => _buildAreaListCard(items[i]),
                           ),
