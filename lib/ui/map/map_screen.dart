@@ -1986,19 +1986,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOutCubic,
           decoration: BoxDecoration(
-            gradient: active
-                ? LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [accent, Color.lerp(accent, Colors.black, 0.16)!],
-                  )
-                : null,
-            borderRadius: BorderRadius.circular(9),
+            color: active ? accent : null,
+            borderRadius: BorderRadius.circular(10),
             boxShadow: active
                 ? [
                     BoxShadow(
-                      color: accent.withValues(alpha: 0.36),
-                      blurRadius: 8,
+                      color: accent.withValues(alpha: 0.32),
+                      blurRadius: 7,
                       offset: const Offset(0, 2),
                     ),
                   ]

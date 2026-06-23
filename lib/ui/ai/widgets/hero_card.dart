@@ -143,32 +143,9 @@ class HeroCard extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 3),
-                      Row(
-                        children: [
-                          Text(
-                            isEv ? '현재 배터리' : '현재 잔유량',
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kMuted),
-                          ),
-                          const SizedBox(width: 8),
-                          // 깔끔한 수정 칩 (연필+텍스트 대신).
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: accent.withValues(alpha: 0.10),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.edit_rounded, size: 11, color: accent),
-                                const SizedBox(width: 3),
-                                Text('수정',
-                                    style: TextStyle(
-                                        fontSize: 10.5, fontWeight: FontWeight.w800, color: accent)),
-                              ],
-                            ),
-                          ),
-                        ],
+                      Text(
+                        isEv ? '현재 배터리' : '현재 잔유량',
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kMuted),
                       ),
                       const SizedBox(height: 10),
                       // 박스 대신 아이콘+인라인 값 한 줄 — 폼 필드 느낌 제거(가볍게 정보처럼).
