@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../ai_constants.dart';
+import 'gauge_ring.dart';
 
 /// 잔량/목표 편집 바텀 시트
 class LevelEditSheet extends StatefulWidget {
@@ -112,9 +113,67 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
     setState(() { _level = pct; _dteError = null; });
   }
 
+  // 목표 버튼 3개. EV/가스 공통 스타일, 의미만 유종별.
+  Widget _targetButton({
+    required String label,
+    required String sub,
+    required bool selected,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    final bg = selected
+        ? kPrimary
+        : (isDark ? AppColors.darkCard : const Color(0xFFF4F6FA));
+    final labelColor = selected
+        ? Colors.white
+        : (isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a));
+    final subColor = selected
+        ? Colors.white.withValues(alpha: 0.85)
+        : (isDark ? AppColors.darkTextSecondary : const Color(0xFF888888));
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          children: [
+            Text(label,
+                style: TextStyle(
+                    fontSize: 15, fontWeight: FontWeight.w800, color: labelColor)),
+            const SizedBox(height: 3),
+            Text(sub,
+                style: TextStyle(
+                    fontSize: 11.5, fontWeight: FontWeight.w600, color: subColor)),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final mutedColor =
+        isDark ? AppColors.darkTextMuted : const Color(0xFF999999);
+    final subTextColor =
+        isDark ? AppColors.darkTextSecondary : const Color(0xFF888888);
+    final reachableKm = widget.capacity * widget.efficiency * _level / 100;
+    final gaugeColor = _thumbColor;
+    // colorDeep: 같은 톤을 살짝 진하게(검정 쪽으로 lerp) — 가독성용.
+    final gaugeColorDeep =
+        Color.lerp(gaugeColor, Colors.black, 0.18) ?? gaugeColor;
+
+    // 목표 버튼 선택 상태 (유종별).
+    final bool selFull =
+        widget.isEv ? _targetChargePercent == 100 : _mode == 'FULL';
+    final bool selHalf =
+        widget.isEv ? _targetChargePercent == 50 : _mode == 'PRICE';
+    final bool selCustom =
+        widget.isEv ? (!selFull && !selHalf) : _mode == 'LITER';
+
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SafeArea(
@@ -127,205 +186,302 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
             ),
             child: SingleChildScrollView(
               child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('잔량 & 목표 설정',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a),
-                      )),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded),
-                    onPressed: () => Navigator.pop(context),
+                  // 1. 타이틀 + 닫기
+                  Row(
+                    children: [
+                      Text('잔량 & 목표 설정',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: mutedColor,
+                          )),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
+                  const SizedBox(height: 4),
 
-              // ── 잔량 입력 모드 토글 ──
-              Row(
-                children: [
-                  const Text('현재 잔량',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF999999))),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: () => setState(() { _useDte = !_useDte; _dteError = null; }),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _useDte ? kPrimary.withValues(alpha: 0.1) : const Color(0xFFF5F5F5),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: _useDte ? kPrimary : const Color(0xFFDDDDDD)),
+                  // 2. 메인 Row: 게이지(왼) + 슬라이더(오른)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      GaugeRing(
+                        percent: _level,
+                        reachableKm: reachableKm,
+                        color: gaugeColor,
+                        colorDeep: gaugeColorDeep,
+                        isEv: widget.isEv,
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.speed_rounded, size: 13,
-                              color: _useDte ? kPrimary : const Color(0xFF888888)),
-                          const SizedBox(width: 4),
-                          Text('주행가능거리 입력',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
-                                  color: _useDte ? kPrimary : const Color(0xFF888888))),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-
-              // ── DTE 입력 or % 슬라이더 ──
-              if (_useDte) ...[
-                TextField(
-                  controller: _dteController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  style: const TextStyle(fontSize: 14),
-                  decoration: InputDecoration(
-                    labelText: '계기판 주행가능거리 (km)',
-                    hintText: '예: 120',
-                    suffixText: 'km',
-                    errorText: _dteError,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  ),
-                  onChanged: _applyDte,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '→ 잔량 약 ${_level.toStringAsFixed(1)}%로 계산됨',
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: isDark ? AppColors.darkTextSecondary : const Color(0xFF888888)),
-                ),
-              ] else ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: _premiumSlider(
-                        value: _level,
-                        color: _thumbColor,
-                        onChanged: (v) => setState(() => _level = v),
-                      ),
-                    ),
-                    SizedBox(
-                      width: 44,
-                      child: Text('${_level.toStringAsFixed(0)}%',
-                          textAlign: TextAlign.right,
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
-                              color: _thumbColor)),
-                    ),
-                  ],
-                ),
-              ],
-              if (widget.isEv) ...[
-                const SizedBox(height: 18),
-                Text('목표 충전',
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? AppColors.darkTextMuted : const Color(0xFF999999))),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _premiumSlider(
-                        value: _targetChargePercent.clamp(0, 100).toDouble(),
-                        color: kPrimary,
-                        onChanged: (v) => setState(() => _targetChargePercent = v),
-                      ),
-                    ),
-                    SizedBox(
-                      width: 44,
-                      child: Text('${_targetChargePercent.toStringAsFixed(0)}%',
-                          textAlign: TextAlign.right,
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: kPrimary)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text('이 충전량까지 채우는 기준으로 추천해요.',
-                    style: TextStyle(
-                        fontSize: 11,
-                        color: isDark ? AppColors.darkTextSecondary : const Color(0xFF888888))),
-              ],
-              if (!widget.isEv) ...[
-              const SizedBox(height: 16),
-              Text('목표 주유',
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? AppColors.darkTextMuted : const Color(0xFF999999))),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children: [
-                  for (final entry in [('FULL', '가득'), ('PRICE', '금액 지정'), ('LITER', '리터 지정')])
-                    GestureDetector(
-                      onTap: () => setState(() => _mode = entry.$1),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: _mode == entry.$1 ? kPrimary : const Color(0xFFF5F5F5),
-                          borderRadius: BorderRadius.circular(20),
+                      const SizedBox(width: 18),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('현재 잔량',
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: mutedColor)),
+                            const SizedBox(height: 10),
+                            _premiumSlider(
+                              value: _level,
+                              color: _thumbColor,
+                              onChanged: (v) => setState(() => _level = v),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Text('비었음',
+                                    style: TextStyle(
+                                        fontSize: 11, color: mutedColor)),
+                                const Spacer(),
+                                Text('가득',
+                                    style: TextStyle(
+                                        fontSize: 11, color: mutedColor)),
+                              ],
+                            ),
+                          ],
                         ),
-                        child: Text(entry.$2,
-                            style: TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w500,
-                              color: _mode == entry.$1 ? Colors.white : const Color(0xFF666666),
-                            )),
+                      ),
+                    ],
+                  ),
+
+                  // 2-b. 주행가능거리 입력 토글 (기능 유지, 작게)
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: GestureDetector(
+                      onTap: () => setState(() {
+                        _useDte = !_useDte;
+                        _dteError = null;
+                      }),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _useDte
+                              ? kPrimary.withValues(alpha: 0.1)
+                              : (isDark
+                                  ? AppColors.darkCard
+                                  : const Color(0xFFF5F5F5)),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: _useDte
+                                  ? kPrimary
+                                  : const Color(0xFFDDDDDD)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.speed_rounded,
+                                size: 13,
+                                color: _useDte
+                                    ? kPrimary
+                                    : const Color(0xFF888888)),
+                            const SizedBox(width: 4),
+                            Text('주행가능거리 입력',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: _useDte
+                                        ? kPrimary
+                                        : const Color(0xFF888888))),
+                          ],
+                        ),
                       ),
                     ),
+                  ),
+                  if (_useDte) ...[
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _dteController,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      style: const TextStyle(fontSize: 14),
+                      decoration: InputDecoration(
+                        labelText: '계기판 주행가능거리 (km)',
+                        hintText: '예: 120',
+                        suffixText: 'km',
+                        errorText: _dteError,
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
+                      ),
+                      onChanged: _applyDte,
+                    ),
+                    const SizedBox(height: 6),
+                    Text('→ 잔량 약 ${_level.toStringAsFixed(1)}%로 계산됨',
+                        style: TextStyle(fontSize: 12, color: subTextColor)),
+                  ],
+
+                  // 3. Divider
+                  const SizedBox(height: 16),
+                  Divider(
+                    height: 1,
+                    color: isDark
+                        ? AppColors.darkCardBorder
+                        : const Color(0xFFECEFF3),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // 4. 목표 타이틀
+                  Text('목표 잔량 — 얼마나 채울까요?',
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: isDark
+                              ? AppColors.darkTextPrimary
+                              : const Color(0xFF1a1a1a))),
+                  const SizedBox(height: 10),
+
+                  // 5. 3개 버튼 Row
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _targetButton(
+                          label: '가득',
+                          sub: widget.isEv ? '100%' : '가득',
+                          selected: selFull,
+                          isDark: isDark,
+                          onTap: () => setState(() {
+                            if (widget.isEv) {
+                              _targetChargePercent = 100;
+                            } else {
+                              _mode = 'FULL';
+                            }
+                          }),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _targetButton(
+                          label: widget.isEv ? '절반' : '금액',
+                          sub: widget.isEv ? '50%' : '지정',
+                          selected: selHalf,
+                          isDark: isDark,
+                          onTap: () => setState(() {
+                            if (widget.isEv) {
+                              _targetChargePercent = 50;
+                            } else {
+                              _mode = 'PRICE';
+                            }
+                          }),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _targetButton(
+                          label: widget.isEv ? '직접' : '리터',
+                          sub: '설정',
+                          selected: selCustom,
+                          isDark: isDark,
+                          onTap: () => setState(() {
+                            if (widget.isEv) {
+                              // 직접 선택 시 100/50 외 값으로 — 현재가 그 둘 중 하나면 80으로.
+                              if (_targetChargePercent == 100 ||
+                                  _targetChargePercent == 50) {
+                                _targetChargePercent = 80;
+                              }
+                            } else {
+                              _mode = 'LITER';
+                            }
+                          }),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // 5-b. EV 직접 선택 시 커스텀 슬라이더 펼침
+                  if (widget.isEv && selCustom) ...[
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _premiumSlider(
+                            value: _targetChargePercent.clamp(0, 100).toDouble(),
+                            color: kPrimary,
+                            onChanged: (v) =>
+                                setState(() => _targetChargePercent = v),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 44,
+                          child: Text(
+                              '${_targetChargePercent.toStringAsFixed(0)}%',
+                              textAlign: TextAlign.right,
+                              style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: kPrimary)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text('이 충전량까지 채우는 기준으로 추천해요.',
+                        style: TextStyle(fontSize: 11, color: subTextColor)),
+                  ],
+
+                  // 5-c. 가스 금액/리터 입력 펼침
+                  if (!widget.isEv && _mode == 'PRICE') ...[
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: widget.priceController,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(fontSize: 14),
+                      decoration: InputDecoration(
+                        labelText: '목표 금액 (원)',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
+                      ),
+                    ),
+                  ],
+                  if (!widget.isEv && _mode == 'LITER') ...[
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: widget.literController,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(fontSize: 14),
+                      decoration: InputDecoration(
+                        labelText: '목표 리터 (L)',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: () =>
+                          widget.onSave(_level, _mode, _targetChargePercent),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: kPrimary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      child: const Text('저장',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
                 ],
               ),
-              if (_mode == 'PRICE') ...[
-                const SizedBox(height: 14),
-                TextField(
-                  controller: widget.priceController,
-                  keyboardType: TextInputType.number,
-                  style: const TextStyle(fontSize: 14),
-                  decoration: InputDecoration(
-                    labelText: '목표 금액 (원)',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  ),
-                ),
-              ],
-              if (_mode == 'LITER') ...[
-                const SizedBox(height: 14),
-                TextField(
-                  controller: widget.literController,
-                  keyboardType: TextInputType.number,
-                  style: const TextStyle(fontSize: 14),
-                  decoration: InputDecoration(
-                    labelText: '목표 리터 (L)',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  ),
-                ),
-              ],
-              ], // if (!widget.isEv)
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () => widget.onSave(_level, _mode, _targetChargePercent),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: kPrimary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    elevation: 0,
-                  ),
-                  child: const Text('저장', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                ),
-              ),
-            ],
-          ),
             ),
           ),
         ),
