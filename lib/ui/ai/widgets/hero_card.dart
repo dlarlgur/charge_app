@@ -159,21 +159,24 @@ class HeroCard extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 10),
+                      // 박스 대신 아이콘+인라인 값 한 줄 — 폼 필드 느낌 제거(가볍게 정보처럼).
                       Row(
                         children: [
-                          Expanded(child: _statBox(
-                            label: isEv ? '효율' : '연비',
-                            value: isEv
+                          _statInline(
+                            Icons.speed_rounded,
+                            isEv
                                 ? '${efficiency.toStringAsFixed(1)} km/kWh'
                                 : '${efficiency.toStringAsFixed(1)} km/L',
-                          )),
-                          const SizedBox(width: 8),
-                          Expanded(child: _statBox(
-                            label: isEv ? '배터리' : '연료탱크',
-                            value: isEv
+                          ),
+                          _statDivider(),
+                          _statInline(
+                            isEv
+                                ? Icons.battery_charging_full_rounded
+                                : Icons.local_gas_station_rounded,
+                            isEv
                                 ? '${tankCapacity.toStringAsFixed(0)} kWh'
                                 : '${tankCapacity.toStringAsFixed(0)} L',
-                          )),
+                          ),
                         ],
                       ),
                     ],
@@ -233,30 +236,30 @@ class HeroCard extends StatelessWidget {
     );
   }
 
-  Widget _statBox({required String label, required String value}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: kLineSoft,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(label,
-              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: kMuted)),
-          const SizedBox(height: 2),
-          Text(value,
+  // 아이콘 + 값 인라인 (박스 X) — 효율/용량을 가볍게 정보처럼.
+  Widget _statInline(IconData icon, String value) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: kMute2),
+        const SizedBox(width: 5),
+        Flexible(
+          child: Text(value,
               style: const TextStyle(
                 fontSize: 13, fontWeight: FontWeight.w800,
                 color: kInk, letterSpacing: -0.2,
               ),
               maxLines: 1, overflow: TextOverflow.ellipsis),
-        ],
-      ),
+        ),
+      ],
     );
   }
+
+  Widget _statDivider() => Container(
+        width: 1, height: 11,
+        margin: const EdgeInsets.symmetric(horizontal: 12),
+        color: kLineSoft,
+      );
 
   Widget _prefChip({
     required IconData icon, required String label,
