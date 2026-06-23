@@ -1992,11 +1992,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final borderColor =
         isDark ? AppColors.darkCardBorder : const Color(0xFFE3E8EF);
     return Container(
-      height: 42,
-      padding: const EdgeInsets.all(4),
+      height: 52,
+      padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
         color: trackColor,
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: borderColor, width: 0.8),
       ),
       child: Row(
@@ -2029,13 +2029,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           curve: Curves.easeOutCubic,
           decoration: BoxDecoration(
             color: active ? accent : null,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(13),
             boxShadow: active
                 ? [
                     BoxShadow(
-                      color: accent.withValues(alpha: 0.32),
-                      blurRadius: 7,
-                      offset: const Offset(0, 2),
+                      color: accent.withValues(alpha: 0.34),
+                      blurRadius: 9,
+                      offset: const Offset(0, 3),
                     ),
                   ]
                 : null,
@@ -2043,12 +2043,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 17, color: fg),
-              const SizedBox(width: 6),
+              Icon(icon, size: 20, color: fg),
+              const SizedBox(width: 7),
               Text(label,
                   style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+                    fontSize: 15.5,
+                    fontWeight: active ? FontWeight.w800 : FontWeight.w700,
                     color: fg,
                     letterSpacing: -0.2,
                   )),
