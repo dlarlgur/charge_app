@@ -113,7 +113,7 @@ class GasStationMapBadge {
     // 알약 폭/높이 — 텍스트("추천 N위") 기준 고정 톤.
     const double pillH = 16.0;
     const double pillGap = 3.0;
-    const double pillW = 50.0;
+    const double pillW = 46.0;
     // 알약이 배지보다 넓을 수 있으니 캔버스 폭은 둘 중 큰 값.
     final double canvasW = showRecommend ? math.max(w, pillW) : w;
     final double extraTop = showRecommend ? pillH + pillGap : 0.0;
@@ -128,7 +128,7 @@ class GasStationMapBadge {
           if (showRecommend) ...[
             Container(
               height: pillH,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 5),
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: pillColor,
