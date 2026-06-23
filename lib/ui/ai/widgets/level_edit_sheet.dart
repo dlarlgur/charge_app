@@ -122,8 +122,9 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
     required bool isDark,
     required VoidCallback onTap,
   }) {
+    // 선택색 = 유종 브랜드색(주유 파랑 / 충전 에메랄드).
     final bg = selected
-        ? kPrimary
+        ? modeAccent(widget.isEv)
         : (isDark ? AppColors.darkCard : const Color(0xFFF4F6FA));
     final labelColor = selected
         ? Colors.white
@@ -268,14 +269,14 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                             horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
                           color: _useDte
-                              ? kPrimary.withValues(alpha: 0.1)
+                              ? modeAccent(widget.isEv).withValues(alpha: 0.1)
                               : (isDark
                                   ? AppColors.darkCard
                                   : const Color(0xFFF5F5F5)),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                               color: _useDte
-                                  ? kPrimary
+                                  ? modeAccent(widget.isEv)
                                   : const Color(0xFFDDDDDD)),
                         ),
                         child: Row(
@@ -284,7 +285,7 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                             Icon(Icons.speed_rounded,
                                 size: 13,
                                 color: _useDte
-                                    ? kPrimary
+                                    ? modeAccent(widget.isEv)
                                     : const Color(0xFF888888)),
                             const SizedBox(width: 4),
                             Text('주행가능거리 입력',
@@ -292,7 +293,7 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
                                     color: _useDte
-                                        ? kPrimary
+                                        ? modeAccent(widget.isEv)
                                         : const Color(0xFF888888))),
                           ],
                         ),
@@ -408,7 +409,7 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                         Expanded(
                           child: _premiumSlider(
                             value: _targetChargePercent.clamp(0, 100).toDouble(),
-                            color: kPrimary,
+                            color: modeAccent(widget.isEv),
                             onChanged: (v) =>
                                 setState(() => _targetChargePercent = v),
                           ),
@@ -421,7 +422,7 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                               style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
-                                  color: kPrimary)),
+                                  color: modeAccent(widget.isEv))),
                         ),
                       ],
                     ),
@@ -470,7 +471,7 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                       onPressed: () =>
                           widget.onSave(_level, _mode, _targetChargePercent),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: kPrimary,
+                        backgroundColor: modeAccent(widget.isEv),
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
