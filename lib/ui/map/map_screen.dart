@@ -1953,10 +1953,22 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           ],
           Row(
             children: [
-              Text('이 지역 $count곳',
+              RichText(
+                text: TextSpan(
                   style: TextStyle(
                     fontSize: 14, fontWeight: FontWeight.w700, color: primary,
-                  )),
+                  ),
+                  children: [
+                    const TextSpan(text: '이 지역 '),
+                    TextSpan(
+                      text: '$count곳',
+                      style: const TextStyle(
+                        color: AppColors.gasBlue, fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               const Spacer(),
               _buildSortChip('가격순', _listSortByPrice, isDark, () {
                 if (!_listSortByPrice) setState(() => _listSortByPrice = true);

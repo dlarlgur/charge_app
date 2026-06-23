@@ -326,31 +326,55 @@ class _RecommendBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final m = RecommendMedal.of(rank, isDark);
+    final Color pillColor = m.badgeGradient.last;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+      padding: const EdgeInsets.fromLTRB(3, 3, 9, 3),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: m.badgeGradient,
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: m.badgeGradient.last.withValues(alpha: 0.38),
+            color: pillColor.withValues(alpha: 0.38),
             blurRadius: 4,
             offset: const Offset(0, 1),
           ),
         ],
       ),
-      child: Text('추천 $rank위',
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-            color: m.textColor,
-            height: 1.1,
-            letterSpacing: -0.2,
-          )),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 번호 동그라미 (흰 배경 + 랭크색 숫자)
+          Container(
+            width: 16,
+            height: 16,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+            child: Text('$rank',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: pillColor,
+                  height: 1,
+                )),
+          ),
+          const SizedBox(width: 5),
+          Text('추천 $rank위',
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w800,
+                color: m.textColor,
+                height: 1.1,
+                letterSpacing: -0.2,
+              )),
+        ],
+      ),
     );
   }
 }
