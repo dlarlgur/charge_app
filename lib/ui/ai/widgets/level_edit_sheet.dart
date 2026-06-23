@@ -61,7 +61,8 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
   Color get _thumbColor {
     if (_level <= 20) return const Color(0xFFE24B4A);
     if (_level <= 50) return const Color(0xFFEF9F27);
-    return const Color(0xFF22C55E);
+    // 충분: EV 초록 / 주유 파랑 (메인 게이지와 동일 톤).
+    return widget.isEv ? const Color(0xFF22C55E) : AppColors.gasBlue;
   }
 
   // 네이티브 느낌 슬라이더 — 두꺼운 라운드 트랙 + 흰 썸(그림자) + 드래그 시 값 말풍선.

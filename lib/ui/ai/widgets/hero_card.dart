@@ -45,6 +45,17 @@ class HeroCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = modeAccent(isEv);
     final accentDeep = modeAccentDeep(isEv);
+    // 게이지 색은 잔량 %에 따라 — 20% 이하 빨강 / 50% 이하 주황 / 충분하면 브랜드색(충전 초록·주유 파랑).
+    final Color gaugeColor = currentLevel <= 20
+        ? const Color(0xFFE24B4A)
+        : currentLevel <= 50
+            ? const Color(0xFFEF9F27)
+            : accent;
+    final Color gaugeColorDeep = currentLevel <= 20
+        ? const Color(0xFFC0392B)
+        : currentLevel <= 50
+            ? const Color(0xFFD98318)
+            : accentDeep;
     return Container(
       // 핸들이 카드 안 최상단에 오면 top 패딩을 줄여 핸들이 곧 카드 윗부분이 되게.
       padding: EdgeInsets.fromLTRB(18, topHandle != null ? 6 : 18, 18, 16),
@@ -78,8 +89,8 @@ class HeroCard extends StatelessWidget {
                       GaugeRing(
                         percent: currentLevel,
                         reachableKm: reachableKm,
-                        color: accent,
-                        colorDeep: accentDeep,
+                        color: gaugeColor,
+                        colorDeep: gaugeColorDeep,
                         isEv: isEv,
                       ),
                       Positioned(
