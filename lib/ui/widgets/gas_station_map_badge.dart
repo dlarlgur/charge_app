@@ -53,15 +53,16 @@ class GasStationMapBadge {
   static const Color _unreachableBg = Color(0xFFFFECEC);
   static const Color _unreachableAccent = Color(0xFFD32F2F);
 
-  /// 추천 알약 색 — 1위 빨강 / 2위 주황 / 3위 보라 (카드 배지와 동일 톤, 쨍하게 구분).
-  static Color _medalPill(int rank) {
+  /// 추천 알약 색(배경, 글씨) — 웜 그라데이션 1위 빨강 / 2위 주황 / 3위 앰버.
+  /// 앰버는 노랑이라 흰 글씨가 안 보여 진한 갈색 글씨.
+  static (Color, Color) _medalPill(int rank) {
     switch (rank) {
       case 1:
-        return const Color(0xFFEF4444); // 빨강
+        return (const Color(0xFFE53935), Colors.white); // 빨강
       case 2:
-        return const Color(0xFFF97316); // 주황
+        return (const Color(0xFFFB8C00), Colors.white); // 주황
       default:
-        return const Color(0xFF8B5CF6); // 보라
+        return (const Color(0xFFFDD835), const Color(0xFF7A5A00)); // 앰버
     }
   }
 
@@ -103,8 +104,10 @@ class GasStationMapBadge {
 
     // 추천 알약 — 가격 배지 위에 작게. 1위 골드 / 2위 실버 / 3위 브론즈 (흰 글씨 채움).
     final bool showRecommend = recommendRank != null;
-    final Color pillColor = showRecommend ? _medalPill(recommendRank!) : Colors.transparent;
-    const Color pillTextColor = Colors.white;
+    final (Color, Color) medal =
+        showRecommend ? _medalPill(recommendRank!) : (Colors.transparent, Colors.white);
+    final Color pillColor = medal.$1;
+    final Color pillTextColor = medal.$2;
     // 알약 폭/높이 — 텍스트("추천 N위") 기준 고정 톤.
     const double pillH = 16.0;
     const double pillGap = 3.0;
@@ -138,7 +141,7 @@ class GasStationMapBadge {
               ),
               child: Text(
                 '추천 $recommendRank위',
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'Pretendard',
                   color: pillTextColor,
                   fontSize: 10,

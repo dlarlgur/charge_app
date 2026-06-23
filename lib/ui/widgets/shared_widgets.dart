@@ -293,27 +293,33 @@ class GasStationCard extends ConsumerWidget {
 /// 추천 순위 메달 톤 — 1위 골드 / 2위 실버 / 3위 브론즈. 마커·카드 공통.
 class RecommendMedal {
   final List<Color> badgeGradient; // 배지 채움(그라데이션)
+  final Color textColor; // 배지 글씨색 (앰버는 흰 글씨가 안 보여 진한 갈색)
   final Color cardTint; // 카드 옅은 배경 틴트
   final Color cardBorder; // 카드 테두리
-  const RecommendMedal(this.badgeGradient, this.cardTint, this.cardBorder);
+  const RecommendMedal(
+      this.badgeGradient, this.textColor, this.cardTint, this.cardBorder);
 
+  // 웜 그라데이션(추천강도): 1등 빨강 → 2등 주황 → 3등 앰버.
   static RecommendMedal of(int rank, bool isDark) {
     switch (rank) {
-      case 1: // 빨강
+      case 1: // 빨강 #E53935
         return RecommendMedal(
-          const [Color(0xFFF2554B), Color(0xFFE5362F)],
-          isDark ? const Color(0x24EF4444) : const Color(0xFFFFF0EF),
-          isDark ? const Color(0x66EF4444) : const Color(0xFFF4B0AB));
-      case 2: // 주황
+          const [Color(0xFFEF5350), Color(0xFFE53935)],
+          Colors.white,
+          isDark ? const Color(0x24E53935) : const Color(0xFFFFEBEE),
+          isDark ? const Color(0x66E53935) : const Color(0xFFF3B0AD));
+      case 2: // 주황 #FB8C00
         return RecommendMedal(
-          const [Color(0xFFFB923C), Color(0xFFF97316)],
-          isDark ? const Color(0x24F97316) : const Color(0xFFFFF4EA),
-          isDark ? const Color(0x66F97316) : const Color(0xFFFAC393));
-      default: // 보라
+          const [Color(0xFFFFA726), Color(0xFFFB8C00)],
+          Colors.white,
+          isDark ? const Color(0x24FB8C00) : const Color(0xFFFFF3E0),
+          isDark ? const Color(0x66FB8C00) : const Color(0xFFF8C887));
+      default: // 앰버 #FDD835 — 노랑이라 진한 갈색 글씨
         return RecommendMedal(
-          const [Color(0xFFA78BFA), Color(0xFF8B5CF6)],
-          isDark ? const Color(0x248B5CF6) : const Color(0xFFF4F0FE),
-          isDark ? const Color(0x668B5CF6) : const Color(0xFFCDBFF6));
+          const [Color(0xFFFFE45C), Color(0xFFFDD835)],
+          const Color(0xFF7A5A00),
+          isDark ? const Color(0x2AFDD835) : const Color(0xFFFFFBE6),
+          isDark ? const Color(0x66FDD835) : const Color(0xFFEFD675));
     }
   }
 }
@@ -344,10 +350,10 @@ class _RecommendBadge extends StatelessWidget {
         ],
       ),
       child: Text('추천 $rank위',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 10,
             fontWeight: FontWeight.w800,
-            color: Colors.white,
+            color: m.textColor,
             height: 1.1,
             letterSpacing: -0.2,
           )),
