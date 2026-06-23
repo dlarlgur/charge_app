@@ -147,7 +147,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   void dispose() {
     _markerDebounce?.cancel();
     _searchDebounce?.cancel();
-    _autoSearchDebounce?.cancel();
     _searchController.dispose();
     _sheetController?.dispose();
     _listSheetController.dispose();
@@ -337,8 +336,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   // AI 탭과 동일한 lat/lng 결정 로직 — center 없으면 GPS fallback. 두 화면이
   // 같은 검색어에 동일 결과 반환하도록 보장.
   Timer? _searchDebounce;
-  // 지도 이동 시 자동 재검색 디바운스 ('이 지역 검색' 버튼 대체).
-  Timer? _autoSearchDebounce;
 
   /// 입력마다 호출 — 디바운스해서 타이핑 멈춘 뒤에만 검색(키 입력당 네트워크 호출 폭주 방지).
   void _onSearchChanged(String query) {
@@ -537,36 +534,21 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   void _onCameraChange(NCameraUpdateReason reason, bool animated) {
     if (_suppressCameraChange) return;
-    final userMoved = reason == NCameraUpdateReason.gesture ||
-        reason == NCameraUpdateReason.control;
     // 사용자가 직접 지도를 확대/축소·이동하면 검색 핀을 거둠 (이동 직후 1회 표시용).
-    if (_searchMarker != null && userMoved) {
+    if (_searchMarker != null &&
+        (reason == NCameraUpdateReason.gesture ||
+            reason == NCameraUpdateReason.control)) {
       _mapController?.deleteOverlay(_searchMarker!.info);
       _searchMarker = null;
     }
-    // '이 지역 검색' 버튼 없이 — 지도를 움직이면 멈춘 뒤 자동으로 재검색(디바운스). 요즘 트렌드.
-    if (_mapReady && !_isSearchMode && userMoved) {
-      if (_isAtMyLocation) setState(() => _isAtMyLocation = false);
-      _autoSearchDebounce?.cancel();
-      _autoSearchDebounce = Timer(const Duration(milliseconds: 550), () {
-        if (mounted) _autoSearchAtCenter();
+    // 지도를 움직이면 '이 지역 검색' 버튼 노출 (누를 때만 재검색 — 매번 자동조회 대비
+    // 서버 부하/깜빡임 없고 사용자 통제 가능. 구글/네이버/카카오맵 방식).
+    if (_mapReady && !_isSearchMode && (!_showSearchHere || _isAtMyLocation)) {
+      setState(() {
+        _showSearchHere = true;
+        _isAtMyLocation = false;
       });
     }
-  }
-
-  // 지도 멈춤 직후 자동으로 현재 화면 중심·반경으로 재조회 (provider 가 watch → 목록·마커 갱신).
-  Future<void> _autoSearchAtCenter() async {
-    final controller = _mapController;
-    if (controller == null || _isSearchMode || !mounted) return;
-    final pos = await controller.getCameraPosition();
-    final bounds = await controller.getContentBounds();
-    final radius = bounds != null
-        ? _boundsToRadius(bounds, pos.target)
-        : _zoomToRadius(pos.zoom);
-    if (!mounted) return;
-    ref.read(mapCenterProvider.notifier).state =
-        (lat: pos.target.latitude, lng: pos.target.longitude);
-    ref.read(mapRadiusProvider.notifier).state = radius;
   }
 
   void _onMapTapped(NPoint point, NLatLng latLng) {
