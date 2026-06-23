@@ -299,21 +299,21 @@ class RecommendMedal {
 
   static RecommendMedal of(int rank, bool isDark) {
     switch (rank) {
-      case 1: // 골드
+      case 1: // 빨강
         return RecommendMedal(
-          const [Color(0xFFF6B83C), Color(0xFFE08E0B)],
-          isDark ? const Color(0x1FE0941A) : const Color(0xFFFFF6E4),
-          isDark ? const Color(0x66E0941A) : const Color(0xFFF0C460));
-      case 2: // 실버
+          const [Color(0xFFF2554B), Color(0xFFE5362F)],
+          isDark ? const Color(0x24EF4444) : const Color(0xFFFFF0EF),
+          isDark ? const Color(0x66EF4444) : const Color(0xFFF4B0AB));
+      case 2: // 주황
         return RecommendMedal(
-          const [Color(0xFFB2BBC7), Color(0xFF8C98A6)],
-          isDark ? const Color(0x16FFFFFF) : const Color(0xFFF2F5F8),
-          isDark ? AppColors.darkCardBorder : const Color(0xFFC7D0DB));
-      default: // 브론즈
+          const [Color(0xFFFB923C), Color(0xFFF97316)],
+          isDark ? const Color(0x24F97316) : const Color(0xFFFFF4EA),
+          isDark ? const Color(0x66F97316) : const Color(0xFFFAC393));
+      default: // 보라
         return RecommendMedal(
-          const [Color(0xFFCF8E52), Color(0xFFA9683A)],
-          isDark ? const Color(0x16C0814D) : const Color(0xFFFBF1E7),
-          isDark ? const Color(0x55C0814D) : const Color(0xFFE0BA93));
+          const [Color(0xFFA78BFA), Color(0xFF8B5CF6)],
+          isDark ? const Color(0x248B5CF6) : const Color(0xFFF4F0FE),
+          isDark ? const Color(0x668B5CF6) : const Color(0xFFCDBFF6));
     }
   }
 }

@@ -620,17 +620,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       // 줌 기반 클러스터링 — 줌아웃 시 가까운 마커를 지역별 원(개수)으로 병합,
       // 확대하면 개별 마커로 분리. 렌더 마커 수가 급감해 팬/줌이 부드러워짐.
       clusterOptions: NaverMapClusteringOptions(
-        // 클러스터링이 동작할 줌 범위. 초기 줌(14)에선 개별 마커 그대로 보이고,
-        // 한 단계 줌아웃(≤13)하면 지역별 원으로 묶이게 — 첫화면 묶임/과도한 줌아웃의 중간.
-        enableZoomRange: const NInclusiveRange(0, 11),
-        // 화면상 거리 기준 병합. 줌아웃일수록 더 넓게 묶어 개수를 확 줄임.
-        // 동네 줌(12+)에선 개별 마커 → 추천 1~3위가 안 뭉치고 보이게.
+        // 클러스터링은 많이 줌아웃(≤9, 시/도 광역)했을 때만. 줌 10+ (동네·시군구)에선
+        // 개별 마커 그대로 → 추천 1~3위가 안 뭉치고 보이게. (이전 11 → 9 로 더 늦게 뭉침)
+        enableZoomRange: const NInclusiveRange(0, 9),
+        // 화면상 거리 기준 병합. 거리 작게 → 가까운 것만 묶고 덜 뭉침.
         mergeStrategy: const NClusterMergeStrategy(
           willMergedScreenDistance: {
-            NInclusiveRange(0, 9): 100,   // 광역(시/도) — 크게 묶음
-            NInclusiveRange(10, 11): 70,  // 시군구 단위
+            NInclusiveRange(0, 6): 80,   // 전국/광역 — 크게 묶음
+            NInclusiveRange(7, 9): 48,   // 시/도 단위 — 가까운 것만
           },
-          maxMergeableScreenDistance: 80,
+          maxMergeableScreenDistance: 55,
         ),
         clusterMarkerBuilder: _buildClusterMarker,
       ),

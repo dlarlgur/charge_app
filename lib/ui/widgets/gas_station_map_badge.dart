@@ -53,15 +53,15 @@ class GasStationMapBadge {
   static const Color _unreachableBg = Color(0xFFFFECEC);
   static const Color _unreachableAccent = Color(0xFFD32F2F);
 
-  /// 추천 알약 메달색 — 1위 골드 / 2위 실버 / 3위 브론즈 (카드 배지와 동일 톤).
+  /// 추천 알약 색 — 1위 빨강 / 2위 주황 / 3위 보라 (카드 배지와 동일 톤, 쨍하게 구분).
   static Color _medalPill(int rank) {
     switch (rank) {
       case 1:
-        return const Color(0xFFEFA51E); // 골드
+        return const Color(0xFFEF4444); // 빨강
       case 2:
-        return const Color(0xFF9AA6B3); // 실버
+        return const Color(0xFFF97316); // 주황
       default:
-        return const Color(0xFFB57440); // 브론즈
+        return const Color(0xFF8B5CF6); // 보라
     }
   }
 
