@@ -419,7 +419,7 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                           child: Text(
                               '${_targetChargePercent.toStringAsFixed(0)}%',
                               textAlign: TextAlign.right,
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
                                   color: modeAccent(widget.isEv))),
