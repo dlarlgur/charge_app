@@ -549,6 +549,7 @@ class EvFilterOptions {
   final bool availableOnly;
   final List<String> operators;
   final List<String> kinds; // 빈 리스트 = 전체 (A0~J0)
+  final List<String> accessLevels; // 'open'/'restricted', 빈 리스트 = 전체
 
   const EvFilterOptions({
     this.sort = 1,
@@ -557,11 +558,13 @@ class EvFilterOptions {
     this.availableOnly = false,
     this.operators = const [],
     this.kinds = const [],
+    this.accessLevels = const [],
   });
 
   EvFilterOptions copyWith({
     int? sort, int? radius, List<String>? chargerTypes,
     bool? availableOnly, List<String>? operators, List<String>? kinds,
+    List<String>? accessLevels,
   }) {
     return EvFilterOptions(
       sort: sort ?? this.sort,
@@ -570,6 +573,7 @@ class EvFilterOptions {
       availableOnly: availableOnly ?? this.availableOnly,
       operators: operators ?? this.operators,
       kinds: kinds ?? this.kinds,
+      accessLevels: accessLevels ?? this.accessLevels,
     );
   }
 }

@@ -471,6 +471,12 @@ final evStationsProvider = Provider<AsyncValue<List<EvStation>>>((ref) {
           if (filter.kinds.isNotEmpty) {
             nonFavStations = nonFavStations.where((s) => filter.kinds.contains(s.kind)).toList();
           }
+          if (filter.accessLevels.isNotEmpty) {
+            nonFavStations = nonFavStations.where((s) {
+              final isRestricted = s.limitYn;
+              return filter.accessLevels.contains(isRestricted ? 'restricted' : 'open');
+            }).toList();
+          }
 
           int cmpPrice(int? a, int? b) {
             if (a == null && b == null) return 0;
@@ -579,6 +585,12 @@ final mapEvStationsProvider = FutureProvider<List<EvStation>>((ref) async {
   if (filter.kinds.isNotEmpty) {
     stations = stations.where((s) => filter.kinds.contains(s.kind)).toList();
   }
+  if (filter.accessLevels.isNotEmpty) {
+    stations = stations.where((s) {
+      final isRestricted = s.limitYn;
+      return filter.accessLevels.contains(isRestricted ? 'restricted' : 'open');
+    }).toList();
+  }
 
   return stations;
 });
@@ -649,6 +661,7 @@ class EvFilterNotifier extends StateNotifier<EvFilterOptions> {
       availableOnly: _box.get(AppConstants.keyEvFilterAvailableOnly, defaultValue: false),
       operators: List<String>.from(_box.get(AppConstants.keyEvFilterOperators, defaultValue: [])),
       kinds: List<String>.from(_box.get(AppConstants.keyEvFilterKinds, defaultValue: [])),
+      accessLevels: List<String>.from(_box.get(AppConstants.keyEvFilterAccessLevels, defaultValue: [])),
     );
   }
 
@@ -660,5 +673,6 @@ class EvFilterNotifier extends StateNotifier<EvFilterOptions> {
     _box.put(AppConstants.keyEvFilterAvailableOnly, options.availableOnly);
     _box.put(AppConstants.keyEvFilterOperators, options.operators);
     _box.put(AppConstants.keyEvFilterKinds, options.kinds);
+    _box.put(AppConstants.keyEvFilterAccessLevels, options.accessLevels);
   }
 }

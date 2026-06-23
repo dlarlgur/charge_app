@@ -18,6 +18,7 @@ import '../ui/faq/faq_screen.dart';
 import 'package:dksw_app_core/dksw_app_core.dart' show InquiryScreen, DkswTopBanner;
 import 'package:flutter/widgets.dart' show EdgeInsets;
 import '../ui/widgets/inquiry_native_ad_banner.dart';
+import '../data/services/auth_service.dart' show authProvider;
 import '../data/services/alert_service.dart';
 import '../core/constants/api_constants.dart';
 
@@ -60,6 +61,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => InquiryScreen(
           appId: AppConstants.packageName,
           deviceId: AlertService().deviceId,
+          userId: ref.read(authProvider)?.id, // 로그인 사용자면 문의자 매칭용 id 전달
+
           // 콘솔 inquiry_top 광고가 bypass 면 그걸, 아니면 AdMob(InquiryNativeAdBanner).
           topBanner: const DkswTopBanner(
             placement: 'inquiry_top',

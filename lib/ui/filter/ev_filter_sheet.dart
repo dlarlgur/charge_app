@@ -143,6 +143,32 @@ class _EvFilterSheetState extends ConsumerState<EvFilterSheet> {
     });
   }
 
+  // 이용 구분: 'open'=개방, 'restricted'=이용제한 (빈 리스트=전체)
+  static const _allAccessLevels = ['open', 'restricted'];
+
+  void _toggleAccess(String level) {
+    setState(() {
+      final levels = List<String>.from(_options.accessLevels);
+      if (levels.isEmpty) {
+        // 전체 선택 상태 → 해당 항목만 해제 (나머지 유지)
+        _options = _options.copyWith(
+            accessLevels: _allAccessLevels.where((l) => l != level).toList());
+      } else if (levels.contains(level)) {
+        // 이미 선택됨 → 해제 (비면 전체로)
+        levels.remove(level);
+        _options = _options.copyWith(accessLevels: levels);
+      } else {
+        // 미선택 → 추가 (전부 선택되면 전체로)
+        levels.add(level);
+        if (_allAccessLevels.every((l) => levels.contains(l))) {
+          _options = _options.copyWith(accessLevels: []);
+        } else {
+          _options = _options.copyWith(accessLevels: levels);
+        }
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -182,6 +208,20 @@ class _EvFilterSheetState extends ConsumerState<EvFilterSheet> {
             ),
           ),
           Divider(height: 1, color: isDark ? AppColors.darkCardBorder : const Color(0xFFEEEFF1)),
+          // 홈·지도 공유 안내
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline_rounded, size: 13,
+                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                const SizedBox(width: 5),
+                Text('홈과 지도 필터는 함께 적용됩니다',
+                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500,
+                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
+              ],
+            ),
+          ),
           // 내용
           Flexible(
             child: SingleChildScrollView(
@@ -261,6 +301,8 @@ class _EvFilterSheetState extends ConsumerState<EvFilterSheet> {
                   _card(isDark, child: _operatorSection(isDark, accent)),
                   const SizedBox(height: 10),
                   _card(isDark, child: _kindSection(isDark, accent)),
+                  const SizedBox(height: 10),
+                  _card(isDark, child: _accessSection(isDark, accent)),
                   const SizedBox(height: 8),
                 ],
               ),
@@ -457,6 +499,44 @@ class _EvFilterSheetState extends ConsumerState<EvFilterSheet> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _accessSection(bool isDark, Color accent) {
+    const levels = [('open', '개방'), ('restricted', '이용제한')];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            _sectionHeader('이용 구분', isDark),
+            const SizedBox(width: 10),
+            GestureDetector(
+              onTap: () => setState(() => _options = _options.copyWith(accessLevels: [])),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: _options.accessLevels.isEmpty ? accent.withValues(alpha: 0.12) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text('전체',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
+                    color: _options.accessLevels.isEmpty ? accent
+                      : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted))),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 7,
+          runSpacing: 7,
+          children: levels.map((e) {
+            final active = _options.accessLevels.isEmpty || _options.accessLevels.contains(e.$1);
+            return _opChip(e.$2, active, isDark, accent, () => _toggleAccess(e.$1));
+          }).toList(),
+        ),
+      ],
     );
   }
 

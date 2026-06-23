@@ -113,6 +113,20 @@ class _GasFilterSheetState extends ConsumerState<GasFilterSheet> {
             ),
           ),
           Divider(height: 1, color: isDark ? AppColors.darkCardBorder : const Color(0xFFEEEFF1)),
+          // 홈·지도 공유 안내
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline_rounded, size: 13,
+                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                const SizedBox(width: 5),
+                Text('홈과 지도 필터는 함께 적용됩니다',
+                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500,
+                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
+              ],
+            ),
+          ),
           // 내용
           Flexible(
             child: SingleChildScrollView(
