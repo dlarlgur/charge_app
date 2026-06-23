@@ -1676,6 +1676,42 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   // 마지막 카드/리스트가 탭바에 가려지거나 바짝 붙지 않게 함.
   static const double _homeTabBarHeight = 64;
 
+  // 핸들/헤더(스크롤러블 밖)에서의 세로 드래그를 시트 크기로 직접 변환.
+  void _onListHandleDrag(DragUpdateDetails d) {
+    if (!_listSheetController.isAttached) return;
+    final h = MediaQuery.of(context).size.height;
+    if (h <= 0) return;
+    final next = (_listSheetController.size - d.primaryDelta! / h)
+        .clamp(_listPeek, _listFull);
+    _listSheetController.jumpTo(next);
+  }
+
+  // 드래그 끝나면 가장 가까운 스냅(또는 플릭 방향)으로 정렬.
+  void _onListHandleDragEnd(DragEndDetails d) {
+    if (!_listSheetController.isAttached) return;
+    final cur = _listSheetController.size;
+    final v = d.primaryVelocity ?? 0;
+    double target;
+    if (v < -350) {
+      target = _listFull; // 위로 빠르게 → 펼침
+    } else if (v > 350) {
+      target = _listPeek; // 아래로 빠르게 → 접힘
+    } else {
+      const snaps = [_listPeek, _listMid, _listFull];
+      target = snaps.first;
+      var best = (cur - target).abs();
+      for (final s in snaps) {
+        final dist = (cur - s).abs();
+        if (dist < best) {
+          best = dist;
+          target = s;
+        }
+      }
+    }
+    _listSheetController.animateTo(target,
+        duration: const Duration(milliseconds: 220), curve: Curves.easeOut);
+  }
+
   Widget _buildAreaListSheet(bool isDark, VehicleType vehicleType) {
     _ensureListSortDefault();
     final bg = isDark ? AppColors.darkMapOverlay : Colors.white;
@@ -1713,21 +1749,33 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
-              // drag handle — 시트 전체 영역에서 드래그 되도록 헤더는 ListView 밖.
-              Container(
-                margin: const EdgeInsets.only(top: 8),
-                width: 36, height: 4,
-                decoration: BoxDecoration(
-                  color: handleColor,
-                  borderRadius: BorderRadius.circular(2),
+              // 핸들+헤더는 스크롤러블(ListView) 밖이라 그대로 두면 거길 잡고 드래그해도
+              // 시트가 안 움직임(DraggableScrollableSheet 는 연결된 스크롤러블로만 드래그 인식).
+              // → GestureDetector 로 세로 드래그를 시트 컨트롤러에 직접 연결.
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onVerticalDragUpdate: _onListHandleDrag,
+                onVerticalDragEnd: _onListHandleDragEnd,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(top: 8),
+                      width: 36, height: 4,
+                      decoration: BoxDecoration(
+                        color: handleColor,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildAreaListHeader(isDark, count, showGasList, showEvList),
+                    const SizedBox(height: 4),
+                    Divider(
+                      height: 1, thickness: 0.5,
+                      color: isDark ? AppColors.darkCardBorder : const Color(0xFFEEEEEE),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 8),
-              _buildAreaListHeader(isDark, count, showGasList, showEvList),
-              const SizedBox(height: 4),
-              Divider(
-                height: 1, thickness: 0.5,
-                color: isDark ? AppColors.darkCardBorder : const Color(0xFFEEEEEE),
               ),
               Expanded(
                 child: loading
