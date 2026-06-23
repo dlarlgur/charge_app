@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -110,12 +109,10 @@ class GasStationMapBadge {
         showRecommend ? _medalPill(recommendRank!) : (Colors.transparent, Colors.white);
     final Color pillColor = medal.$1;
     final Color pillTextColor = medal.$2;
-    // 알약 폭/높이 — 텍스트("추천 N위") 기준 고정 톤.
+    // 알약을 가격배지 폭(w)에 딱 맞춰 채움 → 좁은 알약이 떠서 생기던 양옆 공백 제거.
     const double pillH = 16.0;
     const double pillGap = 3.0;
-    const double pillW = 46.0;
-    // 알약이 배지보다 넓을 수 있으니 캔버스 폭은 둘 중 큰 값.
-    final double canvasW = showRecommend ? math.max(w, pillW) : w;
+    final double canvasW = w;
     final double extraTop = showRecommend ? pillH + pillGap : 0.0;
 
     return NOverlayImage.fromWidget(
@@ -127,8 +124,8 @@ class GasStationMapBadge {
         children: [
           if (showRecommend) ...[
             Container(
+              width: w,
               height: pillH,
-              padding: const EdgeInsets.symmetric(horizontal: 5),
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: pillColor,

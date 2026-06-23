@@ -1993,7 +1993,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         isDark ? AppColors.darkCardBorder : const Color(0xFFE3E8EF);
     return Container(
       height: 52,
-      padding: const EdgeInsets.all(3),
+      padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         color: trackColor,
         borderRadius: BorderRadius.circular(15),
