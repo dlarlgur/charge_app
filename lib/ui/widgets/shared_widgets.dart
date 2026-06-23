@@ -133,14 +133,22 @@ class GasStationCard extends ConsumerWidget {
   final bool isTop;
   /// 1번 항목 배지 문구. 가격순이면 '최저가', 거리순이면 '최단거리'
   final String topBadgeLabel;
+  /// 이 지역 목록 주유 추천 1~3위. null 이면 일반 카드.
+  final int? recommendRank;
   final VoidCallback? onTap;
 
-  const GasStationCard({super.key, required this.station, this.isTop = false, this.topBadgeLabel = '최저가', this.onTap});
+  const GasStationCard({super.key, required this.station, this.isTop = false, this.topBadgeLabel = '최저가', this.recommendRank, this.onTap});
+
+  // 추천 알약 색 — 마커 알약과 톤 통일(1위 진한, 2·3위 옅은).
+  static const Color _recommendPrimary = Color(0xFF1F2937);
+  static const Color _recommendSecondary = Color(0xFF64748B);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isFav = ref.watch(favoritesProvider).any((f) => f['type'] == 'gas' && f['id'] == station.id);
+    // 추천 카드는 상단 강조 스타일을 재사용(테두리/배경)하되 배지는 "추천 N위".
+    final bool emphasize = isTop || recommendRank != null;
 
     return GestureDetector(
       onTap: onTap,
@@ -149,11 +157,11 @@ class GasStationCard extends ConsumerWidget {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         decoration: BoxDecoration(
-          color: isTop
+          color: emphasize
               ? (isDark ? AppColors.darkGasActiveCard : AppColors.lightGasActiveCard)
               : (isDark ? AppColors.darkCard : AppColors.lightCard),
           borderRadius: BorderRadius.circular(14),
-          border: isTop
+          border: emphasize
               ? Border.all(color: isDark ? AppColors.darkGasActiveBorder : AppColors.gasBlue, width: 1.5)
               : Border.all(color: isDark ? AppColors.darkCardBorder : const Color(0xFFDDE3EC), width: 1),
         ),
@@ -189,7 +197,17 @@ class GasStationCard extends ConsumerWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                if (isTop)
+                if (recommendRank != null)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: recommendRank == 1 ? _recommendPrimary : _recommendSecondary,
+                      borderRadius: BorderRadius.circular(7),
+                    ),
+                    child: Text('추천 $recommendRank위', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.white)),
+                  )
+                else if (isTop)
                   Container(
                     margin: const EdgeInsets.only(bottom: 4),
                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -203,7 +221,7 @@ class GasStationCard extends ConsumerWidget {
                   station.priceText,
                   style: TextStyle(
                     fontSize: 17, fontWeight: FontWeight.w700,
-                    color: isTop ? AppColors.gasBlue : (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
+                    color: emphasize ? AppColors.gasBlue : (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
                   ),
                 ),
               ],

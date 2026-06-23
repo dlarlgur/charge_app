@@ -57,7 +57,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   // 클러스터링/마커 갱신에 휩쓸리지 않음.
   NMarker? _searchMarker;
   Timer? _markerDebounce;
-  double? _lastMinGasPrice;
+  // 주유 추천 rank — stationId(GasStation.id) → 1/2/3 (최저가 기준, 동가면 거리 tiebreak).
+  // 마커 빌드/복원/하이라이트가 모두 같은 맵을 참조하도록 state 로 보관.
+  Map<String, int> _gasRecommendRanks = const {};
   bool _isLocating = false;
   bool _isAtMyLocation = false;
   bool _suppressCameraChange = false;
@@ -71,6 +73,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   // 정렬: true=가격순, false=거리순. 기본값은 vehicleType 따라 _resetListSort 에서 결정.
   bool _listSortByPrice = true;
   bool _listSortInitialized = false;
+  // 둘 다(_showGas && _showEv) 모드일 때 목록 시트 탭 — true=주유, false=충전.
+  bool _listTabGas = true;
 
   // 검색
   bool _isSearchMode = false;
@@ -186,7 +190,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     });
     _sheetController?.dispose();
     _sheetController = null;
-    await _restoreMarkerIcon(prev, _lastMinGasPrice);
+    await _restoreMarkerIcon(prev);
   }
 
   /// 좌표 그룹화 키 — 소수점 4자리 일치(약 11m) 기준.
@@ -1177,9 +1181,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     String? stationName,
     bool isEv = false,
     bool isHighlighted = false,
-    bool isCheapest = false,
+    int? recommendRank,
   }) async {
-    final key = '$label|$brand|$stationName|$isEv|$isHighlighted|$isCheapest';
+    // 추천 1위는 (선택 안 됐을 때) 가격 배지도 강조색 테두리로 통합 — 기존 최저가 빨강 대체.
+    final bool emphasizeRank1 = recommendRank == 1 && !isHighlighted;
+    final key = '$label|$brand|$stationName|$isEv|$isHighlighted|$recommendRank';
     final cached = _badgeIconCache[key];
     if (cached != null) {
       _badgeIconLru.remove(key);
@@ -1191,10 +1197,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final future = () async {
       final Color borderColor = isHighlighted
           ? _kSelectedColor
-          : (isCheapest ? const Color(0xFFEF4444) : const Color(0xFFDDDDDD));
+          : (emphasizeRank1 ? _kRecommendAccent : const Color(0xFFDDDDDD));
       final Color textColor = isHighlighted
           ? _kSelectedColor
-          : (isCheapest ? const Color(0xFFEF4444) : const Color(0xFF1a1a1a));
+          : const Color(0xFF1a1a1a);
       final icon = await GasStationMapBadge.overlayImage(
         context,
         label: label,
@@ -1203,7 +1209,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         isEv: isEv,
         borderColor: borderColor,
         textColor: textColor,
-        emphasizeBorder: isHighlighted,
+        emphasizeBorder: isHighlighted || emphasizeRank1,
+        recommendRank: recommendRank,
       );
       _badgeIconCache[key] = icon;
       _badgeIconLru.add(key);
@@ -1230,6 +1237,24 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   static const _kSelectedColor = Color(0xFF60A5FA); // light blue: 선택된 마커
+  // 추천 1위 가격 배지 테두리 강조색 — 어두운 알약(_recommendPrimary)과 톤 통일.
+  static const _kRecommendAccent = Color(0xFF1F2937);
+
+  /// 뷰포트 주유소를 가격 오름차순(동가면 거리)으로 정렬해 상위 3곳에 rank 1/2/3 부여.
+  /// 반환: GasStation.id → 1/2/3.
+  static Map<String, int> _computeGasRanks(List<GasStation> stations) {
+    if (stations.isEmpty) return const {};
+    final sorted = [...stations]..sort((a, b) {
+        final c = a.price.compareTo(b.price);
+        if (c != 0) return c;
+        return a.distance.compareTo(b.distance);
+      });
+    final ranks = <String, int>{};
+    for (var i = 0; i < sorted.length && i < 3; i++) {
+      ranks[sorted[i].id] = i + 1;
+    }
+    return ranks;
+  }
 
   // ─── 마커 업데이트 ───
   Future<void> _updateMarkers() async {
@@ -1262,11 +1287,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       if (!stillVisible && mounted) setState(() => _selectedStation = null);
     }
 
-    double? minGasPrice;
-    if (_showGas && gasStations.isNotEmpty) {
-      minGasPrice = gasStations.map((s) => s.price).reduce((a, b) => a < b ? a : b);
-    }
-    _lastMinGasPrice = minGasPrice;
+    // 주유 추천 1~3위 rank 산출 (최저가 오름차순, 동가면 거리 tiebreak).
+    _gasRecommendRanks =
+        _showGas ? _computeGasRanks(gasStations) : const {};
 
     // ── 마커 빌드: 아이콘(위젯 래스터)을 병렬로 만들고 한 번에 addOverlayAll ──
     // 이전: 마커마다 `icon: await ...` + `addOverlay` 를 순차(최대 300×2 호출) → 첫 드로 잭.
@@ -1280,7 +1303,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       gasGroups.forEach((keyc, group) {
         if (group.length == 1) {
           final s = group.first;
-          final isCheapest = minGasPrice != null && s.price == minGasPrice;
+          final rank = _gasRecommendRanks[s.id];
           final isSelected = _selectedStation is GasStation &&
               (_selectedStation as GasStation).id == s.id;
           final label = s.priceText;
@@ -1293,7 +1316,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               tags: const {'type': 'gas'},
               icon: await _stationBadgeIcon(
                 label: label, brand: s.brand, stationName: displayName,
-                isHighlighted: isSelected, isCheapest: isCheapest,
+                isHighlighted: isSelected, recommendRank: rank,
               ),
             );
             marker.setOnTapListener((_) async {
@@ -1302,7 +1325,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 await _dismissSheet();
                 return;
               }
-              await _restoreMarkerIcon(prev, _lastMinGasPrice);
+              await _restoreMarkerIcon(prev);
               _selectStation(s);
               await _highlightMarker(markerId, label, brand: s.brand, stationName: displayName);
             });
@@ -1319,11 +1342,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               tags: const {'type': 'gas'},
               icon: await _stationBadgeIcon(
                 label: '+${group.length}', brand: null,
-                stationName: '주유소 ${group.length}곳', isCheapest: false,
+                stationName: '주유소 ${group.length}곳',
               ),
             );
             marker.setOnTapListener((_) async {
-              await _restoreMarkerIcon(_selectedStation, _lastMinGasPrice);
+              await _restoreMarkerIcon(_selectedStation);
               _selectCluster(group.cast<dynamic>());
             });
             _markerRefs[markerId] = marker;
@@ -1359,7 +1382,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 await _dismissSheet();
                 return;
               }
-              await _restoreMarkerIcon(prev, _lastMinGasPrice);
+              await _restoreMarkerIcon(prev);
               _selectStation(s);
               await _highlightMarker(markerId, markerLabel, isEv: true);
             });
@@ -1379,7 +1402,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               ),
             );
             marker.setOnTapListener((_) async {
-              await _restoreMarkerIcon(_selectedStation, _lastMinGasPrice);
+              await _restoreMarkerIcon(_selectedStation);
               _selectCluster(group.cast<dynamic>());
             });
             _markerRefs[markerId] = marker;
@@ -1405,15 +1428,17 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   /// 이전에 선택된 스테이션 마커를 원래 아이콘으로 복원 (전체 redraw 없이).
-  Future<void> _restoreMarkerIcon(dynamic prev, double? minGasPrice) async {
+  /// 주유는 현재 추천 rank 맵(_gasRecommendRanks)을 다시 참조해 정합을 맞춤.
+  Future<void> _restoreMarkerIcon(dynamic prev) async {
     if (prev == null) return;
     if (prev is GasStation) {
       final markerId = 'gas_${prev.id}';
       final marker = _markerRefs[markerId];
       if (marker == null) return;
-      final isCheapest = minGasPrice != null && prev.price == minGasPrice;
+      final displayName = StationAliasService.resolveGas(prev.id, prev.name);
       marker.setIcon(await _stationBadgeIcon(
-        label: prev.priceText, brand: prev.brand, stationName: prev.name, isCheapest: isCheapest,
+        label: prev.priceText, brand: prev.brand, stationName: displayName,
+        recommendRank: _gasRecommendRanks[prev.id],
       ));
     } else if (prev is EvStation) {
       final markerId = 'ev_${prev.statId}';
@@ -1723,15 +1748,46 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final evAsync = ref.watch(mapEvStationsProvider);
     final showGasList = _showGas && vehicleType != VehicleType.ev;
     final showEvList = _showEv && vehicleType != VehicleType.gas;
+    // 주유·충전 둘 다 모드일 때만 세그먼트 탭으로 한 타입씩 표시(섞임 제거).
+    final bothModes = showGasList && showEvList;
+    // 현재 탭 기준으로 실제 표시할 타입 결정.
+    final tabIsGas = bothModes ? _listTabGas : showGasList;
 
     final loading = (showGasList && gasAsync.isLoading) ||
         (showEvList && evAsync.isLoading);
 
-    // 표시 대상 합치기 (둘 다 켜진 both 모드면 가스+EV 함께).
-    final gasList = showGasList ? (gasAsync.valueOrNull ?? const <GasStation>[]) : const <GasStation>[];
-    final evList = showEvList ? (evAsync.valueOrNull ?? const <EvStation>[]) : const <EvStation>[];
-    final items = <dynamic>[...gasList, ...evList];
-    _sortAreaItems(items);
+    // 현재 탭(또는 단일 모드)에 해당하는 타입만 목록 구성.
+    final gasList = (bothModes ? tabIsGas : showGasList)
+        ? (gasAsync.valueOrNull ?? const <GasStation>[])
+        : const <GasStation>[];
+    final evList = (bothModes ? !tabIsGas : showEvList)
+        ? (evAsync.valueOrNull ?? const <EvStation>[])
+        : const <EvStation>[];
+
+    // 주유 목록이면 추천 1~3위를 상단 고정 + 나머지는 기존 정렬.
+    final List<dynamic> items;
+    final Map<String, int> listGasRanks;
+    if (tabIsGas && gasList.isNotEmpty) {
+      listGasRanks = _computeGasRanks(gasList);
+      final top = <GasStation>[];
+      final rest = <dynamic>[];
+      for (final s in gasList) {
+        if (listGasRanks.containsKey(s.id)) {
+          top.add(s);
+        } else {
+          rest.add(s);
+        }
+      }
+      // 추천은 rank 순(1→3)으로 고정 정렬.
+      top.sort((a, b) =>
+          listGasRanks[a.id]!.compareTo(listGasRanks[b.id]!));
+      _sortAreaItems(rest);
+      items = <dynamic>[...top, ...rest];
+    } else {
+      listGasRanks = const {};
+      items = <dynamic>[...gasList, ...evList];
+      _sortAreaItems(items);
+    }
     final count = items.length;
 
     return DraggableScrollableSheet(
@@ -1768,7 +1824,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    _buildAreaListHeader(isDark, count, showGasList, showEvList),
+                    _buildAreaListHeader(
+                        isDark, count, bothModes, tabIsGas),
                     const SizedBox(height: 4),
                     Divider(
                       height: 1, thickness: 0.5,
@@ -1825,7 +1882,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                                     _homeTabBarHeight +
                                     12),
                             itemCount: items.length,
-                            itemBuilder: (_, i) => _buildAreaListCard(items[i]),
+                            itemBuilder: (_, i) {
+                              final item = items[i];
+                              final rank = item is GasStation
+                                  ? listGasRanks[item.id]
+                                  : null;
+                              return _buildAreaListCard(item, rank);
+                            },
                           ),
               ),
             ],
@@ -1836,28 +1899,117 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   Widget _buildAreaListHeader(
-      bool isDark, int count, bool showGasList, bool showEvList) {
+      bool isDark, int count, bool bothModes, bool tabIsGas) {
     // 정렬 칩은 가스가 있을 때만 가격순이 의미 있음. EV 전용이면 회원/비회원 가격이
     // 카드 sortMode 에 따르므로 여기선 가격/거리 토글만 제공(공통).
     final primary =
         isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: [
+          // 주유·충전 둘 다 모드일 때만 세그먼트 탭(이쁜 토글) — 한 타입씩.
+          if (bothModes) ...[
+            _buildTypeSegment(isDark, tabIsGas),
+            const SizedBox(height: 10),
+          ],
+          Row(
+            children: [
+              Text('이 지역 $count곳',
+                  style: TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.w700, color: primary,
+                  )),
+              const Spacer(),
+              _buildSortChip('가격순', _listSortByPrice, isDark, () {
+                if (!_listSortByPrice) setState(() => _listSortByPrice = true);
+              }),
+              const SizedBox(width: 6),
+              _buildSortChip('거리순', !_listSortByPrice, isDark, () {
+                if (_listSortByPrice) setState(() => _listSortByPrice = false);
+              }),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── 주유/충전 세그먼트 탭 (둘 다 모드 한정) ───
+  Widget _buildTypeSegment(bool isDark, bool tabIsGas) {
+    final trackColor = isDark ? AppColors.darkCard : const Color(0xFFF1F3F6);
+    final borderColor =
+        isDark ? AppColors.darkCardBorder : const Color(0xFFE0E4EA);
+    return Container(
+      height: 36,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: trackColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor, width: 0.8),
+      ),
       child: Row(
         children: [
-          Text('이 지역 $count곳',
-              style: TextStyle(
-                fontSize: 14, fontWeight: FontWeight.w700, color: primary,
-              )),
-          const Spacer(),
-          _buildSortChip('가격순', _listSortByPrice, isDark, () {
-            if (!_listSortByPrice) setState(() => _listSortByPrice = true);
+          _buildSegmentTab('주유', Icons.local_gas_station_rounded,
+              AppColors.gasBlue, tabIsGas, isDark, () {
+            if (!_listTabGas) setState(() => _listTabGas = true);
           }),
-          const SizedBox(width: 6),
-          _buildSortChip('거리순', !_listSortByPrice, isDark, () {
-            if (_listSortByPrice) setState(() => _listSortByPrice = false);
+          _buildSegmentTab('충전', Icons.bolt_rounded, AppColors.evGreen,
+              !tabIsGas, isDark, () {
+            if (_listTabGas) setState(() => _listTabGas = false);
           }),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSegmentTab(String label, IconData icon, Color accent,
+      bool active, bool isDark, VoidCallback onTap) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          decoration: BoxDecoration(
+            color: active
+                ? (isDark ? accent.withValues(alpha: 0.22) : Colors.white)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
+            boxShadow: active && !isDark
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon,
+                  size: 15,
+                  color: active
+                      ? accent
+                      : (isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary)),
+              const SizedBox(width: 5),
+              Text(label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: active
+                        ? accent
+                        : (isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary),
+                  )),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1907,7 +2059,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
     final controller = _mapController;
     final prev = _selectedStation;
-    await _restoreMarkerIcon(prev, _lastMinGasPrice);
+    await _restoreMarkerIcon(prev);
     if (controller != null) {
       final lat = s is GasStation ? s.lat : (s as EvStation).lat;
       final lng = s is GasStation ? s.lng : (s as EvStation).lng;
@@ -1939,11 +2091,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
   }
 
-  Widget _buildAreaListCard(dynamic s) {
+  Widget _buildAreaListCard(dynamic s, [int? recommendRank]) {
     if (s is GasStation) {
       return GasStationCard(
         key: ValueKey('arealist_gas_${s.id}'),
         station: s,
+        recommendRank: recommendRank,
         onTap: () => _onAreaListTap(s),
       );
     }

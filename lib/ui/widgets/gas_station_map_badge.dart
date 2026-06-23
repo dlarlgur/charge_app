@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -52,6 +53,10 @@ class GasStationMapBadge {
   static const Color _unreachableBg = Color(0xFFFFECEC);
   static const Color _unreachableAccent = Color(0xFFD32F2F);
 
+  /// 추천 알약 색 — 1위는 진한 강조, 2·3위는 옅은 톤. 스크린샷 톤(어두운 알약 + 흰 글씨).
+  static const Color _recommendPrimary = Color(0xFF1F2937); // slate-800, 1위
+  static const Color _recommendSecondary = Color(0xFF64748B); // slate-500, 2·3위
+
   static Future<NOverlayImage> overlayImage(
     BuildContext context, {
     required String label,
@@ -62,6 +67,7 @@ class GasStationMapBadge {
     required Color textColor,
     bool emphasizeBorder = false,
     bool unreachable = false,
+    int? recommendRank,
   }) {
     final String? logoAsset = logoFor(brand: brand, stationName: stationName);
     final bool showLogo = logoAsset != null;
@@ -87,11 +93,54 @@ class GasStationMapBadge {
     const double tailH = 10.0;
     final double borderWidth = highlighted ? 2.0 : 1.0;
 
+    // 추천 알약 — 가격 배지 위에 작게. 1위는 진한 강조색, 2·3위는 옅게.
+    final bool showRecommend = recommendRank != null;
+    final Color pillColor =
+        recommendRank == 1 ? _recommendPrimary : _recommendSecondary;
+    // 알약 폭/높이 — 텍스트("추천 N위") 기준 고정 톤.
+    const double pillH = 16.0;
+    const double pillGap = 3.0;
+    const double pillW = 50.0;
+    // 알약이 배지보다 넓을 수 있으니 캔버스 폭은 둘 중 큰 값.
+    final double canvasW = showRecommend ? math.max(w, pillW) : w;
+    final double extraTop = showRecommend ? pillH + pillGap : 0.0;
+
     return NOverlayImage.fromWidget(
-      widget: Column(
+      widget: SizedBox(
+        width: canvasW,
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          if (showRecommend) ...[
+            Container(
+              height: pillH,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: pillColor,
+                borderRadius: BorderRadius.circular(pillH / 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.18),
+                    blurRadius: 3,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+              child: Text(
+                '추천 $recommendRank위',
+                style: const TextStyle(
+                  fontFamily: 'Pretendard',
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  height: 1,
+                ),
+              ),
+            ),
+            const SizedBox(height: pillGap),
+          ],
           Container(
             width: w,
             height: h,
@@ -161,8 +210,9 @@ class GasStationMapBadge {
             painter: _GasBadgeTailPainter(effectiveBorder, borderWidth, bgColor),
           ),
         ],
+        ),
       ),
-      size: Size(w, h + tailH),
+      size: Size(canvasW, h + tailH + extraTop),
       context: context,
     );
   }
