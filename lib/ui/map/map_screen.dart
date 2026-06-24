@@ -1130,7 +1130,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   // ─── 줌 기반 클러스터 원형 아이콘 (타입별 색) ───
   // 동기 clusterMarkerBuilder 안에서는 위젯 래스터(await)가 불가하므로,
-  // 주유(파랑)·충전(초록)·혼합(인디고) 3종을 맵 준비 시 미리 만들어 둔다.
+  // 주유(파랑)·충전(초록)·혼합(파랑+초록 반반) 3종을 맵 준비 시 미리 만들어 둔다.
   // 개수 텍스트는 아이콘에 굽지 않고 네이티브 캡션으로 그려 클러스터마다 재래스터 0.
   Future<void> _buildClusterIcons() async {
     if (!mounted) return;
@@ -1154,10 +1154,39 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           size: const Size(44, 44),
           context: context,
         );
+    // 주유+충전 혼합 — 좌(주유 파랑)/우(충전 초록) 반반 원으로 한눈에 구분.
+    Future<NOverlayImage> halfCircle() => NOverlayImage.fromWidget(
+          widget: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.28),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: ClipOval(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: ColoredBox(color: AppColors.gasBlue)),
+                  Expanded(child: ColoredBox(color: AppColors.evGreen)),
+                ],
+              ),
+            ),
+          ),
+          size: const Size(44, 44),
+          context: context,
+        );
     final results = await Future.wait([
       circle(AppColors.gasBlue),
       circle(AppColors.evGreen),
-      circle(AppColors.gasBlue), // 주유+충전 혼합도 파랑(주유 톤)
+      halfCircle(),
     ]);
     if (!mounted) return;
     _clusterIconGas = results[0];
