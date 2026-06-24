@@ -884,7 +884,9 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle('충전요금', s.hasPriceInfo ? '단위 원/kWh' : null, isDark),
+          _sectionTitle(
+              s.operator.trim().isNotEmpty ? '${s.operator.trim()} 충전요금' : '충전요금',
+              s.hasPriceInfo ? '단위 원/kWh' : null, isDark),
           const SizedBox(height: 12),
           if (!s.hasPriceInfo)
             _noticeBox('요금 정보가 제공되지 않아요', isDark)
