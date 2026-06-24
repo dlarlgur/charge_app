@@ -1155,12 +1155,26 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           context: context,
         );
     // 주유+충전 혼합 — 좌(주유 파랑)/우(충전 초록) 반반 원으로 한눈에 구분.
+    // 좌 주유(파랑)/우 충전(초록) 반반 — flex(Row/Expanded) 대신 gradient 하드 split.
+    // (offscreen 래스터에서 flex 가 터지면 아이콘 빌드 전체가 실패해 클러스터가 사라지므로
+    //  solid 원과 동일하게 단일 Container 로 그린다.)
     Future<NOverlayImage> halfCircle() => NOverlayImage.fromWidget(
           widget: Container(
             width: 44,
             height: 44,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  AppColors.gasBlue,
+                  AppColors.gasBlue,
+                  AppColors.evGreen,
+                  AppColors.evGreen,
+                ],
+                stops: [0.0, 0.5, 0.5, 1.0],
+              ),
               border: Border.all(color: Colors.white, width: 2.5),
               boxShadow: [
                 BoxShadow(
@@ -1169,15 +1183,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   offset: const Offset(0, 2),
                 ),
               ],
-            ),
-            child: ClipOval(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(child: ColoredBox(color: AppColors.gasBlue)),
-                  Expanded(child: ColoredBox(color: AppColors.evGreen)),
-                ],
-              ),
             ),
           ),
           size: const Size(44, 44),
