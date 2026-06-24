@@ -75,6 +75,11 @@ class ConnectedService {
     );
   }
 
+  /// 연동 해제 — 서버 토큰 삭제 + CCAPI 철회.
+  static Future<void> unlink(String brand) async {
+    await _dio.post('/connected/$brand/unlink', options: await _auth());
+  }
+
   /// Dio 에러에서 서버가 준 친화 메시지 추출.
   static String errorMessage(Object e, String fallback) {
     if (e is DioException && e.response?.data is Map) {

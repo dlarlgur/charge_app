@@ -421,10 +421,18 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
                   ),
                 ),
                 GestureDetector(
-                  onTap: () => setState(() {
-                    _connectedCarId = '';
-                    _connectedCarName = '';
-                  }),
+                  onTap: () async {
+                    final brand = _connectedBrand;
+                    setState(() {
+                      _connectedCarId = '';
+                      _connectedCarName = '';
+                      _connectLoginStarted = false;
+                    });
+                    try {
+                      await ConnectedService.unlink(brand);
+                    } catch (_) {}
+                    if (mounted) showAppToast(context, '연동을 해제했어요');
+                  },
                   child: Text(
                     '해제',
                     style: TextStyle(
