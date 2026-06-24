@@ -531,6 +531,13 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
         return;
       }
       _showVehiclePicker(cars);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        if (mounted) setState(() => _connectLoginStarted = false);
+        _showError('로그인이 안 됐어요. "연동하기"부터 다시 해주세요.');
+      } else {
+        _showError(ConnectedService.errorMessage(e, '차량을 불러오지 못했어요.'));
+      }
     } catch (e) {
       _showError(ConnectedService.errorMessage(e, '차량을 불러오지 못했어요.'));
     } finally {

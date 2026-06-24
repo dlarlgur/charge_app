@@ -461,7 +461,7 @@ class VehicleProfile {
   bool get isEV => vehicleType == 'ev';
   bool get isGas => vehicleType == 'gas';
   // 커넥티드 연동 여부 — true 일 때만 게이지의 '차에서 불러오기' 노출.
-  bool get isConnected => connectedBrand.isNotEmpty;
+  bool get isConnected => connectedBrand.isNotEmpty && connectedCarId.isNotEmpty;
 
   String get displayLabel {
     if (isEV) return '전기차';
