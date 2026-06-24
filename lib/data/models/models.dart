@@ -438,6 +438,7 @@ class VehicleProfile {
   // 커넥티드 연동 (현대/기아/제네시스) — 빈값이면 미연동.
   final String connectedBrand;  // '' | 'hyundai' | 'kia' | 'genesis'
   final String connectedCarId;  // 연동 차량 식별자(car_id)
+  final String connectedCarName; // 연동 차량 표시명(모델명, 예: 아이오닉 5)
 
   const VehicleProfile({
     required this.id,
@@ -454,6 +455,7 @@ class VehicleProfile {
     this.targetChargePercent = 80.0,
     this.connectedBrand = '',
     this.connectedCarId = '',
+    this.connectedCarName = '',
   });
 
   bool get isEV => vehicleType == 'ev';
@@ -483,6 +485,7 @@ class VehicleProfile {
     'targetChargePercent': targetChargePercent,
     'connectedBrand': connectedBrand,
     'connectedCarId': connectedCarId,
+    'connectedCarName': connectedCarName,
   };
 
   factory VehicleProfile.fromJson(Map<String, dynamic> json) => VehicleProfile(
@@ -500,6 +503,7 @@ class VehicleProfile {
     targetChargePercent: (json['targetChargePercent'] as num? ?? 80.0).toDouble(),
     connectedBrand: json['connectedBrand']?.toString() ?? '',
     connectedCarId: json['connectedCarId']?.toString() ?? '',
+    connectedCarName: json['connectedCarName']?.toString() ?? '',
   );
 
   VehicleProfile copyWith({
@@ -516,6 +520,7 @@ class VehicleProfile {
     double? targetChargePercent,
     String? connectedBrand,
     String? connectedCarId,
+    String? connectedCarName,
   }) => VehicleProfile(
     id: id,
     name: name ?? this.name,
@@ -531,6 +536,7 @@ class VehicleProfile {
     targetChargePercent: targetChargePercent ?? this.targetChargePercent,
     connectedBrand: connectedBrand ?? this.connectedBrand,
     connectedCarId: connectedCarId ?? this.connectedCarId,
+    connectedCarName: connectedCarName ?? this.connectedCarName,
   );
 }
 

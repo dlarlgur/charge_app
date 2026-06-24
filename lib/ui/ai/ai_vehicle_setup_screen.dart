@@ -45,6 +45,7 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
   String _vehicleType = 'gas'; // 'gas' | 'ev'
   String _connectedBrand = ''; // '' | hyundai | kia | genesis (커넥티드 연동)
   String _connectedCarId = '';
+  String _connectedCarName = '';
 
   // 내연기관 필드
   FuelType _fuelType = FuelType.gasoline;
@@ -106,6 +107,7 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
     _vehicleType = v.vehicleType;
     _connectedBrand = v.connectedBrand;
     _connectedCarId = v.connectedCarId;
+    _connectedCarName = v.connectedCarName;
     _currentLevelPercent = v.currentLevelPercent;
 
     if (v.isGas) {
@@ -230,6 +232,7 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
       targetValue: targetVal,
       connectedBrand: _connectedBrand,
       connectedCarId: _connectedCarId,
+      connectedCarName: _connectedCarName,
     );
     _commit(v);
   }
@@ -260,6 +263,7 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
       targetChargePercent: _targetChargePercent,
       connectedBrand: _connectedBrand,
       connectedCarId: _connectedCarId,
+      connectedCarName: _connectedCarName,
     );
     _commit(v);
   }
@@ -345,7 +349,10 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
             return GestureDetector(
               onTap: () => setState(() {
                 _connectedBrand = b.$1;
-                if (b.$1.isEmpty) _connectedCarId = ''; // '안함' 선택 시 연동 해제.
+                if (b.$1.isEmpty) { // '안함' 선택 시 연동 해제.
+                  _connectedCarId = '';
+                  _connectedCarName = '';
+                }
               }),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 160),
@@ -402,13 +409,16 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '${_brandLabel(_connectedBrand)} 연동됨',
+                    '${_brandLabel(_connectedBrand)}${_connectedCarName.isNotEmpty ? ' · $_connectedCarName' : ''} 연동됨',
                     style: TextStyle(
                         fontSize: 13.5, fontWeight: FontWeight.w800, color: accent),
                   ),
                 ),
                 GestureDetector(
-                  onTap: () => setState(() => _connectedCarId = ''),
+                  onTap: () => setState(() {
+                    _connectedCarId = '';
+                    _connectedCarName = '';
+                  }),
                   child: Text(
                     '해제',
                     style: TextStyle(
@@ -439,7 +449,7 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _stubLink,
+                    onPressed: _showVehiclePicker,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: accent,
                       foregroundColor: Colors.white,
@@ -459,12 +469,160 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
     );
   }
 
-  void _stubLink() {
-    // TODO(connected): 실제 OAuth(Custom Tabs) 로그인 → 서버 콜백 → 차량 선택.
-    //   지금은 미리보기용 — carId 를 스텁으로 채워 '연동됨' 상태만 시연.
-    setState(() => _connectedCarId = 'preview');
-    showAppToast(context,
-        'API 승인 후 실제 ${_brandLabel(_connectedBrand)} 로그인으로 연결돼요 (현재 미리보기)');
+  // 연동 차량 선택 — 계정에 등록된 차들 중 이 app 차량과 1:1 매칭할 차를 고른다.
+  // TODO(connected): 실제 OAuth(Custom Tabs) 로그인 → 서버 콜백 → API 차량 리스트.
+  //   지금은 미리보기용 목 리스트. (1대뿐이면 자동선택, 2대+면 골라서 매칭)
+  void _showVehiclePicker() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = _vehicleType == 'gas' ? _kGasBlue : _kEvGreen;
+    const cars = <(String, String, String)>[
+      ('car_1', '아이오닉 5', '1234'),
+      ('car_2', '그랜저', '5678'),
+    ];
+    String selId = cars.first.$1;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Container(
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkCard : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: EdgeInsets.fromLTRB(
+              20, 12, 20, MediaQuery.of(ctx).padding.bottom + 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? AppColors.darkCardBorder
+                        : const Color(0xFFE5E7EB),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                '연결할 차량 선택',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: isDark
+                      ? AppColors.darkTextPrimary
+                      : const Color(0xFF111827),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${_brandLabel(_connectedBrand)} 계정에 등록된 차량 중 하나를 연결해요',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isDark
+                      ? AppColors.darkTextMuted
+                      : const Color(0xFF6B7280),
+                ),
+              ),
+              const SizedBox(height: 16),
+              ...cars.map((c) {
+                final on = selId == c.$1;
+                return GestureDetector(
+                  onTap: () => setSheet(() => selId = c.$1),
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: on
+                          ? accent.withValues(alpha: 0.08)
+                          : (isDark ? AppColors.darkBg : const Color(0xFFF4F5F7)),
+                      borderRadius: BorderRadius.circular(13),
+                      border: Border.all(
+                          color: on ? accent : Colors.transparent, width: 1.5),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          on
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                          size: 22,
+                          color: on
+                              ? accent
+                              : (isDark
+                                  ? AppColors.darkTextMuted
+                                  : const Color(0xFFB6BCC6)),
+                        ),
+                        const SizedBox(width: 13),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                c.$2,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark
+                                      ? AppColors.darkTextPrimary
+                                      : const Color(0xFF111827),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '차대번호 ····${c.$3}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark
+                                      ? AppColors.darkTextMuted
+                                      : const Color(0xFF9CA3AF),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    final car = cars.firstWhere((c) => c.$1 == selId);
+                    setState(() {
+                      _connectedCarId = car.$1;
+                      _connectedCarName = car.$2;
+                    });
+                    Navigator.pop(ctx);
+                    showAppToast(context,
+                        '${car.$2} 연결됨 (미리보기 — 실제 로그인은 API 승인 후)');
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: accent,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('이 차량 연결',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   // ─── Build ────────────────────────────────────────────────────────────────
