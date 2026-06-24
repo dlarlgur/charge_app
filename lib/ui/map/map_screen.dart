@@ -13,6 +13,7 @@ import '../../data/models/models.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/location_service.dart';
 import '../../data/services/map_runtime_config.dart';
+import '../../core/constants/secrets.dart';
 import '../../data/services/station_alias_service.dart';
 import '../../providers/providers.dart';
 import '../detail/ev_detail_screen.dart';
@@ -41,6 +42,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   List<dynamic>? _selectedCluster;
   bool _showSearchHere = false;
   bool _mapReady = false;
+  // NaverMap SDK 초기화 완료 여부 (init 전 지도 위젯 빌드 시 assert 크래시 방지).
+  bool _sdkReady = false;
   // NaverMap(PlatformView)을 캐시 — 부모 setState 가 잦아도 동일 위젯 인스턴스라
   // NaverMap 이 rebuild 되지 않아 제스처/줌이 끊기지 않음.
   // isDark 변경 시에만 재생성 → NaverMap 의 _updateOptionsIfNeeded 가 nightMode
@@ -125,9 +128,23 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     } catch (_) {}
   }
 
+  // NaverMap SDK 초기화 보장 — main 의 deferred init 이 아직이거나 실패했어도
+  // 지도 화면에서 직접(멱등) 한 번 더. 완료 전엔 _sdkReady=false 라 지도 대신 로딩.
+  Future<void> _ensureMapSdk() async {
+    if (FlutterNaverMap.isInitialized) {
+      _sdkReady = true;
+      return;
+    }
+    try {
+      await FlutterNaverMap().init(clientId: Secrets.naverMapClientId);
+    } catch (_) {}
+    if (mounted) setState(() => _sdkReady = FlutterNaverMap.isInitialized);
+  }
+
   @override
   void initState() {
     super.initState();
+    _ensureMapSdk();
     _listSheetController.addListener(_onListSheetChanged);
     _searchHistory = _loadHistory();
     final vehicleType = ref.read(settingsProvider).vehicleType;
@@ -602,7 +619,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
     // isDark 가 바뀐 경우만 재생성 (다크모드 토글 → nightMode 반영).
     // 그 외 setState 는 캐시 사용 → 제스처/줌 끊김 없음.
-    if (_cachedMap == null || _cachedMapIsDark != isDark) {
+    // NaverMap SDK 초기화 완료 전엔 위젯을 만들지 않음(미초기화 시 assert 크래시 방지).
+    if (_sdkReady && (_cachedMap == null || _cachedMapIsDark != isDark)) {
       _cachedMapIsDark = isDark;
       _cachedMap = NaverMap(
       options: NaverMapViewOptions(
@@ -655,7 +673,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           // ─── 네이버 지도 ───
           // RepaintBoundary 로 지도 레이어 격리 — 시트 열고 닫기 등 다른 UI 변화 시
           // 지도까지 같이 repaint 안 되도록. 마커 update 도 별도 cached layer.
-          RepaintBoundary(child: _cachedMap!),
+          // SDK 초기화 전이면 지도 대신 로딩(크래시 방지).
+          if (_cachedMap != null)
+            RepaintBoundary(child: _cachedMap!)
+          else
+            const ColoredBox(
+              color: Color(0xFFEDEFF2),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2.4)),
+            ),
 
           // ─── 상단 오버레이 ───
           Positioned(

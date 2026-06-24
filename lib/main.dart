@@ -357,6 +357,18 @@ void main() async {
   //  - Workmanager: 백그라운드 작업 등록 (지도/주유 위젯) — 화면 빌드 전 끝날 필요 X
   //  - WidgetService: 홈 위젯 갱신 — 위젯이 백그라운드로 갱신되므로 약간 지연 OK
   //  - FlutterNaverMap.init: 지도 화면 들어가기 전에만 끝나면 됨
+  // NaverMap SDK — 지도/EV상세/AI 화면이 첫 진입에 바로 지도를 띄울 수 있어 runApp 전에
+  // 보장. 가벼운 init 이라 스플래시 시간에 흡수됨. (deferred 면 화면 진입 레이스로
+  // 'FlutterNaverMap.isInitialized' assert 크래시)
+  try {
+    await FlutterNaverMap().init(
+      clientId: Secrets.naverMapClientId,
+      onAuthFailed: (e) => debugPrint('네이버 지도 인증 실패: $e'),
+    );
+  } catch (e) {
+    debugPrint('[NaverMap] init 실패 (무시됨): $e');
+  }
+
   unawaited(_initBackgroundTasks());
 
   runApp(const ProviderScope(child: ChargeHelperApp()));
@@ -384,14 +396,6 @@ Future<void> _initBackgroundTasks() async {
     WidgetService.updateAll();
   } catch (e) {
     debugPrint('[BG Tasks] 초기화 실패 (무시됨): $e');
-  }
-  try {
-    await FlutterNaverMap().init(
-      clientId: Secrets.naverMapClientId,
-      onAuthFailed: (e) => debugPrint('네이버 지도 인증 실패: $e'),
-    );
-  } catch (e) {
-    debugPrint('[NaverMap] init 실패 (무시됨): $e');
   }
   try {
     await MobileAds.instance.initialize();
