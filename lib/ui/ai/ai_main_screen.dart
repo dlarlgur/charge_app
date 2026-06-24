@@ -3660,13 +3660,19 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   Future<void> _fetchFromConnectedCar(bool isEv) async {
     if (_fetchingFromCar) return;
     setState(() => _fetchingFromCar = true);
+    // TODO(connected): charge_server /api/connected/status 호출로 교체.
+    //   EV → 배터리 %, 주유 → DTE 로 잔량% 역산. 지금은 미리보기 목값.
     await Future.delayed(const Duration(milliseconds: 900));
     if (!mounted) return;
+    final mockLevel = isEv ? 72.0 : 58.0;
     setState(() {
       _fetchingFromCar = false;
       _lastCarSyncAt = DateTime.now();
+      _currentLevelPercent = mockLevel; // 게이지 즉시 애니메이션
     });
-    showAppToast(context, '차량 연동 API 승인 후 실제 잔량이 연결돼요 (현재 미리보기)');
+    Hive.box(AppConstants.settingsBox)
+        .put(AppConstants.keyAiCurrentLevelPercent, mockLevel);
+    showAppToast(context, '차에서 현재 상태를 불러왔어요 (미리보기 — API 승인 후 실데이터 연결)');
   }
 
   void _showLevelEditSheet({bool isEv = false, required double capacity, required double efficiency, double targetChargePercent = 80.0}) {
