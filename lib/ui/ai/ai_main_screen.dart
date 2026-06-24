@@ -53,6 +53,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   // ── 지도 ──
   NaverMapController? _mapController;
   bool _brandImagesCached = false;
+  // 커넥티드 차량 — 차에서 현재 상태 불러오기 진행 여부 / 마지막 조회 시각.
+  bool _fetchingFromCar = false;
+  DateTime? _lastCarSyncAt;
   StreamSubscription<({double lat, double lng})>? _locationSub;
   bool _isLocating = false;
   bool _isAtMyLocation = false;
@@ -3650,6 +3653,22 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     }
   }
 
+  // 커넥티드 차량(현대/기아/제네시스)에서 현재 상태를 불러와 게이지에 세팅.
+  // EV: 배터리 % 직접 / 주유: 주행가능거리(DTE)로 잔량% 역산.
+  // TODO(connected): API 승인 후 charge_server /api/connected/status 연결.
+  //   지금은 진입부 UI 검증용 스텁 — 실제 데이터는 미연결(로딩→완료 흐름만 시연).
+  Future<void> _fetchFromConnectedCar(bool isEv) async {
+    if (_fetchingFromCar) return;
+    setState(() => _fetchingFromCar = true);
+    await Future.delayed(const Duration(milliseconds: 900));
+    if (!mounted) return;
+    setState(() {
+      _fetchingFromCar = false;
+      _lastCarSyncAt = DateTime.now();
+    });
+    showAppToast(context, '차량 연동 API 승인 후 실제 잔량이 연결돼요 (현재 미리보기)');
+  }
+
   void _showLevelEditSheet({bool isEv = false, required double capacity, required double efficiency, double targetChargePercent = 80.0}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
@@ -4267,6 +4286,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                       else
                         HeroCard(
                         topHandle: _buildHeroToggleHandle(),
+                        isConnected: selectedVehicle?.isConnected ?? false,
+                        isFetching: _fetchingFromCar,
+                        lastSyncedAt: _lastCarSyncAt,
+                        onFetchFromCar: () => _fetchFromConnectedCar(isEvVehicle),
                         currentLevel: _currentLevelPercent,
                         isEv: isEvVehicle,
                         reachableKm: _currentLevelPercent / 100 *

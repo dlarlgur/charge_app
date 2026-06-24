@@ -43,6 +43,8 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
     with SingleTickerProviderStateMixin {
   // 차량 타입
   String _vehicleType = 'gas'; // 'gas' | 'ev'
+  String _connectedBrand = ''; // '' | hyundai | kia | genesis (커넥티드 연동)
+  String _connectedCarId = '';
 
   // 내연기관 필드
   FuelType _fuelType = FuelType.gasoline;
@@ -102,6 +104,8 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
   void _applyVehicle(VehicleProfile v) {
     _nameController.text = v.name;
     _vehicleType = v.vehicleType;
+    _connectedBrand = v.connectedBrand;
+    _connectedCarId = v.connectedCarId;
     _currentLevelPercent = v.currentLevelPercent;
 
     if (v.isGas) {
@@ -224,6 +228,8 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
       currentLevelPercent: _currentLevelPercent,
       targetMode: _targetMode,
       targetValue: targetVal,
+      connectedBrand: _connectedBrand,
+      connectedCarId: _connectedCarId,
     );
     _commit(v);
   }
@@ -252,6 +258,8 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
       evEfficiency: eff,
       currentLevelPercent: _currentLevelPercent,
       targetChargePercent: _targetChargePercent,
+      connectedBrand: _connectedBrand,
+      connectedCarId: _connectedCarId,
     );
     _commit(v);
   }
@@ -304,6 +312,159 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
 
   void _showError(String msg) {
     showAppToast(context, msg, isError: true);
+  }
+
+  // ─── 커넥티드 연동 섹션 ──────────────────────────────────────────────────
+  static const List<(String, String)> _connectedBrands = [
+    ('', '안함'),
+    ('hyundai', '현대'),
+    ('kia', '기아'),
+    ('genesis', '제네시스'),
+  ];
+
+  String _brandLabel(String b) =>
+      _connectedBrands.firstWhere((e) => e.$1 == b, orElse: () => ('', '')).$2;
+
+  Widget _buildConnectedSection(bool isDark, Color labelColor, Color hintColor) {
+    final accent = _vehicleType == 'gas' ? _kGasBlue : _kEvGreen;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionLabel('커넥티드 연동 (선택)', labelColor),
+        const SizedBox(height: 6),
+        Text(
+          '제조사를 연동하면 차에서 잔량·주행가능거리를 자동으로 불러와요',
+          style: TextStyle(fontSize: 12.5, color: hintColor, height: 1.4),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _connectedBrands.map((b) {
+            final sel = _connectedBrand == b.$1;
+            return GestureDetector(
+              onTap: () => setState(() {
+                _connectedBrand = b.$1;
+                if (b.$1.isEmpty) _connectedCarId = ''; // '안함' 선택 시 연동 해제.
+              }),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: sel
+                      ? accent
+                      : (isDark ? AppColors.darkCard : const Color(0xFFF3F4F6)),
+                  borderRadius: BorderRadius.circular(11),
+                  border: Border.all(
+                    color: sel
+                        ? accent
+                        : (isDark ? AppColors.darkCardBorder : Colors.transparent),
+                  ),
+                ),
+                child: Text(
+                  b.$2,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: sel
+                        ? Colors.white
+                        : (isDark
+                            ? AppColors.darkTextSecondary
+                            : const Color(0xFF4B5563)),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        if (_connectedBrand.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _connectedLinkCard(isDark, accent),
+        ],
+      ],
+    );
+  }
+
+  Widget _connectedLinkCard(bool isDark, Color accent) {
+    final linked = _connectedCarId.isNotEmpty;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accent.withValues(alpha: 0.25)),
+      ),
+      child: linked
+          ? Row(
+              children: [
+                Icon(Icons.check_circle_rounded, size: 18, color: accent),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${_brandLabel(_connectedBrand)} 연동됨',
+                    style: TextStyle(
+                        fontSize: 13.5, fontWeight: FontWeight.w800, color: accent),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => setState(() => _connectedCarId = ''),
+                  child: Text(
+                    '해제',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: isDark
+                          ? AppColors.darkTextMuted
+                          : const Color(0xFF6B7280),
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${_brandLabel(_connectedBrand)} 계정으로 로그인하고 내 차를 연결하세요',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.4,
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : const Color(0xFF4B5563),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _stubLink,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accent,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: Text(
+                      '${_brandLabel(_connectedBrand)} 계정으로 연동하기',
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  void _stubLink() {
+    // TODO(connected): 실제 OAuth(Custom Tabs) 로그인 → 서버 콜백 → 차량 선택.
+    //   지금은 미리보기용 — carId 를 스텁으로 채워 '연동됨' 상태만 시연.
+    setState(() => _connectedCarId = 'preview');
+    showAppToast(context,
+        'API 승인 후 실제 ${_brandLabel(_connectedBrand)} 로그인으로 연결돼요 (현재 미리보기)');
   }
 
   // ─── Build ────────────────────────────────────────────────────────────────
@@ -400,6 +561,10 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
                         _animCtrl.forward();
                       },
                     ),
+                    const SizedBox(height: 24),
+
+                    // ── 커넥티드 연동 (선택) ──
+                    _buildConnectedSection(isDark, sectionLabelColor, hintColor),
                     const SizedBox(height: 24),
 
                     // ── 동적 폼 ──

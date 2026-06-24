@@ -23,6 +23,12 @@ class HeroCard extends StatelessWidget {
   /// 카드 상단 안쪽에 얹는 그랩 핸들 — 카드와 한 덩어리로 렌더(배경/그림자 자체엔 없음).
   final Widget? topHandle;
 
+  /// 커넥티드(현대/기아/제네시스) 연동된 차량일 때만 '차에서 불러오기' 노출.
+  final bool isConnected;
+  final bool isFetching;            // 차량 상태 조회 중
+  final DateTime? lastSyncedAt;     // 마지막으로 차에서 불러온 시각
+  final VoidCallback? onFetchFromCar;
+
   const HeroCard({
     super.key,
     required this.currentLevel,
@@ -38,6 +44,10 @@ class HeroCard extends StatelessWidget {
     required this.onToggleHighway,
     this.onChangeChargerMode,
     this.topHandle,
+    this.isConnected = false,
+    this.isFetching = false,
+    this.lastSyncedAt,
+    this.onFetchFromCar,
   });
 
   @override
@@ -185,6 +195,11 @@ class HeroCard extends StatelessWidget {
               ],
             ),
           ),
+          // 1-b) 커넥티드 연동 차량 — 차에서 현재 상태 불러오기 (연동된 차만 노출)
+          if (isConnected) ...[
+            const SizedBox(height: 14),
+            _fetchFromCarButton(accent),
+          ],
           // 2) divider
           Container(
             height: 1, color: kLineSoft,
@@ -235,6 +250,65 @@ class HeroCard extends StatelessWidget {
       ),
     );
   }
+
+  // 커넥티드 차량 — '차에서 현재 상태 불러오기' 버튼 (연동된 차만).
+  Widget _fetchFromCarButton(Color accent) {
+    return SizedBox(
+      width: double.infinity,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: isFetching ? null : onFetchFromCar,
+          borderRadius: BorderRadius.circular(12),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: accent.withValues(alpha: 0.30)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (isFetching)
+                  SizedBox(
+                    width: 15, height: 15,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(accent),
+                    ),
+                  )
+                else
+                  Icon(Icons.sync_rounded, size: 17, color: accent),
+                const SizedBox(width: 8),
+                Text(
+                  isFetching ? '차에서 불러오는 중…' : '차에서 현재 상태 불러오기',
+                  style: TextStyle(
+                    fontSize: 13.5, fontWeight: FontWeight.w800,
+                    color: accent, letterSpacing: -0.2,
+                  ),
+                ),
+                if (!isFetching && lastSyncedAt != null) ...[
+                  const SizedBox(width: 7),
+                  Text(
+                    '· ${_hhmm(lastSyncedAt!)}',
+                    style: TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600,
+                      color: accent.withValues(alpha: 0.65),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _hhmm(DateTime t) =>
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
   // 아이콘 + 값 인라인 (박스 X) — 효율/용량을 가볍게 정보처럼.
   Widget _statInline(IconData icon, String value) {

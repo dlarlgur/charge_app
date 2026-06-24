@@ -435,6 +435,10 @@ class VehicleProfile {
   // 전기차 목표
   final double targetChargePercent; // 목표 충전 %
 
+  // 커넥티드 연동 (현대/기아/제네시스) — 빈값이면 미연동.
+  final String connectedBrand;  // '' | 'hyundai' | 'kia' | 'genesis'
+  final String connectedCarId;  // 연동 차량 식별자(car_id)
+
   const VehicleProfile({
     required this.id,
     required this.vehicleType,
@@ -448,10 +452,14 @@ class VehicleProfile {
     this.targetMode = 'FULL',
     this.targetValue = 50000.0,
     this.targetChargePercent = 80.0,
+    this.connectedBrand = '',
+    this.connectedCarId = '',
   });
 
   bool get isEV => vehicleType == 'ev';
   bool get isGas => vehicleType == 'gas';
+  // 커넥티드 연동 여부 — true 일 때만 게이지의 '차에서 불러오기' 노출.
+  bool get isConnected => connectedBrand.isNotEmpty;
 
   String get displayLabel {
     if (isEV) return '전기차';
@@ -473,6 +481,8 @@ class VehicleProfile {
     'targetMode': targetMode,
     'targetValue': targetValue,
     'targetChargePercent': targetChargePercent,
+    'connectedBrand': connectedBrand,
+    'connectedCarId': connectedCarId,
   };
 
   factory VehicleProfile.fromJson(Map<String, dynamic> json) => VehicleProfile(
@@ -488,6 +498,8 @@ class VehicleProfile {
     targetMode: json['targetMode']?.toString() ?? 'FULL',
     targetValue: (json['targetValue'] as num? ?? 50000.0).toDouble(),
     targetChargePercent: (json['targetChargePercent'] as num? ?? 80.0).toDouble(),
+    connectedBrand: json['connectedBrand']?.toString() ?? '',
+    connectedCarId: json['connectedCarId']?.toString() ?? '',
   );
 
   VehicleProfile copyWith({
@@ -502,6 +514,8 @@ class VehicleProfile {
     String? targetMode,
     double? targetValue,
     double? targetChargePercent,
+    String? connectedBrand,
+    String? connectedCarId,
   }) => VehicleProfile(
     id: id,
     name: name ?? this.name,
@@ -515,6 +529,8 @@ class VehicleProfile {
     targetMode: targetMode ?? this.targetMode,
     targetValue: targetValue ?? this.targetValue,
     targetChargePercent: targetChargePercent ?? this.targetChargePercent,
+    connectedBrand: connectedBrand ?? this.connectedBrand,
+    connectedCarId: connectedCarId ?? this.connectedCarId,
   );
 }
 
