@@ -19,6 +19,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/util/app_toast.dart';
 import '../../data/models/models.dart';
 import '../../data/services/api_service.dart';
+import '../../data/services/connected_service.dart';
 import '../../data/services/user_sync_service.dart';
 import '../../data/services/notification_service.dart';
 import '../../data/services/station_alias_service.dart';
@@ -3654,25 +3655,42 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   }
 
   // 커넥티드 차량(현대/기아/제네시스)에서 현재 상태를 불러와 게이지에 세팅.
-  // EV: 배터리 % 직접 / 주유: 주행가능거리(DTE)로 잔량% 역산.
-  // TODO(connected): API 승인 후 charge_server /api/connected/status 연결.
-  //   지금은 진입부 UI 검증용 스텁 — 실제 데이터는 미연결(로딩→완료 흐름만 시연).
-  Future<void> _fetchFromConnectedCar(bool isEv) async {
-    if (_fetchingFromCar) return;
+  // EV: 배터리 %(soc) 직접 / 주유: 주행가능거리(DTE)로 잔량% 역산.
+  Future<void> _fetchFromConnectedCar(bool isEv, VehicleProfile? v) async {
+    if (_fetchingFromCar || v == null || !v.isConnected) return;
     setState(() => _fetchingFromCar = true);
-    // TODO(connected): charge_server /api/connected/status 호출로 교체.
-    //   EV → 배터리 %, 주유 → DTE 로 잔량% 역산. 지금은 미리보기 목값.
-    await Future.delayed(const Duration(milliseconds: 900));
-    if (!mounted) return;
-    final mockLevel = isEv ? 72.0 : 58.0;
-    setState(() {
-      _fetchingFromCar = false;
-      _lastCarSyncAt = DateTime.now();
-      _currentLevelPercent = mockLevel; // 게이지 즉시 애니메이션
-    });
-    Hive.box(AppConstants.settingsBox)
-        .put(AppConstants.keyAiCurrentLevelPercent, mockLevel);
-    showAppToast(context, '차에서 현재 상태를 불러왔어요 (미리보기 — API 승인 후 실데이터 연결)');
+    try {
+      final st = await ConnectedService.status(
+          brand: v.connectedBrand, carId: v.connectedCarId, isEv: isEv);
+      if (!mounted) return;
+      double? level;
+      String detail = '';
+      if (isEv && st.soc != null) {
+        level = st.soc!.clamp(0.0, 100.0).toDouble();
+        detail = '배터리 ${level.round()}%';
+      } else if (st.dteKm != null) {
+        final cap = isEv ? v.batteryCapacity : v.tankCapacity;
+        final eff = isEv ? v.evEfficiency : v.efficiency;
+        final full = cap * eff;
+        if (full > 0) level = (st.dteKm! / full * 100).clamp(0.0, 100.0).toDouble();
+        detail = '주행가능 ${st.dteKm}km';
+      }
+      if (level != null) {
+        final lv = level;
+        setState(() {
+          _currentLevelPercent = lv;
+          _lastCarSyncAt = DateTime.now();
+        });
+        Hive.box(AppConstants.settingsBox).put(AppConstants.keyAiCurrentLevelPercent, lv);
+        showAppToast(context, '차에서 불러왔어요 · $detail');
+      } else {
+        showAppToast(context, '차량 데이터를 가져오지 못했어요', isError: true);
+      }
+    } catch (e) {
+      if (mounted) showAppToast(context, ConnectedService.errorMessage(e, '불러오기 실패'), isError: true);
+    } finally {
+      if (mounted) setState(() => _fetchingFromCar = false);
+    }
   }
 
   void _showLevelEditSheet({bool isEv = false, required double capacity, required double efficiency, double targetChargePercent = 80.0}) {
@@ -4295,7 +4313,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                         isConnected: selectedVehicle?.isConnected ?? false,
                         isFetching: _fetchingFromCar,
                         lastSyncedAt: _lastCarSyncAt,
-                        onFetchFromCar: () => _fetchFromConnectedCar(isEvVehicle),
+                        onFetchFromCar: () => _fetchFromConnectedCar(isEvVehicle, selectedVehicle),
                         currentLevel: _currentLevelPercent,
                         isEv: isEvVehicle,
                         reachableKm: _currentLevelPercent / 100 *

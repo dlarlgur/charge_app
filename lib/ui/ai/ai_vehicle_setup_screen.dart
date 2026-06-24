@@ -1,8 +1,10 @@
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/api_constants.dart';
 import '../../core/theme/app_colors.dart';
@@ -10,6 +12,7 @@ import '../../core/util/app_toast.dart';
 import '../../data/models/models.dart';
 import '../../providers/providers.dart';
 import '../../data/services/user_sync_service.dart';
+import '../../data/services/connected_service.dart';
 
 // 앱 컨벤션과 정합 — 내연기관(gas)은 파랑, 전기차(ev)는 초록.
 // ai_main_screen 의 _kFuelAccent(#3B82F6) / _kEvAccent(#10B981) 와 동일.
@@ -46,6 +49,8 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
   String _connectedBrand = ''; // '' | hyundai | kia | genesis (커넥티드 연동)
   String _connectedCarId = '';
   String _connectedCarName = '';
+  bool _connectLoginStarted = false; // 로그인 URL 띄운 후 '차량 불러오기' 노출
+  bool _connectBusy = false;
 
   // 내연기관 필드
   FuelType _fuelType = FuelType.gasoline;
@@ -349,6 +354,7 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
             return GestureDetector(
               onTap: () => setState(() {
                 _connectedBrand = b.$1;
+                _connectLoginStarted = false;
                 if (b.$1.isEmpty) { // '안함' 선택 시 연동 해제.
                   _connectedCarId = '';
                   _connectedCarName = '';
@@ -436,50 +442,107 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${_brandLabel(_connectedBrand)} 계정으로 로그인하고 내 차를 연결하세요',
+                  _connectLoginStarted
+                      ? '로그인·정보제공 동의를 마쳤으면 차량을 불러오세요'
+                      : '${_brandLabel(_connectedBrand)} 계정으로 로그인하고 내 차를 연결하세요',
                   style: TextStyle(
                     fontSize: 12.5,
                     height: 1.4,
-                    color: isDark
-                        ? AppColors.darkTextSecondary
-                        : const Color(0xFF4B5563),
+                    color: isDark ? AppColors.darkTextSecondary : const Color(0xFF4B5563),
                   ),
                 ),
                 const SizedBox(height: 10),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _showVehiclePicker,
+                    onPressed: _connectBusy
+                        ? null
+                        : (_connectLoginStarted ? _loadConnectedVehicles : _startConnectedLogin),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: accent,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    child: Text(
-                      '${_brandLabel(_connectedBrand)} 계정으로 연동하기',
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
-                    ),
+                    child: _connectBusy
+                        ? const SizedBox(
+                            width: 18, height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : Text(
+                            _connectLoginStarted
+                                ? '차량 불러오기'
+                                : '${_brandLabel(_connectedBrand)} 계정으로 연동하기',
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+                          ),
                   ),
                 ),
+                if (_connectLoginStarted && !_connectBusy) ...[
+                  const SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: _startConnectedLogin,
+                    child: Text('로그인 다시 하기',
+                        style: TextStyle(
+                          fontSize: 12.5, fontWeight: FontWeight.w700,
+                          color: isDark ? AppColors.darkTextMuted : const Color(0xFF6B7280),
+                        )),
+                  ),
+                ],
               ],
             ),
     );
   }
 
-  // 연동 차량 선택 — 계정에 등록된 차들 중 이 app 차량과 1:1 매칭할 차를 고른다.
-  // TODO(connected): 실제 OAuth(Custom Tabs) 로그인 → 서버 콜백 → API 차량 리스트.
-  //   지금은 미리보기용 목 리스트. (1대뿐이면 자동선택, 2대+면 골라서 매칭)
-  void _showVehiclePicker() {
+  // 연동 시작 — 서버에서 로그인 URL 받아 Custom Tab 으로 연다.
+  Future<void> _startConnectedLogin() async {
+    if (_connectedBrand.isEmpty) return;
+    setState(() => _connectBusy = true);
+    try {
+      final url = await ConnectedService.getAuthorizeUrl(_connectedBrand);
+      if (url == null || url.isEmpty) {
+        _showError('연동 URL을 받지 못했어요.');
+        return;
+      }
+      final ok = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      if (ok && mounted) setState(() => _connectLoginStarted = true);
+    } catch (e) {
+      _showError(ConnectedService.errorMessage(e, '연동 시작에 실패했어요. 잠시 후 다시.'));
+    } finally {
+      if (mounted) setState(() => _connectBusy = false);
+    }
+  }
+
+  // 로그인·동의 완료 후 — 차량 리스트 (1대면 자동, 2대+면 선택 시트).
+  Future<void> _loadConnectedVehicles() async {
+    setState(() => _connectBusy = true);
+    try {
+      final cars = await ConnectedService.vehicles(_connectedBrand);
+      if (!mounted) return;
+      if (cars.isEmpty) {
+        _showError('연동 가능한 차량이 없어요.');
+        return;
+      }
+      if (cars.length == 1) {
+        setState(() {
+          _connectedCarId = cars.first.carId;
+          _connectedCarName = cars.first.name;
+        });
+        showAppToast(context, '${cars.first.name} 연결됨');
+        return;
+      }
+      _showVehiclePicker(cars);
+    } catch (e) {
+      _showError(ConnectedService.errorMessage(e, '차량을 불러오지 못했어요.'));
+    } finally {
+      if (mounted) setState(() => _connectBusy = false);
+    }
+  }
+
+  // 연동 차량 선택 — 계정 차량 중 이 app 차량과 1:1 매칭할 차를 고른다.
+  void _showVehiclePicker(List<ConnectedCar> cars) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = _vehicleType == 'gas' ? _kGasBlue : _kEvGreen;
-    const cars = <(String, String, String)>[
-      ('car_1', '아이오닉 5', '1234'),
-      ('car_2', '그랜저', '5678'),
-    ];
-    String selId = cars.first.$1;
+    String selId = cars.first.carId;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -531,9 +594,9 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
               ),
               const SizedBox(height: 16),
               ...cars.map((c) {
-                final on = selId == c.$1;
+                final on = selId == c.carId;
                 return GestureDetector(
-                  onTap: () => setSheet(() => selId = c.$1),
+                  onTap: () => setSheet(() => selId = c.carId),
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 8),
                     padding:
@@ -565,7 +628,7 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                c.$2,
+                                c.name,
                                 style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w700,
@@ -576,7 +639,7 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                '차대번호 ····${c.$3}',
+                                c.isEv ? '전기차' : '내연기관차',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: isDark
@@ -597,14 +660,13 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    final car = cars.firstWhere((c) => c.$1 == selId);
+                    final car = cars.firstWhere((c) => c.carId == selId);
                     setState(() {
-                      _connectedCarId = car.$1;
-                      _connectedCarName = car.$2;
+                      _connectedCarId = car.carId;
+                      _connectedCarName = car.name;
                     });
                     Navigator.pop(ctx);
-                    showAppToast(context,
-                        '${car.$2} 연결됨 (미리보기 — 실제 로그인은 API 승인 후)');
+                    showAppToast(context, '${car.name} 연결됨');
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: accent,
