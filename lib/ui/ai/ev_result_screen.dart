@@ -634,6 +634,14 @@ class _StationCardState extends State<_StationCard> {
         : null;
     final groupedCount = (station['grouped_count'] as num?)?.toInt();
     final isGrouped = groupedStations != null && groupedStations.length > 1;
+    // 운영사명 목록 — 단일은 1개, 그룹은 여러 운영사(중복 제거). 카드에 배지로 나열.
+    final opNames = isGrouped
+        ? groupedStations!
+            .map((g) => (g['operator'] ?? '').toString())
+            .where((o) => o.isNotEmpty)
+            .toSet()
+            .toList()
+        : (operator.isNotEmpty ? <String>[operator] : <String>[]);
 
     String? originDistLabel;
     if (originDistM != null && originDistM > 0) {
@@ -734,36 +742,42 @@ class _StationCardState extends State<_StationCard> {
                   name,
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: titleColor),
                 ),
-                // 사업자명(운영사) 배지 — 눈에 띄게. 그룹 카드는 아래 "N개 운영사 통합"으로 대체.
-                if (!isGrouped && operator.isNotEmpty) ...[
+                // 운영사 배지 — 단일 1개 / 그룹은 여러 운영사 나열(보기 좋게 칩으로).
+                if (opNames.isNotEmpty) ...[
                   const SizedBox(height: 5),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: accentColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.ev_station_rounded, size: 12, color: accentColor),
-                        const SizedBox(width: 3),
-                        Flexible(
-                          child: Text(operator,
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: accentColor),
-                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Wrap(
+                    spacing: 5,
+                    runSpacing: 4,
+                    children: [
+                      for (final op in opNames)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: accentColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.ev_station_rounded, size: 12, color: accentColor),
+                              const SizedBox(width: 3),
+                              Text(op,
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: accentColor)),
+                            ],
+                          ),
                         ),
-                      ],
-                    ),
+                    ],
                   ),
                 ],
-                if (isGrouped || address.isNotEmpty) ...[
+                if (isGrouped) ...[
+                  const SizedBox(height: 4),
+                  Text('${groupedCount ?? groupedStations!.length}개 운영사 통합',
+                    style: TextStyle(fontSize: 11, color: mutedTextColor, fontWeight: FontWeight.w600)),
+                ],
+                if (address.isNotEmpty) ...[
                   const SizedBox(height: 3),
                   Text(
-                    isGrouped
-                        ? '${groupedCount ?? groupedStations!.length}개 운영사 통합'
-                            '${address.isNotEmpty ? " · $address" : ""}'
-                        : address,
+                    address,
                     style: TextStyle(fontSize: 12, color: mutedTextColor),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
