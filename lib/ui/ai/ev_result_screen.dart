@@ -402,6 +402,7 @@ class _StationCardState extends State<_StationCard> {
     final gsAvail = (gs['available_count'] as num?)?.toInt() ?? 0;
     final gsTotal = (gs['total_count'] as num?)?.toInt() ?? 0;
     final gsUnitPrice = (gs['unit_price'] as num?)?.toInt();
+    final gsUnitPriceNonMember = (gs['unit_price_nonmember'] as num?)?.toInt();
     final gsLat = (gs['lat'] as num?)?.toDouble();
     final gsLng = (gs['lng'] as num?)?.toDouble();
     final gsName = gs['name']?.toString() ?? '';
@@ -461,9 +462,11 @@ class _StationCardState extends State<_StationCard> {
               if (gsUnitPrice != null) ...[
                 const SizedBox(width: 6),
                 Text(
-                  '${_wonFmt.format(gsUnitPrice)}원',
+                  gsUnitPriceNonMember != null
+                      ? '회원 ${_wonFmt.format(gsUnitPrice)} · 비회원 ${_wonFmt.format(gsUnitPriceNonMember)}원'
+                      : '회원 ${_wonFmt.format(gsUnitPrice)}원',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: rowText,
                   ),
@@ -618,6 +621,9 @@ class _StationCardState extends State<_StationCard> {
     final totalCount = (station['total_count'] as num?)?.toInt() ?? 0;
     final headingCount = (station['heading_count'] as num?)?.toInt() ?? 0;
     final unitPrice = (station['unit_price'] as num?)?.toInt();
+    // 회원가 헤드라인 + 비회원가 별도. 구버전 서버(필드 없음) 대비 unit_price 폴백.
+    final unitPriceMember = (station['unit_price_member'] as num?)?.toInt() ?? unitPrice;
+    final unitPriceNonMember = (station['unit_price_nonmember'] as num?)?.toInt();
     final detourMin = (station['detour_time_min'] as num?)?.toInt();
     final oldestMin = (station['oldest_charging_min'] as num?)?.toInt();
     final originDistM = (station['origin_distance_m'] as num?)?.toInt();
@@ -749,11 +755,24 @@ class _StationCardState extends State<_StationCard> {
                   spacing: 8,
                   runSpacing: 6,
                   children: [
-                    _InfoChip(
-                      icon: Icons.bolt_rounded,
-                      label: unitPrice != null ? '${_wonFmt.format(unitPrice)}원/kWh' : '가격 미공개',
-                      color: isDark ? AppColors.darkTextPrimary : const Color(0xFF444444),
-                    ),
+                    if (unitPriceMember != null)
+                      _InfoChip(
+                        icon: Icons.bolt_rounded,
+                        label: '회원 ${_wonFmt.format(unitPriceMember)}원/kWh',
+                        color: isDark ? AppColors.darkTextPrimary : const Color(0xFF444444),
+                      ),
+                    if (unitPriceNonMember != null)
+                      _InfoChip(
+                        icon: Icons.person_outline_rounded,
+                        label: '비회원 ${_wonFmt.format(unitPriceNonMember)}원/kWh',
+                        color: _kGrey,
+                      ),
+                    if (unitPriceMember == null && unitPriceNonMember == null)
+                      _InfoChip(
+                        icon: Icons.bolt_rounded,
+                        label: '가격 미공개',
+                        color: isDark ? AppColors.darkTextPrimary : const Color(0xFF444444),
+                      ),
                     if (originDistLabel != null)
                       _InfoChip(
                         icon: Icons.near_me_rounded,
@@ -1260,6 +1279,8 @@ class EvSelectList extends StatelessWidget {
               final avail = (s['available_count'] as num?)?.toInt() ?? 0;
               final total = (s['total_count'] as num?)?.toInt() ?? 0;
               final unitPrice = (s['unit_price'] as num?)?.toInt();
+              final unitPriceMember = (s['unit_price_member'] as num?)?.toInt() ?? unitPrice;
+              final unitPriceNonMember = (s['unit_price_nonmember'] as num?)?.toInt();
               final routeDistM = (s['route_distance_m'] as num?)?.toInt() ?? 0;
               final originDistM = (s['origin_distance_m'] as num?)?.toInt();
               final originEtaMin = (s['origin_eta_min'] as num?)?.toInt();
@@ -1342,9 +1363,12 @@ class EvSelectList extends StatelessWidget {
                                 if (originEtaMin != null && originEtaMin > 0)
                                   Text('약 ${fmtMin(originEtaMin)} 소요',
                                     style: TextStyle(fontSize: 11, color: mutedColor)),
-                                if (unitPrice != null)
-                                  Text('${_wonFmt.format(unitPrice)}원/kWh',
+                                if (unitPriceMember != null)
+                                  Text('회원 ${_wonFmt.format(unitPriceMember)}원/kWh',
                                     style: TextStyle(fontSize: 11, color: priceColor)),
+                                if (unitPriceNonMember != null)
+                                  Text('비회원 ${_wonFmt.format(unitPriceNonMember)}원/kWh',
+                                    style: TextStyle(fontSize: 11, color: mutedColor)),
                               ],
                             ),
                           ],
