@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dksw_app_core/dksw_app_core.dart';
 
@@ -123,8 +124,14 @@ class _SignupCompleteScreenState extends ConsumerState<SignupCompleteScreen> {
                 controller: _nick,
                 maxLength: 20,
                 onChanged: (_) => setState(() {}),
+                inputFormatters: [
+                  // 이모티콘·특수문자 차단 — 한글/영문/숫자/공백/._- 만 허용(서버 규칙과 동일).
+                  FilteringTextInputFormatter.allow(
+                      RegExp(r'[가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9 ._-]')),
+                ],
                 decoration: const InputDecoration(
                   hintText: '사용할 닉네임',
+                  helperText: '한글·영문·숫자만 (이모티콘·특수문자 불가)',
                   border: OutlineInputBorder(),
                   counterText: '',
                 ),
