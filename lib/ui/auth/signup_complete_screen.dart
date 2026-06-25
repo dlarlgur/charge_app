@@ -25,9 +25,9 @@ class _SignupCompleteScreenState extends ConsumerState<SignupCompleteScreen> {
   bool get _needAge => widget.user.ageGroup == null || widget.user.ageGroup!.isEmpty;
   String? _ageToGroup() {
     final n = int.tryParse(_age.text.trim());
-    if (n == null || n < 14 || n > 100) return null;
+    if (n == null || n < 18 || n > 100) return null; // 만 18세 이상 (Play 타겟연령 일치)
     if (n >= 60) return '60대이상';
-    return '${(n ~/ 10) * 10}대'; // 14→10대, 27→20대
+    return '${(n ~/ 10) * 10}대'; // 18→10대, 27→20대
   }
   bool get _ageOk => !_needAge || _ageToGroup() != null;
 
@@ -129,14 +129,14 @@ class _SignupCompleteScreenState extends ConsumerState<SignupCompleteScreen> {
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: textSecondary)),
               const SizedBox(height: 6),
               if (_needAge)
-                // 소셜이 연령대를 안 줬으면 직접 입력(필수, 14~100).
+                // 소셜이 연령대를 안 줬으면 직접 입력(필수, 18~100).
                 TextField(
                   controller: _age,
                   keyboardType: TextInputType.number,
                   maxLength: 3,
                   onChanged: (_) => setState(() {}),
                   decoration: const InputDecoration(
-                    hintText: '나이 입력 (14~100)',
+                    hintText: '나이 입력 (18~100)',
                     border: OutlineInputBorder(),
                     counterText: '',
                   ),
@@ -149,8 +149,16 @@ class _SignupCompleteScreenState extends ConsumerState<SignupCompleteScreen> {
                   decoration: const InputDecoration(border: OutlineInputBorder()),
                 ),
               const SizedBox(height: 6),
-              Text(_needAge ? '연령대 통계용으로만 사용돼요.' : '소셜 계정에서 가져온 연령대예요.',
-                  style: TextStyle(fontSize: 12, color: textSecondary)),
+              Builder(builder: (_) {
+                final n = int.tryParse(_age.text.trim());
+                final under18 = _needAge && n != null && n < 18;
+                return Text(
+                  under18
+                      ? '만 18세 이상만 가입할 수 있어요'
+                      : (_needAge ? '연령대 통계용으로만 사용돼요.' : '소셜 계정에서 가져온 연령대예요.'),
+                  style: TextStyle(fontSize: 12, color: under18 ? Colors.red : textSecondary),
+                );
+              }),
               const Spacer(),
               SizedBox(
                 width: double.infinity,
