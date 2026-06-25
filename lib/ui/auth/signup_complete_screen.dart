@@ -21,8 +21,13 @@ class _SignupCompleteScreenState extends ConsumerState<SignupCompleteScreen> {
   final TextEditingController _age = TextEditingController();
   bool _busy = false;
 
-  // 소셜(네이버)이 연령대를 이미 줬으면 입력 생략.
-  bool get _needAge => widget.user.ageGroup == null || widget.user.ageGroup!.isEmpty;
+  // 소셜이 연령대를 줬으면 입력 생략. 단 '10대'/'10대 미만'은 18세 미만이 섞여 있어
+  // 직접 나이 입력을 강제(18+ 게이트) — 카카오 15~17세 자동통과 차단.
+  bool get _needAge {
+    final g = widget.user.ageGroup;
+    if (g == null || g.isEmpty) return true;
+    return g == '10대' || g == '10대 미만';
+  }
   String? _ageToGroup() {
     final n = int.tryParse(_age.text.trim());
     if (n == null || n < 18 || n > 100) return null; // 만 18세 이상 (Play 타겟연령 일치)
