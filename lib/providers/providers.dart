@@ -333,6 +333,44 @@ final favEvStationsProvider = FutureProvider<List<EvStation>>((ref) async {
       .toList();
 });
 
+// ─── 즐겨찾기 주유소(거리 계산·정렬) — 즐겨찾기 탭 카드용. 위치 없으면 거리 미표시로 그대로. ───
+final favGasStationsSortedProvider = Provider<AsyncValue<List<GasStation>>>((ref) {
+  final location = ref.watch(locationProvider);
+  final favAsync = ref.watch(favGasStationsProvider);
+  return favAsync.when(
+    loading: () => const AsyncValue.loading(),
+    error: (e, s) => AsyncValue.error(e, s),
+    data: (favs) {
+      final loc = location.valueOrNull;
+      if (loc == null) return AsyncValue.data(favs);
+      final withDist = favs
+          .map((s) => s.copyWithDistance(_haversineM(loc.lat, loc.lng, s.lat, s.lng)))
+          .toList()
+        ..sort((a, b) => a.distance.compareTo(b.distance));
+      return AsyncValue.data(withDist);
+    },
+  );
+});
+
+// ─── 즐겨찾기 충전소(거리 계산·정렬) — 즐겨찾기 탭 카드용. ───
+final favEvStationsSortedProvider = Provider<AsyncValue<List<EvStation>>>((ref) {
+  final location = ref.watch(locationProvider);
+  final favAsync = ref.watch(favEvStationsProvider);
+  return favAsync.when(
+    loading: () => const AsyncValue.loading(),
+    error: (e, s) => AsyncValue.error(e, s),
+    data: (favs) {
+      final loc = location.valueOrNull;
+      if (loc == null) return AsyncValue.data(favs);
+      final withDist = favs
+          .map((s) => s.copyWithDistance(_haversineM(loc.lat, loc.lng, s.lat, s.lng)))
+          .toList()
+        ..sort((a, b) => (a.distance ?? double.infinity).compareTo(b.distance ?? double.infinity));
+      return AsyncValue.data(withDist);
+    },
+  );
+});
+
 // ─── Gas Stations Raw Provider (위치 기반 API, 필터·즐겨찾기 없음) ───
 final gasStationsRawProvider = FutureProvider.family<List<GasStation>, ({double lat, double lng, int radius, List<String> fuelTypes})>(
   (ref, args) async {
