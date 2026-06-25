@@ -734,13 +734,36 @@ class _StationCardState extends State<_StationCard> {
                   name,
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: titleColor),
                 ),
-                if (isGrouped || operator.isNotEmpty || address.isNotEmpty) ...[
+                // 사업자명(운영사) 배지 — 눈에 띄게. 그룹 카드는 아래 "N개 운영사 통합"으로 대체.
+                if (!isGrouped && operator.isNotEmpty) ...[
+                  const SizedBox(height: 5),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: accentColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.ev_station_rounded, size: 12, color: accentColor),
+                        const SizedBox(width: 3),
+                        Flexible(
+                          child: Text(operator,
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: accentColor),
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                if (isGrouped || address.isNotEmpty) ...[
                   const SizedBox(height: 3),
                   Text(
                     isGrouped
                         ? '${groupedCount ?? groupedStations!.length}개 운영사 통합'
                             '${address.isNotEmpty ? " · $address" : ""}'
-                        : [if (operator.isNotEmpty) operator, if (address.isNotEmpty) address].join(' · '),
+                        : address,
                     style: TextStyle(fontSize: 12, color: mutedTextColor),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
