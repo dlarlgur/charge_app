@@ -42,6 +42,8 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
   late double _level;
   late String _mode;
   late double _targetChargePercent;
+  // 직접(커스텀) 목표충전 모드 — 명시 플래그. 값 기반이 아니라 슬라이더로 80/100 닿아도 안 풀림.
+  bool _customTarget = false;
   bool _useDte = false;
   final _dteController = TextEditingController();
   String? _dteError;
@@ -52,6 +54,8 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
     _level = widget.initialLevel;
     _mode = widget.initialMode;
     _targetChargePercent = widget.initialTargetChargePercent;
+    _customTarget = widget.initialTargetChargePercent != 80 &&
+        widget.initialTargetChargePercent != 100;
   }
 
   @override
@@ -72,9 +76,8 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
     return const Color(0xFF22C55E);
   }
 
-  // EV 목표충전 — 직접(커스텀) 여부 (80/100 프리셋이 아니면 직접)
-  bool get _isCustomTarget =>
-      _targetChargePercent != 80 && _targetChargePercent != 100;
+  // EV 목표충전 — 직접(커스텀) 모드 여부 (명시 플래그).
+  bool get _isCustomTarget => _customTarget;
 
   // 목표까지 더 필요한 kWh(EV)
   double get _needKwh {
@@ -546,15 +549,20 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
 
   // EV 목표충전 세그먼트 — value null = 직접(커스텀).
   Widget _evTargetSeg(String label, double? value, Color accent) {
-    final selected =
-        value == null ? _isCustomTarget : _targetChargePercent == value;
+    final selected = value == null
+        ? _customTarget
+        : (!_customTarget && _targetChargePercent == value);
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() {
           if (value != null) {
+            _customTarget = false;
             _targetChargePercent = value;
-          } else if (!_isCustomTarget) {
-            _targetChargePercent = 90; // 직접 진입 시 기본값(80/100 외)
+          } else {
+            _customTarget = true;
+            if (_targetChargePercent == 80 || _targetChargePercent == 100) {
+              _targetChargePercent = 90; // 직접 진입 기본값(슬라이더 시작점)
+            }
           }
         }),
         child: Container(
