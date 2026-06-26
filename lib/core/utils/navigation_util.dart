@@ -42,7 +42,16 @@ Future<void> showViaWaypointNavigationSheet(
   );
 }
 
-bool _isRestArea(String name) => name.contains('휴게소');
+// 고속도로 휴게소 식별 — '휴게소' 글자뿐 아니라 (도시방향)/(상)/(하) 표기까지.
+// 주유소는 "(주)서원문경(하)주유소"·"안성(서울)주유소"처럼 휴게소 글자 없는 경우가 많아
+// 이전엔 티맵 권장이 안 떴음. BrandLogo.isHighwayRestArea 와 동일 판정.
+final RegExp _highwayCityLabelRe = RegExp(
+    r'\((?:서울|부산|인천|대구|광주|대전|울산|세종|일산|하남|양평|춘천|강릉|속초|삼척|영덕|포항|서부산|창원|통영|함양|광양|순천|장수|전주|완주|익산|목포|영암|무안|논산|당진|서천|천안|공주|청주|제천|남이|평택|양양|경산|마산|영천|상주|판교|충주|안동|경주|보령|군위|처인|산청|진영|포천|원주|동해|여주|횡성|평창|대관령)(?:방향)?\)');
+final RegExp _updownRe = RegExp(r'\((?:상|하)\)');
+bool _isRestArea(String name) =>
+    name.contains('휴게소') ||
+    _highwayCityLabelRe.hasMatch(name) ||
+    _updownRe.hasMatch(name);
 
 Future<void> _launch(String url, {required String fallback}) async {
   final uri = Uri.parse(url);
@@ -81,7 +90,8 @@ Future<void> _launchKakaoNavi({
 class _NavigationSheet extends StatelessWidget {
   final double lat, lng;
   final String name;
-  const _NavigationSheet({required this.lat, required this.lng, required this.name});
+  const _NavigationSheet(
+      {required this.lat, required this.lng, required this.name});
 
   @override
   Widget build(BuildContext context) {
@@ -93,11 +103,15 @@ class _NavigationSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 36, height: 4,
-              decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2)),
             ),
             const SizedBox(height: 16),
-            const Text('길찾기 앱 선택', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+            const Text('길찾기 앱 선택',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             _navItem(
               context,
@@ -153,8 +167,10 @@ class _NavigationSheet extends StatelessWidget {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       leading: icon,
-      title: Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-      subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: subtitleColor)),
+      title: Text(label,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+      subtitle:
+          Text(subtitle, style: TextStyle(fontSize: 12, color: subtitleColor)),
       trailing: const Icon(Icons.chevron_right_rounded, color: Colors.grey),
       onTap: () {
         Navigator.pop(context);

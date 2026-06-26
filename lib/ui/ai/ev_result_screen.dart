@@ -1009,13 +1009,36 @@ class _StationCardState extends State<_StationCard> {
                   spacing: 8,
                   runSpacing: 6,
                   children: [
+                    // 회원가 = 실결제가 → accent 채움 칩으로 도드라지게.
                     if (unitPriceMember != null)
-                      _InfoChip(
-                        icon: Icons.bolt_rounded,
-                        label: '회원 ${_wonFmt.format(unitPriceMember)}원/kWh',
-                        color: isDark
-                            ? AppColors.darkTextPrimary
-                            : const Color(0xFF444444),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 9, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: accentColor.withValues(
+                              alpha: isDark ? 0.22 : 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: accentColor.withValues(alpha: 0.45)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.bolt_rounded,
+                                size: 14, color: accentColor),
+                            const SizedBox(width: 3),
+                            Text('회원 ',
+                                style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: accentColor)),
+                            Text('${_wonFmt.format(unitPriceMember)}원/kWh',
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                    color: accentColor)),
+                          ],
+                        ),
                       ),
                     if (unitPriceNonMember != null)
                       _InfoChip(
