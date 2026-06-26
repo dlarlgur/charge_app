@@ -4,29 +4,33 @@ import '../../../core/theme/app_colors.dart';
 import '../ai_constants.dart';
 import 'gauge_ring.dart';
 
-/// Hero 카드 (ai_reco_main.html 양식)
-/// 큰 원형 게이지 (잔량 %) + 가능 km + 차량 정보 + 효율/탱크 stat + 선호 조건 chip.
-/// 사용자 입력: tap → 잔량 편집 시트, 차량 편집 → 차량 선택, chip 토글.
+/// Hero 카드 (리뉴얼)
+/// 큰 원형 게이지(잔량 % + 가능 km + 편집 뱃지) + 차량 정보 + 효율/탱크 stat + 선호 조건 chip.
+///
+/// 선호 조건: 주유 = [고속도로] 만, 충전 = [급속][완속][고속도로].
+///
+/// 커넥티드(현대/기아/제네시스) '차에서 불러오기' 는 isConnected 일 때만 노출.
+/// 이번 배포는 커넥티드 제외(호출부 isConnected=false) → 자동으로 숨겨짐.
+/// 파라미터는 유지하므로 나중에 재부착 시 호출부만 isConnected=true 로 주면 됨.
 class HeroCard extends StatelessWidget {
   final double currentLevel;
   final bool isEv;
   final double reachableKm;
   final String vehicleName;
-  final double efficiency;          // km/L or km/kWh
-  final double tankCapacity;        // L or kWh
+  final double efficiency; // km/L or km/kWh
+  final double tankCapacity; // L or kWh
   final bool highwayOnly;
-  final String? chargerMode;        // 'FAST' | 'SLOW' (EV 전용)
+  final String? chargerMode; // 'FAST' | 'SLOW' (EV 전용)
   final VoidCallback onTapLevel;
   final VoidCallback onTapVehicle;
   final VoidCallback onToggleHighway;
   final ValueChanged<String>? onChangeChargerMode;
-  /// 카드 상단 안쪽에 얹는 그랩 핸들 — 카드와 한 덩어리로 렌더(배경/그림자 자체엔 없음).
   final Widget? topHandle;
 
-  /// 커넥티드(현대/기아/제네시스) 연동된 차량일 때만 '차에서 불러오기' 노출.
+  // 커넥티드 — 연동된 차량일 때만 '차에서 불러오기' 노출.
   final bool isConnected;
-  final bool isFetching;            // 차량 상태 조회 중
-  final DateTime? lastSyncedAt;     // 마지막으로 차에서 불러온 시각
+  final bool isFetching; // 차량 상태 조회 중
+  final DateTime? lastSyncedAt; // 마지막으로 차에서 불러온 시각
   final VoidCallback? onFetchFromCar;
 
   const HeroCard({
@@ -55,28 +59,20 @@ class HeroCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = modeAccent(isEv);
     final accentDeep = modeAccentDeep(isEv);
-    // 게이지 색은 잔량 %에 따라 — 20% 이하 빨강 / 50% 이하 주황 / 충분하면 브랜드색(충전 초록·주유 파랑).
-    final Color gaugeColor = currentLevel <= 20
-        ? const Color(0xFFE24B4A)
-        : currentLevel <= 50
-            ? const Color(0xFFEF9F27)
-            : accent;
-    final Color gaugeColorDeep = currentLevel <= 20
-        ? const Color(0xFFC0392B)
-        : currentLevel <= 50
-            ? const Color(0xFFD98318)
-            : accentDeep;
+
     return Container(
-      // 핸들이 카드 안 최상단에 오면 top 패딩을 줄여 핸들이 곧 카드 윗부분이 되게.
-      padding: EdgeInsets.fromLTRB(18, topHandle != null ? 6 : 18, 18, 16),
+      padding: EdgeInsets.fromLTRB(18, topHandle != null ? 6 : 16, 18, 18),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkMapOverlay : Colors.white,
+        color: isDark ? AppColors.darkCard : Colors.white,
         borderRadius: BorderRadius.circular(22),
-        border: isDark ? Border.all(color: AppColors.darkCardBorder, width: 1) : null,
+        border: isDark
+            ? Border.all(color: AppColors.darkCardBorder, width: 1)
+            : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 24, offset: const Offset(0, 8),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -84,53 +80,28 @@ class HeroCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (topHandle != null) topHandle!,
+          if (topHandle != null) ...[
+            topHandle!,
+            const SizedBox(height: 4),
+          ],
+
           // 1) 상단 row — 게이지 + 차량 정보
           IntrinsicHeight(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // 큰 원형 게이지 (108x108) — 탭하면 잔량 편집. 우하단 연필 배지로 편집 가능 표시.
                 GestureDetector(
                   onTap: onTapLevel,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      GaugeRing(
-                        percent: currentLevel,
-                        reachableKm: reachableKm,
-                        color: gaugeColor,
-                        colorDeep: gaugeColorDeep,
-                        isEv: isEv,
-                      ),
-                      Positioned(
-                        right: -1,
-                        bottom: -1,
-                        child: Container(
-                          padding: const EdgeInsets.all(5),
-                          decoration: BoxDecoration(
-                            color: accent,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: isDark ? const Color(0xFF12141A) : Colors.white,
-                              width: 2,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: accent.withValues(alpha: 0.4),
-                                blurRadius: 6,
-                                offset: const Offset(0, 1),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(Icons.edit_rounded, size: 12, color: Colors.white),
-                        ),
-                      ),
-                    ],
+                  behavior: HitTestBehavior.opaque,
+                  child: GaugeRing(
+                    percent: currentLevel,
+                    reachableKm: reachableKm,
+                    color: accent,
+                    colorDeep: accentDeep,
+                    isEv: isEv,
                   ),
                 ),
                 const SizedBox(width: 16),
-                // 차량 정보 + stat
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -140,52 +111,64 @@ class HeroCard extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              vehicleName.isEmpty ? (isEv ? 'EV' : '차량') : vehicleName,
+                              vehicleName.isEmpty
+                                  ? (isEv ? 'EV' : '차량')
+                                  : vehicleName,
                               style: TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.w800,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
                                 letterSpacing: -0.4,
-                                color: isDark ? AppColors.darkTextPrimary : kInk,
+                                color:
+                                    isDark ? AppColors.darkTextPrimary : kInk,
                               ),
-                              maxLines: 1, overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           GestureDetector(
                             onTap: onTapVehicle,
                             child: Container(
-                              width: 28, height: 28,
+                              width: 28,
+                              height: 28,
                               decoration: BoxDecoration(
                                 color: kLineSoft,
-                                borderRadius: BorderRadius.circular(7),
+                                borderRadius: BorderRadius.circular(9),
                               ),
                               alignment: Alignment.center,
-                              child: const Icon(Icons.edit_outlined, size: 14, color: kMute2),
+                              child: const Icon(Icons.edit_outlined,
+                                  size: 14, color: kMute2),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        isEv ? '현재 배터리' : '현재 잔유량',
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kMuted),
+                        isEv ? '탭하면 배터리 잔량을 바꿀 수 있어요' : '탭하면 잔량 · 목표를 바꿀 수 있어요',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: kMute2,
+                        ),
                       ),
-                      const SizedBox(height: 10),
-                      // 박스 대신 아이콘+인라인 값 한 줄 — 폼 필드 느낌 제거(가볍게 정보처럼).
+                      const SizedBox(height: 11),
                       Row(
                         children: [
-                          _statInline(
-                            Icons.speed_rounded,
-                            isEv
-                                ? '${efficiency.toStringAsFixed(1)} km/kWh'
-                                : '${efficiency.toStringAsFixed(1)} km/L',
+                          Expanded(
+                            child: _statBox(
+                              label: isEv ? '효율' : '연비',
+                              value: isEv
+                                  ? '${efficiency.toStringAsFixed(1)} km/kWh'
+                                  : '${efficiency.toStringAsFixed(1)} km/L',
+                            ),
                           ),
-                          _statDivider(),
-                          _statInline(
-                            isEv
-                                ? Icons.battery_charging_full_rounded
-                                : Icons.local_gas_station_rounded,
-                            isEv
-                                ? '${tankCapacity.toStringAsFixed(0)} kWh'
-                                : '${tankCapacity.toStringAsFixed(0)} L',
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _statBox(
+                              label: isEv ? '배터리' : '연료탱크',
+                              value: isEv
+                                  ? '${tankCapacity.toStringAsFixed(0)} kWh'
+                                  : '${tankCapacity.toStringAsFixed(0)} L',
+                            ),
                           ),
                         ],
                       ),
@@ -195,37 +178,32 @@ class HeroCard extends StatelessWidget {
               ],
             ),
           ),
-          // 1-b) 커넥티드 연동 차량 — 차에서 현재 상태 불러오기 (연동된 차만 노출)
+
+          // 1-b) 커넥티드 연동 차량 — '차에서 불러오기' (연동된 차만 노출, 이번 배포 숨김)
           if (isConnected) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             _fetchFromCarButton(accent),
           ],
-          // 2) divider
-          Container(
-            height: 1, color: kLineSoft,
-            margin: const EdgeInsets.fromLTRB(0, 16, 0, 14),
-          ),
-          // 3) 선호 조건 타이틀 + chip
+
+          const SizedBox(height: 16),
+
+          // 2) 선호 조건 타이틀 + chip
           Row(
             children: [
-              Icon(Icons.tune_rounded, size: 13, color: kMuted),
+              const Icon(Icons.tune_rounded, size: 14, color: kMute2),
               const SizedBox(width: 6),
-              Text(isEv ? '충전 선호 조건' : '주유 선호 조건',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
+              Text(
+                isEv ? '충전 선호 조건' : '주유 선호 조건',
+                style: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w700, color: kMute2),
+              ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 9),
           Wrap(
-            spacing: 8, runSpacing: 8,
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              _prefChip(
-                icon: Icons.add_road_rounded,
-                label: '고속도로',
-                active: highwayOnly,
-                accent: accent,
-                accentLight: modeAccentLight(isEv),
-                onTap: onToggleHighway,
-              ),
               if (isEv) ...[
                 _prefChip(
                   icon: Icons.bolt_rounded,
@@ -244,9 +222,86 @@ class HeroCard extends StatelessWidget {
                   onTap: () => onChangeChargerMode?.call('SLOW'),
                 ),
               ],
+              // 주유 = 고속도로 한 개만, 충전 = 급속/완속 뒤에 고속도로
+              _prefChip(
+                icon: Icons.add_road_rounded,
+                label: '고속도로',
+                active: highwayOnly,
+                accent: accent,
+                accentLight: modeAccentLight(isEv),
+                onTap: onToggleHighway,
+              ),
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _statBox({required String label, required String value}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+      decoration: BoxDecoration(
+        color: kLineSoft,
+        borderRadius: BorderRadius.circular(11),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 10, fontWeight: FontWeight.w700, color: kMute2)),
+          const SizedBox(height: 2),
+          Text(value,
+              style: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w800,
+                color: kInk,
+                letterSpacing: -0.2,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
+        ],
+      ),
+    );
+  }
+
+  Widget _prefChip({
+    required IconData icon,
+    required String label,
+    required bool active,
+    required Color accent,
+    required Color accentLight,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? accentLight : kLineSoft,
+          borderRadius: BorderRadius.circular(99),
+          border: Border.all(
+            color: active ? accent.withValues(alpha: 0.22) : Colors.transparent,
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: active ? accent : kInk2),
+            const SizedBox(width: 5),
+            Text(label,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: active ? accent : kInk2,
+                  letterSpacing: -0.1,
+                )),
+          ],
+        ),
       ),
     );
   }
@@ -273,7 +328,8 @@ class HeroCard extends StatelessWidget {
               children: [
                 if (isFetching)
                   SizedBox(
-                    width: 15, height: 15,
+                    width: 15,
+                    height: 15,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
                       valueColor: AlwaysStoppedAnimation<Color>(accent),
@@ -285,8 +341,10 @@ class HeroCard extends StatelessWidget {
                 Text(
                   isFetching ? '차에서 불러오는 중…' : '차에서 현재 상태 불러오기',
                   style: TextStyle(
-                    fontSize: 13.5, fontWeight: FontWeight.w800,
-                    color: accent, letterSpacing: -0.2,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                    color: accent,
+                    letterSpacing: -0.2,
                   ),
                 ),
                 if (!isFetching && lastSyncedAt != null) ...[
@@ -294,7 +352,8 @@ class HeroCard extends StatelessWidget {
                   Text(
                     '· ${_hhmm(lastSyncedAt!)}',
                     style: TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                       color: accent.withValues(alpha: 0.65),
                     ),
                   ),
@@ -309,63 +368,4 @@ class HeroCard extends StatelessWidget {
 
   String _hhmm(DateTime t) =>
       '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-
-  // 아이콘 + 값 인라인 (박스 X) — 효율/용량을 가볍게 정보처럼.
-  Widget _statInline(IconData icon, String value) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: kMute2),
-        const SizedBox(width: 5),
-        Flexible(
-          child: Text(value,
-              style: const TextStyle(
-                fontSize: 13, fontWeight: FontWeight.w800,
-                color: kInk, letterSpacing: -0.2,
-              ),
-              maxLines: 1, overflow: TextOverflow.ellipsis),
-        ),
-      ],
-    );
-  }
-
-  Widget _statDivider() => Container(
-        width: 1, height: 11,
-        margin: const EdgeInsets.symmetric(horizontal: 12),
-        color: kLineSoft,
-      );
-
-  Widget _prefChip({
-    required IconData icon, required String label,
-    required bool active, required Color accent, required Color accentLight,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
-        decoration: BoxDecoration(
-          color: active ? accentLight : kLineSoft,
-          borderRadius: BorderRadius.circular(99),
-          border: Border.all(
-            color: active ? accent.withValues(alpha: 0.22) : Colors.transparent,
-            width: 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 13, color: active ? accent : kInk2),
-            const SizedBox(width: 5),
-            Text(label,
-                style: TextStyle(
-                  fontSize: 12.5, fontWeight: FontWeight.w700,
-                  color: active ? accent : kInk2, letterSpacing: -0.1,
-                )),
-          ],
-        ),
-      ),
-    );
-  }
 }
