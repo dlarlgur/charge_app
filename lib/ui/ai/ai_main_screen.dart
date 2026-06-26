@@ -2746,28 +2746,35 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     }
 
     // 다른 후보로 선택 → 해당 station id 보라색 강조 (이미 함수 시작 시 설정함)
-    _drawResultOnMap(
-      pathPoints: pathPoints,
-      pathSegments: pathSegments,
-      originLat: _lastStartLat,
-      originLng: _lastStartLng,
-      stLat: stLat,
-      stLng: stLng,
-      stName: stName,
-      stPrice: priceL,
-      stBrand: st['brand']?.toString(),
-      st2Lat: _lastRecSt2Lat,
-      st2Lng: _lastRecSt2Lng,
-      st2Name: _lastRecSt2Name,
-      st2Price: _lastRecSt2Price,
-      st2Brand: _lastRecSt2Brand,
-      destLat: _destLat!,
-      destLng: _destLng!,
-      alternatives: _lastRecAlternatives,
-    );
+    // ★ await 로 순차화 — draw(오버레이 clear/add)와 카메라 애니메이션이 동시에 돌면
+    //   NaverMap 네이티브에서 충돌해 '지도 가다가 팅김'(크래시) 발생. 그려진 뒤 카메라 이동.
+    try {
+      await _drawResultOnMap(
+        pathPoints: pathPoints,
+        pathSegments: pathSegments,
+        originLat: _lastStartLat,
+        originLng: _lastStartLng,
+        stLat: stLat,
+        stLng: stLng,
+        stName: stName,
+        stPrice: priceL,
+        stBrand: st['brand']?.toString(),
+        st2Lat: _lastRecSt2Lat,
+        st2Lng: _lastRecSt2Lng,
+        st2Name: _lastRecSt2Name,
+        st2Price: _lastRecSt2Price,
+        st2Brand: _lastRecSt2Brand,
+        destLat: _destLat!,
+        destLng: _destLng!,
+        alternatives: _lastRecAlternatives,
+      );
+    } catch (e) {
+      if (kDebugMode) debugPrint('[alt] _drawResultOnMap 실패: $e');
+    }
 
     // 사용자 의도: 다른 후보 '확인' 누르면 해당 좌표로 카메라 이동 → 보라 마커 즉시 보임.
-    if (_mapController != null) {
+    if (!mounted || _mapController == null) return;
+    try {
       await _mapController!.updateCamera(
         NCameraUpdate.scrollAndZoomTo(
           target: NLatLng(stLat, stLng),
@@ -2776,6 +2783,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             animation: NCameraAnimation.easing,
             duration: const Duration(milliseconds: 500)),
       );
+    } catch (e) {
+      if (kDebugMode) debugPrint('[alt] 카메라 이동 실패: $e');
     }
   }
 
