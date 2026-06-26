@@ -474,16 +474,17 @@ class _StationCardState extends State<_StationCard> {
                 ],
               ),
               if (hasCharge) ...[
-                // 가운데 — 충전시간 + 화살표
+                // 가운데 — '충전' 표시(화살표). 충전 소요시간은 차량 수용속도(차종별 상이)를
+                // 반영 못 해 부정확하므로 분 표시는 하지 않음(SOC 예측만 노출).
                 Expanded(
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (chargeMin != null && chargeMin > 0)
-                        Text('충전 약 ${fmtMin(chargeMin)}',
-                            style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w600,
-                                color: labelColor)),
+                      Text('충전',
+                          style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                              color: labelColor)),
                       const SizedBox(height: 1),
                       Icon(Icons.arrow_right_alt_rounded,
                           size: 22, color: mutedColor),
