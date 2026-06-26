@@ -689,7 +689,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         unawaited(_loadRouteAlternatives());
       }
     } else {
-      setState(() { _destLat = lat; _destLng = lng; _destName = name; });
+      // 목적지 설정 시 차량 카드 자동 접기 — 지도/경로에 집중.
+      setState(() { _destLat = lat; _destLng = lng; _destName = name; _heroCollapsed = true; });
       unawaited(_loadRouteAlternatives());
     }
     _exitPickerMode();
@@ -756,7 +757,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
               unawaited(_loadRouteAlternatives());
             }
           } else {
-            setState(() { _destLat = lat; _destLng = lng; _destName = name; _errorMessage = null; });
+            // 목적지 설정 시 차량 카드 자동 접기 — 지도/경로에 집중.
+            setState(() { _destLat = lat; _destLng = lng; _destName = name; _errorMessage = null; _heroCollapsed = true; });
             unawaited(_loadRouteAlternatives());
           }
         },
@@ -4237,6 +4239,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                         onClearDest: () => setState(() {
                           _destName = null; _destLat = null; _destLng = null; _errorMessage = null;
                           _routeAlts = null; _routesDistinct = false;
+                          _heroCollapsed = false; // 목적지 지우면 차량 카드 다시 펼침
                         }),
                       ),
                     ],
