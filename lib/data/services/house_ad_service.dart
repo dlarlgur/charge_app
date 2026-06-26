@@ -3,6 +3,7 @@ import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/constants/api_constants.dart';
+import 'map_runtime_config.dart';
 
 /// 콘솔에서 등록한 직접(house) 광고.
 /// imageUrl 은 상대 경로일 수 있어 사용 시 [DkswCore.resolveAssetUrl] 권장.
@@ -191,8 +192,16 @@ class HouseAdCache {
 class AdSlotResolver {
   AdSlotResolver._();
 
-  // 4 간격(4,8,12,...,32) — list_banner1~8 unit ID 전부 사용 (ad_service.dart 참조).
-  static const Set<int> admobSlots = {4, 8, 12, 16, 20, 24, 28, 32};
+  // 가능한 광고 자리(4 간격, 최대 14개) — list_banner1~14 unit ID (ad_service.dart).
+  static const List<int> _allSlots = [
+    4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56,
+  ];
+
+  // 실제 활성 자리 — 콘솔 ads.list_max_count(앞에서부터 N개)로 제어. 0=광고 끔.
+  static Set<int> get admobSlots {
+    final n = MapRuntimeConfig.adListMaxCount.clamp(0, _allSlots.length);
+    return _allSlots.take(n).toSet();
+  }
 
   /// 슬롯이 광고 위치인지 (AdMob 또는 house ad).
   /// 광고 자체가 없으면 false 라서 일반 station 으로 채워짐.
@@ -221,7 +230,8 @@ class AdSlotResolver {
 
   /// 화면에 등장할 가장 먼 광고 슬롯 (스크롤 끝까지 그릴 필요 X 한정용).
   static int get maxAdSlot {
-    int m = 32; // AdMob 기본 8자리 (4,8,12,16,20,24,28,32)
+    final slots = admobSlots;
+    int m = slots.isEmpty ? 0 : slots.reduce((a, b) => a > b ? a : b);
     for (final a in HouseAdCache.ads) {
       if (a.listPosition > m) m = a.listPosition;
     }
