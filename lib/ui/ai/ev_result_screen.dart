@@ -424,7 +424,7 @@ class _StationCardState extends State<_StationCard> {
     return '현재 만석이에요';
   }
 
-  // 도착 시 배터리 잔량(arrival) → 충전 후 잔량(after) 예측 바.
+  // 도착 시 배터리 잔량 → 충전 후 잔량 예측. 각 숫자에 라벨(도착 시 / 충전 후)을 붙여 명확하게.
   Widget _socBar(int arrival, int? afterCharge, int? chargeMin, Color accent,
       Color mutedColor, bool isDark) {
     final after =
@@ -432,48 +432,97 @@ class _StationCardState extends State<_StationCard> {
     final hasCharge = after > arrival;
     final trackBg = isDark ? const Color(0x22FFFFFF) : const Color(0xFFE8ECF1);
     final labelColor =
-        isDark ? AppColors.darkTextSecondary : const Color(0xFF475569);
+        isDark ? AppColors.darkTextSecondary : const Color(0xFF64748B);
+    const green = Color(0xFF16A34A);
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 11),
+      padding: const EdgeInsets.fromLTRB(13, 11, 13, 12),
       decoration: BoxDecoration(
-        color: accent.withValues(alpha: isDark ? 0.12 : 0.07),
+        color: accent.withValues(alpha: isDark ? 0.12 : 0.06),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: accent.withValues(alpha: 0.20)),
+        border: Border.all(color: accent.withValues(alpha: 0.18)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.battery_charging_full_rounded,
-                  size: 15, color: accent),
-              const SizedBox(width: 5),
-              Text('도착 시 배터리',
-                  style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
-                      color: labelColor)),
-              const Spacer(),
-              Text('$arrival%',
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: accent)),
+              // 도착 시
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.battery_charging_full_rounded,
+                          size: 13, color: accent),
+                      const SizedBox(width: 3),
+                      Text('도착 시',
+                          style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                              color: labelColor)),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text('$arrival%',
+                      style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          height: 1,
+                          color: accent)),
+                ],
+              ),
               if (hasCharge) ...[
-                Text('  →  ',
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: mutedColor)),
-                Text('$after%',
-                    style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF16A34A))),
-              ],
+                // 가운데 — 충전시간 + 화살표
+                Expanded(
+                  child: Column(
+                    children: [
+                      if (chargeMin != null && chargeMin > 0)
+                        Text('충전 약 ${fmtMin(chargeMin)}',
+                            style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w600,
+                                color: labelColor)),
+                      const SizedBox(height: 1),
+                      Icon(Icons.arrow_right_alt_rounded,
+                          size: 22, color: mutedColor),
+                    ],
+                  ),
+                ),
+                // 충전 후
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text('충전 후',
+                        style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: labelColor)),
+                    const SizedBox(height: 2),
+                    Text('$after%',
+                        style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            height: 1,
+                            color: green)),
+                  ],
+                ),
+              ] else
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 10),
+                    child: Text('목표 충전량 이상 — 바로 출발 가능',
+                        style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: labelColor)),
+                  ),
+                ),
             ],
           ),
-          const SizedBox(height: 7),
+          const SizedBox(height: 10),
+          // 바 — 도착(진한 accent) + 충전 후(연한 accent)
           SizedBox(
             height: 7,
             child: LayoutBuilder(builder: (context, c) {
@@ -491,7 +540,7 @@ class _StationCardState extends State<_StationCard> {
                         width: w * (after / 100).clamp(0.0, 1.0),
                         height: 7,
                         decoration: BoxDecoration(
-                            color: accent.withValues(alpha: 0.35),
+                            color: accent.withValues(alpha: 0.32),
                             borderRadius: BorderRadius.circular(99))),
                   Container(
                       width: w * (arrival / 100).clamp(0.0, 1.0),
@@ -503,14 +552,6 @@ class _StationCardState extends State<_StationCard> {
               );
             }),
           ),
-          if (hasCharge && chargeMin != null && chargeMin > 0) ...[
-            const SizedBox(height: 6),
-            Text('약 ${fmtMin(chargeMin)} 충전 시 $after% 도달',
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: mutedColor)),
-          ],
         ],
       ),
     );
