@@ -20,6 +20,7 @@ import '../../core/util/app_toast.dart';
 import '../../data/models/models.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/connected_service.dart';
+import '../../data/services/exit_ad_service.dart';
 import '../../data/services/user_sync_service.dart';
 import '../../data/services/notification_service.dart';
 import '../../data/services/station_alias_service.dart';
@@ -3982,7 +3983,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       _lastExitBackPressTime = now;
       showAppToast(context, '한 번 더 누르시면 종료됩니다.');
     } else {
-      SystemNavigator.pop();
+      // 종료 전 전면광고 — home_screen 과 동일. AI 탭만 직접 pop 해서 광고가 안 뜨던 버그 수정.
+      ExitAdService.instance.showThenExit(() => SystemNavigator.pop());
     }
   }
 
