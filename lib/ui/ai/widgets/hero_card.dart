@@ -204,6 +204,15 @@ class HeroCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
+              // 순서: 고속도로 → (충전이면) 급속 → 완속. 주유는 고속도로 한 개만.
+              _prefChip(
+                icon: Icons.add_road_rounded,
+                label: '고속도로',
+                active: highwayOnly,
+                accent: accent,
+                accentLight: modeAccentLight(isEv),
+                onTap: onToggleHighway,
+              ),
               if (isEv) ...[
                 _prefChip(
                   icon: Icons.bolt_rounded,
@@ -222,15 +231,6 @@ class HeroCard extends StatelessWidget {
                   onTap: () => onChangeChargerMode?.call('SLOW'),
                 ),
               ],
-              // 주유 = 고속도로 한 개만, 충전 = 급속/완속 뒤에 고속도로
-              _prefChip(
-                icon: Icons.add_road_rounded,
-                label: '고속도로',
-                active: highwayOnly,
-                accent: accent,
-                accentLight: modeAccentLight(isEv),
-                onTap: onToggleHighway,
-              ),
             ],
           ),
         ],

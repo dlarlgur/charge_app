@@ -26,7 +26,6 @@ class GaugeRing extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const size = 116.0;
-    final levelLabel = isEv ? '배터리' : '잔량';
 
     return SizedBox(
       width: size,
@@ -44,44 +43,42 @@ class GaugeRing extends StatelessWidget {
               bgColor: const Color(0xFFEEF2F6),
             ),
           ),
-          // 중앙 텍스트 — 편집 뱃지와 겹치지 않게 살짝 위로(bottom padding)
+          // 중앙 — 퍼센트를 크게(핵심), 주행가능 km 는 작게(보조). 편집 뱃지와 안 겹치게 위로.
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  '$levelLabel ${percent.round()}%',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: colorDeep,
-                    letterSpacing: -0.3,
-                    height: 1,
-                  ),
-                ),
-                const SizedBox(height: 3),
                 RichText(
                   text: TextSpan(children: [
                     TextSpan(
-                      text: '${reachableKm.round()}',
-                      style: const TextStyle(
-                        fontSize: 25,
+                      text: '${percent.round()}',
+                      style: TextStyle(
+                        fontSize: 31,
                         fontWeight: FontWeight.w800,
-                        color: kInk,
-                        letterSpacing: -0.8,
-                        height: 1.05,
+                        color: colorDeep,
+                        letterSpacing: -1.2,
+                        height: 1,
                       ),
                     ),
-                    const TextSpan(
-                      text: ' km',
+                    TextSpan(
+                      text: '%',
                       style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: kMute2,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: colorDeep,
                       ),
                     ),
                   ]),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  '${reachableKm.round()} km',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: kMute2,
+                  ),
                 ),
               ],
             ),
