@@ -5138,7 +5138,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
               ),
 
             // ── 현재위치 버튼 (결과 모드: 시트 위에 붙어 이동) ──
-            if (_isResultMode || _isEvResultMode || _isEvSelectMode)
+            if (_isResultMode || _isEvResultMode || _isEvSelectMode || _isSelectMode)
               Positioned(
                 right: 16,
                 bottom: MediaQuery.of(context).padding.bottom +
