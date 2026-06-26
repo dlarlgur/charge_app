@@ -48,9 +48,9 @@ class GasStationMapBadge {
     await precacheImage(const AssetImage(_highwayLogo), context);
   }
 
-  /// 잔량 부족 마커 — 옅은 빨강 배경 + 진한 빨강 border + ⚠ 아이콘.
-  static const Color _unreachableBg = Color(0xFFFFECEC);
-  static const Color _unreachableAccent = Color(0xFFD32F2F);
+  /// 닿기 어려운 마커 — 뮤트 슬레이트로 가라앉혀(디밍) 고급스럽게. 빨강·경고삼각형 X.
+  static const Color _unreachableBg = Colors.white;
+  static const Color _unreachableAccent = Color(0xFF9AA6B2); // 뮤트 슬레이트
 
   /// 추천 알약 색(배경, 글씨) — 메달 톤. 1위 골드 / 2위 슬레이트 / 3위 브론즈, 흰 글씨 통일.
   static (Color, Color) _medalPill(int rank) {
@@ -83,19 +83,16 @@ class GasStationMapBadge {
     final bool showLogo = logoAsset != null;
     const double logoSize = 20.0;
     const double logoGap = 4.0;
-    // 잔량 부족 마커 — 색만 빨강 톤으로 강제 오버라이드. emphasize 도 자동 true (border 굵게).
-    final Color effectiveBorder = unreachable ? _unreachableAccent : borderColor;
+    // 닿기 어려운 마커 — 뮤트 슬레이트 + 전체 페이드(0.66)로 가라앉힘(고급스럽게). 강조 X.
+    final Color effectiveBorder =
+        unreachable ? _unreachableAccent : borderColor;
     final Color effectiveText = unreachable ? _unreachableAccent : textColor;
     final Color bgColor = unreachable ? _unreachableBg : Colors.white;
-    final bool highlighted = emphasizeBorder || unreachable;
+    final bool highlighted = emphasizeBorder; // 닿기 어려움은 강조 X — 가라앉힘
     final double fontSize = highlighted ? 12.0 : 11.0;
     final double textW = label.length * (highlighted ? 8.5 : 7.5);
-    const double warningSize = 14.0;
-    const double warningGap = 3.0;
     final double contentW =
-        (showLogo ? logoSize + logoGap : (isEv ? 14.0 + logoGap : 0.0))
-        + (unreachable ? warningSize + warningGap : 0.0)
-        + textW;
+        (showLogo ? logoSize + logoGap : (isEv ? 14.0 + logoGap : 0.0)) + textW;
     final double w = contentW + 14.0;
     final double h = highlighted ? 30.0 : 26.0;
 
@@ -105,8 +102,9 @@ class GasStationMapBadge {
 
     // 추천 알약 — 가격 배지 위에 작게. 1위 골드 / 2위 실버 / 3위 브론즈 (흰 글씨 채움).
     final bool showRecommend = recommendRank != null;
-    final (Color, Color) medal =
-        showRecommend ? _medalPill(recommendRank!) : (Colors.transparent, Colors.white);
+    final (Color, Color) medal = showRecommend
+        ? _medalPill(recommendRank!)
+        : (Colors.transparent, Colors.white);
     final Color pillColor = medal.$1;
     final Color pillTextColor = medal.$2;
     // 추천 알약 — 텍스트를 딱 감싸는 컴팩트 메달(양옆 여백 최소). 가격배지 폭에 늘리지 않음.
@@ -119,121 +117,121 @@ class GasStationMapBadge {
     final double extraTop = showRecommend ? pillH + pillGap : 0.0;
 
     return NOverlayImage.fromWidget(
-      widget: SizedBox(
-        width: canvasW,
-        child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          if (showRecommend) ...[
-            Container(
-              width: pillW,
-              height: pillH,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: pillColor,
-                borderRadius: BorderRadius.circular(pillH / 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: pillColor.withValues(alpha: 0.45),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
+      widget: Opacity(
+        opacity: unreachable ? 0.66 : 1.0,
+        child: SizedBox(
+          width: canvasW,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (showRecommend) ...[
+                Container(
+                  width: pillW,
+                  height: pillH,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: pillColor,
+                    borderRadius: BorderRadius.circular(pillH / 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: pillColor.withValues(alpha: 0.45),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: Text(
-                pillText,
-                style: TextStyle(
-                  fontFamily: 'Pretendard',
-                  color: pillTextColor,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  height: 1,
+                  child: Text(
+                    pillText,
+                    style: TextStyle(
+                      fontFamily: 'Pretendard',
+                      color: pillTextColor,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      height: 1,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(height: pillGap),
-          ],
-          Container(
-            width: w,
-            height: h,
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(h / 2),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.22),
-                  blurRadius: 5,
-                  offset: const Offset(0, 2),
-                ),
+                const SizedBox(height: pillGap),
               ],
-              border: Border.all(
-                color: effectiveBorder,
-                width: borderWidth,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                if (showLogo) ...[
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
-                    child: logoAsset.toLowerCase().endsWith('.svg')
-                        ? SvgPicture.asset(
-                            logoAsset,
-                            width: logoSize,
-                            height: logoSize,
-                            fit: BoxFit.contain,
-                          )
-                        : Image.asset(
-                            logoAsset,
-                            width: logoSize,
-                            height: logoSize,
-                            fit: BoxFit.contain,
-                          ),
-                  ),
-                  const SizedBox(width: logoGap),
-                ] else if (isEv) ...[
-                  const Icon(Icons.bolt_rounded, size: 14, color: Color(0xFF22C55E)),
-                  const SizedBox(width: logoGap),
-                ],
-                if (unreachable) ...[
-                  const Icon(Icons.warning_amber_rounded,
-                      size: warningSize, color: _unreachableAccent),
-                  const SizedBox(width: warningGap),
-                ],
-                Text(
-                  label,
-                  style: TextStyle(
-                    // fromWidget 래스터는 앱 폰트 미상속 → Pretendard 명시해 통일.
-                    fontFamily: 'Pretendard',
-                    color: effectiveText,
-                    fontSize: fontSize,
-                    fontWeight: FontWeight.w800,
-                    height: 1,
+              Container(
+                width: w,
+                height: h,
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  borderRadius: BorderRadius.circular(h / 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.22),
+                      blurRadius: 5,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                  border: Border.all(
+                    color: effectiveBorder,
+                    width: borderWidth,
                   ),
                 ),
-              ],
-            ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    if (showLogo) ...[
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(2),
+                        child: logoAsset.toLowerCase().endsWith('.svg')
+                            ? SvgPicture.asset(
+                                logoAsset,
+                                width: logoSize,
+                                height: logoSize,
+                                fit: BoxFit.contain,
+                              )
+                            : Image.asset(
+                                logoAsset,
+                                width: logoSize,
+                                height: logoSize,
+                                fit: BoxFit.contain,
+                              ),
+                      ),
+                      const SizedBox(width: logoGap),
+                    ] else if (isEv) ...[
+                      const Icon(Icons.bolt_rounded,
+                          size: 14, color: Color(0xFF22C55E)),
+                      const SizedBox(width: logoGap),
+                    ],
+                    Text(
+                      label,
+                      style: TextStyle(
+                        // fromWidget 래스터는 앱 폰트 미상속 → Pretendard 명시해 통일.
+                        fontFamily: 'Pretendard',
+                        color: effectiveText,
+                        fontSize: fontSize,
+                        fontWeight: FontWeight.w800,
+                        height: 1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              CustomPaint(
+                size: const Size(tailW, tailH),
+                painter:
+                    _GasBadgeTailPainter(effectiveBorder, borderWidth, bgColor),
+              ),
+            ],
           ),
-          CustomPaint(
-            size: const Size(tailW, tailH),
-            painter: _GasBadgeTailPainter(effectiveBorder, borderWidth, bgColor),
-          ),
-        ],
         ),
       ),
       size: Size(canvasW, h + tailH + extraTop),
       context: context,
     );
   }
-
 }
 
 class _GasBadgeTailPainter extends CustomPainter {
-  _GasBadgeTailPainter(this.borderColor, this.borderWidth, [this.bgColor = Colors.white]);
+  _GasBadgeTailPainter(this.borderColor, this.borderWidth,
+      [this.bgColor = Colors.white]);
   final Color borderColor;
   final double borderWidth;
   final Color bgColor;
@@ -265,5 +263,7 @@ class _GasBadgeTailPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _GasBadgeTailPainter old) =>
-      old.borderColor != borderColor || old.borderWidth != borderWidth || old.bgColor != bgColor;
+      old.borderColor != borderColor ||
+      old.borderWidth != borderWidth ||
+      old.bgColor != bgColor;
 }
