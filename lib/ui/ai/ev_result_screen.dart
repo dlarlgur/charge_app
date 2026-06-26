@@ -39,12 +39,18 @@ const _kTeal = Color(0xFF00897B);
 /// recommendation_label → (배지 텍스트, 색상)
 (String, Color) _labelInfo(String? label, Color defaultColor) {
   switch (label) {
-    case 'optimal':   return ('AI 추천',   defaultColor);
-    case 'safe':      return ('안전 추천',  _kGreen);
-    case 'cheapest':  return ('가성비',     _kOrange);
-    case 'fastest':   return ('빠른 도착',  _kPurple);
-    case 'spacious':  return ('여유 있음',  _kTeal);
-    default:          return ('AI 추천',   defaultColor);
+    case 'optimal':
+      return ('AI 추천', defaultColor);
+    case 'safe':
+      return ('안전 추천', _kGreen);
+    case 'cheapest':
+      return ('가성비', _kOrange);
+    case 'fastest':
+      return ('빠른 도착', _kPurple);
+    case 'spacious':
+      return ('여유 있음', _kTeal);
+    default:
+      return ('AI 추천', defaultColor);
   }
 }
 
@@ -89,7 +95,7 @@ class EvResultBodyState extends State<EvResultBody> {
       ctx,
       duration: const Duration(milliseconds: 350),
       curve: Curves.easeOutCubic,
-      alignment: 0.05,  // 카드를 시트 상단 부근에 위치
+      alignment: 0.05, // 카드를 시트 상단 부근에 위치
     );
   }
 
@@ -112,9 +118,12 @@ class EvResultBodyState extends State<EvResultBody> {
         ? data['recommended'] as Map<String, dynamic>
         : null;
     final alternatives = data['alternatives'] is List
-        ? (data['alternatives'] as List).whereType<Map<String, dynamic>>().toList()
+        ? (data['alternatives'] as List)
+            .whereType<Map<String, dynamic>>()
+            .toList()
         : <Map<String, dynamic>>[];
-    final reachableKm = (data['reachable_distance_km'] as num?)?.toDouble() ?? 0.0;
+    final reachableKm =
+        (data['reachable_distance_km'] as num?)?.toDouble() ?? 0.0;
     final chargerType = data['charger_type']?.toString() ?? 'FAST';
     final totalCandidates = (data['total_candidates'] as num?)?.toInt();
     final filteredOut = (data['filtered_out_count'] as num?)?.toInt() ?? 0;
@@ -142,7 +151,8 @@ class EvResultBodyState extends State<EvResultBody> {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: chipBg,
                         borderRadius: BorderRadius.circular(6),
@@ -151,7 +161,9 @@ class EvResultBodyState extends State<EvResultBody> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            chargerType == 'FAST' ? Icons.bolt_rounded : Icons.electrical_services_rounded,
+                            chargerType == 'FAST'
+                                ? Icons.bolt_rounded
+                                : Icons.electrical_services_rounded,
                             size: 13,
                             color: chargerType == 'FAST' ? _kBlue : _kGreen,
                           ),
@@ -187,7 +199,8 @@ class EvResultBodyState extends State<EvResultBody> {
 
                 // ── AI 추천 메시지 ──
                 if (recommended != null) ...[
-                  _EvAiMessageBanner(message: recommended['ui_message']?.toString() ?? ''),
+                  _EvAiMessageBanner(
+                      message: recommended['ui_message']?.toString() ?? ''),
                   const SizedBox(height: 14),
                 ],
 
@@ -197,7 +210,10 @@ class EvResultBodyState extends State<EvResultBody> {
                 else ...[
                   Text(
                     'AI 추천 충전소',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: mutedColor),
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: mutedColor),
                   ),
                   const SizedBox(height: 8),
                   KeyedSubtree(
@@ -207,27 +223,36 @@ class EvResultBodyState extends State<EvResultBody> {
                       isRecommended: true,
                       chargerType: chargerType,
                       accentColor: chargerType == 'FAST' ? _kBlue : _kGreen,
-                      accentLight: chargerType == 'FAST' ? _kBlueLight : _kGreenLight,
-                      onMapTap: onStationMapTap != null ? () => onStationMapTap!(recommended) : null,
+                      accentLight:
+                          chargerType == 'FAST' ? _kBlueLight : _kGreenLight,
+                      onMapTap: onStationMapTap != null
+                          ? () => onStationMapTap!(recommended)
+                          : null,
                       originLat: originLat,
                       originLng: originLng,
                       destLat: destLat,
                       destLng: destLng,
                       destName: destName,
-                      recommendationLabel: recommended['recommendation_label']?.toString(),
+                      recommendationLabel:
+                          recommended['recommendation_label']?.toString(),
                     ),
                   ),
                   if (alternatives.isNotEmpty) ...[
                     const SizedBox(height: 20),
                     Text(
                       '다른 후보',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: mutedColor),
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: mutedColor),
                     ),
                     const SizedBox(height: 8),
                     ...alternatives.map((alt) {
                       final altLabel = alt['recommendation_label']?.toString();
                       final (_, altColor) = _labelInfo(altLabel, _kOrange);
-                      final altLight = Color.lerp(altColor, Colors.white, 0.92) ?? _kOrangeLight;
+                      final altLight =
+                          Color.lerp(altColor, Colors.white, 0.92) ??
+                              _kOrangeLight;
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 10),
                         child: KeyedSubtree(
@@ -238,7 +263,9 @@ class EvResultBodyState extends State<EvResultBody> {
                             chargerType: chargerType,
                             accentColor: altColor,
                             accentLight: altLight,
-                            onMapTap: onStationMapTap != null ? () => onStationMapTap!(alt) : null,
+                            onMapTap: onStationMapTap != null
+                                ? () => onStationMapTap!(alt)
+                                : null,
                             originLat: originLat,
                             originLng: originLng,
                             destLat: destLat,
@@ -277,7 +304,8 @@ class _NoStationCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? AppColors.darkCard : const Color(0xFFF8F8F8);
     final border = isDark ? AppColors.darkCardBorder : const Color(0xFFE0E0E0);
-    final primaryText = isDark ? AppColors.darkTextPrimary : const Color(0xFF444444);
+    final primaryText =
+        isDark ? AppColors.darkTextPrimary : const Color(0xFF444444);
     final mutedText = isDark ? AppColors.darkTextSecondary : _kGrey;
     return Container(
       width: double.infinity,
@@ -396,6 +424,98 @@ class _StationCardState extends State<_StationCard> {
     return '현재 만석이에요';
   }
 
+  // 도착 시 배터리 잔량(arrival) → 충전 후 잔량(after) 예측 바.
+  Widget _socBar(int arrival, int? afterCharge, int? chargeMin, Color accent,
+      Color mutedColor, bool isDark) {
+    final after =
+        (afterCharge != null && afterCharge > arrival) ? afterCharge : arrival;
+    final hasCharge = after > arrival;
+    final trackBg = isDark ? const Color(0x22FFFFFF) : const Color(0xFFE8ECF1);
+    final labelColor =
+        isDark ? AppColors.darkTextSecondary : const Color(0xFF475569);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 11),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: isDark ? 0.12 : 0.07),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accent.withValues(alpha: 0.20)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.battery_charging_full_rounded,
+                  size: 15, color: accent),
+              const SizedBox(width: 5),
+              Text('도착 시 배터리',
+                  style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: labelColor)),
+              const Spacer(),
+              Text('$arrival%',
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: accent)),
+              if (hasCharge) ...[
+                Text('  →  ',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: mutedColor)),
+                Text('$after%',
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF16A34A))),
+              ],
+            ],
+          ),
+          const SizedBox(height: 7),
+          SizedBox(
+            height: 7,
+            child: LayoutBuilder(builder: (context, c) {
+              final w = c.maxWidth;
+              return Stack(
+                children: [
+                  Container(
+                      width: w,
+                      height: 7,
+                      decoration: BoxDecoration(
+                          color: trackBg,
+                          borderRadius: BorderRadius.circular(99))),
+                  if (hasCharge)
+                    Container(
+                        width: w * (after / 100).clamp(0.0, 1.0),
+                        height: 7,
+                        decoration: BoxDecoration(
+                            color: accent.withValues(alpha: 0.35),
+                            borderRadius: BorderRadius.circular(99))),
+                  Container(
+                      width: w * (arrival / 100).clamp(0.0, 1.0),
+                      height: 7,
+                      decoration: BoxDecoration(
+                          color: accent,
+                          borderRadius: BorderRadius.circular(99))),
+                ],
+              );
+            }),
+          ),
+          if (hasCharge && chargeMin != null && chargeMin > 0) ...[
+            const SizedBox(height: 6),
+            Text('약 ${fmtMin(chargeMin)} 충전 시 $after% 도달',
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: mutedColor)),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildGroupedRow(Map<String, dynamic> gs) {
     final gsStatId = gs['statId']?.toString();
     final gsOperator = gs['operator']?.toString() ?? '';
@@ -409,13 +529,18 @@ class _StationCardState extends State<_StationCard> {
     // 정확 매치: 이 sub-station 에 알람이 등록된 경우만 활성 표시 (정직한 표시)
     final gsIsWatching = _isWatching(gsStatId);
     final accentColor = widget.accentColor;
-    final canNavigate = gsLat != null && gsLng != null &&
-        widget.originLat != null && widget.destLat != null;
+    final canNavigate = gsLat != null &&
+        gsLng != null &&
+        widget.originLat != null &&
+        widget.destLat != null;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final rowBg = isDark ? const Color(0x14FFFFFF) : const Color(0xFFF8F9FA);
-    final rowBorder = isDark ? AppColors.darkCardBorder : const Color(0xFFE5E5E5);
-    final rowText = isDark ? AppColors.darkTextPrimary : const Color(0xFF1F2937);
-    final iconBtnFill = isDark ? const Color(0x1AFFFFFF) : const Color(0xFFEEEEEE);
+    final rowBorder =
+        isDark ? AppColors.darkCardBorder : const Color(0xFFE5E5E5);
+    final rowText =
+        isDark ? AppColors.darkTextPrimary : const Color(0xFF1F2937);
+    final iconBtnFill =
+        isDark ? const Color(0x1AFFFFFF) : const Color(0xFFEEEEEE);
 
     return Container(
       margin: const EdgeInsets.only(top: 8),
@@ -432,7 +557,8 @@ class _StationCardState extends State<_StationCard> {
           Row(
             children: [
               Container(
-                width: 8, height: 8,
+                width: 8,
+                height: 8,
                 decoration: BoxDecoration(
                   color: gsAvail > 0 ? _kGreen : _kOrange,
                   shape: BoxShape.circle,
@@ -479,55 +605,62 @@ class _StationCardState extends State<_StationCard> {
           Row(
             children: [
               if (gsStatId != null) ...[
-                Builder(builder: (ctx) => _ActionIconBtn(
-                  icon: gsIsWatching
-                      ? Icons.notifications_active_rounded
-                      : Icons.notifications_none_rounded,
-                  iconColor: gsIsWatching ? accentColor : (isDark ? AppColors.darkTextSecondary : _kGrey),
-                  fillColor: gsIsWatching
-                      ? accentColor.withValues(alpha: 0.1)
-                      : iconBtnFill,
-                  onTap: () async {
-                    final existingSession = WatchService().session;
-                    // 이미 이 충전소 → 끄기 확인
-                    if (existingSession != null && existingSession.statId == gsStatId) {
-                      if (!ctx.mounted) return;
-                      final shouldStop = await showWatchAlreadyActiveDialog(
-                          ctx, stationName: existingSession.stationName);
-                      if (shouldStop) await WatchService().stop();
-                      return;
-                    }
-                    // 다른 충전소 → 전환 확인 후 즉시 전환 (한 번만)
-                    if (existingSession != null) {
-                      if (!ctx.mounted) return;
-                      final switchOk = await showWatchSwitchDialog(
-                          ctx, currentStationName: existingSession.stationName);
-                      if (!switchOk) return;
-                      await WatchService().stop();
-                      await WatchService().start(
-                        statId: gsStatId,
-                        stationName: gsName,
-                        etaMin: 0,
-                        currentAvail: gsAvail,
-                      );
-                      return;
-                    }
-                    // 새 알림 → 받을지 확인
-                    if (!ctx.mounted) return;
-                    final accepted = await showDialog<bool>(
-                      context: ctx,
-                      builder: (dCtx) => _WatchDialog(etaMin: null, accentColor: accentColor),
-                    );
-                    if (accepted == true) {
-                      await WatchService().start(
-                        statId: gsStatId,
-                        stationName: gsName,
-                        etaMin: 0,
-                        currentAvail: gsAvail,
-                      );
-                    }
-                  },
-                )),
+                Builder(
+                    builder: (ctx) => _ActionIconBtn(
+                          icon: gsIsWatching
+                              ? Icons.notifications_active_rounded
+                              : Icons.notifications_none_rounded,
+                          iconColor: gsIsWatching
+                              ? accentColor
+                              : (isDark ? AppColors.darkTextSecondary : _kGrey),
+                          fillColor: gsIsWatching
+                              ? accentColor.withValues(alpha: 0.1)
+                              : iconBtnFill,
+                          onTap: () async {
+                            final existingSession = WatchService().session;
+                            // 이미 이 충전소 → 끄기 확인
+                            if (existingSession != null &&
+                                existingSession.statId == gsStatId) {
+                              if (!ctx.mounted) return;
+                              final shouldStop =
+                                  await showWatchAlreadyActiveDialog(ctx,
+                                      stationName: existingSession.stationName);
+                              if (shouldStop) await WatchService().stop();
+                              return;
+                            }
+                            // 다른 충전소 → 전환 확인 후 즉시 전환 (한 번만)
+                            if (existingSession != null) {
+                              if (!ctx.mounted) return;
+                              final switchOk = await showWatchSwitchDialog(ctx,
+                                  currentStationName:
+                                      existingSession.stationName);
+                              if (!switchOk) return;
+                              await WatchService().stop();
+                              await WatchService().start(
+                                statId: gsStatId,
+                                stationName: gsName,
+                                etaMin: 0,
+                                currentAvail: gsAvail,
+                              );
+                              return;
+                            }
+                            // 새 알림 → 받을지 확인
+                            if (!ctx.mounted) return;
+                            final accepted = await showDialog<bool>(
+                              context: ctx,
+                              builder: (dCtx) => _WatchDialog(
+                                  etaMin: null, accentColor: accentColor),
+                            );
+                            if (accepted == true) {
+                              await WatchService().start(
+                                statId: gsStatId,
+                                stationName: gsName,
+                                etaMin: 0,
+                                currentAvail: gsAvail,
+                              );
+                            }
+                          },
+                        )),
                 const SizedBox(width: 8),
               ],
               if (gsStatId != null)
@@ -537,7 +670,8 @@ class _StationCardState extends State<_StationCard> {
                     label: '상세',
                     color: accentColor,
                     primary: false,
-                    onTap: () => Navigator.of(context, rootNavigator: true).push(
+                    onTap: () =>
+                        Navigator.of(context, rootNavigator: true).push(
                       MaterialPageRoute<void>(
                         builder: (_) => EvDetailScreen(stationId: gsStatId),
                       ),
@@ -547,62 +681,65 @@ class _StationCardState extends State<_StationCard> {
               if (gsStatId != null && canNavigate) const SizedBox(width: 8),
               if (canNavigate)
                 Expanded(
-                  child: Builder(builder: (ctx) => _ActionBtn(
-                    icon: Icons.navigation_rounded,
-                    label: '길안내',
-                    color: accentColor,
-                    primary: true,
-                    onTap: () async {
-                      if (gsStatId != null && ctx.mounted) {
-                        final existingSession = WatchService().session;
-                        // 이미 이 충전소면 알람 그대로 두고 길안내만 진행
-                        if (existingSession != null && existingSession.statId != gsStatId) {
-                          // 다른 충전소 → 전환 확인 후 즉시 전환
-                          final switchOk = await showWatchSwitchDialog(
-                            ctx,
-                            currentStationName: existingSession.stationName,
-                          );
-                          if (!switchOk || !ctx.mounted) return;
-                          await WatchService().stop();
-                          await WatchService().start(
-                            statId: gsStatId,
-                            stationName: gsName,
-                            etaMin: 0,
-                            currentAvail: gsAvail,
-                          );
-                        } else if (existingSession == null) {
-                          // 새 알림 받을지 확인
-                          final accepted = await showDialog<bool>(
-                            context: ctx,
-                            builder: (dCtx) => _WatchDialog(
-                              etaMin: null,
-                              accentColor: accentColor,
-                            ),
-                          );
-                          if (accepted == true) {
-                            await WatchService().start(
-                              statId: gsStatId,
-                              stationName: gsName,
-                              etaMin: 0,
-                              currentAvail: gsAvail,
-                            );
-                          }
-                        }
-                      }
-                      if (!ctx.mounted) return;
-                      showViaWaypointNavigationSheet(
-                        ctx,
-                        originLat: widget.originLat!,
-                        originLng: widget.originLng!,
-                        waypointLat: gsLat,
-                        waypointLng: gsLng,
-                        waypointName: gsName,
-                        destinationLat: widget.destLat!,
-                        destinationLng: widget.destLng!,
-                        destinationName: widget.destName ?? '목적지',
-                      );
-                    },
-                  )),
+                  child: Builder(
+                      builder: (ctx) => _ActionBtn(
+                            icon: Icons.navigation_rounded,
+                            label: '길안내',
+                            color: accentColor,
+                            primary: true,
+                            onTap: () async {
+                              if (gsStatId != null && ctx.mounted) {
+                                final existingSession = WatchService().session;
+                                // 이미 이 충전소면 알람 그대로 두고 길안내만 진행
+                                if (existingSession != null &&
+                                    existingSession.statId != gsStatId) {
+                                  // 다른 충전소 → 전환 확인 후 즉시 전환
+                                  final switchOk = await showWatchSwitchDialog(
+                                    ctx,
+                                    currentStationName:
+                                        existingSession.stationName,
+                                  );
+                                  if (!switchOk || !ctx.mounted) return;
+                                  await WatchService().stop();
+                                  await WatchService().start(
+                                    statId: gsStatId,
+                                    stationName: gsName,
+                                    etaMin: 0,
+                                    currentAvail: gsAvail,
+                                  );
+                                } else if (existingSession == null) {
+                                  // 새 알림 받을지 확인
+                                  final accepted = await showDialog<bool>(
+                                    context: ctx,
+                                    builder: (dCtx) => _WatchDialog(
+                                      etaMin: null,
+                                      accentColor: accentColor,
+                                    ),
+                                  );
+                                  if (accepted == true) {
+                                    await WatchService().start(
+                                      statId: gsStatId,
+                                      stationName: gsName,
+                                      etaMin: 0,
+                                      currentAvail: gsAvail,
+                                    );
+                                  }
+                                }
+                              }
+                              if (!ctx.mounted) return;
+                              showViaWaypointNavigationSheet(
+                                ctx,
+                                originLat: widget.originLat!,
+                                originLng: widget.originLng!,
+                                waypointLat: gsLat,
+                                waypointLng: gsLng,
+                                waypointName: gsName,
+                                destinationLat: widget.destLat!,
+                                destinationLng: widget.destLng!,
+                                destinationName: widget.destName ?? '목적지',
+                              );
+                            },
+                          )),
                 ),
             ],
           ),
@@ -622,15 +759,22 @@ class _StationCardState extends State<_StationCard> {
     final headingCount = (station['heading_count'] as num?)?.toInt() ?? 0;
     final unitPrice = (station['unit_price'] as num?)?.toInt();
     // 회원가 헤드라인 + 비회원가 별도. 구버전 서버(필드 없음) 대비 unit_price 폴백.
-    final unitPriceMember = (station['unit_price_member'] as num?)?.toInt() ?? unitPrice;
-    final unitPriceNonMember = (station['unit_price_nonmember'] as num?)?.toInt();
+    final unitPriceMember =
+        (station['unit_price_member'] as num?)?.toInt() ?? unitPrice;
+    final unitPriceNonMember =
+        (station['unit_price_nonmember'] as num?)?.toInt();
     final detourMin = (station['detour_time_min'] as num?)?.toInt();
     final oldestMin = (station['oldest_charging_min'] as num?)?.toInt();
     final originDistM = (station['origin_distance_m'] as num?)?.toInt();
     final originEtaMin = (station['origin_eta_min'] as num?)?.toInt();
+    final arrivalSoc = (station['arrival_soc'] as num?)?.toInt();
+    final afterChargeSoc = (station['after_charge_soc'] as num?)?.toInt();
+    final chargingMin = (station['charging_time_min'] as num?)?.toInt();
     final statId = station['statId']?.toString();
     final groupedStations = station['grouped_stations'] is List
-        ? (station['grouped_stations'] as List).whereType<Map<String, dynamic>>().toList()
+        ? (station['grouped_stations'] as List)
+            .whereType<Map<String, dynamic>>()
+            .toList()
         : null;
     final groupedCount = (station['grouped_count'] as num?)?.toInt();
     final isGrouped = groupedStations != null && groupedStations.length > 1;
@@ -654,10 +798,13 @@ class _StationCardState extends State<_StationCard> {
     final accentLight = widget.accentLight;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = isDark ? AppColors.darkCard : Colors.white;
-    final cardBorder = isDark ? AppColors.darkCardBorder : const Color(0xFFE5E5E5);
-    final titleColor = isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A1A);
+    final cardBorder =
+        isDark ? AppColors.darkCardBorder : const Color(0xFFE5E5E5);
+    final titleColor =
+        isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A1A);
     final mutedTextColor = isDark ? AppColors.darkTextSecondary : _kGrey;
-    final dividerColor = isDark ? AppColors.darkCardBorder : const Color(0xFFEEEEEE);
+    final dividerColor =
+        isDark ? AppColors.darkCardBorder : const Color(0xFFEEEEEE);
     // 다크 모드에서는 accentLight (Color.lerp white) 가 너무 밝게 튀므로 accent 16% alpha 로 부드럽게.
     final headerBg = isDark ? accentColor.withValues(alpha: 0.16) : accentLight;
 
@@ -686,22 +833,29 @@ class _StationCardState extends State<_StationCard> {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
               color: headerBg,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(13)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(13)),
             ),
             child: Row(
               children: [
-                if (widget.isRecommended || widget.recommendationLabel != null) ...[
+                if (widget.isRecommended ||
+                    widget.recommendationLabel != null) ...[
                   Builder(builder: (_) {
-                    final (badgeText, badgeColor) = _labelInfo(widget.recommendationLabel, accentColor);
+                    final (badgeText, badgeColor) =
+                        _labelInfo(widget.recommendationLabel, accentColor);
                     return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 2),
                       decoration: BoxDecoration(
                         color: badgeColor,
                         borderRadius: BorderRadius.circular(5),
                       ),
                       child: Text(
                         badgeText,
-                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white),
+                        style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white),
                       ),
                     );
                   }),
@@ -727,7 +881,10 @@ class _StationCardState extends State<_StationCard> {
                   const SizedBox(width: 8),
                 ],
                 // 충전기 현황
-                _ChargerDot(avail: availCount, total: totalCount, accentColor: accentColor),
+                _ChargerDot(
+                    avail: availCount,
+                    total: totalCount,
+                    accentColor: accentColor),
               ],
             ),
           ),
@@ -740,7 +897,10 @@ class _StationCardState extends State<_StationCard> {
               children: [
                 Text(
                   name,
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: titleColor),
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: titleColor),
                 ),
                 // 운영사 배지 — 단일 1개 / 그룹은 여러 운영사 나열(보기 좋게 칩으로).
                 if (opNames.isNotEmpty) ...[
@@ -751,7 +911,8 @@ class _StationCardState extends State<_StationCard> {
                     children: [
                       for (final op in opNames)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 2),
                           decoration: BoxDecoration(
                             color: accentColor.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(5),
@@ -759,10 +920,14 @@ class _StationCardState extends State<_StationCard> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.ev_station_rounded, size: 12, color: accentColor),
+                              Icon(Icons.ev_station_rounded,
+                                  size: 12, color: accentColor),
                               const SizedBox(width: 3),
                               Text(op,
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: accentColor)),
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: accentColor)),
                             ],
                           ),
                         ),
@@ -772,7 +937,10 @@ class _StationCardState extends State<_StationCard> {
                 if (isGrouped) ...[
                   const SizedBox(height: 4),
                   Text('${groupedCount ?? groupedStations!.length}개 운영사 통합',
-                    style: TextStyle(fontSize: 11, color: mutedTextColor, fontWeight: FontWeight.w600)),
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: mutedTextColor,
+                          fontWeight: FontWeight.w600)),
                 ],
                 if (address.isNotEmpty) ...[
                   const SizedBox(height: 3),
@@ -783,9 +951,16 @@ class _StationCardState extends State<_StationCard> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
+                // 도착 시 배터리 잔량 → 충전 후 예측
+                if (arrivalSoc != null) ...[
+                  const SizedBox(height: 11),
+                  _socBar(arrivalSoc, afterChargeSoc, chargingMin, accentColor,
+                      mutedTextColor, isDark),
+                ],
                 const SizedBox(height: 10),
                 if (headingCount > 0) ...[
-                  _HeadingBadge(headingCount: headingCount, availCount: availCount),
+                  _HeadingBadge(
+                      headingCount: headingCount, availCount: availCount),
                   const SizedBox(height: 8),
                 ],
                 Wrap(
@@ -796,7 +971,9 @@ class _StationCardState extends State<_StationCard> {
                       _InfoChip(
                         icon: Icons.bolt_rounded,
                         label: '회원 ${_wonFmt.format(unitPriceMember)}원/kWh',
-                        color: isDark ? AppColors.darkTextPrimary : const Color(0xFF444444),
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : const Color(0xFF444444),
                       ),
                     if (unitPriceNonMember != null)
                       _InfoChip(
@@ -808,7 +985,9 @@ class _StationCardState extends State<_StationCard> {
                       _InfoChip(
                         icon: Icons.bolt_rounded,
                         label: '가격 미공개',
-                        color: isDark ? AppColors.darkTextPrimary : const Color(0xFF444444),
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : const Color(0xFF444444),
                       ),
                     if (originDistLabel != null)
                       _InfoChip(
@@ -887,7 +1066,8 @@ class _StationCardState extends State<_StationCard> {
                   Divider(height: 1, color: dividerColor),
                   const SizedBox(height: 12),
                   // ── 보조 액션 (지도 / 상세) — 50:50 또는 단독 ──
-                  if (widget.onMapTap != null || (statId != null && !isGrouped)) ...[
+                  if (widget.onMapTap != null ||
+                      (statId != null && !isGrouped)) ...[
                     Row(
                       children: [
                         if (widget.onMapTap != null)
@@ -900,7 +1080,9 @@ class _StationCardState extends State<_StationCard> {
                               onTap: widget.onMapTap,
                             ),
                           ),
-                        if (widget.onMapTap != null && statId != null && !isGrouped)
+                        if (widget.onMapTap != null &&
+                            statId != null &&
+                            !isGrouped)
                           const SizedBox(width: 8),
                         if (statId != null && !isGrouped)
                           Expanded(
@@ -912,7 +1094,8 @@ class _StationCardState extends State<_StationCard> {
                               onTap: () {
                                 Navigator.of(context, rootNavigator: true).push(
                                   MaterialPageRoute<void>(
-                                    builder: (_) => EvDetailScreen(stationId: statId),
+                                    builder: (_) =>
+                                        EvDetailScreen(stationId: statId),
                                   ),
                                 );
                               },
@@ -924,68 +1107,76 @@ class _StationCardState extends State<_StationCard> {
                   ],
                   // ── Primary CTA: 길안내 (가로 풀너비, filled) ──
                   if (widget.originLat != null && widget.destLat != null)
-                    Builder(builder: (ctx) => _ActionBtn(
-                      icon: Icons.navigation_rounded,
-                      label: '길안내 시작',
-                      color: accentColor,
-                      primary: true,
-                      fullWidth: true,
-                      onTap: () async {
-                        final stLat = (station['lat'] as num?)?.toDouble();
-                        final stLng = (station['lng'] as num?)?.toDouble();
-                        final stName = station['name']?.toString() ?? '충전소';
-                        if (stLat == null || stLng == null) return;
-                        // 워치 제안 다이얼로그
-                        if (statId != null && ctx.mounted) {
-                          final existingSession = WatchService().session;
-                          // 이미 이 충전소면 알람 그대로 두고 길안내만 진행
-                          if (existingSession != null && existingSession.statId != statId) {
-                            // 다른 충전소 → 전환 확인 후 즉시 전환
-                            final switchOk = await showWatchSwitchDialog(
-                              ctx,
-                              currentStationName: existingSession.stationName,
-                            );
-                            if (!switchOk || !ctx.mounted) return;
-                            await WatchService().stop();
-                            await WatchService().start(
-                              statId: statId,
-                              stationName: stName,
-                              etaMin: originEtaMin ?? 0,
-                              currentAvail: availCount,
-                            );
-                          } else if (existingSession == null) {
-                            // 새 알림 받을지 확인
-                            final accepted = await showDialog<bool>(
-                              context: ctx,
-                              builder: (dCtx) => _WatchDialog(
-                                etaMin: originEtaMin,
-                                accentColor: accentColor,
-                              ),
-                            );
-                            if (accepted == true) {
-                              await WatchService().start(
-                                statId: statId,
-                                stationName: stName,
-                                etaMin: originEtaMin ?? 0,
-                                currentAvail: availCount,
-                              );
-                            }
-                          }
-                        }
-                        if (!ctx.mounted) return;
-                        showViaWaypointNavigationSheet(
-                          ctx,
-                          originLat: widget.originLat!,
-                          originLng: widget.originLng!,
-                          waypointLat: stLat,
-                          waypointLng: stLng,
-                          waypointName: stName,
-                          destinationLat: widget.destLat!,
-                          destinationLng: widget.destLng!,
-                          destinationName: widget.destName ?? '목적지',
-                        );
-                      },
-                    )),
+                    Builder(
+                        builder: (ctx) => _ActionBtn(
+                              icon: Icons.navigation_rounded,
+                              label: '길안내 시작',
+                              color: accentColor,
+                              primary: true,
+                              fullWidth: true,
+                              onTap: () async {
+                                final stLat =
+                                    (station['lat'] as num?)?.toDouble();
+                                final stLng =
+                                    (station['lng'] as num?)?.toDouble();
+                                final stName =
+                                    station['name']?.toString() ?? '충전소';
+                                if (stLat == null || stLng == null) return;
+                                // 워치 제안 다이얼로그
+                                if (statId != null && ctx.mounted) {
+                                  final existingSession =
+                                      WatchService().session;
+                                  // 이미 이 충전소면 알람 그대로 두고 길안내만 진행
+                                  if (existingSession != null &&
+                                      existingSession.statId != statId) {
+                                    // 다른 충전소 → 전환 확인 후 즉시 전환
+                                    final switchOk =
+                                        await showWatchSwitchDialog(
+                                      ctx,
+                                      currentStationName:
+                                          existingSession.stationName,
+                                    );
+                                    if (!switchOk || !ctx.mounted) return;
+                                    await WatchService().stop();
+                                    await WatchService().start(
+                                      statId: statId,
+                                      stationName: stName,
+                                      etaMin: originEtaMin ?? 0,
+                                      currentAvail: availCount,
+                                    );
+                                  } else if (existingSession == null) {
+                                    // 새 알림 받을지 확인
+                                    final accepted = await showDialog<bool>(
+                                      context: ctx,
+                                      builder: (dCtx) => _WatchDialog(
+                                        etaMin: originEtaMin,
+                                        accentColor: accentColor,
+                                      ),
+                                    );
+                                    if (accepted == true) {
+                                      await WatchService().start(
+                                        statId: statId,
+                                        stationName: stName,
+                                        etaMin: originEtaMin ?? 0,
+                                        currentAvail: availCount,
+                                      );
+                                    }
+                                  }
+                                }
+                                if (!ctx.mounted) return;
+                                showViaWaypointNavigationSheet(
+                                  ctx,
+                                  originLat: widget.originLat!,
+                                  originLng: widget.originLng!,
+                                  waypointLat: stLat,
+                                  waypointLng: stLng,
+                                  waypointName: stName,
+                                  destinationLat: widget.destLat!,
+                                  destinationLng: widget.destLng!,
+                                  destinationName: widget.destName ?? '목적지',
+                                );
+                              },
+                            )),
                 ],
               ],
             ),
@@ -1082,7 +1273,8 @@ class _ActionIconBtn extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),
         child: SizedBox(
-          width: 44, height: 44,
+          width: 44,
+          height: 44,
           child: Center(child: Icon(icon, size: 18, color: iconColor)),
         ),
       ),
@@ -1095,7 +1287,8 @@ class _ChargerDot extends StatelessWidget {
   final int total;
   final Color accentColor;
 
-  const _ChargerDot({required this.avail, required this.total, required this.accentColor});
+  const _ChargerDot(
+      {required this.avail, required this.total, required this.accentColor});
 
   @override
   Widget build(BuildContext context) {
@@ -1103,7 +1296,8 @@ class _ChargerDot extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 8, height: 8,
+          width: 8,
+          height: 8,
           decoration: BoxDecoration(
             color: avail > 0 ? _kGreen : _kOrange,
             shape: BoxShape.circle,
@@ -1129,7 +1323,8 @@ class _InfoChip extends StatelessWidget {
   final String label;
   final Color color;
 
-  const _InfoChip({required this.icon, required this.label, required this.color});
+  const _InfoChip(
+      {required this.icon, required this.label, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -1138,7 +1333,9 @@ class _InfoChip extends StatelessWidget {
       children: [
         Icon(icon, size: 13, color: color),
         const SizedBox(width: 3),
-        Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w500)),
+        Text(label,
+            style: TextStyle(
+                fontSize: 12, color: color, fontWeight: FontWeight.w500)),
       ],
     );
   }
@@ -1155,15 +1352,19 @@ class _HeadingBadge extends StatefulWidget {
   State<_HeadingBadge> createState() => _HeadingBadgeState();
 }
 
-class _HeadingBadgeState extends State<_HeadingBadge> with SingleTickerProviderStateMixin {
+class _HeadingBadgeState extends State<_HeadingBadge>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
   late final Animation<double> _pulse;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..repeat(reverse: true);
-    _pulse = Tween<double>(begin: 0.55, end: 1.0).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1400))
+      ..repeat(reverse: true);
+    _pulse = Tween<double>(begin: 0.55, end: 1.0)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
 
   @override
@@ -1185,10 +1386,10 @@ class _HeadingBadgeState extends State<_HeadingBadge> with SingleTickerProviderS
     final bool tight = !crowd && h >= a && a > 0;
 
     final Color color = crowd
-        ? const Color(0xFFD32F2F)        // 빨강 — 자리 부족
+        ? const Color(0xFFD32F2F) // 빨강 — 자리 부족
         : tight
-            ? const Color(0xFFEF6C00)    // 진한 주황 — 딱 맞음
-            : const Color(0xFF1976D2);   // 파랑 — 여유
+            ? const Color(0xFFEF6C00) // 진한 주황 — 딱 맞음
+            : const Color(0xFF1976D2); // 파랑 — 여유
 
     final String label = crowd
         ? '$h명이 향하는 중 · 자리보다 많음'
@@ -1210,11 +1411,17 @@ class _HeadingBadgeState extends State<_HeadingBadge> with SingleTickerProviderS
           AnimatedBuilder(
             animation: _pulse,
             builder: (_, __) => Container(
-              width: 7, height: 7,
+              width: 7,
+              height: 7,
               decoration: BoxDecoration(
                 color: color.withValues(alpha: _pulse.value),
                 shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: color.withValues(alpha: _pulse.value * 0.5), blurRadius: 4, spreadRadius: 1)],
+                boxShadow: [
+                  BoxShadow(
+                      color: color.withValues(alpha: _pulse.value * 0.5),
+                      blurRadius: 4,
+                      spreadRadius: 1)
+                ],
               ),
             ),
           ),
@@ -1223,7 +1430,8 @@ class _HeadingBadgeState extends State<_HeadingBadge> with SingleTickerProviderS
           const SizedBox(width: 5),
           Text(
             label,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color),
+            style: TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w700, color: color),
           ),
         ],
       ),
@@ -1232,17 +1440,21 @@ class _HeadingBadgeState extends State<_HeadingBadge> with SingleTickerProviderS
 }
 
 class _HandleDelegate extends SliverPersistentHeaderDelegate {
-  @override double get minExtent => 24;
-  @override double get maxExtent => 24;
+  @override
+  double get minExtent => 24;
+  @override
+  double get maxExtent => 24;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return ColoredBox(
       color: isDark ? AppColors.darkBg : Colors.white,
       child: Center(
         child: Container(
-          width: 36, height: 4,
+          width: 36,
+          height: 4,
           decoration: BoxDecoration(
             color: isDark ? AppColors.darkTextMuted : Colors.grey.shade300,
             borderRadius: BorderRadius.circular(2),
@@ -1253,7 +1465,8 @@ class _HandleDelegate extends SliverPersistentHeaderDelegate {
   }
 
   @override
-  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) => false;
+  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) =>
+      false;
 }
 
 // ── EV 사용자 선택 모드 리스트 ──
@@ -1276,10 +1489,14 @@ class EvSelectList extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final mutedColor = isDark ? AppColors.darkTextSecondary : _kGrey;
     final cardBg = isDark ? AppColors.darkCard : Colors.white;
-    final cardBorder = isDark ? AppColors.darkCardBorder : const Color(0xFFE5E5E5);
-    final nameColor = isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A1A);
-    final priceColor = isDark ? AppColors.darkTextPrimary : const Color(0xFF444444);
-    final chevronColor = isDark ? AppColors.darkTextMuted : Colors.grey.shade400;
+    final cardBorder =
+        isDark ? AppColors.darkCardBorder : const Color(0xFFE5E5E5);
+    final nameColor =
+        isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A1A);
+    final priceColor =
+        isDark ? AppColors.darkTextPrimary : const Color(0xFF444444);
+    final chevronColor =
+        isDark ? AppColors.darkTextMuted : Colors.grey.shade400;
 
     return CustomScrollView(
       controller: scrollController,
@@ -1290,15 +1507,23 @@ class EvSelectList extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
             child: Row(
               children: [
-                Icon(chargerType == 'FAST' ? Icons.bolt_rounded : Icons.electrical_services_rounded,
-                    size: 15, color: accentColor),
+                Icon(
+                    chargerType == 'FAST'
+                        ? Icons.bolt_rounded
+                        : Icons.electrical_services_rounded,
+                    size: 15,
+                    color: accentColor),
                 const SizedBox(width: 5),
                 Text(
                   '${chargerType == 'FAST' ? '급속' : '완속'} 충전소 ${candidates.length}개',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: accentColor),
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: accentColor),
                 ),
                 const SizedBox(width: 6),
-                Text('· 경로 가까운 순 · 가용 우선', style: TextStyle(fontSize: 12, color: mutedColor)),
+                Text('· 경로 가까운 순 · 가용 우선',
+                    style: TextStyle(fontSize: 12, color: mutedColor)),
               ],
             ),
           ),
@@ -1308,7 +1533,8 @@ class EvSelectList extends StatelessWidget {
             (context, i) {
               final s = candidates[i];
               final originalName = s['name']?.toString() ?? '-';
-              final stationId = s['stat_id']?.toString() ?? s['statId']?.toString() ?? '';
+              final stationId =
+                  s['stat_id']?.toString() ?? s['statId']?.toString() ?? '';
               final name = stationId.isEmpty
                   ? originalName
                   : StationAliasService.resolveEv(stationId, originalName);
@@ -1316,8 +1542,10 @@ class EvSelectList extends StatelessWidget {
               final avail = (s['available_count'] as num?)?.toInt() ?? 0;
               final total = (s['total_count'] as num?)?.toInt() ?? 0;
               final unitPrice = (s['unit_price'] as num?)?.toInt();
-              final unitPriceMember = (s['unit_price_member'] as num?)?.toInt() ?? unitPrice;
-              final unitPriceNonMember = (s['unit_price_nonmember'] as num?)?.toInt();
+              final unitPriceMember =
+                  (s['unit_price_member'] as num?)?.toInt() ?? unitPrice;
+              final unitPriceNonMember =
+                  (s['unit_price_nonmember'] as num?)?.toInt();
               final routeDistM = (s['route_distance_m'] as num?)?.toInt() ?? 0;
               final originDistM = (s['origin_distance_m'] as num?)?.toInt();
               final originEtaMin = (s['origin_eta_min'] as num?)?.toInt();
@@ -1338,9 +1566,17 @@ class EvSelectList extends StatelessWidget {
                     color: cardBg,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: isOnRoute ? accentColor.withValues(alpha: 0.4) : cardBorder,
+                      color: isOnRoute
+                          ? accentColor.withValues(alpha: 0.4)
+                          : cardBorder,
                     ),
-                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.04), blurRadius: 6, offset: const Offset(0, 2))],
+                    boxShadow: [
+                      BoxShadow(
+                          color: Colors.black
+                              .withValues(alpha: isDark ? 0.18 : 0.04),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2))
+                    ],
                   ),
                   child: Row(
                     children: [
@@ -1352,25 +1588,36 @@ class EvSelectList extends StatelessWidget {
                               children: [
                                 if (isOnRoute) ...[
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 5, vertical: 1),
                                     decoration: BoxDecoration(
                                       color: accentColor,
                                       borderRadius: BorderRadius.circular(4),
                                     ),
-                                    child: const Text('경로상', style: TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w700)),
+                                    child: const Text('경로상',
+                                        style: TextStyle(
+                                            fontSize: 9,
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w700)),
                                   ),
                                   const SizedBox(width: 5),
                                 ],
                                 Expanded(
                                   child: Text(name,
-                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: nameColor),
-                                    overflow: TextOverflow.ellipsis),
+                                      style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                          color: nameColor),
+                                      overflow: TextOverflow.ellipsis),
                                 ),
                               ],
                             ),
                             if (operator.isNotEmpty) ...[
                               const SizedBox(height: 2),
-                              Text(operator, style: TextStyle(fontSize: 11, color: mutedColor), overflow: TextOverflow.ellipsis),
+                              Text(operator,
+                                  style: TextStyle(
+                                      fontSize: 11, color: mutedColor),
+                                  overflow: TextOverflow.ellipsis),
                             ],
                             const SizedBox(height: 6),
                             Wrap(
@@ -1382,7 +1629,8 @@ class EvSelectList extends StatelessWidget {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Container(
-                                      width: 7, height: 7,
+                                      width: 7,
+                                      height: 7,
                                       decoration: BoxDecoration(
                                         color: avail > 0 ? _kGreen : _kOrange,
                                         shape: BoxShape.circle,
@@ -1390,29 +1638,40 @@ class EvSelectList extends StatelessWidget {
                                     ),
                                     const SizedBox(width: 4),
                                     Text('$avail/$total 가용',
-                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
-                                        color: avail > 0 ? _kGreen : _kOrange)),
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: avail > 0
+                                                ? _kGreen
+                                                : _kOrange)),
                                   ],
                                 ),
                                 if (originLabel != null)
                                   Text(originLabel,
-                                    style: TextStyle(fontSize: 11, color: mutedColor)),
+                                      style: TextStyle(
+                                          fontSize: 11, color: mutedColor)),
                                 if (originEtaMin != null && originEtaMin > 0)
                                   Text('약 ${fmtMin(originEtaMin)} 소요',
-                                    style: TextStyle(fontSize: 11, color: mutedColor)),
+                                      style: TextStyle(
+                                          fontSize: 11, color: mutedColor)),
                                 if (unitPriceMember != null)
-                                  Text('회원 ${_wonFmt.format(unitPriceMember)}원/kWh',
-                                    style: TextStyle(fontSize: 11, color: priceColor)),
+                                  Text(
+                                      '회원 ${_wonFmt.format(unitPriceMember)}원/kWh',
+                                      style: TextStyle(
+                                          fontSize: 11, color: priceColor)),
                                 if (unitPriceNonMember != null)
-                                  Text('비회원 ${_wonFmt.format(unitPriceNonMember)}원/kWh',
-                                    style: TextStyle(fontSize: 11, color: mutedColor)),
+                                  Text(
+                                      '비회원 ${_wonFmt.format(unitPriceNonMember)}원/kWh',
+                                      style: TextStyle(
+                                          fontSize: 11, color: mutedColor)),
                               ],
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Icon(Icons.chevron_right_rounded, color: chevronColor, size: 20),
+                      Icon(Icons.chevron_right_rounded,
+                          color: chevronColor, size: 20),
                     ],
                   ),
                 ),
@@ -1435,12 +1694,17 @@ class _EvAiMessageBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (message.isEmpty) return const SizedBox.shrink();
-    final normalized = _normalizeMarkdownForKoreanEv(message.replaceAll(r'\n', '\n'));
+    final normalized =
+        _normalizeMarkdownForKoreanEv(message.replaceAll(r'\n', '\n'));
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? _kBlue.withValues(alpha: 0.12) : const Color(0xFFEEF4FF);
-    final border = isDark ? _kBlue.withValues(alpha: 0.35) : const Color(0xFFB8D0FF);
-    final iconBg = isDark ? _kBlue.withValues(alpha: 0.22) : const Color(0xFFD0E3FF);
-    final bodyTextColor = isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a);
+    final bg =
+        isDark ? _kBlue.withValues(alpha: 0.12) : const Color(0xFFEEF4FF);
+    final border =
+        isDark ? _kBlue.withValues(alpha: 0.35) : const Color(0xFFB8D0FF);
+    final iconBg =
+        isDark ? _kBlue.withValues(alpha: 0.22) : const Color(0xFFD0E3FF);
+    final bodyTextColor =
+        isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -1452,13 +1716,15 @@ class _EvAiMessageBanner extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 20, height: 20,
+            width: 20,
+            height: 20,
             margin: const EdgeInsets.only(top: 1),
             decoration: BoxDecoration(
               color: iconBg,
               borderRadius: BorderRadius.circular(6),
             ),
-            child: const Icon(Icons.auto_awesome_rounded, size: 12, color: _kBlue),
+            child:
+                const Icon(Icons.auto_awesome_rounded, size: 12, color: _kBlue),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -1466,15 +1732,21 @@ class _EvAiMessageBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text('AI 충전소 추천',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _kBlue)),
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: _kBlue)),
                 const SizedBox(height: 6),
                 MarkdownBody(
                   data: normalized,
                   shrinkWrap: true,
-                  styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
-                    p: TextStyle(fontSize: 13, height: 1.5, color: bodyTextColor),
+                  styleSheet:
+                      MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+                    p: TextStyle(
+                        fontSize: 13, height: 1.5, color: bodyTextColor),
                     strong: const TextStyle(
-                      fontSize: 13, height: 1.5,
+                      fontSize: 13,
+                      height: 1.5,
                       fontWeight: FontWeight.w700,
                       color: _kGreen,
                     ),
@@ -1500,10 +1772,14 @@ class _WatchDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final dialogBg = isDark ? const Color(0xFF1A1F2C) : Colors.white;
-    final titleColor = isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A1A);
-    final descColor = isDark ? AppColors.darkTextSecondary : const Color(0xFF666666);
-    final cancelTextColor = isDark ? AppColors.darkTextSecondary : const Color(0xFF888888);
-    final cancelBorderColor = isDark ? AppColors.darkCardBorder : Colors.grey.shade300;
+    final titleColor =
+        isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A1A);
+    final descColor =
+        isDark ? AppColors.darkTextSecondary : const Color(0xFF666666);
+    final cancelTextColor =
+        isDark ? AppColors.darkTextSecondary : const Color(0xFF888888);
+    final cancelBorderColor =
+        isDark ? AppColors.darkCardBorder : Colors.grey.shade300;
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       elevation: 0,
@@ -1525,7 +1801,8 @@ class _WatchDialog extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               '실시간 현황 알림',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: titleColor),
+              style: TextStyle(
+                  fontSize: 17, fontWeight: FontWeight.w800, color: titleColor),
             ),
             const SizedBox(height: 10),
             Text(
@@ -1543,12 +1820,14 @@ class _WatchDialog extends StatelessWidget {
                     onPressed: () => Navigator.pop(context, false),
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(color: cancelBorderColor),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(vertical: 13),
                     ),
                     child: Text(
                       '나중에',
-                      style: TextStyle(color: cancelTextColor, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                          color: cancelTextColor, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ),
@@ -1560,10 +1839,12 @@ class _WatchDialog extends StatelessWidget {
                       backgroundColor: accentColor,
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(vertical: 13),
                     ),
-                    child: const Text('받기', style: TextStyle(fontWeight: FontWeight.w700)),
+                    child: const Text('받기',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
                   ),
                 ),
               ],
@@ -1574,4 +1855,3 @@ class _WatchDialog extends StatelessWidget {
     );
   }
 }
-
