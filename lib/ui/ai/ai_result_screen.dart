@@ -17,10 +17,10 @@ const _kAltBg = Color(0xFFF7F4FF); // 카드 컨테이너 배경
 const _kAltBorder = Color(0xFFE3DBF7); // 카드 컨테이너 border
 const _kAltBadgeBg = Color(0xFFEDE7FF); // 일반 alt 번호 배지 배경
 const _kAltBadgeText = Color(0xFF7B61FF); // 일반 alt 번호 배지 글자
-// 잔량 부족 강조 — 한눈에 띄는 빨강 톤.
-const _kUnreachableBg = Color(0xFFFFECEC); // row 배경 (옅은 빨강)
-const _kUnreachableChipBg = Color(0xFFFFD0D0); // 칩/배지 배경
-const _kUnreachableAccent = Color(0xFFD32F2F); // 진한 빨강 (아이콘·텍스트)
+// 닿기 어려움 — 빨강 경고 대신 뮤트 슬레이트로 가라앉혀 고급스럽게(마커와 통일).
+const _kUnreachableBg = Color(0xFFF6F8FA); // row 배경 (옅은 슬레이트)
+const _kUnreachableChipBg = Color(0xFFE7ECF1); // 칩/배지 배경
+const _kUnreachableAccent = Color(0xFF8A96A3); // 뮤트 슬레이트 (아이콘·텍스트)
 
 /// CommonMark의 right-flanking 규칙상 `**X**` 의 닫는 `**` 뒤에 한글 음절이 오면
 /// emphasis 종료를 인식하지 못해 raw 마커가 그대로 노출된다 (예: `**22%**로`).
