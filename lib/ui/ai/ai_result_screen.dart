@@ -1418,7 +1418,7 @@ class _RecommendedCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              padding: const EdgeInsets.symmetric(vertical: 18),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
@@ -1519,15 +1519,15 @@ class _RecStatCell extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 16, color: iconColor),
-          const SizedBox(height: 4),
+          Icon(icon, size: 18, color: iconColor),
+          const SizedBox(height: 7),
           Text(value,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                  fontSize: 14,
+                  fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFF1a1a1a))),
-          const SizedBox(height: 2),
+          const SizedBox(height: 4),
           Text(label,
               textAlign: TextAlign.center,
               style: TextStyle(
