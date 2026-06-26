@@ -1940,12 +1940,17 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       }
     }
 
-    if (pathSegments != null && pathSegments.isNotEmpty) {
+    // path_segments 가 없으면(예: AI 결과 via 경로) 목적지 선택 때 받은 혼잡도 세그먼트
+    // (_lastPathSegments)를 재사용 → 단색 대신 목적지 경로와 동일한 혼잡도 색으로 통일.
+    final segs = (pathSegments != null && pathSegments.isNotEmpty)
+        ? pathSegments
+        : _lastPathSegments;
+    if (segs != null && segs.isNotEmpty) {
       // ① NMultipartPathOverlay: 교통 정보 세그먼트별 색상
       final multiPaths = <NMultipartPath>[];
 
-      for (int si = 0; si < pathSegments.length; si++) {
-        final seg = pathSegments[si];
+      for (int si = 0; si < segs.length; si++) {
+        final seg = segs[si];
         final rawCoords = seg['coords'];
         if (rawCoords is! List || rawCoords.length < 2) continue;
         final coordsRaw = rawCoords
