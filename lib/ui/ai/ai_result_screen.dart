@@ -373,7 +373,14 @@ class _AiResultBodyState extends State<AiResultBody> {
         : (bestDetour?['detour_time_min'] is num
             ? bestDetour!['detour_time_min'] as num
             : null);
-    final dtTimeMinsBanner = _meaningfulDetourMinutes(dtDetourTimeMin);
+    // 배너 '더 소요'는 우회−경로상 상대 시간차 (절대 우회시간 X). 역전/동일이면 null(숨김).
+    final int? dtTimeMinsBanner;
+    if (orDetourTimeMin != null && dtDetourTimeMin != null) {
+      final diff = (dtDetourTimeMin - orDetourTimeMin).round();
+      dtTimeMinsBanner = diff > 0 ? diff : null;
+    } else {
+      dtTimeMinsBanner = _meaningfulDetourMinutes(dtDetourTimeMin);
+    }
     final dtSavings = _i(bestDetour?['savings_vs_on_route_won']);
 
     // 서버가 best_detour를 보냈으면 비교표에 항상 노출 (가격 우열은 추천 로직이 결정).
@@ -1878,6 +1885,7 @@ class _CompareCards extends StatelessWidget {
     final detourCheaper = savings > 0;
     final String txt;
     if (savings > 0) {
+      // detourMins 는 이미 '우회 − 경로상' 상대 시간차 (소스에서 계산). 절대 우회시간 X.
       final extra = (detourMins != null && detourMins! > 0 && detourCheaper)
           ? ' · ${detourMins}분 더 소요'
           : '';

@@ -33,7 +33,8 @@ class GasStationMapBadge {
 
   /// 휴게소(이름 패턴 매칭) → EX 로고, 그 외 → brand 매핑.
   static String? logoFor({String? brand, String? stationName}) {
-    if (_isHighwayRestArea(stationName)) {
+    // RTX = 고속도로 알뜰(EX-OIL) — 정의상 항상 휴게소라 브랜드만으로 EX 로고.
+    if (brand == 'RTX' || _isHighwayRestArea(stationName)) {
       return _highwayLogo;
     }
     if (brand != null && brand.isNotEmpty) return brandLogos[brand];

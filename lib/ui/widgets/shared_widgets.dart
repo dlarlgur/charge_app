@@ -79,7 +79,9 @@ class BrandLogo extends StatelessWidget {
   /// 주어진 브랜드/이름 조합에 해당하는 진짜 로고 자산 경로.
   /// 없으면 null (텍스트 타일 폴백).
   static String? resolveLogoAsset({required String brand, String? stationName}) {
-    if (isHighwayRestArea(stationName)) return _highwayLogoAsset;
+    // RTX = 고속도로 알뜰(EX-OIL) — 정의상 항상 휴게소 소속이라 브랜드만으로 EX 로고.
+    // (display_name 이 Naver 보정으로 "(하)" 등 패턴을 잃어도 로고 누락 안 되게)
+    if (brand == 'RTX' || isHighwayRestArea(stationName)) return _highwayLogoAsset;
     return _realLogoAsset[brand];
   }
 
