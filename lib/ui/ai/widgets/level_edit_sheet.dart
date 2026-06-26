@@ -588,107 +588,110 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
 }
 
 /// 컬러존(위험→주의→충분) 트랙 위에 채움 + 드래그 thumb 을 얹은 슬라이더.
+/// 컬러존(위험→주의→충분) 슬라이더.
+/// Flutter Slider 의 thumb 반지름 여백 때문에 채움과 thumb 가 어긋나던 문제를
+/// 직접 좌표 계산으로 해결 — thumb 중심 == 채움 끝이 항상 정확히 일치한다.
 class _ZoneSlider extends StatelessWidget {
-  final double level;
+  final double level; // 0-100
   final Color zoneColor;
   final ValueChanged<double> onChanged;
   const _ZoneSlider(
       {required this.level, required this.zoneColor, required this.onChanged});
 
+  static const double _h = 26; // 전체 높이
+  static const double _track = 9; // 트랙 두께
+  static const double _thumb = 23; // thumb 지름
+
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 26,
-      child: Stack(
-        alignment: Alignment.centerLeft,
-        children: [
-          // 컬러존 배경
-          Container(
-            height: 9,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(99),
-              gradient: const LinearGradient(colors: [
-                Color(0xFFEF4444),
-                Color(0xFFF59E0B),
-                Color(0xFF22C55E),
-              ], stops: [
-                0.0,
-                0.45,
-                1.0
-              ]),
-            ),
-            // 살짝 흐리게 — 채움이 도드라지도록
-            foregroundDecoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(99),
-              color: Colors.white.withValues(alpha: 0.72),
+    return LayoutBuilder(
+      builder: (context, c) {
+        final w = c.maxWidth;
+        // 트랙·이동범위를 thumb 반지름만큼 좌우 인셋 → 채움 끝과 thumb 중심을 같은 좌표로.
+        final usable = (w - _thumb) <= 0 ? 1.0 : (w - _thumb);
+        final frac = (level / 100).clamp(0.0, 1.0);
+        final fillW = usable * frac;
+        const trackTop = (_h - _track) / 2;
+        const thumbTop = (_h - _thumb) / 2;
+
+        void update(double dx) {
+          final f = ((dx - _thumb / 2) / usable).clamp(0.0, 1.0);
+          onChanged(f * 100);
+        }
+
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapDown: (d) => update(d.localPosition.dx),
+          onHorizontalDragStart: (d) => update(d.localPosition.dx),
+          onHorizontalDragUpdate: (d) => update(d.localPosition.dx),
+          child: SizedBox(
+            width: w,
+            height: _h,
+            child: Stack(
+              children: [
+                // 컬러존 배경(흐리게) — 좌우 thumb 반지름 인셋
+                Positioned(
+                  left: _thumb / 2,
+                  right: _thumb / 2,
+                  top: trackTop,
+                  height: _track,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(99),
+                      gradient: const LinearGradient(
+                        colors: [
+                          Color(0xFFEF4444),
+                          Color(0xFFF59E0B),
+                          Color(0xFF22C55E),
+                        ],
+                        stops: [0.0, 0.45, 1.0],
+                      ),
+                    ),
+                    foregroundDecoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(99),
+                      color: Colors.white.withValues(alpha: 0.72),
+                    ),
+                  ),
+                ),
+                // 채움 — 왼쪽(thumb 반지름)부터 thumb 중심까지
+                Positioned(
+                  left: _thumb / 2,
+                  top: trackTop,
+                  width: fillW,
+                  height: _track,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: zoneColor,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                ),
+                // thumb — left=fillW 면 중심이 fillW + thumb/2 = 채움 끝과 일치
+                Positioned(
+                  left: fillW,
+                  top: thumbTop,
+                  width: _thumb,
+                  height: _thumb,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: zoneColor, width: 3),
+                      boxShadow: [
+                        BoxShadow(
+                          color: zoneColor.withValues(alpha: 0.4),
+                          blurRadius: 4,
+                          spreadRadius: 0.5,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          // 채움
-          FractionallySizedBox(
-            widthFactor: (level / 100).clamp(0.0, 1.0),
-            child: Container(
-              height: 9,
-              decoration: BoxDecoration(
-                color: zoneColor,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-          ),
-          // 상호작용 + thumb
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 9,
-              activeTrackColor: Colors.transparent,
-              inactiveTrackColor: Colors.transparent,
-              thumbColor: Colors.white,
-              overlayColor: zoneColor.withValues(alpha: 0.12),
-              thumbShape: _RingThumb(color: zoneColor),
-              trackShape: const RectangularSliderTrackShape(),
-            ),
-            child: Slider(
-              value: level,
-              min: 0,
-              max: 100,
-              divisions: 100,
-              onChanged: onChanged,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
-  }
-}
-
-/// 흰 원 + 색 테두리 thumb.
-class _RingThumb extends SliderComponentShape {
-  final Color color;
-  const _RingThumb({required this.color});
-
-  @override
-  Size getPreferredSize(bool enabled, bool isDiscrete) => const Size(23, 23);
-
-  @override
-  void paint(PaintingContext context, Offset center,
-      {required Animation<double> activationAnimation,
-      required Animation<double> enableAnimation,
-      required bool isDiscrete,
-      required TextPainter labelPainter,
-      required RenderBox parentBox,
-      required SliderThemeData sliderTheme,
-      required TextDirection textDirection,
-      required double value,
-      required double textScaleFactor,
-      required Size sizeWithOverflow}) {
-    final canvas = context.canvas;
-    canvas.drawCircle(
-        center, 11.5, Paint()..color = color.withValues(alpha: 0.4));
-    canvas.drawCircle(center, 11, Paint()..color = Colors.white);
-    canvas.drawCircle(
-        center,
-        11,
-        Paint()
-          ..color = color
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 3);
   }
 }
