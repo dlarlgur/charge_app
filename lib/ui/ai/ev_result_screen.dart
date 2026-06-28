@@ -237,6 +237,17 @@ class EvResultBodyState extends State<EvResultBody> {
                           recommended['recommendation_label']?.toString(),
                     ),
                   ),
+                  // ── 목적지 도착 예상잔량 (현재 배터리로, 추가충전 없이) ──
+                  if (data['arrival_percent'] is num) ...[
+                    const SizedBox(height: 14),
+                    _EvArrivalBox(
+                      arrivalPercent: (data['arrival_percent'] as num).round(),
+                      arrivalRangeKm: data['arrival_range_km'] is num
+                          ? (data['arrival_range_km'] as num).round()
+                          : 0,
+                      canReach: data['can_reach_without_refuel'] != false,
+                    ),
+                  ],
                   if (alternatives.isNotEmpty) ...[
                     const SizedBox(height: 20),
                     Text(
@@ -291,6 +302,88 @@ class EvResultBodyState extends State<EvResultBody> {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ── EV 도착 예상잔량 박스 (현재 배터리로, 추가충전 X) ──
+class _EvArrivalBox extends StatelessWidget {
+  final int arrivalPercent;
+  final int arrivalRangeKm;
+  final bool canReach;
+  const _EvArrivalBox({
+    required this.arrivalPercent,
+    required this.arrivalRangeKm,
+    required this.canReach,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final low = canReach && arrivalPercent < 20;
+    final accent = !canReach
+        ? const Color(0xFFE5484D)
+        : (low ? const Color(0xFFE0820A) : const Color(0xFF1D9E75));
+    final muted = isDark ? Colors.white70 : const Color(0xFF6B7280);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color:
+            isDark ? const Color(0xFF1E2230) : accent.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: accent.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.14), shape: BoxShape.circle),
+            child: Icon(Icons.battery_charging_full_rounded,
+                size: 20, color: accent),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('현재 배터리로 목적지 도착 시',
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: muted)),
+                const SizedBox(height: 3),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(canReach ? '약 $arrivalPercent%' : '도달 불가',
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: accent)),
+                    if (canReach && arrivalRangeKm > 0) ...[
+                      const SizedBox(width: 6),
+                      Text('· 약 ${arrivalRangeKm}km 여유',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: muted)),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Icon(
+              !canReach
+                  ? Icons.warning_amber_rounded
+                  : (low ? Icons.bolt_rounded : Icons.check_circle_rounded),
+              size: 18,
+              color: accent),
+        ],
+      ),
     );
   }
 }
