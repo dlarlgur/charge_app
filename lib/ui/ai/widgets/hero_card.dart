@@ -25,7 +25,19 @@ class HeroCard extends StatelessWidget {
   final VoidCallback onTapVehicle;
   final VoidCallback onToggleHighway;
   final ValueChanged<String>? onChangeChargerMode;
+  // 주유 전용 — 선호 브랜드(OPINET pollDivCo 키) 멀티선택. 빈 set = 전체.
+  final Set<String> preferredBrands;
+  final ValueChanged<String>? onToggleBrand;
   final Widget? topHandle;
+
+  // 선호 브랜드 칩 옵션 (키=pollDivCo, 라벨). 알뜰은 RTO 키 하나로 받고 서버 전송 시 RTX 도 확장.
+  static const List<(String, String)> _gasBrandOptions = [
+    ('SKE', 'SK'),
+    ('GSC', 'GS'),
+    ('SOL', 'S-OIL'),
+    ('HDO', '현대'),
+    ('RTO', '알뜰'),
+  ];
 
   // 커넥티드 — 연동된 차량일 때만 '차에서 불러오기' 노출.
   final bool isConnected;
@@ -47,6 +59,8 @@ class HeroCard extends StatelessWidget {
     required this.onTapVehicle,
     required this.onToggleHighway,
     this.onChangeChargerMode,
+    this.preferredBrands = const <String>{},
+    this.onToggleBrand,
     this.topHandle,
     this.isConnected = false,
     this.isFetching = false,
@@ -233,7 +247,70 @@ class HeroCard extends StatelessWidget {
               ],
             ],
           ),
+          // ── 주유 선호 브랜드 (가스 전용, 복수 선택) ──
+          if (!isEv) ...[
+            const SizedBox(height: 12),
+            const Text('선호 브랜드 (복수 선택)',
+                style: TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w700, color: kMute2)),
+            const SizedBox(height: 9),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final b in _gasBrandOptions)
+                  _brandChip(
+                    label: b.$2,
+                    active: preferredBrands.contains(b.$1),
+                    accent: accent,
+                    accentLight: modeAccentLight(isEv),
+                    onTap: () => onToggleBrand?.call(b.$1),
+                  ),
+              ],
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  // 선호 브랜드 칩 (텍스트형 — 브랜드명이 곧 아이덴티티). _prefChip 와 톤 통일.
+  Widget _brandChip({
+    required String label,
+    required bool active,
+    required Color accent,
+    required Color accentLight,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? accentLight : kLineSoft,
+          borderRadius: BorderRadius.circular(99),
+          border: Border.all(
+            color: active ? accent.withValues(alpha: 0.22) : Colors.transparent,
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (active) ...[
+              Icon(Icons.check_rounded, size: 14, color: accent),
+              const SizedBox(width: 4),
+            ],
+            Text(label,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: active ? accent : kInk2,
+                  letterSpacing: -0.1,
+                )),
+          ],
+        ),
       ),
     );
   }

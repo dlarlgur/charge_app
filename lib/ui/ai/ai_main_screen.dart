@@ -140,6 +140,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   String _evChargerType = 'FAST'; // FAST | SLOW
   bool _evHighwayOnly = false; // 고속도로 충전소만
   bool _gasHighwayOnly = false; // 고속도로 휴게소 주유소만
+  final Set<String> _preferredGasBrands = {}; // 선호 브랜드(OPINET pollDivCo 키). 빈 set = 전체.
 
   // EV 결과 시트의 카드 스크롤 제어용 (지도 마커 탭 → 해당 카드로 이동)
   final GlobalKey<EvResultBodyState> _evResultBodyKey =
@@ -1445,6 +1446,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'path_points': pathPoints,
         if (directDurationMs != null) 'duration_ms': directDurationMs,
         'highway_only': _gasHighwayOnly,
+        if (_preferredGasBrands.isNotEmpty)
+          'preferred_brands': _preferredGasBrands
+              .expand((k) => k == 'RTO' ? const ['RTO', 'RTX'] : [k])
+              .toList(),
       },
       'recommendation': {'top_n_candidates_returned': 3},
     };
@@ -3462,6 +3467,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'destination': {'lat': _destLat, 'lng': _destLng},
         'path_points': pathPoints,
         'highway_only': _gasHighwayOnly,
+        if (_preferredGasBrands.isNotEmpty)
+          'preferred_brands': _preferredGasBrands
+              .expand((k) => k == 'RTO' ? const ['RTO', 'RTX'] : [k])
+              .toList(),
       },
     };
 
@@ -4847,6 +4856,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             onChangeChargerMode: isEvVehicle
                                 ? (m) => setState(() => _evChargerType = m)
                                 : null,
+                            preferredBrands: _preferredGasBrands,
+                            onToggleBrand: (k) => setState(() {
+                              if (!_preferredGasBrands.remove(k)) {
+                                _preferredGasBrands.add(k);
+                              }
+                            }),
                           ),
                         _buildRouteSelector(isEv: isEvVehicle),
                         const SizedBox(height: 12),
