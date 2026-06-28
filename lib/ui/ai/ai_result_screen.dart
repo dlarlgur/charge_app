@@ -647,6 +647,18 @@ class _AiResultBodyState extends State<AiResultBody> {
         const SizedBox(height: 12),
       ],
 
+      // ── 목적지 도착 예상잔량 (현재 연료로, 추가주유 없이) ──
+      if (reachable?['arrival_percent'] is num) ...[
+        _ArrivalFuelBox(
+          arrivalPercent: (reachable!['arrival_percent'] as num).round(),
+          arrivalRangeKm: reachable['arrival_range_km'] is num
+              ? (reachable['arrival_range_km'] as num).round()
+              : 0,
+          canReach: reachable['can_reach_without_refuel'] != false,
+        ),
+        const SizedBox(height: 12),
+      ],
+
       // ── 비교 테이블 (AI 추천 원본) / 카드 (사용자 대안 선택 시) ──
       if (!hasOverride && !noStationToRecommend) ...[
         _StationComparisonSection(
@@ -2690,6 +2702,90 @@ class _ComparisonDetailSheet extends StatelessWidget {
                 style:
                     TextStyle(fontSize: fs, fontWeight: fw, color: mainColor)),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── 도착 예상잔량 박스 ──────────────────────────────────────────────────────
+class _ArrivalFuelBox extends StatelessWidget {
+  final int arrivalPercent;
+  final int arrivalRangeKm;
+  final bool canReach;
+  const _ArrivalFuelBox({
+    required this.arrivalPercent,
+    required this.arrivalRangeKm,
+    required this.canReach,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final low = canReach && arrivalPercent < 20;
+    final accent = !canReach
+        ? const Color(0xFFE5484D)
+        : (low ? const Color(0xFFE0820A) : const Color(0xFF1D9E75));
+    final muted =
+        isDark ? AppColors.darkTextSecondary : const Color(0xFF6B7280);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : accent.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: accent.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.14), shape: BoxShape.circle),
+            child:
+                Icon(Icons.local_gas_station_rounded, size: 20, color: accent),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('현재 연료로 목적지 도착 시',
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: muted)),
+                const SizedBox(height: 3),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(canReach ? '약 $arrivalPercent%' : '도달 불가',
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: accent)),
+                    if (canReach && arrivalRangeKm > 0) ...[
+                      const SizedBox(width: 6),
+                      Text('· 약 ${arrivalRangeKm}km 여유',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: muted)),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Icon(
+              !canReach
+                  ? Icons.warning_amber_rounded
+                  : (low
+                      ? Icons.local_gas_station_rounded
+                      : Icons.check_circle_rounded),
+              size: 18,
+              color: accent),
         ],
       ),
     );
