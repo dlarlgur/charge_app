@@ -263,6 +263,53 @@ class _AiResultBodyState extends State<AiResultBody> {
     widget.onAltRouteView?.call(Map<String, dynamic>.from(altItem));
   }
 
+  // 상세 비교표 — 추천/경로상/우회/대안 후보를 가격순 표로 팝업.
+  void _showComparisonDetailSheet() {
+    final d = widget.data;
+    final choice = (d['recommendation'] is Map)
+        ? (d['recommendation'] as Map)['choice']?.toString()
+        : null;
+    final out = <Map<String, dynamic>>[];
+    void add(dynamic item, bool isRec) {
+      if (item is! Map) return;
+      final st = item['station'];
+      if (st is! Map) return;
+      final price = _d(st['price_won_per_liter']);
+      if (price == null) return;
+      out.add({
+        'name': _stationNameFrom(Map<String, dynamic>.from(st)),
+        'price': price,
+        'detour':
+            (item['detour_is_none'] == true) ? 0 : _i(item['detour_time_min']),
+        'cost': _i(item['expected_cost_won']),
+        'isRec': isRec,
+      });
+    }
+
+    add(d['on_route'], choice == 'on_route');
+    add(d['best_detour'], choice == 'best_detour');
+    if (d['alternatives'] is List) {
+      for (final a in d['alternatives'] as List) {
+        add(a, false);
+      }
+    }
+    // 이름 중복 제거 + 가격 오름차순
+    final seen = <String>{};
+    final rows = <Map<String, dynamic>>[];
+    for (final r in out) {
+      if (seen.add(r['name'] as String)) rows.add(r);
+    }
+    rows.sort(
+        (a, b) => (a['price'] as double).compareTo(b['price'] as double));
+    if (rows.isEmpty) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _ComparisonDetailSheet(rows: rows, wonFmt: _wonFmt),
+    );
+  }
+
   String _buildAltMessage(Map altItem, String name, int price) {
     final detourM = _i(altItem['detour_distance_m']);
     final savings = altItem['savings_vs_primary_won'] != null
@@ -675,6 +722,44 @@ class _AiResultBodyState extends State<AiResultBody> {
           _gasCompare(secondary, primary),
           const SizedBox(height: 12),
         ],
+      ],
+
+      // ── 상세 비교표 (팝업) ──
+      if (!noStationToRecommend) ...[
+        GestureDetector(
+          onTap: _showComparisonDetailSheet,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkCard : const Color(0xFFF3F5F8),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: isDark
+                      ? AppColors.darkCardBorder
+                      : const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.table_chart_rounded,
+                    size: 16,
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : const Color(0xFF64748B)),
+                const SizedBox(width: 6),
+                Text('상세 비교표 보기',
+                    style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : const Color(0xFF475569))),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
       ],
 
       // ── 다른 후보 ──
@@ -2459,6 +2544,151 @@ class _OptionCard extends StatelessWidget {
                         TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── 상세 비교표 모달 ──────────────────────────────────────────────────────
+class _ComparisonDetailSheet extends StatelessWidget {
+  final List<Map<String, dynamic>> rows;
+  final NumberFormat wonFmt;
+  const _ComparisonDetailSheet({required this.rows, required this.wonFmt});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final ink = isDark ? Colors.white : const Color(0xFF1A1A1A);
+    final muted =
+        isDark ? AppColors.darkTextSecondary : const Color(0xFF94A3B8);
+    const recColor = Color(0xFF1D6FE0);
+    return SafeArea(
+      top: false,
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkBg : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+        ),
+        padding: const EdgeInsets.fromLTRB(18, 10, 18, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: Colors.grey[isDark ? 700 : 300],
+                    borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 16),
+            Row(children: [
+              const Icon(Icons.table_chart_rounded, size: 18, color: recColor),
+              const SizedBox(width: 6),
+              Text('주유소 상세 비교',
+                  style: TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w800, color: ink)),
+              const Spacer(),
+              Text('가격순', style: TextStyle(fontSize: 12, color: muted)),
+            ]),
+            const SizedBox(height: 14),
+            _row(ink, muted,
+                name: '주유소',
+                price: '리터당',
+                detour: '우회',
+                cost: '예상주유비',
+                isRec: false,
+                isHeader: true),
+            Divider(
+                height: 1,
+                color: isDark
+                    ? AppColors.darkCardBorder
+                    : const Color(0xFFE2E8F0)),
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: rows.length,
+                separatorBuilder: (_, __) => Divider(
+                    height: 1,
+                    color: isDark
+                        ? AppColors.darkCardBorder
+                        : const Color(0xFFEEF1F5)),
+                itemBuilder: (_, i) {
+                  final r = rows[i];
+                  final detour = r['detour'] as int? ?? 0;
+                  final cost = r['cost'] as int? ?? 0;
+                  return _row(ink, muted,
+                      name: r['name'] as String,
+                      price:
+                          '${wonFmt.format((r['price'] as double).round())}원',
+                      detour: detour > 0 ? '+$detour분' : '없음',
+                      cost: cost > 0 ? '${wonFmt.format(cost)}원' : '—',
+                      isRec: r['isRec'] == true);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _row(Color ink, Color muted,
+      {required String name,
+      required String price,
+      required String detour,
+      required String cost,
+      required bool isRec,
+      bool isHeader = false}) {
+    const recColor = Color(0xFF1D6FE0);
+    final fw = isHeader
+        ? FontWeight.w700
+        : (isRec ? FontWeight.w800 : FontWeight.w600);
+    final fs = isHeader ? 11.5 : 13.0;
+    final mainColor = isHeader ? muted : (isRec ? recColor : ink);
+    return Container(
+      color: (isRec && !isHeader) ? recColor.withValues(alpha: 0.06) : null,
+      padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 4),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 5,
+            child: Row(children: [
+              if (isRec && !isHeader) ...[
+                const Icon(Icons.star_rounded, size: 13, color: recColor),
+                const SizedBox(width: 3),
+              ],
+              Flexible(
+                child: Text(name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: fs, fontWeight: fw, color: mainColor)),
+              ),
+            ]),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(price,
+                textAlign: TextAlign.end,
+                style:
+                    TextStyle(fontSize: fs, fontWeight: fw, color: mainColor)),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(detour,
+                textAlign: TextAlign.end,
+                style: TextStyle(
+                    fontSize: fs,
+                    fontWeight: isHeader ? FontWeight.w700 : FontWeight.w600,
+                    color: isHeader ? muted : (isRec ? recColor : muted))),
+          ),
+          Expanded(
+            flex: 4,
+            child: Text(cost,
+                textAlign: TextAlign.end,
+                style:
+                    TextStyle(fontSize: fs, fontWeight: fw, color: mainColor)),
           ),
         ],
       ),
