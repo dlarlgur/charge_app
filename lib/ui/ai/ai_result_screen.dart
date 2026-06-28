@@ -567,6 +567,34 @@ class _AiResultBodyState extends State<AiResultBody> {
       ],
 
       // ── AI 메시지 ──
+      // 선호 브랜드 폴백 안내 — 고른 브랜드가 경로에 없어 전체에서 추천한 경우.
+      if (rec?['brand_filter'] is Map &&
+          (rec!['brand_filter'] as Map)['fallback'] == true) ...[
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF9E8),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFFFE6A6)),
+          ),
+          child: const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.info_outline_rounded,
+                  size: 17, color: Color(0xFF8A6D3B)),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '선택한 선호 브랜드가 이 경로엔 없어 전체 주유소에서 추천했어요.',
+                  style: TextStyle(
+                      fontSize: 13, color: Color(0xFF8A6D3B), height: 1.4),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+      ],
       if (uiMessage.isNotEmpty) ...[
         _AiMessageBanner(message: uiMessage),
         const SizedBox(height: 12),
