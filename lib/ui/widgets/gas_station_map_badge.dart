@@ -92,8 +92,9 @@ class GasStationMapBadge {
     final bool highlighted = emphasizeBorder; // 닿기 어려움은 강조 X — 가라앉힘
     final double fontSize = highlighted ? 12.0 : 11.0;
     final double textW = label.length * (highlighted ? 8.5 : 7.5);
+    // 브랜드 로고 없는 주유소(자가/무폴)도 기본 주유 아이콘 자리 확보 → 빈 마커 방지.
     final double contentW =
-        (showLogo ? logoSize + logoGap : (isEv ? 14.0 + logoGap : 0.0)) + textW;
+        (showLogo ? logoSize + logoGap : 14.0 + logoGap) + textW;
     final double w = contentW + 14.0;
     final double h = highlighted ? 30.0 : 26.0;
 
@@ -199,6 +200,11 @@ class GasStationMapBadge {
                     ] else if (isEv) ...[
                       const Icon(Icons.bolt_rounded,
                           size: 14, color: Color(0xFF22C55E)),
+                      const SizedBox(width: logoGap),
+                    ] else ...[
+                      // 브랜드 로고 없는 주유소(자가/무폴) — 빈 칸 대신 기본 주유 아이콘.
+                      Icon(Icons.local_gas_station_rounded,
+                          size: 14, color: effectiveText),
                       const SizedBox(width: logoGap),
                     ],
                     Text(
