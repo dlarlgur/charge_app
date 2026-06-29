@@ -98,6 +98,8 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
   String _chartPeriod = '4w';
   Map<String, dynamic>? _chartData;
   bool _chartLoading = false;
+  // 사용자가 탭/스크럽으로 선택한 차트 지점 index (떼도 유지). null=선택 없음.
+  int? _touchedChartIndex;
 
   static const List<String> _tabLabels = ['요금', '주유소 정보'];
   List<GlobalKey> get _sectionKeys => [_kPrice, _kStation];
@@ -246,7 +248,7 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
   }
 
   Future<void> _loadChart(String period) async {
-    setState(() { _chartPeriod = period; _chartLoading = true; });
+    setState(() { _chartPeriod = period; _chartLoading = true; _touchedChartIndex = null; });
     try {
       // _detail 의 availableFuelTypes 중 그릴 만한 유종만 전달.
       // 그래프는 휘발유/고급/경유 3종이 표준 (HTML 양식). LPG/등유는 사용자가 보기 헷갈리므로 제외.
@@ -1340,17 +1342,65 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
         ),
         borderData: FlBorderData(show: false),
         lineBarsData: lineBars,
+        // 선택한 지점의 툴팁을 고정 표시 (손 떼도 유지). 3유종 전부 포함.
+        showingTooltipIndicators: (_touchedChartIndex == null)
+            ? const []
+            : [
+                ShowingTooltipIndicators([
+                  for (int bi = 0; bi < lineBars.length; bi++)
+                    if (_touchedChartIndex! >= 0 &&
+                        _touchedChartIndex! < lineBars[bi].spots.length)
+                      LineBarSpot(lineBars[bi], bi,
+                          lineBars[bi].spots[_touchedChartIndex!]),
+                ]),
+              ],
         lineTouchData: LineTouchData(
+          // 기본 터치 끔 — 탭/스크럽 지점을 직접 state 로 관리해 깜빡임·자동숨김 제거.
+          handleBuiltInTouches: false,
+          touchCallback: (event, response) {
+            final spots = response?.lineBarSpots;
+            if (spots == null || spots.isEmpty) return;
+            final idx = spots.first.spotIndex;
+            if (idx != _touchedChartIndex) {
+              setState(() => _touchedChartIndex = idx);
+            }
+          },
           touchTooltipData: LineTouchTooltipData(
             getTooltipColor: (_) => isDark ? const Color(0xFF1E2530) : _kInk,
-            getTooltipItems: (spots) => spots.map((s) {
+            getTooltipItems: (spots) => spots.asMap().entries.map((e) {
+              final s = e.value;
               final fuelIdx = lineBars.indexOf(s.bar);
-              final fuelCode = fuelIdx >= 0 && fuelIdx < fuels.length ? fuels[fuelIdx] : '';
+              final fuelCode =
+                  fuelIdx >= 0 && fuelIdx < fuels.length ? fuels[fuelIdx] : '';
               final label = _fuelLabel[fuelCode] ?? fuelCode;
-              return LineTooltipItem(
-                '$label  ${_formatPrice(s.y)}원',
-                TextStyle(color: _fuelColor(fuelCode), fontSize: 11, fontWeight: FontWeight.w700),
-              );
+              final lineText = '$label  ${_formatPrice(s.y)}원';
+              final lineStyle = TextStyle(
+                  color: _fuelColor(fuelCode),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700);
+              // 첫 줄 위에 날짜 헤더 한 줄 (어느 유종이 첫 항목이든 날짜는 동일).
+              if (e.key == 0) {
+                final pi = s.spotIndex;
+                final dateRaw = (pi >= 0 &&
+                        pi < points.length &&
+                        points[pi] is Map)
+                    ? ((points[pi] as Map)['date'] ?? '').toString()
+                    : '';
+                final dateStr = dateRaw.length >= 8
+                    ? '${dateRaw.substring(0, 4)}.${dateRaw.substring(4, 6)}.${dateRaw.substring(6, 8)}'
+                    : '';
+                if (dateStr.isNotEmpty) {
+                  return LineTooltipItem(
+                    dateStr,
+                    TextStyle(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600),
+                    children: [TextSpan(text: '\n$lineText', style: lineStyle)],
+                  );
+                }
+              }
+              return LineTooltipItem(lineText, lineStyle);
             }).toList(),
           ),
         ),
