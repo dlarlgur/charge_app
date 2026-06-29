@@ -270,24 +270,28 @@ class _AiResultBodyState extends State<AiResultBody> {
         ? (d['recommendation'] as Map)['choice']?.toString()
         : null;
     final out = <Map<String, dynamic>>[];
-    void add(dynamic item, bool isRec) {
+    void add(dynamic item, bool isRec, {String? role}) {
       if (item is! Map) return;
       final st = item['station'];
       if (st is! Map) return;
       final price = _d(st['price_won_per_liter']);
       if (price == null) return;
+      final isNone = item['detour_is_none'] == true;
+      final detMin = isNone ? 0 : _i(item['detour_time_min']);
       out.add({
         'name': _stationNameFrom(Map<String, dynamic>.from(st)),
+        'brand': st['brand']?.toString(),
         'price': price,
-        'detour':
-            (item['detour_is_none'] == true) ? 0 : _i(item['detour_time_min']),
+        'detour': detMin,
         'cost': _i(item['expected_cost_won']),
         'isRec': isRec,
+        // 경로상(≤2분/우회없음) vs 우회 — on_route/best_detour 는 명시, 대안은 시간으로 추정.
+        'role': role ?? ((isNone || detMin <= 2) ? '경로상' : '우회'),
       });
     }
 
-    add(d['on_route'], choice == 'on_route');
-    add(d['best_detour'], choice == 'best_detour');
+    add(d['on_route'], choice == 'on_route', role: '경로상');
+    add(d['best_detour'], choice == 'best_detour', role: '우회');
     if (d['alternatives'] is List) {
       for (final a in d['alternatives'] as List) {
         add(a, false);
@@ -2587,48 +2591,29 @@ class _ComparisonDetailSheet extends StatelessWidget {
                     borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 16),
             Row(children: [
-              const Icon(Icons.table_chart_rounded, size: 18, color: recColor),
+              const Icon(Icons.insights_rounded, size: 18, color: recColor),
               const SizedBox(width: 6),
               Text('주유소 상세 비교',
                   style: TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.w800, color: ink)),
+                      fontSize: 15.5, fontWeight: FontWeight.w800, color: ink)),
               const Spacer(),
-              Text('가격순', style: TextStyle(fontSize: 12, color: muted)),
+              Text('${rows.length}곳 · 가격순',
+                  style: TextStyle(fontSize: 12, color: muted)),
             ]),
             const SizedBox(height: 14),
-            _row(ink, muted,
-                name: '주유소',
-                price: '리터당',
-                detour: '우회',
-                cost: '예상주유비',
-                isRec: false,
-                isHeader: true),
-            Divider(
-                height: 1,
-                color: isDark
-                    ? AppColors.darkCardBorder
-                    : const Color(0xFFE2E8F0)),
             Flexible(
               child: ListView.separated(
                 shrinkWrap: true,
                 itemCount: rows.length,
-                separatorBuilder: (_, __) => Divider(
-                    height: 1,
-                    color: isDark
-                        ? AppColors.darkCardBorder
-                        : const Color(0xFFEEF1F5)),
-                itemBuilder: (_, i) {
-                  final r = rows[i];
-                  final detour = r['detour'] as int? ?? 0;
-                  final cost = r['cost'] as int? ?? 0;
-                  return _row(ink, muted,
-                      name: r['name'] as String,
-                      price:
-                          '${wonFmt.format((r['price'] as double).round())}원',
-                      detour: detour > 0 ? '+$detour분' : '없음',
-                      cost: cost > 0 ? '${wonFmt.format(cost)}원' : '—',
-                      isRec: r['isRec'] == true);
-                },
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (_, i) => _stationCard(
+                    rows[i],
+                    isDark,
+                    ink,
+                    muted,
+                    recColor,
+                    (rows.first['price'] as double).round(),
+                    i == 0),
               ),
             ),
           ],
@@ -2637,152 +2622,141 @@ class _ComparisonDetailSheet extends StatelessWidget {
     );
   }
 
-  Widget _row(Color ink, Color muted,
-      {required String name,
-      required String price,
-      required String detour,
-      required String cost,
-      required bool isRec,
-      bool isHeader = false}) {
-    const recColor = Color(0xFF1D6FE0);
-    final fw = isHeader
-        ? FontWeight.w700
-        : (isRec ? FontWeight.w800 : FontWeight.w600);
-    final fs = isHeader ? 11.5 : 13.0;
-    final mainColor = isHeader ? muted : (isRec ? recColor : ink);
+  // 주유소 1곳 = 카드 1장. 로고 + 이름 + 역할(경로상/우회) + 우회시간 + 가격 + 최저가 대비.
+  Widget _stationCard(Map<String, dynamic> r, bool isDark, Color ink,
+      Color muted, Color recColor, int cheapest, bool isCheapest) {
+    final isRec = r['isRec'] == true;
+    final name = r['name'] as String;
+    final brand = (r['brand'] as String?) ?? '';
+    final price = (r['price'] as double).round();
+    final detour = r['detour'] as int? ?? 0;
+    final cost = r['cost'] as int? ?? 0;
+    final role = r['role'] as String? ?? '';
+    final delta = price - cheapest;
+    final roleColor =
+        role == '경로상' ? const Color(0xFFE8700A) : const Color(0xFF1D6FE0);
     return Container(
-      color: (isRec && !isHeader) ? recColor.withValues(alpha: 0.06) : null,
-      padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 4),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 5,
-            child: Row(children: [
-              if (isRec && !isHeader) ...[
-                const Icon(Icons.star_rounded, size: 13, color: recColor),
-                const SizedBox(width: 3),
-              ],
-              Flexible(
-                child: Text(name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: fs, fontWeight: fw, color: mainColor)),
-              ),
-            ]),
-          ),
-          Expanded(
-            flex: 3,
-            child: Text(price,
-                textAlign: TextAlign.end,
-                style:
-                    TextStyle(fontSize: fs, fontWeight: fw, color: mainColor)),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(detour,
-                textAlign: TextAlign.end,
-                style: TextStyle(
-                    fontSize: fs,
-                    fontWeight: isHeader ? FontWeight.w700 : FontWeight.w600,
-                    color: isHeader ? muted : (isRec ? recColor : muted))),
-          ),
-          Expanded(
-            flex: 4,
-            child: Text(cost,
-                textAlign: TextAlign.end,
-                style:
-                    TextStyle(fontSize: fs, fontWeight: fw, color: mainColor)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── 도착 예상잔량 박스 ──────────────────────────────────────────────────────
-class _ArrivalFuelBox extends StatelessWidget {
-  final int arrivalPercent;
-  final int arrivalRangeKm;
-  final bool canReach;
-  const _ArrivalFuelBox({
-    required this.arrivalPercent,
-    required this.arrivalRangeKm,
-    required this.canReach,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final low = canReach && arrivalPercent < 20;
-    final accent = !canReach
-        ? const Color(0xFFE5484D)
-        : (low ? const Color(0xFFE0820A) : const Color(0xFF1D9E75));
-    final muted =
-        isDark ? AppColors.darkTextSecondary : const Color(0xFF6B7280);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.fromLTRB(11, 10, 13, 10),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : accent.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: accent.withValues(alpha: 0.28)),
+        color: isDark ? AppColors.darkCard : Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(
+            color: isRec
+                ? recColor
+                : (isDark
+                    ? AppColors.darkCardBorder
+                    : const Color(0xFFE9EEF4)),
+            width: isRec ? 1.6 : 1),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2)),
+        ],
       ),
       child: Row(
         children: [
           Container(
             width: 38,
             height: 38,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.14), shape: BoxShape.circle),
-            child:
-                Icon(Icons.local_gas_station_rounded, size: 20, color: accent),
+              color: isDark ? Colors.white10 : const Color(0xFFF3F6FA),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: brand.isNotEmpty
+                ? BrandLogo(brand: brand, stationName: name, size: 24)
+                : Icon(Icons.local_gas_station_rounded, size: 19, color: muted),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('현재 연료로 목적지 도착 시',
-                    style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        color: muted)),
-                const SizedBox(height: 3),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text(canReach ? '약 $arrivalPercent%' : '도달 불가',
+                Row(children: [
+                  Flexible(
+                    child: Text(name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: accent)),
-                    if (canReach && arrivalRangeKm > 0) ...[
-                      const SizedBox(width: 6),
-                      Text('· 약 ${arrivalRangeKm}km 여유',
-                          style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: muted)),
-                    ],
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: ink)),
+                  ),
+                  if (isRec) ...[
+                    const SizedBox(width: 5),
+                    _chip('AI 추천', recColor, recColor.withValues(alpha: 0.12)),
+                  ] else if (isCheapest) ...[
+                    const SizedBox(width: 5),
+                    _chip('최저가', const Color(0xFF1D9E75),
+                        const Color(0xFF1D9E75).withValues(alpha: 0.12)),
                   ],
-                ),
+                ]),
+                const SizedBox(height: 5),
+                Row(children: [
+                  _tag(role, roleColor),
+                  const SizedBox(width: 6),
+                  Icon(
+                      detour > 0
+                          ? Icons.alt_route_rounded
+                          : Icons.straight_rounded,
+                      size: 12,
+                      color: muted),
+                  const SizedBox(width: 2),
+                  Text(detour > 0 ? '+$detour분' : '우회 없음',
+                      style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: muted)),
+                ]),
               ],
             ),
           ),
-          Icon(
-              !canReach
-                  ? Icons.warning_amber_rounded
-                  : (low
-                      ? Icons.local_gas_station_rounded
-                      : Icons.check_circle_rounded),
-              size: 18,
-              color: accent),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text('${wonFmt.format(price)}원',
+                  style: TextStyle(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w800,
+                      color: isRec ? recColor : ink)),
+              const SizedBox(height: 1),
+              Text(
+                  delta > 0
+                      ? '최저가 +${wonFmt.format(delta)}'
+                      : (cost > 0 ? '예상 ${wonFmt.format(cost)}원' : '/L'),
+                  style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
+                      color: muted)),
+            ],
+          ),
         ],
       ),
     );
   }
+
+  Widget _chip(String text, Color fg, Color bg) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        decoration:
+            BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+        child: Text(text,
+            style: TextStyle(
+                fontSize: 10, fontWeight: FontWeight.w800, color: fg)),
+      );
+
+  Widget _tag(String text, Color c) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+        decoration: BoxDecoration(
+            border: Border.all(color: c.withValues(alpha: 0.4)),
+            borderRadius: BorderRadius.circular(5)),
+        child: Text(text,
+            style: TextStyle(
+                fontSize: 10, fontWeight: FontWeight.w700, color: c)),
+      );
 }
+
 
 // ─── 다른 후보 섹션 ───────────────────────────────────────────────────────────
 
