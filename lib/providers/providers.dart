@@ -572,20 +572,18 @@ final mapGasStationsProvider = FutureProvider<List<GasStation>>((ref) async {
   final filter = ref.watch(gasFilterProvider);
   final radius = ref.watch(mapRadiusProvider);
 
-  final results = await Future.wait(
-    filter.fuelTypes.map((ft) => ApiService().getGasStationsAround(
-      lat: center.lat, lng: center.lng,
-      radius: radius, fuelType: ft, sort: 2,
-    )),
+  // 활성 유종 1개만 조회 — 멀티는 토글 목록, 지도 마커·추천(1~3위)은 활성 유종 실가격.
+  final activeFuel = ref.watch(effectiveGasFuelTypeProvider);
+  final data = await ApiService().getGasStationsAround(
+    lat: center.lat, lng: center.lng,
+    radius: radius, fuelType: activeFuel, sort: 2,
   );
 
   final seen = <String>{};
   var stations = <GasStation>[];
-  for (final data in results) {
-    for (final json in data) {
-      final s = GasStation.fromJson(json);
-      if (seen.add(s.id)) stations.add(s);
-    }
+  for (final json in data) {
+    final s = GasStation.fromJson(json);
+    if (seen.add(s.id)) stations.add(s);
   }
 
   if (filter.brands.isNotEmpty) {
