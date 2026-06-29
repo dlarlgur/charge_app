@@ -323,7 +323,8 @@ class HeroCard extends StatelessWidget {
     );
   }
 
-  // 목적지 도착 예상잔량 한 줄 — 현재 잔량으로 추가 주유/충전 없이 도착 시.
+  // 목적지 도착 예상잔량 — 현재 잔량으로 추가 주유/충전 없이 도착 시.
+  // 도달 가능: '약 N% · Nkm 여유' / 도달 불가: '도착 전 주유·충전 필요 · 약 Nkm 모자라요'.
   Widget _arrivalRow() {
     final arrivalRangeKm = reachableKm - routeDistanceKm;
     final canReach = arrivalRangeKm > 0;
@@ -333,49 +334,79 @@ class HeroCard extends StatelessWidget {
             .round()
         : 0;
     final low = canReach && pct < 20;
+    final shortfallKm = canReach ? 0 : (routeDistanceKm - reachableKm).round();
     final c = !canReach
         ? const Color(0xFFE5484D)
         : (low ? const Color(0xFFE0820A) : const Color(0xFF1D9E75));
+    final action = isEv ? '충전' : '주유';
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: c.withValues(alpha: 0.08),
+        color: c.withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: c.withValues(alpha: 0.25)),
+        border: Border.all(color: c.withValues(alpha: 0.20)),
       ),
       child: Row(
         children: [
-          Icon(
-              isEv
-                  ? Icons.battery_charging_full_rounded
-                  : Icons.local_gas_station_rounded,
-              size: 18,
-              color: c),
-          const SizedBox(width: 9),
+          Container(
+            width: 30,
+            height: 30,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: c.withValues(alpha: 0.13),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Icon(
+                isEv
+                    ? Icons.battery_charging_full_rounded
+                    : Icons.local_gas_station_rounded,
+                size: 17,
+                color: c),
+          ),
+          const SizedBox(width: 10),
           Expanded(
-            child: Text.rich(TextSpan(children: [
-              const TextSpan(
-                  text: '목적지 도착 시 ',
-                  style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                      color: kInk2)),
-              TextSpan(
-                  text: canReach ? '약 $pct%' : '도달 불가',
-                  style: TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w800, color: c)),
-              if (canReach && arrivalRangeKm > 0)
-                TextSpan(
-                    text: ' · ${arrivalRangeKm.round()}km 여유',
-                    style: const TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        color: kMute2)),
-            ])),
+            child: canReach
+                ? Text.rich(TextSpan(children: [
+                    const TextSpan(
+                        text: '목적지 도착 시 ',
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: kInk2)),
+                    TextSpan(
+                        text: '약 $pct%',
+                        style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w800,
+                            color: c)),
+                    if (arrivalRangeKm > 0)
+                      TextSpan(
+                          text: ' · ${arrivalRangeKm.round()}km 여유',
+                          style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: kMute2)),
+                  ]))
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('도착 전 $action 필요',
+                          style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w800,
+                              color: c)),
+                      const SizedBox(height: 1),
+                      Text('지금 잔량으론 약 ${shortfallKm}km 모자라요',
+                          style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: kMute2)),
+                    ],
+                  ),
           ),
           Icon(
               !canReach
-                  ? Icons.warning_amber_rounded
+                  ? Icons.error_outline_rounded
                   : (low
                       ? Icons.priority_high_rounded
                       : Icons.check_circle_rounded),
