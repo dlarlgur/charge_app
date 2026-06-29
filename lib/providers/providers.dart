@@ -371,6 +371,19 @@ final favEvStationsSortedProvider = Provider<AsyncValue<List<EvStation>>>((ref) 
   );
 });
 
+// ─── 활성 유종 (홈/지도에서 지금 보고 있는 1개) ───
+// 멀티 선택은 '토글 목록'을 정하고, 실제 리스트·마커·최저가는 활성 1개 유종의 실가격으로.
+// null 이면 필터 첫 유종 사용. 필터에서 빠진 유종이 active면 첫 유종으로 폴백.
+final activeGasFuelTypeProvider = StateProvider<String?>((ref) => null);
+
+final effectiveGasFuelTypeProvider = Provider<String>((ref) {
+  final types = ref.watch(gasFilterProvider).fuelTypes;
+  final active = ref.watch(activeGasFuelTypeProvider);
+  if (types.isEmpty) return 'B027';
+  if (active != null && types.contains(active)) return active;
+  return types.first;
+});
+
 // ─── Gas Stations Raw Provider (위치 기반 API, 필터·즐겨찾기 없음) ───
 final gasStationsRawProvider = FutureProvider.family<List<GasStation>, ({double lat, double lng, int radius, List<String> fuelTypes})>(
   (ref, args) async {
@@ -402,8 +415,10 @@ final gasStationsProvider = Provider<AsyncValue<List<GasStation>>>((ref) {
     error: (e, s) => AsyncValue.error(e, s),
     data: (loc) {
       if (loc == null) return const AsyncValue.data([]);
+      // 활성 유종 1개로만 조회 — 멀티 선택은 토글 목록일 뿐, 리스트는 활성 유종 실가격.
+      final activeFuel = ref.watch(effectiveGasFuelTypeProvider);
       final rawAsync = ref.watch(gasStationsRawProvider(
-        (lat: loc.lat, lng: loc.lng, radius: filter.radius, fuelTypes: filter.fuelTypes),
+        (lat: loc.lat, lng: loc.lng, radius: filter.radius, fuelTypes: [activeFuel]),
       ));
       return rawAsync.when(
         loading: () => const AsyncValue.loading(),

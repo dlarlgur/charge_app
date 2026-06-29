@@ -19,7 +19,8 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   int _step = 0;
   VehicleType _vehicleType = VehicleType.gas;
-  FuelType _fuelType = FuelType.gasoline;
+  // 유종 멀티 선택 — 첫 항목이 단일값 소비처(keyFuelType/AI 기본)의 primary.
+  final Set<FuelType> _fuelTypes = {FuelType.gasoline};
   List<String> _chargerTypes = ['02', '04'];
   int _radius = 5000;
 
@@ -37,7 +38,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     setState(() {
       _vehicleType =
           VehicleType.fromCode(box.get(AppConstants.keyVehicleType, defaultValue: 'gas'));
-      _fuelType = FuelType.fromCode(box.get(AppConstants.keyFuelType, defaultValue: 'B027'));
+      _fuelTypes
+        ..clear()
+        ..addAll(
+          (box.get(AppConstants.keyGasFilterFuelTypes) as List?)
+                  ?.map((c) => FuelType.fromCode(c.toString())) ??
+              [FuelType.fromCode(box.get(AppConstants.keyFuelType, defaultValue: 'B027'))],
+        );
+      if (_fuelTypes.isEmpty) _fuelTypes.add(FuelType.gasoline);
       _chargerTypes =
           List<String>.from(box.get(AppConstants.keyChargerTypes, defaultValue: ['02', '04']));
       _step = step.clamp(0, _totalSteps - 1); // 차종에 따른 총 스텝 범위 보정
@@ -48,7 +56,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   void _persistDraft() {
     final box = Hive.box(AppConstants.settingsBox);
     box.put(AppConstants.keyVehicleType, _vehicleType.code);
-    box.put(AppConstants.keyFuelType, _fuelType.code);
+    box.put(AppConstants.keyFuelType, _fuelTypes.first.code);
+    box.put(AppConstants.keyGasFilterFuelTypes,
+        _fuelTypes.map((t) => t.code).toList());
     box.put(AppConstants.keyChargerTypes, _chargerTypes);
     box.put(AppConstants.keyOnboardingStep, _step);
   }
@@ -99,7 +109,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
     final notifier = ref.read(settingsProvider.notifier);
     notifier.setVehicleType(_vehicleType);
-    notifier.setFuelType(_fuelType);
+    notifier.setFuelType(_fuelTypes.first);
     notifier.setChargerTypes(_chargerTypes);
     notifier.setRadius(_radius);
     notifier.completeOnboarding();
@@ -119,7 +129,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     // 온보딩에서 선택한 유종을 Gas 필터에도 반영
     if (_vehicleType == VehicleType.gas || _vehicleType == VehicleType.both) {
       ref.read(gasFilterProvider.notifier).update(
-        ref.read(gasFilterProvider).copyWith(fuelTypes: [_fuelType.code]),
+        ref.read(gasFilterProvider).copyWith(
+            fuelTypes: _fuelTypes.map((t) => t.code).toList()),
       );
     }
 
@@ -292,17 +303,26 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   // ─── Step: 유종 선택 ───
   Widget _fuelStep() {
     return Column(
-      children: FuelType.values.map((type) => _optionCard(
-        isSelected: _fuelType == type,
-        onTap: () => setState(() => _fuelType = type),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(type.label, style: Theme.of(context).textTheme.titleMedium),
-            _radioCircle(_fuelType == type),
-          ],
-        ),
-      )).toList(),
+      children: FuelType.values.map((type) {
+        final isSelected = _fuelTypes.contains(type);
+        return _optionCard(
+          isSelected: isSelected,
+          onTap: () => setState(() {
+            if (isSelected) {
+              if (_fuelTypes.length > 1) _fuelTypes.remove(type); // 최소 1개 유지
+            } else {
+              _fuelTypes.add(type);
+            }
+          }),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(type.label, style: Theme.of(context).textTheme.titleMedium),
+              _checkCircle(isSelected),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 

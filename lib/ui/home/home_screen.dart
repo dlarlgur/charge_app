@@ -779,6 +779,7 @@ class _GasListViewState extends ConsumerState<_GasListView> {
   Widget build(BuildContext context) {
     final stationsAsync = ref.watch(gasStationsProvider);
     final filter = ref.watch(gasFilterProvider);
+    final activeFuel = ref.watch(effectiveGasFuelTypeProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return RefreshIndicator(
@@ -873,6 +874,60 @@ class _GasListViewState extends ConsumerState<_GasListView> {
               ),
             ),
           ),
+          // 유종 퀵 토글 — 필터에서 고른 유종들. 탭하면 활성 전환(리스트/마커/평균 즉시 반영).
+          if (filter.fuelTypes.length > 1)
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: 40,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
+                  children: [
+                    for (final code in filter.fuelTypes)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 7),
+                        child: GestureDetector(
+                          onTap: () => ref
+                              .read(activeGasFuelTypeProvider.notifier)
+                              .state = code,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            padding: const EdgeInsets.symmetric(horizontal: 15),
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: code == activeFuel
+                                  ? AppColors.gasBlue
+                                  : (isDark
+                                      ? const Color(0x12FFFFFF)
+                                      : Colors.white),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: code == activeFuel
+                                    ? AppColors.gasBlue
+                                    : (isDark
+                                        ? AppColors.darkCardBorder
+                                        : const Color(0xFFE2E8F0)),
+                              ),
+                            ),
+                            child: Text(
+                              FuelType.fromCode(code).label,
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: code == activeFuel
+                                    ? Colors.white
+                                    : (isDark
+                                        ? AppColors.darkTextSecondary
+                                        : const Color(0xFF64748B)),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
           // 요약 카드
           SliverToBoxAdapter(
             child: stationsAsync.when(
@@ -882,11 +937,9 @@ class _GasListViewState extends ConsumerState<_GasListView> {
                 final stationAvg = stations.isEmpty ? 0.0
                     : stations.map((s) => s.price).reduce((a, b) => a + b) / stations.length;
                 final avgAsync = ref.watch(gasAvgPriceProvider);
-                // 설정 화면(SettingsScreenEmbed)이 keyFuelType 에 저장하므로 settingsProvider.fuelType 이 master.
-                // 사용자가 '고급휘발유'로 바꾸면 즉시 반영 — filter 와도 무관.
-                final settings = ref.watch(settingsProvider);
-                final fuelCode = settings.fuelType.code;
-                final fuelLabel = settings.fuelType.label;
+                // 홈 표시는 활성 유종(토글)을 따라감 — 리스트/마커/평균 일관되게.
+                final fuelCode = ref.watch(effectiveGasFuelTypeProvider);
+                final fuelLabel = FuelType.fromCode(fuelCode).label;
                 // 응답 우선순위: local(시도) > national(전국) > 레거시 m[fuelCode]
                 final m = avgAsync.maybeWhen<Map<String, dynamic>?>(data: (v) => v, orElse: () => null);
                 double serverAvg = 0;

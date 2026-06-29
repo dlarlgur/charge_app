@@ -200,8 +200,16 @@ class _GasFilterSheetState extends ConsumerState<GasFilterSheet> {
                             child: Padding(
                               padding: EdgeInsets.only(right: item.$1 == 'K015' ? 0 : 8),
                               child: GestureDetector(
-                                onTap: () => setState(() =>
-                                  _options = _options.copyWith(fuelTypes: [item.$1])),
+                                onTap: () => setState(() {
+                                  // 멀티 선택 — 토글 add/remove, 최소 1개는 유지.
+                                  final cur = List<String>.from(_options.fuelTypes);
+                                  if (cur.contains(item.$1)) {
+                                    if (cur.length > 1) cur.remove(item.$1);
+                                  } else {
+                                    cur.add(item.$1);
+                                  }
+                                  _options = _options.copyWith(fuelTypes: cur);
+                                }),
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 150),
                                   padding: const EdgeInsets.symmetric(vertical: 10),
