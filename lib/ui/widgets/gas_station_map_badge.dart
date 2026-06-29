@@ -74,6 +74,7 @@ class GasStationMapBadge {
     String? brand,
     String? stationName,
     bool isEv = false,
+    bool? evFast, // EV 마커: true=급속, false=완속, null=미상(기본 번개)
     required Color borderColor,
     required Color textColor,
     bool emphasizeBorder = false,
@@ -198,8 +199,15 @@ class GasStationMapBadge {
                       ),
                       const SizedBox(width: logoGap),
                     ] else if (isEv) ...[
-                      const Icon(Icons.bolt_rounded,
-                          size: 14, color: Color(0xFF22C55E)),
+                      // 급속=번개(초록), 완속=플러그(파랑)로 구분. 미상이면 기본 번개.
+                      Icon(
+                          evFast == false
+                              ? Icons.power_rounded
+                              : Icons.bolt_rounded,
+                          size: 14,
+                          color: evFast == false
+                              ? const Color(0xFF3B82F6)
+                              : const Color(0xFF22C55E)),
                       const SizedBox(width: logoGap),
                     ] else ...[
                       // 브랜드 로고 없는 주유소(자가/무폴) — 빈 칸 대신 기본 주유 아이콘.

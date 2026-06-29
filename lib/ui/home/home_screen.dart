@@ -1856,6 +1856,17 @@ class SettingsScreenEmbed extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
     final themeMode = ref.watch(themeModeProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    // 유종 = 멀티 선택(필터 set과 동기화). 요약 표시: 'A, B' 또는 'A 외 N'.
+    final fuelLabels = ref
+        .watch(gasFilterProvider)
+        .fuelTypes
+        .map((c) => FuelType.fromCode(c).label)
+        .toList();
+    final fuelSummary = fuelLabels.isEmpty
+        ? '휘발유'
+        : (fuelLabels.length <= 2
+            ? fuelLabels.join(', ')
+            : '${fuelLabels.first} 외 ${fuelLabels.length - 1}');
 
     return SafeArea(
       child: ListView(
@@ -1882,10 +1893,8 @@ class SettingsScreenEmbed extends ConsumerWidget {
             }),
             if (settings.vehicleType != VehicleType.ev) ...[
               settingsDivider(isDark),
-              _tile(context, isDark, Icons.local_gas_station_rounded, '유종', settings.fuelType.label, () {
-                _showPicker(context, '유종', FuelType.values.map((t) => t.label).toList(),
-                  FuelType.values.indexOf(settings.fuelType),
-                  (i) => ref.read(settingsProvider.notifier).setFuelType(FuelType.values[i]));
+              _tile(context, isDark, Icons.local_gas_station_rounded, '유종', fuelSummary, () {
+                _showFuelMultiPicker(context, ref);
               }),
             ],
           ]),
@@ -2044,6 +2053,76 @@ class SettingsScreenEmbed extends ConsumerWidget {
               const SizedBox(height: 16),
             ]),
           ),
+        ),
+      ),
+    );
+  }
+
+  // 유종 복수 선택 시트 — 필터 set(gasFilterProvider.fuelTypes)과 동기화. 최소 1개 유지.
+  void _showFuelMultiPicker(BuildContext context, WidgetRef ref) {
+    const order = [
+      FuelType.premium,
+      FuelType.gasoline,
+      FuelType.diesel,
+      FuelType.lpg,
+    ];
+    final selected = Set<String>.from(ref.read(gasFilterProvider).fuelTypes);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => SafeArea(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const SizedBox(height: 16),
+            Text('유종 (복수 선택)',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            ...order.map((t) {
+              final on = selected.contains(t.code);
+              return ListTile(
+                title: Text(t.label),
+                trailing: Icon(
+                    on
+                        ? Icons.check_box_rounded
+                        : Icons.check_box_outline_blank_rounded,
+                    color: on ? AppColors.gasBlue : const Color(0xFFB0B7C0)),
+                onTap: () => setSheet(() {
+                  if (on) {
+                    if (selected.length > 1) selected.remove(t.code);
+                  } else {
+                    selected.add(t.code);
+                  }
+                }),
+              );
+            }),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.gasBlue,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: () {
+                    final list = order
+                        .where((t) => selected.contains(t.code))
+                        .map((t) => t.code)
+                        .toList();
+                    if (list.isEmpty) return;
+                    ref.read(gasFilterProvider.notifier).update(
+                        ref.read(gasFilterProvider).copyWith(fuelTypes: list));
+                    // 단일 소비처(평균/AI 기본) primary = 첫 유종.
+                    ref
+                        .read(settingsProvider.notifier)
+                        .setFuelType(FuelType.fromCode(list.first));
+                    Navigator.pop(ctx);
+                  },
+                  child: const Text('확인'),
+                ),
+              ),
+            ),
+          ]),
         ),
       ),
     );

@@ -1255,12 +1255,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     String? brand,
     String? stationName,
     bool isEv = false,
+    bool? evFast,
     bool isHighlighted = false,
     int? recommendRank,
   }) async {
     // 추천(1~3위)은 선택 안 됐을 때 가격 배지 테두리를 메달색(라벨과 동일)으로 — 검정 테두리 대신.
     final bool emphasizeRank = recommendRank != null && !isHighlighted;
-    final key = '$label|$brand|$stationName|$isEv|$isHighlighted|$recommendRank';
+    final key = '$label|$brand|$stationName|$isEv|$isHighlighted|$recommendRank|$evFast';
     final cached = _badgeIconCache[key];
     if (cached != null) {
       _badgeIconLru.remove(key);
@@ -1284,6 +1285,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         brand: brand,
         stationName: stationName,
         isEv: isEv,
+        evFast: evFast,
         borderColor: borderColor,
         textColor: textColor,
         emphasizeBorder: isHighlighted || emphasizeRank,
@@ -1451,6 +1453,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               tags: const {'type': 'ev'},
               icon: await _stationBadgeIcon(
                 label: markerLabel, isEv: true, isHighlighted: isSelected,
+                evFast: s.hasFast,
               ),
             );
             marker.setOnTapListener((_) async {
@@ -1461,7 +1464,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               }
               await _restoreMarkerIcon(prev);
               _selectStation(s);
-              await _highlightMarker(markerId, markerLabel, isEv: true);
+              await _highlightMarker(markerId, markerLabel, isEv: true, evFast: s.hasFast);
             });
             _markerRefs[markerId] = marker;
             return marker;
@@ -1498,10 +1501,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   /// 특정 마커를 강조(선택) 스타일로 변경.
-  Future<void> _highlightMarker(String markerId, String label, {String? brand, String? stationName, bool isEv = false}) async {
+  Future<void> _highlightMarker(String markerId, String label, {String? brand, String? stationName, bool isEv = false, bool? evFast}) async {
     final marker = _markerRefs[markerId];
     if (marker == null) return;
-    marker.setIcon(await _stationBadgeIcon(label: label, brand: brand, stationName: stationName, isEv: isEv, isHighlighted: true));
+    marker.setIcon(await _stationBadgeIcon(label: label, brand: brand, stationName: stationName, isEv: isEv, evFast: evFast, isHighlighted: true));
   }
 
   /// 이전에 선택된 스테이션 마커를 원래 아이콘으로 복원 (전체 redraw 없이).
@@ -1524,6 +1527,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       marker.setIcon(await _stationBadgeIcon(
         label: prev.isTesla ? 'Tesla' : '${prev.availableCount}/${prev.totalCount}',
         isEv: true,
+        evFast: prev.hasFast,
       ));
     }
   }
