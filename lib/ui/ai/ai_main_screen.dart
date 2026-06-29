@@ -204,6 +204,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   int? _lastRecSt2Price;
   String? _lastRecStBrand;
   String? _lastRecSt2Brand;
+  // 추천이 우회(st)인지 경로상(st2)인지 — 지도 마커 색(추천=주황) 결정용.
+  bool _lastRecIsDetour = false;
   List<dynamic>? _lastRecAlternatives;
 
   static final _wonFmt = NumberFormat('#,###', 'ko_KR');
@@ -1690,6 +1692,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         _lastRecSt2Price = st2Price;
         _lastRecStBrand = detourSt?['brand']?.toString();
         _lastRecSt2Brand = onRouteSt?['brand']?.toString();
+        _lastRecIsDetour = isRecDetour; // 추천이 우회(st)면 st=주황, 아니면 st2(경로상)=주황
         _lastRecAlternatives = recAlts;
         _selectedAltStationId = null; // 새 분석 결과 그릴 때 이전 선택 초기화
 
@@ -2054,7 +2057,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       final stLabel = stPrice != null && stPrice > 0
           ? '${_wonFmt.format(stPrice)}원'
           : stName;
-      const c = Color(0xFFE8700A); // 추천(primary) = 주황 — 카드 추천색과 통일
+      // st=우회. 추천이 우회면 주황(추천색), 아니면 파랑(비교).
+      final c = _lastRecIsDetour
+          ? const Color(0xFFE8700A)
+          : const Color(0xFF1D6FE0);
       // 사용자가 대안 선택 시 primary 마커를 보라색으로 (선택 강조)
       final isAltSelected =
           _selectedAltStationId != null && _selectedAltStationId!.isNotEmpty;
@@ -2077,12 +2083,14 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       await _mapController!.addOverlay(stMarker);
     }
 
-    // 비교 대상 마커 (파랑) — 추천(주황) 아닌 쪽. 카드 색 규칙과 통일(추천=주황/비교=파랑).
+    // st2=경로상. 추천이 경로상(우회 아님)이면 주황(추천색), 아니면 파랑(비교).
     if (st2Lat != null && st2Lng != null && st2Name.isNotEmpty) {
       final st2Label = st2Price != null && st2Price > 0
           ? '${_wonFmt.format(st2Price)}원'
           : st2Name;
-      const c2 = Color(0xFF1D6FE0);
+      final c2 = _lastRecIsDetour
+          ? const Color(0xFF1D6FE0)
+          : const Color(0xFFE8700A);
       final st2Marker = NMarker(
         id: 'result_station2',
         position: NLatLng(st2Lat, st2Lng),
