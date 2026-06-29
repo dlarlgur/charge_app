@@ -927,7 +927,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final fuels = ref.watch(gasFilterProvider).fuelTypes;
     if (fuels.isEmpty) return const SizedBox.shrink();
     final active = ref.watch(effectiveGasFuelTypeProvider);
-    final avgM = ref.watch(gasAvgPriceProvider).valueOrNull;
     return Container(
       margin: const EdgeInsets.only(top: 8),
       height: 38,
@@ -938,7 +937,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         itemBuilder: (_, i) {
           final code = fuels[i];
           final isActive = code == active;
-          final avg = _fuelAvg(avgM, code);
           return GestureDetector(
             onTap: () =>
                 ref.read(activeGasFuelTypeProvider.notifier).state = code,
@@ -967,59 +965,22 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                             : AppColors.lightCardBorder,
                         width: 0.8),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    FuelType.fromCode(code).label,
-                    style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        color: isActive
-                            ? Colors.white
-                            : (isDark
-                                ? AppColors.darkTextSecondary
-                                : const Color(0xFF334155))),
-                  ),
-                  if (avg != null && avg > 0) ...[
-                    const SizedBox(width: 5),
-                    Text(
-                      '${avg.round()}원',
-                      style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w800,
-                          color:
-                              isActive ? Colors.white : AppColors.gasBlue),
-                    ),
-                  ],
-                ],
+              child: Text(
+                FuelType.fromCode(code).label,
+                style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: isActive
+                        ? Colors.white
+                        : (isDark
+                            ? AppColors.darkTextSecondary
+                            : const Color(0xFF334155))),
               ),
             ),
           );
         },
       ),
     );
-  }
-
-  // 유종별 지역 평균가 추출 — local.prices > national > 레거시 m[code].
-  double? _fuelAvg(Map<String, dynamic>? m, String code) {
-    if (m == null) return null;
-    Map? prices;
-    final local = m['local'];
-    if (local is Map && local['prices'] is Map) {
-      prices = local['prices'] as Map;
-    } else if (m['national'] is Map) {
-      prices = m['national'] as Map;
-    } else if (m[code] is Map) {
-      prices = m;
-    }
-    final row = prices?[code];
-    if (row is Map) {
-      final p = row['price'];
-      if (p is num) return p.toDouble();
-      return double.tryParse(p.toString());
-    }
-    return null;
   }
 
   // ─── 검색 결과 ───
