@@ -1243,16 +1243,30 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
     final yMin = (minY - pad).floorToDouble();
     final yMax = (maxY + pad).ceilToDouble();
 
+    // 점 마커는 1주·4주(과밀 X)에만. 3개월·1년은 점이 너무 빽빽해 라인만.
+    final dotFill = isDark ? const Color(0xFF151B22) : _kCard;
+    final showDots = points.length <= 31;
     final lineBars = <LineChartBarData>[];
     for (final f in fuels) {
       final pts = seriesPoints[f]!;
       if (pts.isEmpty) continue;
+      final c = _fuelColor(f);
       lineBars.add(LineChartBarData(
         spots: pts,
-        isCurved: false,
-        color: _fuelColor(f),
+        isCurved: true,
+        curveSmoothness: 0.25,
+        preventCurveOverShooting: true, // 곡선이 실제값 넘어 과장되지 않게(점은 실측 그대로)
+        color: c,
         barWidth: f == 'B027' ? 2.4 : 2.0,
-        dotData: const FlDotData(show: false),
+        dotData: FlDotData(
+          show: showDots,
+          getDotPainter: (spot, pct, bar, idx) => FlDotCirclePainter(
+            radius: 3.2,
+            color: dotFill, // 속 빈 느낌 — 카드 배경색으로 채우고
+            strokeColor: c, // 라인색 테두리
+            strokeWidth: 1.8,
+          ),
+        ),
         belowBarData: BarAreaData(
           show: f == 'B034', // 고급은 영역 살짝 칠하기
           color: _kFuelPremium.withValues(alpha: 0.06),
@@ -1357,6 +1371,22 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
         lineTouchData: LineTouchData(
           // 기본 터치 끔 — 탭/스크럽 지점을 직접 state 로 관리해 깜빡임·자동숨김 제거.
           handleBuiltInTouches: false,
+          // 선택한 점 강조 — 라인색으로 꽉 찬 점 + 옅은 세로 가이드선.
+          getTouchedSpotIndicator: (bar, indexes) => indexes.map((i) {
+            final c = bar.color ?? _kFuelRegular;
+            return TouchedSpotIndicatorData(
+              FlLine(color: c.withValues(alpha: 0.25), strokeWidth: 1),
+              FlDotData(
+                show: true,
+                getDotPainter: (s, p, b, idx) => FlDotCirclePainter(
+                  radius: 4.2,
+                  color: c,
+                  strokeColor: dotFill,
+                  strokeWidth: 2,
+                ),
+              ),
+            );
+          }).toList(),
           touchCallback: (event, response) {
             final spots = response?.lineBarSpots;
             if (spots == null || spots.isEmpty) return;
