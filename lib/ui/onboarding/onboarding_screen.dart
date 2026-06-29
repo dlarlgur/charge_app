@@ -302,8 +302,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   // ─── Step: 유종 선택 ───
   Widget _fuelStep() {
+    // 표시 순서: 고급휘발유 → 휘발유 → 경유 → LPG (enum 순서는 안 건드림).
+    const order = [
+      FuelType.premium,
+      FuelType.gasoline,
+      FuelType.diesel,
+      FuelType.lpg,
+    ];
     return Column(
-      children: FuelType.values.map((type) {
+      children: order.map((type) {
         final isSelected = _fuelTypes.contains(type);
         return _optionCard(
           isSelected: isSelected,

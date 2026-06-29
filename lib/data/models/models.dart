@@ -206,6 +206,16 @@ class EvStation {
 
   bool get hasAvailable => availableCount > 0;
 
+  /// 급속 충전기 보유 (출력 ≥40kW). chargers 없으면 급속요금 유무로 폴백.
+  bool get hasFast => chargers.isNotEmpty
+      ? chargers.any((c) => c.output >= 40)
+      : unitPriceFast != null;
+
+  /// 완속 충전기 보유 (출력 <40kW). chargers 없으면 완속요금 유무로 폴백.
+  bool get hasSlow => chargers.isNotEmpty
+      ? chargers.any((c) => c.output < 40)
+      : unitPriceSlow != null;
+
   /// 비회원 요금 텍스트
   String? get priceNonMemberText {
     if (unitPriceFast != null && unitPriceSlow != null) return '비회원  급속 ${unitPriceFast} · 완속 ${unitPriceSlow}원';

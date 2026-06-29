@@ -385,20 +385,17 @@ final effectiveGasFuelTypeProvider = Provider<String>((ref) {
 });
 
 // ─── Gas Stations Raw Provider (위치 기반 API, 필터·즐겨찾기 없음) ───
-final gasStationsRawProvider = FutureProvider.family<List<GasStation>, ({double lat, double lng, int radius, List<String> fuelTypes})>(
+// fuelType 은 단일 String — record 키가 값비교라 안정적(List 면 identity 비교라 매 빌드 키가 바뀌어 무한 재조회됨).
+final gasStationsRawProvider = FutureProvider.family<List<GasStation>, ({double lat, double lng, int radius, String fuelType})>(
   (ref, args) async {
-    final results = await Future.wait(
-      args.fuelTypes.map((ft) => ApiService().getGasStationsAround(
-        lat: args.lat, lng: args.lng, radius: args.radius, fuelType: ft,
-      )),
+    final data = await ApiService().getGasStationsAround(
+      lat: args.lat, lng: args.lng, radius: args.radius, fuelType: args.fuelType,
     );
     final seen = <String>{};
     final stations = <GasStation>[];
-    for (final data in results) {
-      for (final json in data) {
-        final s = GasStation.fromJson(json);
-        if (seen.add(s.id)) stations.add(s);
-      }
+    for (final json in data) {
+      final s = GasStation.fromJson(json);
+      if (seen.add(s.id)) stations.add(s);
     }
     return stations;
   },
@@ -418,7 +415,7 @@ final gasStationsProvider = Provider<AsyncValue<List<GasStation>>>((ref) {
       // 활성 유종 1개로만 조회 — 멀티 선택은 토글 목록일 뿐, 리스트는 활성 유종 실가격.
       final activeFuel = ref.watch(effectiveGasFuelTypeProvider);
       final rawAsync = ref.watch(gasStationsRawProvider(
-        (lat: loc.lat, lng: loc.lng, radius: filter.radius, fuelTypes: [activeFuel]),
+        (lat: loc.lat, lng: loc.lng, radius: filter.radius, fuelType: activeFuel),
       ));
       return rawAsync.when(
         loading: () => const AsyncValue.loading(),
