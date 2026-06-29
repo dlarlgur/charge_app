@@ -381,11 +381,7 @@ final effectiveGasFuelTypeProvider = Provider<String>((ref) {
   final active = ref.watch(activeGasFuelTypeProvider);
   if (types.isEmpty) return 'B027';
   if (active != null && types.contains(active)) return active;
-  // 활성 미지정 시 기본값 — 매장 많은 유종 우선(휘발유>경유>고급휘발유>LPG).
-  // (고급휘발유가 첫 유종이면 파는 데가 적어 목록이 텅 비는 문제 방지)
-  for (final p in const ['B027', 'D047', 'B034', 'K015']) {
-    if (types.contains(p)) return p;
-  }
+  // 활성 미지정 시 = 첫 유종 (fuelTypes 는 update 에서 고정순서로 정렬됨: 고급→휘발유→경유→LPG).
   return types.first;
 });
 
@@ -672,12 +668,22 @@ class GasFilterNotifier extends StateNotifier<GasFilterOptions> {
     );
   }
 
+  // 유종 고정 표시순서 — 고급휘발유 → 휘발유 → 경유 → LPG. (디폴트=첫번째)
+  static const _fuelOrder = ['B034', 'B027', 'D047', 'K015'];
+
   void update(GasFilterOptions options) {
-    state = options;
-    _box.put(AppConstants.keyGasFilterSort, options.sort);
-    _box.put(AppConstants.keyGasFilterRadius, options.radius);
-    _box.put(AppConstants.keyGasFilterFuelTypes, options.fuelTypes);
-    _box.put(AppConstants.keyGasFilterBrands, options.brands);
+    final sortedFuels = [...options.fuelTypes]
+      ..sort((a, b) {
+        final ia = _fuelOrder.indexOf(a);
+        final ib = _fuelOrder.indexOf(b);
+        return (ia < 0 ? 99 : ia).compareTo(ib < 0 ? 99 : ib);
+      });
+    final opt = options.copyWith(fuelTypes: sortedFuels);
+    state = opt;
+    _box.put(AppConstants.keyGasFilterSort, opt.sort);
+    _box.put(AppConstants.keyGasFilterRadius, opt.radius);
+    _box.put(AppConstants.keyGasFilterFuelTypes, opt.fuelTypes);
+    _box.put(AppConstants.keyGasFilterBrands, opt.brands);
   }
 
   // 설정 화면에서 유종 변경 시 filter 도 동기 (단방향: settings→filter).

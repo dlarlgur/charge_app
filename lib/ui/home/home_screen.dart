@@ -2110,15 +2110,11 @@ class SettingsScreenEmbed extends ConsumerWidget {
                         .map((t) => t.code)
                         .toList();
                     if (list.isEmpty) return;
-                    // primary(단일 소비처) = 매장 많은 유종 우선(휘발유>경유>고급>LPG).
-                    const pri = ['B027', 'D047', 'B034', 'K015'];
-                    final primary =
-                        pri.firstWhere(list.contains, orElse: () => list.first);
                     // ⚠ 순서 중요: setFuelType 이 내부에서 filter 를 [단일]로 동기하므로
-                    //   먼저 호출(primary 저장) → 그 다음 멀티로 덮어써야 멀티가 살아남는다.
+                    //   먼저 호출(primary=첫 유종) → 그 다음 멀티로 덮어써야 멀티가 살아남는다.
                     ref
                         .read(settingsProvider.notifier)
-                        .setFuelType(FuelType.fromCode(primary));
+                        .setFuelType(FuelType.fromCode(list.first));
                     ref.read(gasFilterProvider.notifier).setFuelTypes(list);
                     Navigator.pop(ctx);
                   },
