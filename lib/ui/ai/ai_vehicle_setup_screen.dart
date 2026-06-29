@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -335,6 +336,11 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
       _connectedBrands.firstWhere((e) => e.$1 == b, orElse: () => ('', '')).$2;
 
   Widget _buildConnectedSection(bool isDark, Color labelColor, Color hintColor) {
+    // 커넥티드 연동은 원격설정 플래그로 게이팅 — 기본 숨김.
+    // 콘솔 app_remote_config 'feature.connected_car' = true 로 켜면 노출(앱 업데이트 불필요).
+    final flag = DkswCore.config<dynamic>('feature.connected_car');
+    final connectedEnabled = flag == true || flag == 1 || flag == 'true';
+    if (!connectedEnabled) return const SizedBox.shrink();
     final accent = _vehicleType == 'gas' ? _kGasBlue : _kEvGreen;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
