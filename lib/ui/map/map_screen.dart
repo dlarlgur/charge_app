@@ -695,6 +695,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 const SizedBox(height: 8),
                 // 탭 + 필터
                 _buildTabRow(isDark, vehicleType),
+                // 유종 토글 — 주유 모드일 때 선택 유종 + 평균가 칩. 탭하면 마커/추천 전환.
+                if (_showGas) _buildFuelToggle(isDark),
                 // 검색 결과
                 if (_isSearchMode)
                   _buildSearchResults(isDark),
@@ -918,6 +920,106 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         ),
       ),
     );
+  }
+
+  // ─── 유종 토글 (지도) — 선택 유종 + 지역 평균가 칩. 탭하면 활성 전환(마커/추천 즉시 반영) ───
+  Widget _buildFuelToggle(bool isDark) {
+    final fuels = ref.watch(gasFilterProvider).fuelTypes;
+    if (fuels.isEmpty) return const SizedBox.shrink();
+    final active = ref.watch(effectiveGasFuelTypeProvider);
+    final avgM = ref.watch(gasAvgPriceProvider).valueOrNull;
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      height: 38,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        separatorBuilder: (_, __) => const SizedBox(width: 7),
+        itemCount: fuels.length,
+        itemBuilder: (_, i) {
+          final code = fuels[i];
+          final isActive = code == active;
+          final avg = _fuelAvg(avgM, code);
+          return GestureDetector(
+            onTap: () =>
+                ref.read(activeGasFuelTypeProvider.notifier).state = code,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 13),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: isActive
+                    ? AppColors.gasBlue
+                    : (isDark ? AppColors.darkBg : Colors.white),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                      color: isActive
+                          ? AppColors.gasBlue.withValues(alpha: 0.32)
+                          : Colors.black.withValues(alpha: 0.10),
+                      blurRadius: isActive ? 8 : 6,
+                      offset: const Offset(0, 2)),
+                ],
+                border: isActive
+                    ? null
+                    : Border.all(
+                        color: isDark
+                            ? AppColors.darkCardBorder
+                            : AppColors.lightCardBorder,
+                        width: 0.8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    FuelType.fromCode(code).label,
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: isActive
+                            ? Colors.white
+                            : (isDark
+                                ? AppColors.darkTextSecondary
+                                : const Color(0xFF334155))),
+                  ),
+                  if (avg != null && avg > 0) ...[
+                    const SizedBox(width: 5),
+                    Text(
+                      '${avg.round()}원',
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                          color:
+                              isActive ? Colors.white : AppColors.gasBlue),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // 유종별 지역 평균가 추출 — local.prices > national > 레거시 m[code].
+  double? _fuelAvg(Map<String, dynamic>? m, String code) {
+    if (m == null) return null;
+    Map? prices;
+    final local = m['local'];
+    if (local is Map && local['prices'] is Map) {
+      prices = local['prices'] as Map;
+    } else if (m['national'] is Map) {
+      prices = m['national'] as Map;
+    } else if (m[code] is Map) {
+      prices = m;
+    }
+    final row = prices?[code];
+    if (row is Map) {
+      final p = row['price'];
+      if (p is num) return p.toDouble();
+      return double.tryParse(p.toString());
+    }
+    return null;
   }
 
   // ─── 검색 결과 ───
