@@ -386,7 +386,7 @@ class HeroCard extends StatelessWidget {
                               fontSize: 11.5,
                               fontWeight: FontWeight.w600,
                               color: kMute2)),
-                  ]))
+                  ]), maxLines: 1, overflow: TextOverflow.ellipsis)
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
