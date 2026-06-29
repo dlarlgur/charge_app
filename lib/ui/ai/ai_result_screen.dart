@@ -380,6 +380,8 @@ class _AiResultBodyState extends State<AiResultBody> {
     final choice = rec?['choice']?.toString() ?? 'on_route';
     final cardMode = rec?['card_mode']?.toString() ?? 'normal';
     final isDualDetour = cardMode == 'dual_detour';
+    // 서버가 2번째 카드 노출 여부 결정 (추천보다 비싸기만 한 우회는 숨김). 누락 시 기본 표시.
+    final showSecondary = rec?['show_secondary'] != false;
     // 서버가 경로상 후보 없을 때 최소 우회시간 후보를 가상 baseline 으로 승격
     // → "경로상 최저가" 라벨을 "근거리 우회"로 분기
     final isOnRouteVirtual = onRoute?['is_on_route_virtual'] == true;
@@ -542,7 +544,7 @@ class _AiResultBodyState extends State<AiResultBody> {
           isUserSelected: false,
         );
       }
-    } else if (aiRecIsDetour && onRouteSt != null) {
+    } else if (aiRecIsDetour && onRouteSt != null && showSecondary) {
       // 우회 AI 추천 → 경로상 최저가(또는 dual_detour 모드의 2순위)를 하단 참고로
       secondary = _CardInfo(
         name: _stationNameFrom(onRouteSt),
@@ -561,8 +563,8 @@ class _AiResultBodyState extends State<AiResultBody> {
         isUserSelected: false,
         rawData: onRoute,
       );
-    } else if (!aiRecIsDetour && showDetour) {
-      // 경로 AI 추천 → 우회 최저가를 하단 참고로
+    } else if (!aiRecIsDetour && showDetour && showSecondary) {
+      // 경로 AI 추천 → 더 싼 우회 최저가를 하단 참고로 (서버가 더 쌀 때만 show_secondary=true)
       secondary = _CardInfo(
         name: _stationNameFrom(detourSt),
         addr: detourSt['address']?.toString(),
