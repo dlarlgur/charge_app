@@ -2054,7 +2054,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       final stLabel = stPrice != null && stPrice > 0
           ? '${_wonFmt.format(stPrice)}원'
           : stName;
-      const c = Color(0xFF1D6FE0);
+      const c = Color(0xFFE8700A); // 추천(primary) = 주황 — 카드 추천색과 통일
       // 사용자가 대안 선택 시 primary 마커를 보라색으로 (선택 강조)
       final isAltSelected =
           _selectedAltStationId != null && _selectedAltStationId!.isNotEmpty;
@@ -2077,12 +2077,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       await _mapController!.addOverlay(stMarker);
     }
 
-    // 경로상 최저가 마커 (주황) — AI 추천 강조색(_kMarkerRecommend)과 동일
+    // 비교 대상 마커 (파랑) — 추천(주황) 아닌 쪽. 카드 색 규칙과 통일(추천=주황/비교=파랑).
     if (st2Lat != null && st2Lng != null && st2Name.isNotEmpty) {
       final st2Label = st2Price != null && st2Price > 0
           ? '${_wonFmt.format(st2Price)}원'
           : st2Name;
-      const c2 = Color(0xFFE8700A);
+      const c2 = Color(0xFF1D6FE0);
       final st2Marker = NMarker(
         id: 'result_station2',
         position: NLatLng(st2Lat, st2Lng),
