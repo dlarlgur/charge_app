@@ -381,6 +381,11 @@ final effectiveGasFuelTypeProvider = Provider<String>((ref) {
   final active = ref.watch(activeGasFuelTypeProvider);
   if (types.isEmpty) return 'B027';
   if (active != null && types.contains(active)) return active;
+  // 활성 미지정 시 기본값 — 매장 많은 유종 우선(휘발유>경유>고급휘발유>LPG).
+  // (고급휘발유가 첫 유종이면 파는 데가 적어 목록이 텅 비는 문제 방지)
+  for (final p in const ['B027', 'D047', 'B034', 'K015']) {
+    if (types.contains(p)) return p;
+  }
   return types.first;
 });
 

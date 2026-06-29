@@ -94,8 +94,11 @@ class GasStationMapBadge {
     final double fontSize = highlighted ? 12.0 : 11.0;
     final double textW = label.length * (highlighted ? 8.5 : 7.5);
     // 브랜드 로고 없는 주유소(자가/무폴)도 기본 주유 아이콘 자리 확보 → 빈 마커 방지.
-    final double contentW =
-        (showLogo ? logoSize + logoGap : 14.0 + logoGap) + textW;
+    // EV 급속은 번개 2개라 슬롯 넓게(20), 완속/주유는 14.
+    final double iconSlotW = showLogo
+        ? logoSize + logoGap
+        : (isEv && evFast != false ? 20.0 : 14.0) + logoGap;
+    final double contentW = iconSlotW + textW;
     final double w = contentW + 14.0;
     final double h = highlighted ? 30.0 : 26.0;
 
@@ -199,15 +202,27 @@ class GasStationMapBadge {
                       ),
                       const SizedBox(width: logoGap),
                     ] else if (isEv) ...[
-                      // 급속=번개(초록), 완속=플러그(파랑)로 구분. 미상이면 기본 번개.
-                      Icon(
-                          evFast == false
-                              ? Icons.power_rounded
-                              : Icons.bolt_rounded,
-                          size: 14,
-                          color: evFast == false
-                              ? const Color(0xFF3B82F6)
-                              : const Color(0xFF22C55E)),
+                      // 급속=번개 2개(초록), 완속=번개 1개(파랑)로 구분.
+                      if (evFast == false)
+                        const Icon(Icons.bolt_rounded,
+                            size: 14, color: Color(0xFF3B82F6))
+                      else
+                        const SizedBox(
+                          width: 20,
+                          height: 16,
+                          child: Stack(children: [
+                            Positioned(
+                                left: 0,
+                                top: 1,
+                                child: Icon(Icons.bolt_rounded,
+                                    size: 14, color: Color(0xFF22C55E))),
+                            Positioned(
+                                left: 6,
+                                top: 1,
+                                child: Icon(Icons.bolt_rounded,
+                                    size: 14, color: Color(0xFF22C55E))),
+                          ]),
+                        ),
                       const SizedBox(width: logoGap),
                     ] else ...[
                       // 브랜드 로고 없는 주유소(자가/무폴) — 빈 칸 대신 기본 주유 아이콘.
