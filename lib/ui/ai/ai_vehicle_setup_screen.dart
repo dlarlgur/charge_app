@@ -335,12 +335,20 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
   String _brandLabel(String b) =>
       _connectedBrands.firstWhere((e) => e.$1 == b, orElse: () => ('', '')).$2;
 
+  // 원격설정 플래그 ON 여부 — bool/숫자/문자 어떤 타입이든 견고하게.
+  bool _flagOn(String key) {
+    final v = DkswCore.config<dynamic>(key);
+    return v == true || v == 1 || v == '1' || v == 'true';
+  }
+
+  // 브랜드별 노출 — 콘솔 'feature.connected_car.<brand>' = true 일 때만 칩 노출.
+  bool _connectedBrandEnabled(String code) =>
+      _flagOn('feature.connected_car.$code');
+
   Widget _buildConnectedSection(bool isDark, Color labelColor, Color hintColor) {
     // 커넥티드 연동은 원격설정 플래그로 게이팅 — 기본 숨김.
     // 콘솔 app_remote_config 'feature.connected_car' = true 로 켜면 노출(앱 업데이트 불필요).
-    final flag = DkswCore.config<dynamic>('feature.connected_car');
-    final connectedEnabled = flag == true || flag == 1 || flag == 'true';
-    if (!connectedEnabled) return const SizedBox.shrink();
+    if (!_flagOn('feature.connected_car')) return const SizedBox.shrink();
     final accent = _vehicleType == 'gas' ? _kGasBlue : _kEvGreen;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -355,7 +363,9 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: _connectedBrands.map((b) {
+          children: _connectedBrands
+              .where((b) => b.$1 == '' || _connectedBrandEnabled(b.$1))
+              .map((b) {
             final sel = _connectedBrand == b.$1;
             return GestureDetector(
               onTap: () => setState(() {
