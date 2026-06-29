@@ -266,51 +266,54 @@ class _AiResultBodyState extends State<AiResultBody> {
   // 상세 비교표 — 추천/경로상/우회/대안 후보를 가격순 표로 팝업.
   void _showComparisonDetailSheet() {
     final d = widget.data;
-    final choice = (d['recommendation'] is Map)
-        ? (d['recommendation'] as Map)['choice']?.toString()
+    final rec = d['recommendation'] is Map ? d['recommendation'] as Map : null;
+    final choice = rec?['choice']?.toString();
+    // 추천 결정의 비용 분해 (절약/우회비용/순이득) — 서버 decision_trace.cost_analysis.
+    final ca = (rec?['decision_trace'] is Map &&
+            (rec!['decision_trace'] as Map)['cost_analysis'] is Map)
+        ? Map<String, dynamic>.from(
+            (rec['decision_trace'] as Map)['cost_analysis'] as Map)
         : null;
-    final out = <Map<String, dynamic>>[];
-    void add(dynamic item, bool isRec, {String? role}) {
-      if (item is! Map) return;
+
+    Map<String, dynamic>? toCard(dynamic item, String role, bool isRec) {
+      if (item is! Map) return null;
       final st = item['station'];
-      if (st is! Map) return;
+      if (st is! Map) return null;
       final price = _d(st['price_won_per_liter']);
-      if (price == null) return;
+      if (price == null) return null;
       final isNone = item['detour_is_none'] == true;
-      final detMin = isNone ? 0 : _i(item['detour_time_min']);
-      out.add({
+      return {
         'name': _stationNameFrom(Map<String, dynamic>.from(st)),
         'brand': st['brand']?.toString(),
         'price': price,
-        'detour': detMin,
+        'detour': isNone ? 0 : _i(item['detour_time_min']),
         'cost': _i(item['expected_cost_won']),
+        'savings': _i(item['savings_vs_on_route_won']),
+        'role': role,
         'isRec': isRec,
-        // 경로상(≤2분/우회없음) vs 우회 — on_route/best_detour 는 명시, 대안은 시간으로 추정.
-        'role': role ?? ((isNone || detMin <= 2) ? '경로상' : '우회'),
-      });
+      };
     }
 
-    add(d['on_route'], choice == 'on_route', role: '경로상');
-    add(d['best_detour'], choice == 'best_detour', role: '우회');
-    if (d['alternatives'] is List) {
-      for (final a in d['alternatives'] as List) {
-        add(a, false);
-      }
+    // 추천(경로/우회) + 비교 대상 2장만 — head-to-head.
+    final cards = <Map<String, dynamic>>[];
+    final onR = toCard(d['on_route'], '경로상', choice == 'on_route');
+    if (onR != null) cards.add(onR);
+    final det = toCard(d['best_detour'], '우회', choice == 'best_detour');
+    if (det != null) cards.add(det);
+    // 경로상 없는 경우(dual_detour) → 우회 2순위를 첫 대안에서.
+    if (onR == null &&
+        d['alternatives'] is List &&
+        (d['alternatives'] as List).isNotEmpty) {
+      final alt = toCard((d['alternatives'] as List).first, '우회', false);
+      if (alt != null && alt['name'] != det?['name']) cards.add(alt);
     }
-    // 이름 중복 제거 + 가격 오름차순
-    final seen = <String>{};
-    final rows = <Map<String, dynamic>>[];
-    for (final r in out) {
-      if (seen.add(r['name'] as String)) rows.add(r);
-    }
-    rows.sort(
-        (a, b) => (a['price'] as double).compareTo(b['price'] as double));
-    if (rows.isEmpty) return;
+    if (cards.isEmpty) return;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) => _ComparisonDetailSheet(rows: rows, wonFmt: _wonFmt),
+      builder: (_) =>
+          _ComparisonDetailSheet(cards: cards, cost: ca, wonFmt: _wonFmt),
     );
   }
 
@@ -2559,11 +2562,13 @@ class _OptionCard extends StatelessWidget {
   }
 }
 
-// ─── 상세 비교표 모달 ──────────────────────────────────────────────────────
+// ─── 상세 비교표 (추천 경로상 vs 우회 head-to-head) ──────────────────────────
 class _ComparisonDetailSheet extends StatelessWidget {
-  final List<Map<String, dynamic>> rows;
+  final List<Map<String, dynamic>> cards; // 2장: 경로상/우회 (또는 우회/우회)
+  final Map<String, dynamic>? cost; // 비용 분해(절약/우회비용/순이득)
   final NumberFormat wonFmt;
-  const _ComparisonDetailSheet({required this.rows, required this.wonFmt});
+  const _ComparisonDetailSheet(
+      {required this.cards, required this.cost, required this.wonFmt});
 
   @override
   Widget build(BuildContext context) {
@@ -2572,6 +2577,48 @@ class _ComparisonDetailSheet extends StatelessWidget {
     final muted =
         isDark ? AppColors.darkTextSecondary : const Color(0xFF94A3B8);
     const recColor = Color(0xFF1D6FE0);
+    final lineColor =
+        isDark ? AppColors.darkCardBorder : const Color(0xFFEEF1F5);
+    final c1 = cards[0];
+    final c2 = cards.length > 1 ? cards[1] : null;
+
+    Color colColor(Map<String, dynamic> c) =>
+        c['isRec'] == true ? recColor : ink;
+    String detTxt(Map<String, dynamic> c) {
+      final d = c['detour'] as int? ?? 0;
+      return d > 0 ? '+$d분' : '우회 없음';
+    }
+
+    Widget mRow(String label, String v1, String? v2, {bool big = false}) =>
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          child: Row(children: [
+            SizedBox(
+                width: 76,
+                child: Text(label,
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        color: muted,
+                        fontWeight: FontWeight.w600))),
+            Expanded(
+                child: Text(v1,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: big ? 14.5 : 13,
+                        fontWeight: big ? FontWeight.w800 : FontWeight.w700,
+                        color: colColor(c1)))),
+            if (c2 != null)
+              Expanded(
+                  child: Text(v2 ?? '-',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          fontSize: big ? 14.5 : 13,
+                          fontWeight: big ? FontWeight.w800 : FontWeight.w700,
+                          color: colColor(c2)))),
+          ]),
+        );
+    Widget line() => Divider(height: 1, color: lineColor);
+
     return SafeArea(
       top: false,
       child: Container(
@@ -2591,172 +2638,165 @@ class _ComparisonDetailSheet extends StatelessWidget {
                     borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 16),
             Row(children: [
-              const Icon(Icons.insights_rounded, size: 18, color: recColor),
+              const Icon(Icons.compare_arrows_rounded,
+                  size: 18, color: recColor),
               const SizedBox(width: 6),
-              Text('주유소 상세 비교',
+              Text('상세 비교',
                   style: TextStyle(
-                      fontSize: 15.5, fontWeight: FontWeight.w800, color: ink)),
-              const Spacer(),
-              Text('${rows.length}곳 · 가격순',
-                  style: TextStyle(fontSize: 12, color: muted)),
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w800,
+                      color: ink)),
             ]),
             const SizedBox(height: 14),
-            Flexible(
-              child: ListView.separated(
-                shrinkWrap: true,
-                itemCount: rows.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (_, i) => _stationCard(
-                    rows[i],
-                    isDark,
-                    ink,
-                    muted,
-                    recColor,
-                    (rows.first['price'] as double).round(),
-                    i == 0),
-              ),
-            ),
+            Row(children: [
+              const SizedBox(width: 76),
+              Expanded(child: _head(c1, ink, recColor)),
+              if (c2 != null) Expanded(child: _head(c2, ink, recColor)),
+            ]),
+            const SizedBox(height: 10),
+            line(),
+            mRow(
+                '리터당 가격',
+                '${wonFmt.format((c1['price'] as double).round())}원',
+                c2 != null
+                    ? '${wonFmt.format((c2['price'] as double).round())}원'
+                    : null,
+                big: true),
+            line(),
+            mRow('우회 시간', detTxt(c1), c2 != null ? detTxt(c2) : null),
+            line(),
+            mRow('예상 주유비', _won(c1['cost'] as int?),
+                c2 != null ? _won(c2['cost'] as int?) : null),
+            if (cost != null) ...[
+              const SizedBox(height: 14),
+              _costBox(cost!, ink, muted, isDark),
+            ],
           ],
         ),
       ),
     );
   }
 
-  // 주유소 1곳 = 카드 1장. 로고 + 이름 + 역할(경로상/우회) + 우회시간 + 가격 + 최저가 대비.
-  Widget _stationCard(Map<String, dynamic> r, bool isDark, Color ink,
-      Color muted, Color recColor, int cheapest, bool isCheapest) {
-    final isRec = r['isRec'] == true;
-    final name = r['name'] as String;
-    final brand = (r['brand'] as String?) ?? '';
-    final price = (r['price'] as double).round();
-    final detour = r['detour'] as int? ?? 0;
-    final cost = r['cost'] as int? ?? 0;
-    final role = r['role'] as String? ?? '';
-    final delta = price - cheapest;
+  String _won(int? n) => (n != null && n > 0) ? '${wonFmt.format(n)}원' : '-';
+
+  Widget _head(Map<String, dynamic> c, Color ink, Color recColor) {
+    final isRec = c['isRec'] == true;
+    final role = c['role'] as String? ?? '';
+    final brand = (c['brand'] as String?) ?? '';
     final roleColor =
         role == '경로상' ? const Color(0xFFE8700A) : const Color(0xFF1D6FE0);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(11, 10, 13, 10),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-            color: isRec
-                ? recColor
-                : (isDark
-                    ? AppColors.darkCardBorder
-                    : const Color(0xFFE9EEF4)),
-            width: isRec ? 1.6 : 1),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2)),
-        ],
-      ),
-      child: Row(
-        children: [
+    return Column(children: [
+      if (brand.isNotEmpty)
+        BrandLogo(brand: brand, stationName: c['name'] as String, size: 30)
+      else
+        const Icon(Icons.local_gas_station_rounded,
+            size: 24, color: Color(0xFF9AA6B2)),
+      const SizedBox(height: 5),
+      Text(c['name'] as String,
+          maxLines: 2,
+          textAlign: TextAlign.center,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: isRec ? recColor : ink,
+              height: 1.15)),
+      const SizedBox(height: 5),
+      Row(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+          decoration: BoxDecoration(
+              border: Border.all(color: roleColor.withValues(alpha: 0.4)),
+              borderRadius: BorderRadius.circular(5)),
+          child: Text(role,
+              style: TextStyle(
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w700,
+                  color: roleColor)),
+        ),
+        if (isRec) ...[
+          const SizedBox(width: 4),
           Container(
-            width: 38,
-            height: 38,
-            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
             decoration: BoxDecoration(
-              color: isDark ? Colors.white10 : const Color(0xFFF3F6FA),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: brand.isNotEmpty
-                ? BrandLogo(brand: brand, stationName: name, size: 24)
-                : Icon(Icons.local_gas_station_rounded, size: 19, color: muted),
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
-                  Flexible(
-                    child: Text(name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w700,
-                            color: ink)),
-                  ),
-                  if (isRec) ...[
-                    const SizedBox(width: 5),
-                    _chip('AI 추천', recColor, recColor.withValues(alpha: 0.12)),
-                  ] else if (isCheapest) ...[
-                    const SizedBox(width: 5),
-                    _chip('최저가', const Color(0xFF1D9E75),
-                        const Color(0xFF1D9E75).withValues(alpha: 0.12)),
-                  ],
-                ]),
-                const SizedBox(height: 5),
-                Row(children: [
-                  _tag(role, roleColor),
-                  const SizedBox(width: 6),
-                  Icon(
-                      detour > 0
-                          ? Icons.alt_route_rounded
-                          : Icons.straight_rounded,
-                      size: 12,
-                      color: muted),
-                  const SizedBox(width: 2),
-                  Text(detour > 0 ? '+$detour분' : '우회 없음',
-                      style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                          color: muted)),
-                ]),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text('${wonFmt.format(price)}원',
-                  style: TextStyle(
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.w800,
-                      color: isRec ? recColor : ink)),
-              const SizedBox(height: 1),
-              Text(
-                  delta > 0
-                      ? '최저가 +${wonFmt.format(delta)}'
-                      : (cost > 0 ? '예상 ${wonFmt.format(cost)}원' : '/L'),
-                  style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w600,
-                      color: muted)),
-            ],
+                color: recColor, borderRadius: BorderRadius.circular(5)),
+            child: const Text('추천',
+                style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white)),
           ),
         ],
+      ]),
+    ]);
+  }
+
+  // 비용 판정 박스 — 절약 − 우회비용 = 순이득.
+  Widget _costBox(
+      Map<String, dynamic> ca, Color ink, Color muted, bool isDark) {
+    int gi(String k) {
+      final v = ca[k];
+      if (v is num) return v.round();
+      return int.tryParse('${v ?? 0}') ?? 0;
+    }
+
+    final savings = gi('savings_won');
+    final cost = gi('detour_cost_won');
+    final net = gi('net_benefit_won');
+    final worth = ca['verdict'] == 'detour_worth';
+    if (savings <= 0 && cost <= 0) return const SizedBox.shrink();
+    final c = worth ? const Color(0xFF1D9E75) : const Color(0xFFE8700A);
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: c.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: c.withValues(alpha: 0.22)),
       ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.calculate_rounded, size: 15, color: c),
+          const SizedBox(width: 5),
+          Text('우회 비용 판정',
+              style: TextStyle(
+                  fontSize: 12.5, fontWeight: FontWeight.w800, color: c)),
+        ]),
+        const SizedBox(height: 8),
+        _costLine('절약', '+${wonFmt.format(savings)}원', muted, ink),
+        _costLine('우회 비용(시간+연료)', '−${wonFmt.format(cost)}원', muted, ink),
+        Divider(height: 14, color: c.withValues(alpha: 0.2)),
+        Row(children: [
+          Expanded(
+              child: Text(net >= 0 ? '순이득' : '순손해',
+                  style: TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w800, color: c))),
+          Text('${net >= 0 ? '+' : '−'}${wonFmt.format(net.abs())}원',
+              style: TextStyle(
+                  fontSize: 15, fontWeight: FontWeight.w900, color: c)),
+        ]),
+        const SizedBox(height: 4),
+        Text(
+            worth
+                ? '우회 시간 대비 충분히 이득이라 우회 추천'
+                : '우회 시간 대비 이득이 작아 경로상 추천',
+            style: TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w600, color: muted)),
+      ]),
     );
   }
 
-  Widget _chip(String text, Color fg, Color bg) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-        decoration:
-            BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
-        child: Text(text,
-            style: TextStyle(
-                fontSize: 10, fontWeight: FontWeight.w800, color: fg)),
-      );
-
-  Widget _tag(String text, Color c) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-        decoration: BoxDecoration(
-            border: Border.all(color: c.withValues(alpha: 0.4)),
-            borderRadius: BorderRadius.circular(5)),
-        child: Text(text,
-            style: TextStyle(
-                fontSize: 10, fontWeight: FontWeight.w700, color: c)),
+  Widget _costLine(String label, String value, Color muted, Color ink) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(children: [
+          Expanded(
+              child: Text(label, style: TextStyle(fontSize: 12, color: muted))),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 12.5, fontWeight: FontWeight.w700, color: ink)),
+        ]),
       );
 }
-
 
 // ─── 다른 후보 섹션 ───────────────────────────────────────────────────────────
 
