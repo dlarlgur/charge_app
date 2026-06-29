@@ -268,12 +268,6 @@ class _AiResultBodyState extends State<AiResultBody> {
     final d = widget.data;
     final rec = d['recommendation'] is Map ? d['recommendation'] as Map : null;
     final choice = rec?['choice']?.toString();
-    // 추천 결정의 비용 분해 (절약/우회비용/순이득) — 서버 decision_trace.cost_analysis.
-    final ca = (rec?['decision_trace'] is Map &&
-            (rec!['decision_trace'] as Map)['cost_analysis'] is Map)
-        ? Map<String, dynamic>.from(
-            (rec['decision_trace'] as Map)['cost_analysis'] as Map)
-        : null;
 
     Map<String, dynamic>? toCard(dynamic item, String role, bool isRec) {
       if (item is! Map) return null;
@@ -289,6 +283,9 @@ class _AiResultBodyState extends State<AiResultBody> {
         'detour': isNone ? 0 : _i(item['detour_time_min']),
         'cost': _i(item['expected_cost_won']),
         'savings': _i(item['savings_vs_on_route_won']),
+        // 실질 절약(우회비용 포함) vs 추천 — 한쪽(추천)은 0.
+        'realSavings':
+            item['real_savings_won'] is num ? _i(item['real_savings_won']) : 0,
         'role': role,
         'isRec': isRec,
       };
@@ -296,7 +293,6 @@ class _AiResultBodyState extends State<AiResultBody> {
 
     // 추천 + 비교 대상 2장만 — head-to-head.
     final cards = <Map<String, dynamic>>[];
-    Map<String, dynamic>? sheetCost = ca;
     if (_selectedAltItem != null) {
       // 대안 선택 중이면 위 비교카드와 동일하게: AI 추천 vs 내가 선택한 곳.
       final aiRecItem = choice == 'best_detour' ? d['best_detour'] : d['on_route'];
@@ -304,7 +300,6 @@ class _AiResultBodyState extends State<AiResultBody> {
       final selCard = toCard(_selectedAltItem, '선택됨', false);
       if (aiCard != null) cards.add(aiCard);
       if (selCard != null) cards.add(selCard);
-      sheetCost = null; // 비용판정은 원래 추천 기준이라 선택 시엔 숨김(헷갈림 방지)
     } else {
       final onR = toCard(d['on_route'], '경로상', choice == 'on_route');
       if (onR != null) cards.add(onR);
@@ -323,8 +318,7 @@ class _AiResultBodyState extends State<AiResultBody> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) =>
-          _ComparisonDetailSheet(cards: cards, cost: sheetCost, wonFmt: _wonFmt),
+      builder: (_) => _ComparisonDetailSheet(cards: cards, wonFmt: _wonFmt),
     );
   }
 
@@ -2576,10 +2570,8 @@ class _OptionCard extends StatelessWidget {
 // ─── 상세 비교표 (추천 경로상 vs 우회 head-to-head) ──────────────────────────
 class _ComparisonDetailSheet extends StatelessWidget {
   final List<Map<String, dynamic>> cards; // 2장: 경로상/우회 (또는 우회/우회)
-  final Map<String, dynamic>? cost; // 비용 분해(절약/우회비용/순이득)
   final NumberFormat wonFmt;
-  const _ComparisonDetailSheet(
-      {required this.cards, required this.cost, required this.wonFmt});
+  const _ComparisonDetailSheet({required this.cards, required this.wonFmt});
 
   @override
   Widget build(BuildContext context) {
@@ -2678,9 +2670,19 @@ class _ComparisonDetailSheet extends StatelessWidget {
             line(),
             mRow('예상 주유비', _won(c1['cost'] as int?),
                 c2 != null ? _won(c2['cost'] as int?) : null),
-            if (cost != null) ...[
-              const SizedBox(height: 14),
-              _costBox(cost!, ink, muted, isDark),
+            // 초기/선택 동일하게 — 주유비 차이(단순) + 부가비용 포함 차이(실질).
+            if (c2 != null) ...[
+              line(),
+              _twoColDiff(
+                  '주유비 차이',
+                  (c1['cost'] as int? ?? 0) - (c2['cost'] as int? ?? 0),
+                  muted),
+              line(),
+              _twoColDiff(
+                  '부가비용 포함',
+                  (c2['realSavings'] as int? ?? 0) -
+                      (c1['realSavings'] as int? ?? 0),
+                  muted),
             ],
           ],
         ),
@@ -2689,6 +2691,37 @@ class _ComparisonDetailSheet extends StatelessWidget {
   }
 
   String _won(int? n) => (n != null && n > 0) ? '${wonFmt.format(n)}원' : '-';
+
+  // 두 칸 차이 행 — 더 유리한 칸(diff>0=오른쪽 c2)에 금액(초록 ↓), 반대편은 빈칸.
+  Widget _twoColDiff(String label, int diff, Color muted) {
+    final amount = diff.abs();
+    final txt = '${wonFmt.format(amount)}원 ↓';
+    const green = Color(0xFF16A34A);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 9),
+      child: Row(children: [
+        SizedBox(
+            width: 76,
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 11.5,
+                    color: muted,
+                    fontWeight: FontWeight.w600))),
+        Expanded(
+            child: Text(amount == 0 ? '동일' : (diff < 0 ? txt : ''),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: amount == 0 ? muted : green))),
+        Expanded(
+            child: Text(amount == 0 ? '' : (diff > 0 ? txt : ''),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w800, color: green))),
+      ]),
+    );
+  }
 
   Widget _head(Map<String, dynamic> c, Color ink, Color recColor) {
     final isRec = c['isRec'] == true;
@@ -2742,71 +2775,6 @@ class _ComparisonDetailSheet extends StatelessWidget {
     ]);
   }
 
-  // 비용 판정 박스 — 절약 − 우회비용 = 순이득.
-  Widget _costBox(
-      Map<String, dynamic> ca, Color ink, Color muted, bool isDark) {
-    int gi(String k) {
-      final v = ca[k];
-      if (v is num) return v.round();
-      return int.tryParse('${v ?? 0}') ?? 0;
-    }
-
-    final savings = gi('savings_won');
-    final cost = gi('detour_cost_won');
-    final net = gi('net_benefit_won');
-    final worth = ca['verdict'] == 'detour_worth';
-    if (savings <= 0 && cost <= 0) return const SizedBox.shrink();
-    final c = worth ? const Color(0xFF1D9E75) : const Color(0xFFE8700A);
-    return Container(
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: c.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: c.withValues(alpha: 0.22)),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Icon(Icons.calculate_rounded, size: 15, color: c),
-          const SizedBox(width: 5),
-          Text('우회 비용 판정',
-              style: TextStyle(
-                  fontSize: 12.5, fontWeight: FontWeight.w800, color: c)),
-        ]),
-        const SizedBox(height: 8),
-        _costLine('절약', '+${wonFmt.format(savings)}원', muted, ink),
-        _costLine('우회 비용(시간+연료)', '−${wonFmt.format(cost)}원', muted, ink),
-        Divider(height: 14, color: c.withValues(alpha: 0.2)),
-        Row(children: [
-          Expanded(
-              child: Text(net >= 0 ? '순이득' : '순손해',
-                  style: TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w800, color: c))),
-          Text('${net >= 0 ? '+' : '−'}${wonFmt.format(net.abs())}원',
-              style: TextStyle(
-                  fontSize: 15, fontWeight: FontWeight.w900, color: c)),
-        ]),
-        const SizedBox(height: 4),
-        Text(
-            worth
-                ? '우회 시간 대비 충분히 이득이라 우회 추천'
-                : '우회 시간 대비 이득이 작아 경로상 추천',
-            style: TextStyle(
-                fontSize: 11, fontWeight: FontWeight.w600, color: muted)),
-      ]),
-    );
-  }
-
-  Widget _costLine(String label, String value, Color muted, Color ink) =>
-      Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(children: [
-          Expanded(
-              child: Text(label, style: TextStyle(fontSize: 12, color: muted))),
-          Text(value,
-              style: TextStyle(
-                  fontSize: 12.5, fontWeight: FontWeight.w700, color: ink)),
-        ]),
-      );
 }
 
 // ─── 다른 후보 섹션 ───────────────────────────────────────────────────────────
