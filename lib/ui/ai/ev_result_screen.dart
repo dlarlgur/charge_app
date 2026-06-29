@@ -237,17 +237,6 @@ class EvResultBodyState extends State<EvResultBody> {
                           recommended['recommendation_label']?.toString(),
                     ),
                   ),
-                  // ── 목적지 도착 예상잔량 (현재 배터리로, 추가충전 없이) ──
-                  if (data['arrival_percent'] is num) ...[
-                    const SizedBox(height: 14),
-                    _EvArrivalBox(
-                      arrivalPercent: (data['arrival_percent'] as num).round(),
-                      arrivalRangeKm: data['arrival_range_km'] is num
-                          ? (data['arrival_range_km'] as num).round()
-                          : 0,
-                      canReach: data['can_reach_without_refuel'] != false,
-                    ),
-                  ],
                   if (alternatives.isNotEmpty) ...[
                     const SizedBox(height: 20),
                     Text(

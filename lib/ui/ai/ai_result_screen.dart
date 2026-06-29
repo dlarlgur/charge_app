@@ -647,17 +647,6 @@ class _AiResultBodyState extends State<AiResultBody> {
         const SizedBox(height: 12),
       ],
 
-      // ── 목적지 도착 예상잔량 (현재 연료로, 추가주유 없이) ──
-      if (reachable?['arrival_percent'] is num) ...[
-        _ArrivalFuelBox(
-          arrivalPercent: (reachable!['arrival_percent'] as num).round(),
-          arrivalRangeKm: reachable['arrival_range_km'] is num
-              ? (reachable['arrival_range_km'] as num).round()
-              : 0,
-          canReach: reachable['can_reach_without_refuel'] != false,
-        ),
-        const SizedBox(height: 12),
-      ],
 
       // ── 비교 테이블 (AI 추천 원본) / 카드 (사용자 대안 선택 시) ──
       if (!hasOverride && !noStationToRecommend) ...[
@@ -1168,9 +1157,10 @@ class _AiMessageBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5FBF8),
+        // 주유 AI 경로추천 배너 — 파랑 톤 (추천카드 주황과 구분).
+        color: const Color(0xFFF0F6FF),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFCCEEDE)),
+        border: Border.all(color: const Color(0xFFD6E4FF)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1180,11 +1170,11 @@ class _AiMessageBanner extends StatelessWidget {
             height: 20,
             margin: const EdgeInsets.only(top: 1),
             decoration: BoxDecoration(
-              color: _kPrimaryLight,
+              color: const Color(0xFFE3EEFF),
               borderRadius: BorderRadius.circular(6),
             ),
             child: const Icon(Icons.auto_awesome_rounded,
-                size: 12, color: _kPrimary),
+                size: 12, color: Color(0xFF1D6FE0)),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -1195,7 +1185,7 @@ class _AiMessageBanner extends StatelessWidget {
                     style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: _kPrimary)),
+                        color: Color(0xFF1D6FE0))),
                 const SizedBox(height: 6),
                 MarkdownBody(
                   data: normalized,

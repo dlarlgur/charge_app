@@ -576,6 +576,32 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     });
   }
 
+  // 목적지 경로 총 거리(km) — _lastPathPoints 합산. 목적지 미설정/경로없음이면 0.
+  // hero card '도착 예상잔량' 계산용.
+  double _destRouteDistanceKm() {
+    if (_destLat == null || _destLng == null) return 0;
+    final pts = _lastPathPoints;
+    if (pts.length < 2) return 0;
+    const rad = pi / 180;
+    const earth = 6371000.0;
+    double m = 0;
+    for (int i = 1; i < pts.length; i++) {
+      final aLat = (pts[i - 1]['lat'] as num?)?.toDouble();
+      final aLng = (pts[i - 1]['lng'] as num?)?.toDouble();
+      final bLat = (pts[i]['lat'] as num?)?.toDouble();
+      final bLng = (pts[i]['lng'] as num?)?.toDouble();
+      if (aLat == null || aLng == null || bLat == null || bLng == null) {
+        continue;
+      }
+      final dLat = (bLat - aLat) * rad;
+      final dLng = (bLng - aLng) * rad;
+      final x = sin(dLat / 2) * sin(dLat / 2) +
+          cos(aLat * rad) * cos(bLat * rad) * sin(dLng / 2) * sin(dLng / 2);
+      m += 2 * earth * asin(min(1.0, sqrt(x)));
+    }
+    return m / 1000;
+  }
+
   // ── 현재 위치 버튼 ──
   void _moveToMyLocation() async {
     if (_isLocating) return;
@@ -4787,6 +4813,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                         else
                           HeroCard(
                             topHandle: _buildHeroToggleHandle(),
+                            routeDistanceKm: _destRouteDistanceKm(),
                             isConnected: selectedVehicle?.isConnected ?? false,
                             isFetching: _fetchingFromCar,
                             lastSyncedAt: _lastCarSyncAt,

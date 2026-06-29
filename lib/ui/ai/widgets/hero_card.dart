@@ -20,6 +20,7 @@ class HeroCard extends StatelessWidget {
   final double efficiency; // km/L or km/kWh
   final double tankCapacity; // L or kWh
   final bool highwayOnly;
+  final double routeDistanceKm; // 목적지 경로 거리(km). >0 이면 도착 예상잔량 표시.
   final String? chargerMode; // 'FAST' | 'SLOW' (EV 전용)
   final VoidCallback onTapLevel;
   final VoidCallback onTapVehicle;
@@ -54,6 +55,7 @@ class HeroCard extends StatelessWidget {
     required this.efficiency,
     required this.tankCapacity,
     required this.highwayOnly,
+    this.routeDistanceKm = 0,
     required this.chargerMode,
     required this.onTapLevel,
     required this.onTapVehicle,
@@ -201,6 +203,12 @@ class HeroCard extends StatelessWidget {
 
           const SizedBox(height: 16),
 
+          // 목적지 도착 예상잔량 — 경로 설정 시, 현재 잔량으로 추가 주유/충전 없이 도착 시.
+          if (routeDistanceKm > 0 && reachableKm > 0) ...[
+            _arrivalRow(),
+            const SizedBox(height: 16),
+          ],
+
           // 2) 선호 조건 타이틀 + chip
           Row(
             children: [
@@ -311,6 +319,69 @@ class HeroCard extends StatelessWidget {
                 )),
           ],
         ),
+      ),
+    );
+  }
+
+  // 목적지 도착 예상잔량 한 줄 — 현재 잔량으로 추가 주유/충전 없이 도착 시.
+  Widget _arrivalRow() {
+    final arrivalRangeKm = reachableKm - routeDistanceKm;
+    final canReach = arrivalRangeKm > 0;
+    final pct = canReach
+        ? (currentLevel * (reachableKm - routeDistanceKm) / reachableKm)
+            .clamp(0, 100)
+            .round()
+        : 0;
+    final low = canReach && pct < 20;
+    final c = !canReach
+        ? const Color(0xFFE5484D)
+        : (low ? const Color(0xFFE0820A) : const Color(0xFF1D9E75));
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+      decoration: BoxDecoration(
+        color: c.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: c.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+              isEv
+                  ? Icons.battery_charging_full_rounded
+                  : Icons.local_gas_station_rounded,
+              size: 18,
+              color: c),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text.rich(TextSpan(children: [
+              const TextSpan(
+                  text: '목적지 도착 시 ',
+                  style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: kInk2)),
+              TextSpan(
+                  text: canReach ? '약 $pct%' : '도달 불가',
+                  style: TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w800, color: c)),
+              if (canReach && arrivalRangeKm > 0)
+                TextSpan(
+                    text: ' · ${arrivalRangeKm.round()}km 여유',
+                    style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: kMute2)),
+            ])),
+          ),
+          Icon(
+              !canReach
+                  ? Icons.warning_amber_rounded
+                  : (low
+                      ? Icons.priority_high_rounded
+                      : Icons.check_circle_rounded),
+              size: 16,
+              color: c),
+        ],
       ),
     );
   }
