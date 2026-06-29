@@ -294,18 +294,29 @@ class _AiResultBodyState extends State<AiResultBody> {
       };
     }
 
-    // 추천(경로/우회) + 비교 대상 2장만 — head-to-head.
+    // 추천 + 비교 대상 2장만 — head-to-head.
     final cards = <Map<String, dynamic>>[];
-    final onR = toCard(d['on_route'], '경로상', choice == 'on_route');
-    if (onR != null) cards.add(onR);
-    final det = toCard(d['best_detour'], '우회', choice == 'best_detour');
-    if (det != null) cards.add(det);
-    // 경로상 없는 경우(dual_detour) → 우회 2순위를 첫 대안에서.
-    if (onR == null &&
-        d['alternatives'] is List &&
-        (d['alternatives'] as List).isNotEmpty) {
-      final alt = toCard((d['alternatives'] as List).first, '우회', false);
-      if (alt != null && alt['name'] != det?['name']) cards.add(alt);
+    Map<String, dynamic>? sheetCost = ca;
+    if (_selectedAltItem != null) {
+      // 대안 선택 중이면 위 비교카드와 동일하게: AI 추천 vs 내가 선택한 곳.
+      final aiRecItem = choice == 'best_detour' ? d['best_detour'] : d['on_route'];
+      final aiCard = toCard(aiRecItem, 'AI 추천', false);
+      final selCard = toCard(_selectedAltItem, '선택됨', false);
+      if (aiCard != null) cards.add(aiCard);
+      if (selCard != null) cards.add(selCard);
+      sheetCost = null; // 비용판정은 원래 추천 기준이라 선택 시엔 숨김(헷갈림 방지)
+    } else {
+      final onR = toCard(d['on_route'], '경로상', choice == 'on_route');
+      if (onR != null) cards.add(onR);
+      final det = toCard(d['best_detour'], '우회', choice == 'best_detour');
+      if (det != null) cards.add(det);
+      // 경로상 없는 경우(dual_detour) → 우회 2순위를 첫 대안에서.
+      if (onR == null &&
+          d['alternatives'] is List &&
+          (d['alternatives'] as List).isNotEmpty) {
+        final alt = toCard((d['alternatives'] as List).first, '우회', false);
+        if (alt != null && alt['name'] != det?['name']) cards.add(alt);
+      }
     }
     if (cards.isEmpty) return;
     showModalBottomSheet(
@@ -313,7 +324,7 @@ class _AiResultBodyState extends State<AiResultBody> {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) =>
-          _ComparisonDetailSheet(cards: cards, cost: ca, wonFmt: _wonFmt),
+          _ComparisonDetailSheet(cards: cards, cost: sheetCost, wonFmt: _wonFmt),
     );
   }
 
