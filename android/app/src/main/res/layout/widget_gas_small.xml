@@ -33,6 +33,10 @@
                 android:src="@drawable/ic_widget_mark_gas"
                 android:contentDescription="@null"/>
             <TextView
+                android:shadowColor="#CCFFFFFF"
+                android:shadowRadius="3"
+                android:shadowDx="0"
+                android:shadowDy="0"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
@@ -63,6 +67,10 @@
         </LinearLayout>
 
         <TextView
+            android:shadowColor="#CCFFFFFF"
+            android:shadowRadius="3"
+            android:shadowDx="0"
+            android:shadowDy="0"
             android:id="@+id/gas_small_name"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -75,6 +83,10 @@
             android:text="HD현대오일뱅크 효진주유소"/>
 
         <TextView
+            android:shadowColor="#CCFFFFFF"
+            android:shadowRadius="3"
+            android:shadowDx="0"
+            android:shadowDy="0"
             android:id="@+id/gas_small_sub"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -97,6 +109,10 @@
             android:gravity="bottom"
             android:baselineAligned="false">
             <TextView
+                android:shadowColor="#CCFFFFFF"
+                android:shadowRadius="3"
+                android:shadowDx="0"
+                android:shadowDy="0"
                 android:id="@+id/gas_small_price"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -108,6 +124,10 @@
                 android:includeFontPadding="false"
                 android:text="1,712"/>
             <TextView
+                android:shadowColor="#CCFFFFFF"
+                android:shadowRadius="3"
+                android:shadowDx="0"
+                android:shadowDy="0"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="4dp"
@@ -119,6 +139,10 @@
         </LinearLayout>
 
         <TextView
+            android:shadowColor="#CCFFFFFF"
+            android:shadowRadius="3"
+            android:shadowDx="0"
+            android:shadowDy="0"
             android:id="@+id/gas_small_foot"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

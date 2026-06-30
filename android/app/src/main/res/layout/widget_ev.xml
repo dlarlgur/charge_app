@@ -33,6 +33,10 @@
                 android:src="@drawable/ic_widget_mark_ev"
                 android:contentDescription="@null"/>
             <TextView
+                android:shadowColor="#CCFFFFFF"
+                android:shadowRadius="3"
+                android:shadowDx="0"
+                android:shadowDy="0"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
@@ -68,6 +72,10 @@
                 android:layout_marginEnd="4dp"
                 android:contentDescription="@null"/>
             <TextView
+                android:shadowColor="#CCFFFFFF"
+                android:shadowRadius="3"
+                android:shadowDx="0"
+                android:shadowDy="0"
                 android:id="@+id/ev_time"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -90,6 +98,10 @@
             android:background="@drawable/bg_row_best_ev">
 
             <TextView
+                android:shadowColor="#CCFFFFFF"
+                android:shadowRadius="3"
+                android:shadowDx="0"
+                android:shadowDy="0"
                 android:id="@+id/ev_brand1"
                 android:layout_width="34dp"
                 android:layout_height="34dp"
@@ -102,6 +114,10 @@
                 android:background="@drawable/bg_badge_ev_slow"/>
 
             <TextView
+                android:shadowColor="#CCFFFFFF"
+                android:shadowRadius="3"
+                android:shadowDx="0"
+                android:shadowDy="0"
                 android:id="@+id/ev_name1"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -115,6 +131,10 @@
                 android:ellipsize="end"
                 android:text="동천자이아파트4"/>
             <TextView
+                android:shadowColor="#CCFFFFFF"
+                android:shadowRadius="3"
+                android:shadowDx="0"
+                android:shadowDy="0"
                 android:id="@+id/ev_pill1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -129,6 +149,10 @@
                 android:fontFamily="@font/pretendard_bold"
                 android:text="완속"/>
             <TextView
+                android:shadowColor="#CCFFFFFF"
+                android:shadowRadius="3"
+                android:shadowDx="0"
+                android:shadowDy="0"
                 android:id="@+id/ev_sub1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -151,6 +175,10 @@
                     android:gravity="bottom"
                     android:baselineAligned="false">
                     <TextView
+                        android:shadowColor="#CCFFFFFF"
+                        android:shadowRadius="3"
+                        android:shadowDx="0"
+                        android:shadowDy="0"
                         android:id="@+id/ev_avail1"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -162,6 +190,10 @@
                         android:includeFontPadding="false"
                         android:text="3"/>
                     <TextView
+                        android:shadowColor="#CCFFFFFF"
+                        android:shadowRadius="3"
+                        android:shadowDx="0"
+                        android:shadowDy="0"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:textSize="14sp"
@@ -172,6 +204,10 @@
                         android:paddingBottom="1dp"
                         android:text="/"/>
                     <TextView
+                        android:shadowColor="#CCFFFFFF"
+                        android:shadowRadius="3"
+                        android:shadowDx="0"
+                        android:shadowDy="0"
                         android:id="@+id/ev_total1"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -183,6 +219,10 @@
                         android:text="6"/>
                 </LinearLayout>
                 <TextView
+                    android:shadowColor="#CCFFFFFF"
+                    android:shadowRadius="3"
+                    android:shadowDx="0"
+                    android:shadowDy="0"
                     android:id="@+id/ev_status1"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -212,6 +252,10 @@
             android:background="@drawable/bg_row_normal">
 
             <TextView
+                android:shadowColor="#CCFFFFFF"
+                android:shadowRadius="3"
+                android:shadowDx="0"
+                android:shadowDy="0"
                 android:id="@+id/ev_brand2"
                 android:layout_width="34dp"
                 android:layout_height="34dp"
@@ -224,6 +268,10 @@
                 android:background="@drawable/bg_badge_ev_fast"/>
 
             <TextView
+                android:shadowColor="#CCFFFFFF"
+                android:shadowRadius="3"
+                android:shadowDx="0"
+                android:shadowDy="0"
                 android:id="@+id/ev_name2"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -237,6 +285,10 @@
                 android:ellipsize="end"
                 android:text="동자 2순위 급속"/>
             <TextView
+                android:shadowColor="#CCFFFFFF"
+                android:shadowRadius="3"
+                android:shadowDx="0"
+                android:shadowDy="0"
                 android:id="@+id/ev_pill2"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -251,6 +303,10 @@
                 android:fontFamily="@font/pretendard_bold"
                 android:text="급속"/>
             <TextView
+                android:shadowColor="#CCFFFFFF"
+                android:shadowRadius="3"
+                android:shadowDx="0"
+                android:shadowDy="0"
                 android:id="@+id/ev_sub2"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -273,6 +329,10 @@
                     android:gravity="bottom"
                     android:baselineAligned="false">
                     <TextView
+                        android:shadowColor="#CCFFFFFF"
+                        android:shadowRadius="3"
+                        android:shadowDx="0"
+                        android:shadowDy="0"
                         android:id="@+id/ev_avail2"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -284,6 +344,10 @@
                         android:includeFontPadding="false"
                         android:text="0"/>
                     <TextView
+                        android:shadowColor="#CCFFFFFF"
+                        android:shadowRadius="3"
+                        android:shadowDx="0"
+                        android:shadowDy="0"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:textSize="14sp"
@@ -294,6 +358,10 @@
                         android:paddingBottom="1dp"
                         android:text="/"/>
                     <TextView
+                        android:shadowColor="#CCFFFFFF"
+                        android:shadowRadius="3"
+                        android:shadowDx="0"
+                        android:shadowDy="0"
                         android:id="@+id/ev_total2"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -305,6 +373,10 @@
                         android:text="2"/>
                 </LinearLayout>
                 <TextView
+                    android:shadowColor="#CCFFFFFF"
+                    android:shadowRadius="3"
+                    android:shadowDx="0"
+                    android:shadowDy="0"
                     android:id="@+id/ev_status2"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -335,6 +407,10 @@
             android:visibility="gone">
 
             <TextView
+                android:shadowColor="#CCFFFFFF"
+                android:shadowRadius="3"
+                android:shadowDx="0"
+                android:shadowDy="0"
                 android:id="@+id/ev_brand3"
                 android:layout_width="34dp"
                 android:layout_height="34dp"
@@ -347,6 +423,10 @@
                 android:background="@drawable/bg_badge_ev_slow"/>
 
             <TextView
+                android:shadowColor="#CCFFFFFF"
+                android:shadowRadius="3"
+                android:shadowDx="0"
+                android:shadowDy="0"
                 android:id="@+id/ev_name3"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -359,6 +439,10 @@
                 android:singleLine="true"
                 android:ellipsize="end"/>
             <TextView
+                android:shadowColor="#CCFFFFFF"
+                android:shadowRadius="3"
+                android:shadowDx="0"
+                android:shadowDy="0"
                 android:id="@+id/ev_pill3"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -373,6 +457,10 @@
                 android:fontFamily="@font/pretendard_bold"
                 android:text="완속"/>
             <TextView
+                android:shadowColor="#CCFFFFFF"
+                android:shadowRadius="3"
+                android:shadowDx="0"
+                android:shadowDy="0"
                 android:id="@+id/ev_sub3"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -394,6 +482,10 @@
                     android:gravity="bottom"
                     android:baselineAligned="false">
                     <TextView
+                        android:shadowColor="#CCFFFFFF"
+                        android:shadowRadius="3"
+                        android:shadowDx="0"
+                        android:shadowDy="0"
                         android:id="@+id/ev_avail3"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -404,6 +496,10 @@
                         android:fontFeatureSettings="tnum"
                         android:includeFontPadding="false"/>
                     <TextView
+                        android:shadowColor="#CCFFFFFF"
+                        android:shadowRadius="3"
+                        android:shadowDx="0"
+                        android:shadowDy="0"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:textSize="14sp"
@@ -414,6 +510,10 @@
                         android:paddingBottom="1dp"
                         android:text="/"/>
                     <TextView
+                        android:shadowColor="#CCFFFFFF"
+                        android:shadowRadius="3"
+                        android:shadowDx="0"
+                        android:shadowDy="0"
                         android:id="@+id/ev_total3"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -424,6 +524,10 @@
                         android:includeFontPadding="false"/>
                 </LinearLayout>
                 <TextView
+                    android:shadowColor="#CCFFFFFF"
+                    android:shadowRadius="3"
+                    android:shadowDx="0"
+                    android:shadowDy="0"
                     android:id="@+id/ev_status3"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -454,6 +558,10 @@
             android:visibility="gone">
 
             <TextView
+                android:shadowColor="#CCFFFFFF"
+                android:shadowRadius="3"
+                android:shadowDx="0"
+                android:shadowDy="0"
                 android:id="@+id/ev_brand4"
                 android:layout_width="34dp"
                 android:layout_height="34dp"
@@ -466,6 +574,10 @@
                 android:background="@drawable/bg_badge_ev_slow"/>
 
             <TextView
+                android:shadowColor="#CCFFFFFF"
+                android:shadowRadius="3"
+                android:shadowDx="0"
+                android:shadowDy="0"
                 android:id="@+id/ev_name4"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -478,6 +590,10 @@
                 android:singleLine="true"
                 android:ellipsize="end"/>
             <TextView
+                android:shadowColor="#CCFFFFFF"
+                android:shadowRadius="3"
+                android:shadowDx="0"
+                android:shadowDy="0"
                 android:id="@+id/ev_pill4"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -492,6 +608,10 @@
                 android:fontFamily="@font/pretendard_bold"
                 android:text="완속"/>
             <TextView
+                android:shadowColor="#CCFFFFFF"
+                android:shadowRadius="3"
+                android:shadowDx="0"
+                android:shadowDy="0"
                 android:id="@+id/ev_sub4"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -513,6 +633,10 @@
                     android:gravity="bottom"
                     android:baselineAligned="false">
                     <TextView
+                        android:shadowColor="#CCFFFFFF"
+                        android:shadowRadius="3"
+                        android:shadowDx="0"
+                        android:shadowDy="0"
                         android:id="@+id/ev_avail4"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -523,6 +647,10 @@
                         android:fontFeatureSettings="tnum"
                         android:includeFontPadding="false"/>
                     <TextView
+                        android:shadowColor="#CCFFFFFF"
+                        android:shadowRadius="3"
+                        android:shadowDx="0"
+                        android:shadowDy="0"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:textSize="14sp"
@@ -533,6 +661,10 @@
                         android:paddingBottom="1dp"
                         android:text="/"/>
                     <TextView
+                        android:shadowColor="#CCFFFFFF"
+                        android:shadowRadius="3"
+                        android:shadowDx="0"
+                        android:shadowDy="0"
                         android:id="@+id/ev_total4"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -543,6 +675,10 @@
                         android:includeFontPadding="false"/>
                 </LinearLayout>
                 <TextView
+                    android:shadowColor="#CCFFFFFF"
+                    android:shadowRadius="3"
+                    android:shadowDx="0"
+                    android:shadowDy="0"
                     android:id="@+id/ev_status4"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
