@@ -147,6 +147,7 @@ class CombinedWidgetProvider : AppWidgetProvider() {
             renderGasSection(context, views, gasJson, gasRows, appWidgetId, maxRows)
             renderEvSection(context, views, evJson, evRows, appWidgetId, maxRows)
 
+            WidgetOpacity.apply(context, views, R.id.combined_widget_bg)
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
 

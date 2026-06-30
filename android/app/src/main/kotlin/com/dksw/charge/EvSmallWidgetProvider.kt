@@ -117,6 +117,7 @@ class EvSmallWidgetProvider : AppWidgetProvider() {
             renderEmpty(views)
         }
 
+        WidgetOpacity.apply(context, views, R.id.ev_small_bg)
         mgr.updateAppWidget(widgetId, views)
     }
 

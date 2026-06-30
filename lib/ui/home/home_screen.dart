@@ -15,6 +15,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../data/services/ad_service.dart';
 import '../../data/services/auth_service.dart';
 import '../../data/services/rating_prompt_service.dart';
+import '../../data/services/widget_service.dart';
 import '../../data/services/exit_ad_service.dart';
 import '../../data/services/alert_service.dart';
 import '../../data/services/house_ad_service.dart';
@@ -1762,6 +1763,116 @@ class _AccountCard extends ConsumerWidget {
 
 }
 
+/// 홈 위젯 배경 투명도 조절 타일 — 탭하면 슬라이더 시트(투명도 0~100%).
+/// 값은 WidgetService 가 HomeWidgetPreferences 에 '불투명도'로 저장(투명도 = 100 - 불투명도).
+class _WidgetOpacityTile extends StatefulWidget {
+  const _WidgetOpacityTile({required this.isDark});
+  final bool isDark;
+  @override
+  State<_WidgetOpacityTile> createState() => _WidgetOpacityTileState();
+}
+
+class _WidgetOpacityTileState extends State<_WidgetOpacityTile> {
+  int _transparency = 0; // 0 = 불투명(기본), 100 = 완전 투명
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetService.getWidgetOpacity().then((opacity) {
+      if (mounted) setState(() => _transparency = (100 - opacity).clamp(0, 100));
+    });
+  }
+
+  Future<void> _openSheet() async {
+    int temp = _transparency;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: isDark ? AppColors.darkCard : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          final muted =
+              isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('위젯 배경 투명도',
+                      style: Theme.of(ctx)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 4),
+                  Text('높일수록 홈 화면 위젯 배경이 투명해져요. (0% = 불투명)',
+                      style: TextStyle(fontSize: 12.5, color: muted)),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Slider(
+                          value: temp.toDouble(),
+                          min: 0,
+                          max: 100,
+                          divisions: 20,
+                          label: '$temp%',
+                          onChanged: (v) => setSheet(() => temp = v.round()),
+                          onChangeEnd: (v) {
+                            final t = v.round();
+                            setState(() => _transparency = t);
+                            // 저장은 불투명도 기준 (투명도 = 100 - 불투명도)
+                            WidgetService.setWidgetOpacity(100 - t);
+                          },
+                        ),
+                      ),
+                      SizedBox(
+                        width: 46,
+                        child: Text('$temp%',
+                            textAlign: TextAlign.right,
+                            style: const TextStyle(fontWeight: FontWeight.w700)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final muted =
+        widget.isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      leading:
+          SettingsScreenEmbed.settingsIconChip(Icons.opacity_rounded, widget.isDark),
+      title: Text('위젯 배경 투명도',
+          style: Theme.of(context)
+              .textTheme
+              .titleSmall
+              ?.copyWith(fontWeight: FontWeight.w600)),
+      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+        Text('$_transparency%',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: muted)),
+        Padding(
+          padding: const EdgeInsets.only(left: 2),
+          child: Icon(Icons.chevron_right_rounded, size: 20, color: muted),
+        ),
+      ]),
+      onTap: _openSheet,
+    );
+  }
+}
+
 /// 마케팅(이벤트·혜택) 수신 동의 토글 — 설정 카드 톤(settingsIconChip + Switch)에 맞춤.
 /// DkswCore 동의 기록 사용. 정보통신망법상 상시 철회 가능.
 class _ChargeMarketingTile extends ConsumerStatefulWidget {
@@ -1915,6 +2026,8 @@ class SettingsScreenEmbed extends ConsumerWidget {
                   modes.indexOf(themeMode == ThemeMode.system ? ThemeMode.light : themeMode),
                   (i) => ref.read(themeModeProvider.notifier).setTheme(modes[i]));
             }),
+            settingsDivider(isDark),
+            _WidgetOpacityTile(isDark: isDark),
             settingsDivider(isDark),
             _ChargeMarketingTile(isDark: isDark),
           ]),

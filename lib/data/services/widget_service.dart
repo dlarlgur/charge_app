@@ -34,6 +34,32 @@ class WidgetService {
     await HomeWidget.registerInteractivityCallback(backgroundCallback);
   }
 
+  // 위젯 배경 투명도 (0~100). HomeWidgetPreferences 에 String 으로 저장 →
+  // Kotlin WidgetOpacity 가 배경 ImageView 알파에 적용. (int/long 타입 모호성 피하려 String)
+  static const _keyWidgetOpacity = 'widget_bg_opacity';
+  static const _allWidgetProviders = <String>[
+    'GasWidgetProvider', 'EvWidgetProvider', 'CombinedWidgetProvider',
+    'GasSmallWidgetProvider', 'EvSmallWidgetProvider',
+  ];
+
+  /// 현재 위젯 배경 투명도(0~100). 기본 100(불투명).
+  static Future<int> getWidgetOpacity() async {
+    final v = await HomeWidget.getWidgetData<String>(_keyWidgetOpacity,
+        defaultValue: '100');
+    return (int.tryParse(v ?? '100') ?? 100).clamp(0, 100);
+  }
+
+  /// 위젯 배경 투명도(0~100) 저장 + 5개 위젯 즉시 갱신.
+  static Future<void> setWidgetOpacity(int pct) async {
+    final v = pct.clamp(0, 100);
+    await HomeWidget.saveWidgetData<String>(_keyWidgetOpacity, '$v');
+    for (final name in _allWidgetProviders) {
+      try {
+        await HomeWidget.updateWidget(androidName: name);
+      } catch (_) {/* 해당 위젯 미배치면 무시 */}
+    }
+  }
+
   /// 즐겨찾기 주유소 위젯 데이터를 갱신하고 위젯을 업데이트
   static Future<void> updateGasWidget() async {
     try {

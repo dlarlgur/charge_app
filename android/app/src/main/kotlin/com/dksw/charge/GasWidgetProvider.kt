@@ -226,6 +226,7 @@ class GasWidgetProvider : AppWidgetProvider() {
                 }
             }
 
+            WidgetOpacity.apply(context, views, R.id.gas_widget_bg)
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
 

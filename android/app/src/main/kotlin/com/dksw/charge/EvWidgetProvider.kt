@@ -248,6 +248,7 @@ class EvWidgetProvider : AppWidgetProvider() {
                 }
             }
 
+            WidgetOpacity.apply(context, views, R.id.ev_widget_bg)
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
 

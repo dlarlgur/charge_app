@@ -90,6 +90,7 @@ class GasSmallWidgetProvider : AppWidgetProvider() {
             renderEmpty(views)
         }
 
+        WidgetOpacity.apply(context, views, R.id.gas_small_bg)
         mgr.updateAppWidget(widgetId, views)
     }
 

@@ -5,11 +5,18 @@
     android:layout_height="match_parent"
     android:padding="6dp">
 
+    <ImageView
+        android:id="@+id/ev_widget_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"
+        android:contentDescription="@null"
+        android:src="@drawable/bg_widget_card" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:background="@drawable/bg_widget_card"
         android:elevation="6dp"
         android:padding="16dp">
 
