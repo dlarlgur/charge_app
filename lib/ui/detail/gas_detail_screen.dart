@@ -1243,9 +1243,10 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
     final yMin = (minY - pad).floorToDouble();
     final yMax = (maxY + pad).ceilToDouble();
 
-    // 점 마커는 1주·4주(과밀 X)에만. 3개월·1년은 점이 너무 빽빽해 라인만.
+    // 점 마커는 점이 적은 1주(≈7개)에만 — 그래야 콘솔 차트처럼 깔끔.
+    // 4주(28개)+는 점이 빽빽하고 동일가 유종끼리 겹쳐 지저분해서 라인만(탭하면 그 점은 강조됨).
     final dotFill = isDark ? const Color(0xFF151B22) : _kCard;
-    final showDots = points.length <= 31;
+    final showDots = points.length <= 12;
     final lineBars = <LineChartBarData>[];
     for (final f in fuels) {
       final pts = seriesPoints[f]!;
