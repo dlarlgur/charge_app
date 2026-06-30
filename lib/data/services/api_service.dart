@@ -284,6 +284,28 @@ class ApiService {
     return res.data?['success'] == true;
   }
 
+  // ─── 주유소·충전소 정보 제보 ───
+  Future<bool> submitReport({
+    required String stationType, // 'gas' | 'ev'
+    required String stationId,
+    required String stationName,
+    required String category,
+    Map<String, dynamic>? detail,
+    String? memo,
+  }) async {
+    final res = await _dio.post(ApiConstants.reports, data: {
+      'app_id': AppConstants.packageName,
+      'device_id': DkswCore.deviceId,
+      'station_type': stationType,
+      'station_id': stationId,
+      'station_name': stationName,
+      'category': category,
+      if (detail != null) 'detail': detail,
+      if (memo != null && memo.trim().isNotEmpty) 'memo': memo.trim(),
+    });
+    return res.data?['success'] == true;
+  }
+
   Future<List<Map<String, dynamic>>> getMyInquiries({
     required String appId,
     required String deviceId,

@@ -25,6 +25,8 @@ class ApiConstants {
 
   // ─── 1:1 문의 ───
   static const inquiries = '/inquiries';
+  // ─── 주유소·충전소 정보 제보 ───
+  static const reports = '/reports';
 
   // ─── 검색 ───
   static const searchPlaces = '/search/places';

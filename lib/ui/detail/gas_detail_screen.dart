@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
+import 'station_report_sheet.dart';
 import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1486,6 +1487,12 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
             )
           else
             _infoRow('전화', '─', isDark, valueColor: _kMute2, isLast: true),
+          StationReportButton(
+            stationType: 'gas',
+            stationId: widget.stationId,
+            stationName:
+                (d['OS_NM'] ?? d['name'] ?? widget.station?.name ?? '주유소').toString(),
+          ),
         ],
       ),
     );

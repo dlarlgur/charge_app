@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
+import 'station_report_sheet.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -965,6 +966,11 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
             style: TextStyle(
                 fontSize: 11,
                 color: isDark ? AppColors.darkTextMuted : Colors.black45),
+          ),
+          StationReportButton(
+            stationType: 'ev',
+            stationId: s.statId,
+            stationName: s.name,
           ),
         ],
       ),
