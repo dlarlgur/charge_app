@@ -33,10 +33,6 @@
                 android:src="@drawable/ic_widget_mark_gas"
                 android:contentDescription="@null"/>
             <TextView
-                android:shadowColor="#CCFFFFFF"
-                android:shadowRadius="3"
-                android:shadowDx="0"
-                android:shadowDy="0"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
@@ -72,10 +68,6 @@
                 android:layout_marginEnd="4dp"
                 android:contentDescription="@null"/>
             <TextView
-                android:shadowColor="#CCFFFFFF"
-                android:shadowRadius="3"
-                android:shadowDx="0"
-                android:shadowDy="0"
                 android:id="@+id/gas_time"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -108,10 +100,6 @@
                 android:contentDescription="@null"/>
 
             <TextView
-                android:shadowColor="#CCFFFFFF"
-                android:shadowRadius="3"
-                android:shadowDx="0"
-                android:shadowDy="0"
                 android:id="@+id/gas_name1"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -125,10 +113,6 @@
                 android:ellipsize="end"
                 android:text="HD현대오일뱅크 효진주유소"/>
             <TextView
-                android:shadowColor="#CCFFFFFF"
-                android:shadowRadius="3"
-                android:shadowDx="0"
-                android:shadowDy="0"
                 android:id="@+id/gas_pill1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -143,10 +127,6 @@
                 android:fontFamily="@font/pretendard_bold"
                 android:text="셀프"/>
             <TextView
-                android:shadowColor="#CCFFFFFF"
-                android:shadowRadius="3"
-                android:shadowDx="0"
-                android:shadowDy="0"
                 android:id="@+id/gas_sub1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -169,10 +149,6 @@
                     android:gravity="bottom"
                     android:baselineAligned="false">
                     <TextView
-                        android:shadowColor="#CCFFFFFF"
-                        android:shadowRadius="3"
-                        android:shadowDx="0"
-                        android:shadowDy="0"
                         android:id="@+id/gas_price1"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -184,10 +160,6 @@
                         android:includeFontPadding="false"
                         android:text="1,712"/>
                     <TextView
-                        android:shadowColor="#CCFFFFFF"
-                        android:shadowRadius="3"
-                        android:shadowDx="0"
-                        android:shadowDy="0"
                         android:id="@+id/gas_unit1"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -199,10 +171,6 @@
                         android:text="원"/>
                 </LinearLayout>
                 <TextView
-                    android:shadowColor="#CCFFFFFF"
-                    android:shadowRadius="3"
-                    android:shadowDx="0"
-                    android:shadowDy="0"
                     android:id="@+id/gas_delta1"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -238,10 +206,6 @@
                 android:contentDescription="@null"/>
 
             <TextView
-                android:shadowColor="#CCFFFFFF"
-                android:shadowRadius="3"
-                android:shadowDx="0"
-                android:shadowDy="0"
                 android:id="@+id/gas_name2"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -255,10 +219,6 @@
                 android:ellipsize="end"
                 android:text="만남이엔지 두꺼비"/>
             <TextView
-                android:shadowColor="#CCFFFFFF"
-                android:shadowRadius="3"
-                android:shadowDx="0"
-                android:shadowDy="0"
                 android:id="@+id/gas_pill2"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -273,10 +233,6 @@
                 android:fontFamily="@font/pretendard_bold"
                 android:text="일반"/>
             <TextView
-                android:shadowColor="#CCFFFFFF"
-                android:shadowRadius="3"
-                android:shadowDx="0"
-                android:shadowDy="0"
                 android:id="@+id/gas_sub2"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -299,10 +255,6 @@
                     android:gravity="bottom"
                     android:baselineAligned="false">
                     <TextView
-                        android:shadowColor="#CCFFFFFF"
-                        android:shadowRadius="3"
-                        android:shadowDx="0"
-                        android:shadowDy="0"
                         android:id="@+id/gas_price2"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -314,10 +266,6 @@
                         android:includeFontPadding="false"
                         android:text="1,734"/>
                     <TextView
-                        android:shadowColor="#CCFFFFFF"
-                        android:shadowRadius="3"
-                        android:shadowDx="0"
-                        android:shadowDy="0"
                         android:id="@+id/gas_unit2"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -329,10 +277,6 @@
                         android:text="원"/>
                 </LinearLayout>
                 <TextView
-                    android:shadowColor="#CCFFFFFF"
-                    android:shadowRadius="3"
-                    android:shadowDx="0"
-                    android:shadowDy="0"
                     android:id="@+id/gas_delta2"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -369,10 +313,6 @@
                 android:contentDescription="@null"/>
 
             <TextView
-                android:shadowColor="#CCFFFFFF"
-                android:shadowRadius="3"
-                android:shadowDx="0"
-                android:shadowDy="0"
                 android:id="@+id/gas_name3"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -385,10 +325,6 @@
                 android:singleLine="true"
                 android:ellipsize="end"/>
             <TextView
-                android:shadowColor="#CCFFFFFF"
-                android:shadowRadius="3"
-                android:shadowDx="0"
-                android:shadowDy="0"
                 android:id="@+id/gas_pill3"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -403,10 +339,6 @@
                 android:fontFamily="@font/pretendard_bold"
                 android:text="셀프"/>
             <TextView
-                android:shadowColor="#CCFFFFFF"
-                android:shadowRadius="3"
-                android:shadowDx="0"
-                android:shadowDy="0"
                 android:id="@+id/gas_sub3"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -428,10 +360,6 @@
                     android:gravity="bottom"
                     android:baselineAligned="false">
                     <TextView
-                        android:shadowColor="#CCFFFFFF"
-                        android:shadowRadius="3"
-                        android:shadowDx="0"
-                        android:shadowDy="0"
                         android:id="@+id/gas_price3"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -442,10 +370,6 @@
                         android:fontFeatureSettings="tnum"
                         android:includeFontPadding="false"/>
                     <TextView
-                        android:shadowColor="#CCFFFFFF"
-                        android:shadowRadius="3"
-                        android:shadowDx="0"
-                        android:shadowDy="0"
                         android:id="@+id/gas_unit3"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -457,10 +381,6 @@
                         android:text="원"/>
                 </LinearLayout>
                 <TextView
-                    android:shadowColor="#CCFFFFFF"
-                    android:shadowRadius="3"
-                    android:shadowDx="0"
-                    android:shadowDy="0"
                     android:id="@+id/gas_delta3"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -496,10 +416,6 @@
                 android:contentDescription="@null"/>
 
             <TextView
-                android:shadowColor="#CCFFFFFF"
-                android:shadowRadius="3"
-                android:shadowDx="0"
-                android:shadowDy="0"
                 android:id="@+id/gas_name4"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -512,10 +428,6 @@
                 android:singleLine="true"
                 android:ellipsize="end"/>
             <TextView
-                android:shadowColor="#CCFFFFFF"
-                android:shadowRadius="3"
-                android:shadowDx="0"
-                android:shadowDy="0"
                 android:id="@+id/gas_pill4"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -530,10 +442,6 @@
                 android:fontFamily="@font/pretendard_bold"
                 android:text="셀프"/>
             <TextView
-                android:shadowColor="#CCFFFFFF"
-                android:shadowRadius="3"
-                android:shadowDx="0"
-                android:shadowDy="0"
                 android:id="@+id/gas_sub4"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -555,10 +463,6 @@
                     android:gravity="bottom"
                     android:baselineAligned="false">
                     <TextView
-                        android:shadowColor="#CCFFFFFF"
-                        android:shadowRadius="3"
-                        android:shadowDx="0"
-                        android:shadowDy="0"
                         android:id="@+id/gas_price4"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -569,10 +473,6 @@
                         android:fontFeatureSettings="tnum"
                         android:includeFontPadding="false"/>
                     <TextView
-                        android:shadowColor="#CCFFFFFF"
-                        android:shadowRadius="3"
-                        android:shadowDx="0"
-                        android:shadowDy="0"
                         android:id="@+id/gas_unit4"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -584,10 +484,6 @@
                         android:text="원"/>
                 </LinearLayout>
                 <TextView
-                    android:shadowColor="#CCFFFFFF"
-                    android:shadowRadius="3"
-                    android:shadowDx="0"
-                    android:shadowDy="0"
                     android:id="@+id/gas_delta4"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
