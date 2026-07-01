@@ -615,26 +615,35 @@ class _StationCardState extends State<_StationCard> {
         height: 1.3,
         color: labelColor.withValues(alpha: 0.85),
         fontWeight: FontWeight.w600);
+    // '회원 23,943원'을 통째로 안 쪼개지는 덩어리로 — Wrap이 넘길 때 숫자 중간에서 안 끊김.
+    Widget priceChunk(String label, int v) => Text.rich(
+        TextSpan(children: [
+          TextSpan(text: '$label ', style: lblStyle),
+          TextSpan(text: '${won(v)}원', style: numStyle),
+        ]),
+        softWrap: false,
+        overflow: TextOverflow.visible);
     Widget priceText(int? m, int? n) {
       if (m != null && n != null && m == n) {
-        return Text.rich(TextSpan(children: [
-          TextSpan(text: '${won(m)}원', style: numStyle),
-          TextSpan(
-              text: '  회원·비회원 동일',
-              style: lblStyle.copyWith(fontSize: 10.5)),
-        ]));
+        return Wrap(
+          spacing: 8,
+          runSpacing: 2,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text('${won(m)}원', style: numStyle, softWrap: false),
+            Text('회원·비회원 동일', style: lblStyle.copyWith(fontSize: 10.5)),
+          ],
+        );
       }
-      final parts = <InlineSpan>[];
-      if (m != null) {
-        parts.add(TextSpan(text: '회원 ', style: lblStyle));
-        parts.add(TextSpan(text: '${won(m)}원', style: numStyle));
-      }
-      if (n != null) {
-        parts.add(TextSpan(
-            text: parts.isEmpty ? '비회원 ' : '    비회원 ', style: lblStyle));
-        parts.add(TextSpan(text: '${won(n)}원', style: numStyle));
-      }
-      return Text.rich(TextSpan(children: parts), maxLines: 2);
+      return Wrap(
+        spacing: 14,
+        runSpacing: 3,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          if (m != null) priceChunk('회원', m),
+          if (n != null) priceChunk('비회원', n),
+        ],
+      );
     }
 
     final nameColor =
