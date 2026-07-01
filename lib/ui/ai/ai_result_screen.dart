@@ -2810,11 +2810,11 @@ class _ComparisonDetailSheet extends StatelessWidget {
         Divider(height: 14, color: c.withValues(alpha: 0.2)),
         Row(children: [
           Expanded(
-              child: Text(fuelBenefit >= 0 ? '연료 기준 순이득' : '연료 기준 순손해',
+              child: Text('연료 기준',
                   style: TextStyle(
                       fontSize: 13, fontWeight: FontWeight.w800, color: bC))),
           Text(
-              '${fuelBenefit >= 0 ? '+' : '−'}${wonF.format(fuelBenefit.abs())}원',
+              '${wonF.format(fuelBenefit.abs())}원 ${fuelBenefit >= 0 ? '절약' : '더 비쌈'}',
               style: TextStyle(
                   fontSize: 15, fontWeight: FontWeight.w900, color: bC)),
         ]),
@@ -3076,7 +3076,7 @@ class _AltSection extends StatelessWidget {
                               : Text(
                                   savings >= 0
                                       ? '${wonFmt.format(savings)}원 절약'
-                                      : '+${wonFmt.format(-savings)}원',
+                                      : '${wonFmt.format(-savings)}원 더 비쌈',
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
