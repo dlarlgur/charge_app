@@ -426,7 +426,8 @@ class _StationCardState extends State<_StationCard> {
 
   // 도착 시 배터리 잔량 → 충전 후 잔량 예측. 각 숫자에 라벨(도착 시 / 충전 후)을 붙여 명확하게.
   Widget _socBar(int arrival, int? afterCharge, int? chargeMin, Color accent,
-      Color mutedColor, bool isDark, {int? destSoc}) {
+      Color mutedColor, bool isDark,
+      {int? destSoc, String? destStatus, int? destRecTarget}) {
     final after =
         (afterCharge != null && afterCharge > arrival) ? afterCharge : arrival;
     final hasCharge = after > arrival;
@@ -553,67 +554,116 @@ class _StationCardState extends State<_StationCard> {
               );
             }),
           ),
-          // 충전 후 목적지 도착 예상 잔량 (여유=초록 / 빠듯=주황)
-          if (destSoc != null) ...[
+          // 충전 후 목적지 도착 예상 잔량 — 4단계(여유/빠듯/부족/목표초과) 색·아이콘 안내
+          if (destSoc != null && destStatus != null) ...[
             const SizedBox(height: 10),
-            _destAfterChargeLine(destSoc, accent, labelColor, isDark),
+            _destAfterChargeLine(
+                destSoc, destStatus, destRecTarget, accent, labelColor, isDark),
           ],
         ],
       ),
     );
   }
 
-  // 이 충전소에서 목표 충전 후 목적지까지 갔을 때 예상 잔량 — 확신 닫아주는 보조 한 줄.
-  Widget _destAfterChargeLine(
-      int destSoc, Color accent, Color labelColor, bool isDark) {
+  // 이 충전소에서 목표 충전 후 목적지 도착 예상 잔량 — 서버 4단계(safe/tight/low/over) 색·아이콘 안내.
+  // 확신을 닫아주는 보조 한 줄. 폰 폭에 관계없이 자연스럽게 줄바꿈되도록 Expanded+RichText.
+  Widget _destAfterChargeLine(int destSoc, String status, int? recTarget,
+      Color accent, Color labelColor, bool isDark) {
     const green = Color(0xFF16A34A);
     const orange = Color(0xFFEA580C);
-    final tight = destSoc < 10;
-    final comfortable = destSoc >= 20;
-    final c = tight ? orange : (comfortable ? green : accent);
+    const red = Color(0xFFDC2626);
+
+    // 상태별 색/아이콘/문구.
+    final Color c;
+    final IconData icon;
+    final List<InlineSpan> spans;
+    final String? tag; // 좌측 상태 뱃지 라벨
+    const pct = TextStyle(fontWeight: FontWeight.w900);
+
+    switch (status) {
+      case 'safe':
+        c = green;
+        icon = Icons.check_circle_rounded;
+        tag = '여유';
+        spans = [
+          const TextSpan(text: '충전 후 목적지 도착 시 '),
+          TextSpan(text: '약 $destSoc%', style: pct.copyWith(color: c)),
+          const TextSpan(text: ' 남아 여유 있게 도착해요'),
+        ];
+        break;
+      case 'tight':
+        c = orange;
+        icon = Icons.info_rounded;
+        tag = '빠듯';
+        spans = [
+          const TextSpan(text: '충전 후 도착 시 '),
+          TextSpan(text: '약 $destSoc%', style: pct.copyWith(color: c)),
+          const TextSpan(text: ' — 빠듯해요. 목적지 근처에서 한 번 더 충전하면 안심돼요'),
+        ];
+        break;
+      case 'over':
+        c = red;
+        icon = Icons.warning_amber_rounded;
+        tag = '주의';
+        spans = [
+          const TextSpan(text: '여기선 '),
+          TextSpan(text: '100% 충전', style: pct.copyWith(color: c)),
+          const TextSpan(text: '해도 목적지까지 빠듯해요 — 중간에 한 번 더 충전이 필요해요'),
+        ];
+        break;
+      default: // 'low'
+        c = red;
+        icon = Icons.error_rounded;
+        tag = '부족';
+        spans = [
+          const TextSpan(text: '충전 후 도착 시 '),
+          TextSpan(text: '약 $destSoc%', style: pct.copyWith(color: c)),
+          const TextSpan(text: ' — 부족해요. 목적지 근처에서 꼭 충전하세요'),
+        ];
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: c.withValues(alpha: isDark ? 0.14 : 0.08),
-        borderRadius: BorderRadius.circular(9),
+        color: c.withValues(alpha: isDark ? 0.15 : 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: c.withValues(alpha: isDark ? 0.35 : 0.22)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
             padding: const EdgeInsets.only(top: 1),
-            child: Icon(
-                tight ? Icons.warning_amber_rounded : Icons.flag_rounded,
-                size: 15,
-                color: c),
+            child: Icon(icon, size: 16, color: c),
           ),
           const SizedBox(width: 7),
+          // 상태 뱃지 — 한눈에 색/글자로 구분
+          Padding(
+            padding: const EdgeInsets.only(top: 0.5, right: 7),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+              decoration: BoxDecoration(
+                color: c.withValues(alpha: isDark ? 0.22 : 0.14),
+                borderRadius: BorderRadius.circular(5),
+              ),
+              child: Text(tag,
+                  style: TextStyle(
+                      fontSize: 10.5,
+                      height: 1.2,
+                      color: c,
+                      fontWeight: FontWeight.w900)),
+            ),
+          ),
           Expanded(
             child: RichText(
               text: TextSpan(
                 style: TextStyle(
                     fontSize: 12,
-                    height: 1.35,
+                    height: 1.38,
                     color: labelColor,
                     fontWeight: FontWeight.w600),
-                children: tight
-                    ? [
-                        const TextSpan(
-                            text: '여기 충전만으론 목적지까지 빠듯해요 — 도착 시 '),
-                        TextSpan(
-                            text: '$destSoc%',
-                            style: TextStyle(
-                                color: c, fontWeight: FontWeight.w800)),
-                      ]
-                    : [
-                        const TextSpan(text: '충전 후 목적지 도착 시 '),
-                        TextSpan(
-                            text: '약 $destSoc%',
-                            style: TextStyle(
-                                color: c, fontWeight: FontWeight.w800)),
-                        TextSpan(
-                            text: comfortable ? ' 남아 여유 있게 도착해요' : ' 남아요'),
-                      ],
+                children: spans,
               ),
             ),
           ),
@@ -876,6 +926,8 @@ class _StationCardState extends State<_StationCard> {
     final arrivalSoc = (station['arrival_soc'] as num?)?.toInt();
     final afterChargeSoc = (station['after_charge_soc'] as num?)?.toInt();
     final destSocAfterCharge = (station['dest_soc_after_charge'] as num?)?.toInt();
+    final destStatus = station['dest_status']?.toString();
+    final destRecTarget = (station['dest_recommended_target'] as num?)?.toInt();
     final chargingMin = (station['charging_time_min'] as num?)?.toInt();
     final statId = station['statId']?.toString();
     final groupedStations = station['grouped_stations'] is List
@@ -1062,7 +1114,10 @@ class _StationCardState extends State<_StationCard> {
                 if (arrivalSoc != null) ...[
                   const SizedBox(height: 11),
                   _socBar(arrivalSoc, afterChargeSoc, chargingMin, accentColor,
-                      mutedTextColor, isDark, destSoc: destSocAfterCharge),
+                      mutedTextColor, isDark,
+                      destSoc: destSocAfterCharge,
+                      destStatus: destStatus,
+                      destRecTarget: destRecTarget),
                 ],
                 const SizedBox(height: 10),
                 if (headingCount > 0) ...[
