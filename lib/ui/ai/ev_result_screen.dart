@@ -432,6 +432,7 @@ class _StationCardState extends State<_StationCard> {
       int? destTargetNow,
       int? destComfortTarget,
       int? destMaxSoc,
+      String? betterAltName,
       int? estCostMember,
       int? estCostNonMember,
       double? estChargeKwh}) {
@@ -572,7 +573,8 @@ class _StationCardState extends State<_StationCard> {
           if (destSoc != null && destStatus != null) ...[
             const SizedBox(height: 10),
             _destAfterChargeLine(destSoc, destStatus, destTargetNow,
-                destComfortTarget, destMaxSoc, accent, labelColor, isDark),
+                destComfortTarget, destMaxSoc, betterAltName, accent,
+                labelColor, isDark),
           ],
         ],
       ),
@@ -696,8 +698,8 @@ class _StationCardState extends State<_StationCard> {
   // 핵심: '부족'을 raw 잔량이 아니라 "여기서 목표를 올려 해결 가능한지"로 판단해 실행 가능한 조언을 준다.
   // 폰 폭에 관계없이 자연스럽게 줄바꿈되도록 Expanded+RichText.
   Widget _destAfterChargeLine(int destSoc, String status, int? targetNow,
-      int? comfortTarget, int? maxSoc, Color accent, Color labelColor,
-      bool isDark) {
+      int? comfortTarget, int? maxSoc, String? betterAltName, Color accent,
+      Color labelColor, bool isDark) {
     const green = Color(0xFF16A34A);
     const orange = Color(0xFFEA580C);
     const red = Color(0xFFDC2626);
@@ -769,19 +771,32 @@ class _StationCardState extends State<_StationCard> {
         c = red;
         icon = Icons.warning_amber_rounded;
         tag = '부족';
-        spans = (maxSoc != null && maxSoc > 0)
+        // 목적지에 더 가까운 여유 대안이 있으면 그 이름을 콕 집어 안내(도착해서 자리 지키기).
+        final altTail = betterAltName != null
             ? [
-                const TextSpan(text: '여기선 '),
-                TextSpan(text: '100% 충전', style: pct.copyWith(color: c)),
-                const TextSpan(text: '해도 도착 약 '),
-                TextSpan(text: '$maxSoc%', style: pct.copyWith(color: c)),
-                const TextSpan(text: '로 부족 — 중간에 꼭 한 번 더 충전하세요'),
+                const TextSpan(text: ' — 아래 '),
+                TextSpan(text: betterAltName, style: pct.copyWith(color: c)),
+                const TextSpan(text: '이 더 여유롭게 도착해요'),
               ]
-            : [
-                const TextSpan(text: '여기 충전만으론 목적지까지 '),
-                TextSpan(text: '부족', style: pct.copyWith(color: c)),
-                const TextSpan(text: '해요 — 목적지에 더 가까운 충전소를 추천드려요'),
+            : <InlineSpan>[
+                TextSpan(
+                    text: (maxSoc != null && maxSoc > 0)
+                        ? ' — 중간에 꼭 한 번 더 충전하세요'
+                        : ' — 목적지에 더 가까운 충전소를 추천드려요'),
               ];
+        spans = [
+          if (maxSoc != null && maxSoc > 0) ...[
+            const TextSpan(text: '여기선 '),
+            TextSpan(text: '100% 충전', style: pct.copyWith(color: c)),
+            const TextSpan(text: '해도 도착 약 '),
+            TextSpan(text: '$maxSoc%', style: pct.copyWith(color: c)),
+            const TextSpan(text: '로 부족'),
+          ] else ...[
+            const TextSpan(text: '여기 충전만으론 목적지까지 '),
+            TextSpan(text: '부족', style: pct.copyWith(color: c)),
+          ],
+          ...altTail,
+        ];
     }
 
     return Container(
@@ -1092,6 +1107,7 @@ class _StationCardState extends State<_StationCard> {
     final destTargetNow = (station['dest_target_now'] as num?)?.toInt();
     final destComfortTarget = (station['dest_comfort_target'] as num?)?.toInt();
     final destMaxSoc = (station['dest_max_soc'] as num?)?.toInt();
+    final betterAltName = station['better_alt_name']?.toString();
     final estCostMember = (station['est_cost_member'] as num?)?.toInt();
     final estCostNonMember = (station['est_cost_nonmember'] as num?)?.toInt();
     final estChargeKwh = (station['est_charge_kwh'] as num?)?.toDouble();
@@ -1287,6 +1303,7 @@ class _StationCardState extends State<_StationCard> {
                       destTargetNow: destTargetNow,
                       destComfortTarget: destComfortTarget,
                       destMaxSoc: destMaxSoc,
+                      betterAltName: betterAltName,
                       estCostMember: estCostMember,
                       estCostNonMember: estCostNonMember,
                       estChargeKwh: estChargeKwh),
