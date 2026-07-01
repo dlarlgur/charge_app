@@ -1703,7 +1703,9 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            width: 52, // 고정폭 — '회원'(2자)·'비회원'(3자) 폭 차이로 급속열이 어긋나지 않게
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(vertical: 5),
             decoration: BoxDecoration(
               color: tierColor.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(8),
