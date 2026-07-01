@@ -324,17 +324,16 @@ class HeroCard extends StatelessWidget {
   }
 
   // 목적지 도착 예상잔량 — 현재 잔량으로 추가 주유/충전 없이 도착 시.
-  // 도착 예상 잔량을 '주인공'으로 — 링(도착 %) + 상태 라벨. (B안)
-  // 도달 가능: 링에 도착% + '여유/빠듯하게 도착'. 도달 불가: 빨간 링+번개, '도착 전 충전 필요'.
+  // 도착 예상 — 초미니멀 한 줄 + 도착% 배지 (C안, 배너 높이 최소화).
+  // 점 + 상태 라벨 · Nkm / 우측에 '도착 N%' 배지. 도달 불가면 음수%(부족분).
   Widget _arrivalRow() {
     final arrivalRangeKm = reachableKm - routeDistanceKm;
     final canReach = arrivalRangeKm > 0;
-    final pct = canReach
-        ? (currentLevel * (reachableKm - routeDistanceKm) / reachableKm)
-            .clamp(0, 100)
-            .round()
+    // 도착 % (부호 포함) — 도달 불가면 음수(부족분)로 표시.
+    final pctSigned = reachableKm > 0
+        ? (currentLevel * arrivalRangeKm / reachableKm).round().clamp(-99, 100)
         : 0;
-    final low = canReach && pct < 20;
+    final low = canReach && pctSigned < 20;
     final shortfallKm = canReach ? 0 : (routeDistanceKm - reachableKm).round();
     final c = !canReach
         ? const Color(0xFFE5484D)
@@ -343,109 +342,56 @@ class HeroCard extends StatelessWidget {
     final title = !canReach
         ? '도착 전 $action 필요'
         : (low ? '조금 빠듯하게 도착' : '여유 있게 도착');
-    final sub = !canReach
-        ? '지금 잔량으론 약 ${shortfallKm}km 모자라요'
-        : '도착 시 약 $pct%${arrivalRangeKm > 0 ? ' · ${arrivalRangeKm.round()}km 남아요' : ''}';
+    final detail = canReach ? '${arrivalRangeKm.round()}km 남음' : '${shortfallKm}km 부족';
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
       decoration: BoxDecoration(
         color: c.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: c.withValues(alpha: 0.20)),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: c.withValues(alpha: 0.18)),
       ),
       child: Row(
         children: [
-          _arrivalRing(c,
-              pct: canReach ? pct : null,
-              icon: canReach
-                  ? null
-                  : (isEv
-                      ? Icons.bolt_rounded
-                      : Icons.local_gas_station_rounded)),
-          const SizedBox(width: 13),
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: c, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 9),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
+            child: Text.rich(
+              TextSpan(children: [
+                TextSpan(
+                    text: title,
                     style: TextStyle(
-                        fontSize: 15,
-                        height: 1.15,
+                        fontSize: 13.5,
                         fontWeight: FontWeight.w800,
                         color: c)),
-                const SizedBox(height: 2),
-                Text.rich(
-                  _subSpans(sub, c),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+                TextSpan(
+                    text: ' · $detail',
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: kMute2)),
+              ]),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           const SizedBox(width: 8),
-          Icon(
-              !canReach
-                  ? Icons.error_rounded
-                  : (low
-                      ? Icons.priority_high_rounded
-                      : Icons.check_circle_rounded),
-              size: 21,
-              color: c),
-        ],
-      ),
-    );
-  }
-
-  // 도착 % 를 강조한 서브텍스트(숫자만 컬러 볼드).
-  TextSpan _subSpans(String sub, Color c) {
-    final m = RegExp(r'약 (\d+%|\d+km)').firstMatch(sub);
-    if (m == null) {
-      return TextSpan(
-          text: sub,
-          style: const TextStyle(
-              fontSize: 11.5, fontWeight: FontWeight.w600, color: kMute2));
-    }
-    return TextSpan(
-      style: const TextStyle(
-          fontSize: 11.5, fontWeight: FontWeight.w600, color: kMute2),
-      children: [
-        TextSpan(text: sub.substring(0, m.start + 2)), // '...약 '
-        TextSpan(
-            text: m.group(1),
-            style: TextStyle(fontWeight: FontWeight.w800, color: c)),
-        TextSpan(text: sub.substring(m.end)),
-      ],
-    );
-  }
-
-  // 작은 진행 링 — 도달 가능하면 도착% 채움+텍스트, 불가면 꽉 찬 링+아이콘.
-  Widget _arrivalRing(Color c, {int? pct, IconData? icon}) {
-    return SizedBox(
-      width: 46,
-      height: 46,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          SizedBox(
-            width: 46,
-            height: 46,
-            child: CircularProgressIndicator(
-              value: pct != null ? (pct / 100).clamp(0.04, 1.0) : 1.0,
-              strokeWidth: 4.5,
-              strokeCap: StrokeCap.round,
-              backgroundColor: c.withValues(alpha: 0.16),
-              valueColor: AlwaysStoppedAnimation<Color>(c),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
+            decoration: BoxDecoration(
+              color: c.withValues(alpha: 0.13),
+              borderRadius: BorderRadius.circular(20),
             ),
-          ),
-          if (icon != null)
-            Icon(icon, size: 19, color: c)
-          else
-            Text('$pct%',
+            child: Text('도착 $pctSigned%',
                 style: TextStyle(
-                    fontSize: 12.5,
-                    height: 1.0,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 12,
+                    height: 1.1,
+                    fontWeight: FontWeight.w800,
                     color: c)),
+          ),
         ],
       ),
     );
