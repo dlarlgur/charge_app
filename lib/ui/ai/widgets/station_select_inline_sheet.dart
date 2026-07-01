@@ -45,33 +45,63 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
   int? _distOf(Map<String, dynamic> s) =>
       s['detour_distance_m'] is num ? (s['detour_distance_m'] as num).round() : null;
 
-  Widget _sortChip(String label, String mode, bool isDark) {
+  // 세그먼트 컨트롤 — 트랙 위에 흰(다크: 남색) 인디케이터가 슬라이드.
+  Widget _sortToggle(bool isDark) {
+    final track = isDark ? const Color(0x1FFFFFFF) : const Color(0xFFEDEFF3);
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: track,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _sortSeg('가격순', 'price', Icons.payments_rounded, isDark),
+          _sortSeg('거리순', 'distance', Icons.near_me_rounded, isDark),
+        ],
+      ),
+    );
+  }
+
+  Widget _sortSeg(String label, String mode, IconData icon, bool isDark) {
     final active = _sortMode == mode;
+    final muted =
+        isDark ? AppColors.darkTextMuted : const Color(0xFF8A94A6);
     return GestureDetector(
       onTap: active ? null : () => setState(() => _sortMode = mode),
       behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 170),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
           color: active
-              ? kCompareBlue.withValues(alpha: isDark ? 0.24 : 0.12)
-              : (isDark ? const Color(0x14FFFFFF) : const Color(0xFFF1F3F5)),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-              color: active
-                  ? kCompareBlue.withValues(alpha: 0.6)
-                  : Colors.transparent),
+              ? (isDark ? const Color(0xFF2B3757) : Colors.white)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(17),
+          boxShadow: active && !isDark
+              ? [
+                  BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 6,
+                      offset: const Offset(0, 1)),
+                ]
+              : null,
         ),
-        child: Text(label,
-            style: TextStyle(
-                fontSize: 12,
-                height: 1.1,
-                fontWeight: active ? FontWeight.w800 : FontWeight.w600,
-                color: active
-                    ? kCompareBlue
-                    : (isDark
-                        ? AppColors.darkTextSecondary
-                        : const Color(0xFF6B7280)))),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: active ? kCompareBlue : muted),
+            const SizedBox(width: 5),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.1,
+                    fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+                    color: active ? kCompareBlue : muted)),
+          ],
+        ),
       ),
     );
   }
@@ -198,23 +228,24 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
                         ],
                       ),
                     ),
-                  // 정렬 토글 — 가격순/거리순
+                  // 정렬 토글 — 가격순/거리순 (세그먼트 컨트롤)
                   if (!compact)
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 9),
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                       child: Row(
                         children: [
-                          Text('정렬',
+                          _sortToggle(isDark),
+                          const Spacer(),
+                          Text(
+                              _sortMode == 'price'
+                                  ? '저렴한 순'
+                                  : '가까운 순',
                               style: TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w600,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
                                   color: isDark
                                       ? AppColors.darkTextMuted
                                       : const Color(0xFF9CA3AF))),
-                          const SizedBox(width: 8),
-                          _sortChip('가격순', 'price', isDark),
-                          const SizedBox(width: 6),
-                          _sortChip('거리순', 'distance', isDark),
                         ],
                       ),
                     ),
