@@ -2030,7 +2030,8 @@ class _CompareCards extends StatelessWidget {
   }
 
   Widget _banner(bool isDark, Color labelColor) {
-    const txt = '표시된 절약 금액은 우회 시간·연료 등 부가비용을 모두 뺀 최종 절약이에요.';
+    const txt = '표시 금액은 우회 시간·연료 등 부대비용까지 반영한 최종 차액이에요. '
+        '초록은 그만큼 절약, 빨강 +는 그만큼 더 들어요.';
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

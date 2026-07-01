@@ -2644,18 +2644,30 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         : null;
     final detourIsNone = altItem['detour_is_none'] == true ||
         (detourMin != null && detourMin <= 0);
+    // 유종 — 이 추천이 계산된 유종(선택 차량 or 글로벌 설정). 가격이 어느 유종 기준인지 표시.
+    final box = Hive.box(AppConstants.settingsBox);
+    final sv = _readSelectedVehicle(box);
+    final fuelCode = sv?.fuelType ??
+        (box.get(AppConstants.keyAiFuelType,
+            defaultValue: FuelType.gasoline.code) as String);
+    final fuel = FuelType.fromCode(fuelCode);
+    final fuelColor = _fuelColor(fuel);
     if (!mounted) return;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     await showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
+        final metricBg =
+            isDark ? const Color(0x14FFFFFF) : const Color(0xFFF6F8FA);
+        final divider =
+            isDark ? const Color(0x1FFFFFFF) : const Color(0xFFE5E7EB);
         return Container(
           padding: EdgeInsets.fromLTRB(
-              20, 16, 20, MediaQuery.of(ctx).padding.bottom + 20),
+              20, 14, 20, MediaQuery.of(ctx).padding.bottom + 20),
           decoration: BoxDecoration(
             color: isDark ? AppColors.darkBg : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -2663,35 +2675,74 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             children: [
               Center(
                   child: Container(
-                width: 36,
+                width: 40,
                 height: 4,
                 decoration: BoxDecoration(
                     color: const Color(0xFFE5E7EB),
                     borderRadius: BorderRadius.circular(2)),
               )),
-              const SizedBox(height: 14),
-              Text(name,
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 16),
+              // 이름 + 유종 칩
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(name,
+                        style: TextStyle(
+                            fontSize: 16.5,
+                            height: 1.25,
+                            fontWeight: FontWeight.w800,
+                            color: isDark
+                                ? AppColors.darkTextPrimary
+                                : const Color(0xFF1A1A2E))),
+                  ),
+                  const SizedBox(width: 10),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                    decoration: BoxDecoration(
+                        color:
+                            fuelColor.withValues(alpha: isDark ? 0.22 : 0.12),
+                        borderRadius: BorderRadius.circular(20)),
+                    child: Text(fuel.label,
+                        style: TextStyle(
+                            fontSize: 12,
+                            height: 1.1,
+                            fontWeight: FontWeight.w800,
+                            color: fuelColor)),
+                  ),
+                ],
+              ),
               if (addr.isNotEmpty) ...[
-                const SizedBox(height: 4),
+                const SizedBox(height: 5),
                 Text(addr,
                     style: const TextStyle(
-                        fontSize: 12, color: Color(0xFF6B7280))),
+                        fontSize: 12, height: 1.35, color: Color(0xFF6B7280))),
               ],
-              const SizedBox(height: 14),
-              Row(children: [
-                Expanded(
-                    child:
-                        _miniSheetMetric('리터당', '${_wonFmt.format(price)}원')),
-                Expanded(
-                    child: _miniSheetMetric(
-                  '우회',
-                  detourIsNone
-                      ? '우회 없음'
-                      : (detourMin != null ? '+$detourMin분' : '—'),
-                )),
-              ]),
+              const SizedBox(height: 16),
+              // 리터당 · 우회 메트릭 (소프트 카드 + 구분선)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                decoration: BoxDecoration(
+                    color: metricBg, borderRadius: BorderRadius.circular(14)),
+                child: Row(children: [
+                  Expanded(
+                      child: _miniSheetMetric(
+                          '리터당', '${_wonFmt.format(price)}원',
+                          valueColor: fuelColor, big: true)),
+                  const SizedBox(width: 12),
+                  Container(width: 1, height: 30, color: divider),
+                  const SizedBox(width: 16),
+                  Expanded(
+                      child: _miniSheetMetric(
+                    '우회',
+                    detourIsNone
+                        ? '우회 없음'
+                        : (detourMin != null ? '+$detourMin분' : '—'),
+                  )),
+                ]),
+              ),
               // "이걸로 선택" 버튼 제거 — 마커 탭은 정보 확인 용도. 후보 변경은 결과 화면의
               // '다른 후보 → 확인' 버튼에서.
             ],
@@ -2701,15 +2752,36 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     );
   }
 
-  Widget _miniSheetMetric(String label, String value) => Column(
+  // 유종별 강조색.
+  Color _fuelColor(FuelType f) {
+    switch (f) {
+      case FuelType.premium:
+        return const Color(0xFFDC2626); // 고급휘발유 — 레드
+      case FuelType.diesel:
+        return const Color(0xFF16A34A); // 경유 — 그린
+      case FuelType.lpg:
+        return const Color(0xFF2563EB); // LPG — 블루
+      case FuelType.gasoline:
+        return const Color(0xFFE8700A); // 휘발유 — 오렌지
+    }
+  }
+
+  Widget _miniSheetMetric(String label, String value,
+          {Color? valueColor, bool big = false}) =>
+      Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label,
-              style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
-          const SizedBox(height: 2),
+              style: const TextStyle(
+                  fontSize: 11,
+                  color: Color(0xFF9CA3AF),
+                  fontWeight: FontWeight.w600)),
+          const SizedBox(height: 3),
           Text(value,
-              style:
-                  const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+              style: TextStyle(
+                  fontSize: big ? 17 : 14,
+                  fontWeight: FontWeight.w800,
+                  color: valueColor)),
         ],
       );
 
