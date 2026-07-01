@@ -607,38 +607,38 @@ class _StationCardState extends State<_StationCard> {
     final accent = isDark ? const Color(0xFF7DD3FC) : const Color(0xFF0369A1);
     final bg = isDark ? const Color(0x180EA5E9) : const Color(0x0F0EA5E9);
 
-    // 회원/비회원 금액 조각 — 같으면 한 값, 다르면 회원·비회원 칩 둘 다.
-    List<Widget> valueParts(int? m, int? n) {
+    // 금액 텍스트 — 라벨은 흐리게, 숫자는 볼드 컬러. 같으면 한 값 + '동일'.
+    final numStyle = TextStyle(
+        fontSize: 14, height: 1.3, color: accent, fontWeight: FontWeight.w900);
+    final lblStyle = TextStyle(
+        fontSize: 11.5,
+        height: 1.3,
+        color: labelColor.withValues(alpha: 0.85),
+        fontWeight: FontWeight.w600);
+    Widget priceText(int? m, int? n) {
       if (m != null && n != null && m == n) {
-        return [
-          Text('${won(m)}원',
-              style: TextStyle(
-                  fontSize: 14,
-                  height: 1.2,
-                  color: accent,
-                  fontWeight: FontWeight.w900)),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0x14FFFFFF) : const Color(0x0A000000),
-              borderRadius: BorderRadius.circular(5),
-            ),
-            child: Text('회원·비회원 동일',
-                style: TextStyle(
-                    fontSize: 10,
-                    height: 1.2,
-                    color: labelColor.withValues(alpha: 0.8),
-                    fontWeight: FontWeight.w700)),
-          ),
-        ];
+        return Text.rich(TextSpan(children: [
+          TextSpan(text: '${won(m)}원', style: numStyle),
+          TextSpan(
+              text: '  회원·비회원 동일',
+              style: lblStyle.copyWith(fontSize: 10.5)),
+        ]));
       }
-      return [
-        if (m != null) _costChip('회원', '${won(m)}원', accent, true, isDark),
-        if (n != null)
-          _costChip('비회원', '${won(n)}원', accent, false, isDark),
-      ];
+      final parts = <InlineSpan>[];
+      if (m != null) {
+        parts.add(TextSpan(text: '회원 ', style: lblStyle));
+        parts.add(TextSpan(text: '${won(m)}원', style: numStyle));
+      }
+      if (n != null) {
+        parts.add(TextSpan(
+            text: parts.isEmpty ? '비회원 ' : '    비회원 ', style: lblStyle));
+        parts.add(TextSpan(text: '${won(n)}원', style: numStyle));
+      }
+      return Text.rich(TextSpan(children: parts), maxLines: 2);
     }
 
+    final nameColor =
+        isDark ? AppColors.darkTextPrimary : const Color(0xFF1F2937);
     final grouped = operators != null && operators.isNotEmpty;
 
     return Container(
@@ -680,77 +680,44 @@ class _StationCardState extends State<_StationCard> {
                     ],
                   ],
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 6),
                 if (grouped)
-                  // 통합 충전소 — 운영사별로 각각 얼마인지 (워터로 X / 한국전력으로 Y)
-                  ...operators.map((o) => Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Wrap(
-                          spacing: 8,
-                          runSpacing: 2,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            Text((o['op'] ?? '').toString(),
+                  // 통합 충전소 — 운영사별로 각각 (이름 정렬 + 금액). 워터로 X / 한국전력으로 Y.
+                  ...List.generate(operators.length, (idx) {
+                    final o = operators[idx];
+                    return Padding(
+                      padding: EdgeInsets.only(
+                          top: idx == 0 ? 0 : 5),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          SizedBox(
+                            width: 76,
+                            child: Text((o['op'] ?? '').toString(),
                                 style: TextStyle(
                                     fontSize: 12.5,
-                                    height: 1.2,
-                                    color: labelColor,
-                                    fontWeight: FontWeight.w800)),
-                            ...valueParts(o['member'] as int?,
-                                o['nonmember'] as int?),
-                          ],
-                        ),
-                      ))
+                                    height: 1.3,
+                                    color: nameColor,
+                                    fontWeight: FontWeight.w800),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                              child: priceText(
+                                  o['member'] as int?, o['nonmember'] as int?)),
+                        ],
+                      ),
+                    );
+                  })
                 else
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 3,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: valueParts(member, nonMember),
-                  ),
+                  priceText(member, nonMember),
               ],
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _costChip(
-      String label, String value, Color accent, bool primary, bool isDark) {
-    final labelC = isDark
-        ? AppColors.darkTextSecondary
-        : const Color(0xFF64748B);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-          decoration: BoxDecoration(
-            color: primary
-                ? accent.withValues(alpha: isDark ? 0.22 : 0.13)
-                : (isDark ? const Color(0x14FFFFFF) : const Color(0x0A000000)),
-            borderRadius: BorderRadius.circular(5),
-          ),
-          child: Text(label,
-              style: TextStyle(
-                  fontSize: 10.5,
-                  height: 1.2,
-                  color: primary ? accent : labelC,
-                  fontWeight: FontWeight.w800)),
-        ),
-        const SizedBox(width: 5),
-        Text(value,
-            style: TextStyle(
-                fontSize: 13,
-                height: 1.2,
-                color: primary
-                    ? accent
-                    : (isDark
-                        ? AppColors.darkTextPrimary
-                        : const Color(0xFF334155)),
-                fontWeight: primary ? FontWeight.w900 : FontWeight.w700)),
-      ],
     );
   }
 

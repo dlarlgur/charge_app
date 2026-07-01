@@ -177,7 +177,10 @@ class EvStation {
       address: json['addr'] ?? json['address'] ?? '',
       lat: (json['lat'] ?? 0).toDouble(),
       lng: (json['lng'] ?? 0).toDouble(),
-      operator: json['busiNm'] ?? json['operator'] ?? '',
+      // busiNm 이 빈 문자열('')로 와도 '기타'로 떨어지지 않게 — 비어있지 않은 첫 값 사용.
+      operator: [json['busiNm'], json['operator'], json['busiNmRaw']]
+          .map((e) => e?.toString().trim() ?? '')
+          .firstWhere((s) => s.isNotEmpty, orElse: () => ''),
       phone: json['busiCall'] ?? json['phone'],
       useTime: json['useTime'] ?? '24시간',
       parkingFree: json['parkingFree'] == 'Y' || json['parkingFree'] == true,
