@@ -220,7 +220,7 @@ class _StationReportSheetState extends State<_StationReportSheet> {
       if (!mounted) return;
       if (ok) {
         Navigator.of(context).pop();
-        showAppToast(context, '제보 감사합니다! 확인 후 반영할게요 🙏');
+        showAppToast(context, '제보 감사합니다. 확인 후 반영할게요');
       } else {
         setState(() => _submitting = false);
         showAppToast(context, '제보 전송에 실패했어요. 잠시 후 다시 시도해주세요.', isError: true);
