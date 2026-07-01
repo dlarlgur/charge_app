@@ -427,7 +427,14 @@ class _StationCardState extends State<_StationCard> {
   // 도착 시 배터리 잔량 → 충전 후 잔량 예측. 각 숫자에 라벨(도착 시 / 충전 후)을 붙여 명확하게.
   Widget _socBar(int arrival, int? afterCharge, int? chargeMin, Color accent,
       Color mutedColor, bool isDark,
-      {int? destSoc, String? destStatus, int? destRecTarget}) {
+      {int? destSoc,
+      String? destStatus,
+      int? destTargetNow,
+      int? destComfortTarget,
+      int? destMaxSoc,
+      int? estCostMember,
+      int? estCostNonMember,
+      double? estChargeKwh}) {
     final after =
         (afterCharge != null && afterCharge > arrival) ? afterCharge : arrival;
     final hasCharge = after > arrival;
@@ -554,21 +561,143 @@ class _StationCardState extends State<_StationCard> {
               );
             }),
           ),
-          // 충전 후 목적지 도착 예상 잔량 — 4단계(여유/빠듯/부족/목표초과) 색·아이콘 안내
+          // 예상 충전량·금액 (도착 잔량 → 목표) — 회원/비회원
+          if (hasCharge &&
+              (estCostMember != null || estCostNonMember != null)) ...[
+            const SizedBox(height: 9),
+            _estCostLine(estChargeKwh, estCostMember, estCostNonMember,
+                labelColor, isDark),
+          ],
+          // 충전 후 목적지 도착 예상 잔량 — 4단계(여유/목표상향/빠듯/부족) 색·아이콘 안내
           if (destSoc != null && destStatus != null) ...[
             const SizedBox(height: 10),
-            _destAfterChargeLine(
-                destSoc, destStatus, destRecTarget, accent, labelColor, isDark),
+            _destAfterChargeLine(destSoc, destStatus, destTargetNow,
+                destComfortTarget, destMaxSoc, accent, labelColor, isDark),
           ],
         ],
       ),
     );
   }
 
-  // 이 충전소에서 목표 충전 후 목적지 도착 예상 잔량 — 서버 4단계(safe/tight/low/over) 색·아이콘 안내.
-  // 확신을 닫아주는 보조 한 줄. 폰 폭에 관계없이 자연스럽게 줄바꿈되도록 Expanded+RichText.
-  Widget _destAfterChargeLine(int destSoc, String status, int? recTarget,
-      Color accent, Color labelColor, bool isDark) {
+  // 예상 충전 금액 — 도착 시 배터리에서 목표까지 채울 때. 회원가·비회원가 둘 다.
+  Widget _estCostLine(double? kwh, int? member, int? nonMember,
+      Color labelColor, bool isDark) {
+    String won(int v) {
+      final s = v.toString();
+      final b = StringBuffer();
+      for (int i = 0; i < s.length; i++) {
+        if (i > 0 && (s.length - i) % 3 == 0) b.write(',');
+        b.write(s[i]);
+      }
+      return b.toString();
+    }
+
+    final accent = isDark ? const Color(0xFF7DD3FC) : const Color(0xFF0369A1);
+    final bg = isDark ? const Color(0x180EA5E9) : const Color(0x0F0EA5E9);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+            color: accent.withValues(alpha: isDark ? 0.30 : 0.18)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(Icons.bolt_rounded, size: 16, color: accent),
+          ),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text('예상 충전요금',
+                        style: TextStyle(
+                            fontSize: 11.5,
+                            height: 1.2,
+                            color: labelColor,
+                            fontWeight: FontWeight.w700)),
+                    if (kwh != null && kwh > 0) ...[
+                      const SizedBox(width: 6),
+                      Text('약 ${kwh.toStringAsFixed(kwh < 10 ? 1 : 0)}kWh 충전',
+                          style: TextStyle(
+                              fontSize: 11,
+                              height: 1.2,
+                              color: labelColor.withValues(alpha: 0.75),
+                              fontWeight: FontWeight.w500)),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 3,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    if (member != null)
+                      _costChip('회원', '${won(member)}원', accent, true, isDark),
+                    if (nonMember != null)
+                      _costChip('비회원', '${won(nonMember)}원', accent, false,
+                          isDark),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _costChip(
+      String label, String value, Color accent, bool primary, bool isDark) {
+    final labelC = isDark
+        ? AppColors.darkTextSecondary
+        : const Color(0xFF64748B);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+          decoration: BoxDecoration(
+            color: primary
+                ? accent.withValues(alpha: isDark ? 0.22 : 0.13)
+                : (isDark ? const Color(0x14FFFFFF) : const Color(0x0A000000)),
+            borderRadius: BorderRadius.circular(5),
+          ),
+          child: Text(label,
+              style: TextStyle(
+                  fontSize: 10.5,
+                  height: 1.2,
+                  color: primary ? accent : labelC,
+                  fontWeight: FontWeight.w800)),
+        ),
+        const SizedBox(width: 5),
+        Text(value,
+            style: TextStyle(
+                fontSize: 13,
+                height: 1.2,
+                color: primary
+                    ? accent
+                    : (isDark
+                        ? AppColors.darkTextPrimary
+                        : const Color(0xFF334155)),
+                fontWeight: primary ? FontWeight.w900 : FontWeight.w700)),
+      ],
+    );
+  }
+
+  // 충전 후 목적지 도착 예상 잔량 — 서버 판정(safe/raise/tight/over)을 색·아이콘·문구로.
+  // 핵심: '부족'을 raw 잔량이 아니라 "여기서 목표를 올려 해결 가능한지"로 판단해 실행 가능한 조언을 준다.
+  // 폰 폭에 관계없이 자연스럽게 줄바꿈되도록 Expanded+RichText.
+  Widget _destAfterChargeLine(int destSoc, String status, int? targetNow,
+      int? comfortTarget, int? maxSoc, Color accent, Color labelColor,
+      bool isDark) {
     const green = Color(0xFF16A34A);
     const orange = Color(0xFFEA580C);
     const red = Color(0xFFDC2626);
@@ -577,18 +706,46 @@ class _StationCardState extends State<_StationCard> {
     final Color c;
     final IconData icon;
     final List<InlineSpan> spans;
-    final String? tag; // 좌측 상태 뱃지 라벨
+    final String tag; // 좌측 상태 뱃지 라벨
     const pct = TextStyle(fontWeight: FontWeight.w900);
+    final ct = comfortTarget ?? 100;
 
     switch (status) {
       case 'safe':
         c = green;
         icon = Icons.check_circle_rounded;
         tag = '여유';
+        // 크게 남으면(=목표를 낮춰도 여유) 시간 절약 팁을 덧붙임.
+        final canLower =
+            targetNow != null && comfortTarget != null && comfortTarget <= targetNow - 5;
         spans = [
           const TextSpan(text: '충전 후 목적지 도착 시 '),
           TextSpan(text: '약 $destSoc%', style: pct.copyWith(color: c)),
-          const TextSpan(text: ' 남아 여유 있게 도착해요'),
+          TextSpan(
+              text: canLower
+                  ? ' 남아요. 급하면 '
+                  : ' 남아 여유 있게 도착해요'),
+          if (canLower) ...[
+            TextSpan(text: '$ct%', style: pct.copyWith(color: c)),
+            const TextSpan(text: '만 충전해도 충분해서 시간 아껴요'),
+          ],
+        ];
+        break;
+      case 'raise':
+        // 여기서 목표를 올리면 여유롭게 도착 — 실행 가능한 조언.
+        c = orange;
+        icon = Icons.trending_up_rounded;
+        tag = '목표 상향';
+        spans = [
+          if (targetNow != null) ...[
+            TextSpan(text: '지금 목표 $targetNow%'),
+            const TextSpan(text: '로는 도착 시 '),
+          ] else
+            const TextSpan(text: '현재 목표로는 도착 시 '),
+          TextSpan(text: '약 $destSoc%', style: pct.copyWith(color: c)),
+          const TextSpan(text: ' — 여기서 '),
+          TextSpan(text: '$ct%까지 충전', style: pct.copyWith(color: c)),
+          const TextSpan(text: '하면 여유 있게 도착해요'),
         ];
         break;
       case 'tight':
@@ -596,30 +753,35 @@ class _StationCardState extends State<_StationCard> {
         icon = Icons.info_rounded;
         tag = '빠듯';
         spans = [
-          const TextSpan(text: '충전 후 도착 시 '),
-          TextSpan(text: '약 $destSoc%', style: pct.copyWith(color: c)),
-          const TextSpan(text: ' — 빠듯해요. 목적지 근처에서 한 번 더 충전하면 안심돼요'),
-        ];
-        break;
-      case 'over':
-        c = red;
-        icon = Icons.warning_amber_rounded;
-        tag = '주의';
-        spans = [
           const TextSpan(text: '여기선 '),
           TextSpan(text: '100% 충전', style: pct.copyWith(color: c)),
-          const TextSpan(text: '해도 목적지까지 빠듯해요 — 중간에 한 번 더 충전이 필요해요'),
+          TextSpan(
+              text: maxSoc != null
+                  ? '해도 도착 약 '
+                  : '해도 목적지까지 빠듯해요'),
+          if (maxSoc != null) ...[
+            TextSpan(text: '$maxSoc%', style: pct.copyWith(color: c)),
+            const TextSpan(text: '로 빠듯 — 중간이나 목적지 근처에서 한 번 더 충전 권장'),
+          ],
         ];
         break;
-      default: // 'low'
+      default: // 'over'
         c = red;
-        icon = Icons.error_rounded;
+        icon = Icons.warning_amber_rounded;
         tag = '부족';
-        spans = [
-          const TextSpan(text: '충전 후 도착 시 '),
-          TextSpan(text: '약 $destSoc%', style: pct.copyWith(color: c)),
-          const TextSpan(text: ' — 부족해요. 목적지 근처에서 꼭 충전하세요'),
-        ];
+        spans = (maxSoc != null && maxSoc > 0)
+            ? [
+                const TextSpan(text: '여기선 '),
+                TextSpan(text: '100% 충전', style: pct.copyWith(color: c)),
+                const TextSpan(text: '해도 도착 약 '),
+                TextSpan(text: '$maxSoc%', style: pct.copyWith(color: c)),
+                const TextSpan(text: '로 부족 — 중간에 꼭 한 번 더 충전하세요'),
+              ]
+            : [
+                const TextSpan(text: '여기 충전만으론 목적지까지 '),
+                TextSpan(text: '부족', style: pct.copyWith(color: c)),
+                const TextSpan(text: '해요 — 목적지에 더 가까운 충전소를 추천드려요'),
+              ];
     }
 
     return Container(
@@ -927,7 +1089,12 @@ class _StationCardState extends State<_StationCard> {
     final afterChargeSoc = (station['after_charge_soc'] as num?)?.toInt();
     final destSocAfterCharge = (station['dest_soc_after_charge'] as num?)?.toInt();
     final destStatus = station['dest_status']?.toString();
-    final destRecTarget = (station['dest_recommended_target'] as num?)?.toInt();
+    final destTargetNow = (station['dest_target_now'] as num?)?.toInt();
+    final destComfortTarget = (station['dest_comfort_target'] as num?)?.toInt();
+    final destMaxSoc = (station['dest_max_soc'] as num?)?.toInt();
+    final estCostMember = (station['est_cost_member'] as num?)?.toInt();
+    final estCostNonMember = (station['est_cost_nonmember'] as num?)?.toInt();
+    final estChargeKwh = (station['est_charge_kwh'] as num?)?.toDouble();
     final chargingMin = (station['charging_time_min'] as num?)?.toInt();
     final statId = station['statId']?.toString();
     final groupedStations = station['grouped_stations'] is List
@@ -1117,7 +1284,12 @@ class _StationCardState extends State<_StationCard> {
                       mutedTextColor, isDark,
                       destSoc: destSocAfterCharge,
                       destStatus: destStatus,
-                      destRecTarget: destRecTarget),
+                      destTargetNow: destTargetNow,
+                      destComfortTarget: destComfortTarget,
+                      destMaxSoc: destMaxSoc,
+                      estCostMember: estCostMember,
+                      estCostNonMember: estCostNonMember,
+                      estChargeKwh: estChargeKwh),
                 ],
                 const SizedBox(height: 10),
                 if (headingCount > 0) ...[
