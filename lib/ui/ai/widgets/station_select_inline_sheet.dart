@@ -38,6 +38,43 @@ class StationSelectInlineSheet extends StatefulWidget {
 class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
   final ScrollController _listCtrl = ScrollController();
   bool _highwayOnly = false;
+  String _sortMode = 'price'; // 'price' 가격순(기본, 서버도 가격순) | 'distance' 거리순(덜 우회)
+
+  int? _priceOf(Map<String, dynamic> s) =>
+      s['price_won_per_liter'] is num ? (s['price_won_per_liter'] as num).round() : null;
+  int? _distOf(Map<String, dynamic> s) =>
+      s['detour_distance_m'] is num ? (s['detour_distance_m'] as num).round() : null;
+
+  Widget _sortChip(String label, String mode, bool isDark) {
+    final active = _sortMode == mode;
+    return GestureDetector(
+      onTap: active ? null : () => setState(() => _sortMode = mode),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        decoration: BoxDecoration(
+          color: active
+              ? kCompareBlue.withValues(alpha: isDark ? 0.24 : 0.12)
+              : (isDark ? const Color(0x14FFFFFF) : const Color(0xFFF1F3F5)),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+              color: active
+                  ? kCompareBlue.withValues(alpha: 0.6)
+                  : Colors.transparent),
+        ),
+        child: Text(label,
+            style: TextStyle(
+                fontSize: 12,
+                height: 1.1,
+                fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+                color: active
+                    ? kCompareBlue
+                    : (isDark
+                        ? AppColors.darkTextSecondary
+                        : const Color(0xFF6B7280)))),
+      ),
+    );
+  }
 
   bool _isHighwayStation(Map<String, dynamic> st) {
     // 서버가 휴게소 여부·상하행 필터까지 반영한 목록만 내림 — 앱은 플래그만 사용
@@ -53,9 +90,15 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final stations = _highwayOnly
+    final stations = (_highwayOnly
         ? widget.stations.where((s) => _isHighwayStation(s)).toList()
-        : widget.stations;
+        : [...widget.stations]);
+    // 정렬 — 가격순(낮은가 우선) / 거리순(덜 우회 우선). 값 없으면 뒤로.
+    if (_sortMode == 'distance') {
+      stations.sort((a, b) => (_distOf(a) ?? 1 << 30).compareTo(_distOf(b) ?? 1 << 30));
+    } else {
+      stations.sort((a, b) => (_priceOf(a) ?? 1 << 30).compareTo(_priceOf(b) ?? 1 << 30));
+    }
     final selectedAId = widget.selectedAId;
     final selectedBId = widget.selectedBId;
     final bothSelected = selectedAId != null && selectedBId != null;
@@ -152,6 +195,26 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
                           const Spacer(),
                           Text('지도에서도 선택 가능',
                               style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                        ],
+                      ),
+                    ),
+                  // 정렬 토글 — 가격순/거리순
+                  if (!compact)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 9),
+                      child: Row(
+                        children: [
+                          Text('정렬',
+                              style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark
+                                      ? AppColors.darkTextMuted
+                                      : const Color(0xFF9CA3AF))),
+                          const SizedBox(width: 8),
+                          _sortChip('가격순', 'price', isDark),
+                          const SizedBox(width: 6),
+                          _sortChip('거리순', 'distance', isDark),
                         ],
                       ),
                     ),
