@@ -372,6 +372,7 @@ class _StationCard extends StatefulWidget {
 
 class _StationCardState extends State<_StationCard> {
   bool _isExpanded = false;
+  bool _raised = false; // '올리기' 미리보기 토글 (목표를 권장치까지 올린 시나리오 표시)
 
   @override
   void initState() {
@@ -435,7 +436,11 @@ class _StationCardState extends State<_StationCard> {
       String? betterAltName,
       int? estCostMember,
       int? estCostNonMember,
-      double? estChargeKwh}) {
+      double? estChargeKwh,
+      List<Map<String, dynamic>>? estOperators,
+      bool canRaise = false,
+      bool isRaised = false,
+      VoidCallback? onToggleRaise}) {
     final after =
         (afterCharge != null && afterCharge > arrival) ? afterCharge : arrival;
     final hasCharge = after > arrival;
@@ -562,19 +567,24 @@ class _StationCardState extends State<_StationCard> {
               );
             }),
           ),
-          // 예상 충전량·금액 (도착 잔량 → 목표) — 회원/비회원
+          // 예상 충전량·금액 (도착 잔량 → 목표). 통합 충전소면 운영사별로 각각.
           if (hasCharge &&
-              (estCostMember != null || estCostNonMember != null)) ...[
+              (estCostMember != null ||
+                  estCostNonMember != null ||
+                  (estOperators != null && estOperators.isNotEmpty))) ...[
             const SizedBox(height: 9),
             _estCostLine(estChargeKwh, estCostMember, estCostNonMember,
-                labelColor, isDark),
+                estOperators, labelColor, isDark),
           ],
           // 충전 후 목적지 도착 예상 잔량 — 4단계(여유/목표상향/빠듯/부족) 색·아이콘 안내
           if (destSoc != null && destStatus != null) ...[
             const SizedBox(height: 10),
             _destAfterChargeLine(destSoc, destStatus, destTargetNow,
                 destComfortTarget, destMaxSoc, betterAltName, accent,
-                labelColor, isDark),
+                labelColor, isDark,
+                canRaise: canRaise,
+                isRaised: isRaised,
+                onToggleRaise: onToggleRaise),
           ],
         ],
       ),
@@ -583,7 +593,7 @@ class _StationCardState extends State<_StationCard> {
 
   // 예상 충전 금액 — 도착 시 배터리에서 목표까지 채울 때. 회원가·비회원가 둘 다.
   Widget _estCostLine(double? kwh, int? member, int? nonMember,
-      Color labelColor, bool isDark) {
+      List<Map<String, dynamic>>? operators, Color labelColor, bool isDark) {
     String won(int v) {
       final s = v.toString();
       final b = StringBuffer();
@@ -596,13 +606,48 @@ class _StationCardState extends State<_StationCard> {
 
     final accent = isDark ? const Color(0xFF7DD3FC) : const Color(0xFF0369A1);
     final bg = isDark ? const Color(0x180EA5E9) : const Color(0x0F0EA5E9);
+
+    // 회원/비회원 금액 조각 — 같으면 한 값, 다르면 회원·비회원 칩 둘 다.
+    List<Widget> valueParts(int? m, int? n) {
+      if (m != null && n != null && m == n) {
+        return [
+          Text('${won(m)}원',
+              style: TextStyle(
+                  fontSize: 14,
+                  height: 1.2,
+                  color: accent,
+                  fontWeight: FontWeight.w900)),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0x14FFFFFF) : const Color(0x0A000000),
+              borderRadius: BorderRadius.circular(5),
+            ),
+            child: Text('회원·비회원 동일',
+                style: TextStyle(
+                    fontSize: 10,
+                    height: 1.2,
+                    color: labelColor.withValues(alpha: 0.8),
+                    fontWeight: FontWeight.w700)),
+          ),
+        ];
+      }
+      return [
+        if (m != null) _costChip('회원', '${won(m)}원', accent, true, isDark),
+        if (n != null)
+          _costChip('비회원', '${won(n)}원', accent, false, isDark),
+      ];
+    }
+
+    final grouped = operators != null && operators.isNotEmpty;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-            color: accent.withValues(alpha: isDark ? 0.30 : 0.18)),
+        border:
+            Border.all(color: accent.withValues(alpha: isDark ? 0.30 : 0.18)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -635,19 +680,34 @@ class _StationCardState extends State<_StationCard> {
                     ],
                   ],
                 ),
-                const SizedBox(height: 4),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 3,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    if (member != null)
-                      _costChip('회원', '${won(member)}원', accent, true, isDark),
-                    if (nonMember != null)
-                      _costChip('비회원', '${won(nonMember)}원', accent, false,
-                          isDark),
-                  ],
-                ),
+                const SizedBox(height: 5),
+                if (grouped)
+                  // 통합 충전소 — 운영사별로 각각 얼마인지 (워터로 X / 한국전력으로 Y)
+                  ...operators.map((o) => Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 2,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text((o['op'] ?? '').toString(),
+                                style: TextStyle(
+                                    fontSize: 12.5,
+                                    height: 1.2,
+                                    color: labelColor,
+                                    fontWeight: FontWeight.w800)),
+                            ...valueParts(o['member'] as int?,
+                                o['nonmember'] as int?),
+                          ],
+                        ),
+                      ))
+                else
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 3,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: valueParts(member, nonMember),
+                  ),
               ],
             ),
           ),
@@ -699,7 +759,10 @@ class _StationCardState extends State<_StationCard> {
   // 폰 폭에 관계없이 자연스럽게 줄바꿈되도록 Expanded+RichText.
   Widget _destAfterChargeLine(int destSoc, String status, int? targetNow,
       int? comfortTarget, int? maxSoc, String? betterAltName, Color accent,
-      Color labelColor, bool isDark) {
+      Color labelColor, bool isDark,
+      {bool canRaise = false,
+      bool isRaised = false,
+      VoidCallback? onToggleRaise}) {
     const green = Color(0xFF16A34A);
     const orange = Color(0xFFEA580C);
     const red = Color(0xFFDC2626);
@@ -844,6 +907,32 @@ class _StationCardState extends State<_StationCard> {
               ),
             ),
           ),
+          // '올리기/되돌리기' 미리보기 토글 — 목표상향 가능 카드에만.
+          if (canRaise && onToggleRaise != null) ...[
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: onToggleRaise,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+                decoration: BoxDecoration(
+                  color: isRaised
+                      ? c.withValues(alpha: isDark ? 0.20 : 0.12)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: c.withValues(alpha: 0.6), width: 1.2),
+                ),
+                child: Text(isRaised ? '되돌리기' : '올리기',
+                    style: TextStyle(
+                        fontSize: 12,
+                        height: 1.1,
+                        color: c,
+                        fontWeight: FontWeight.w800)),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1120,6 +1209,42 @@ class _StationCardState extends State<_StationCard> {
         : null;
     final groupedCount = (station['grouped_count'] as num?)?.toInt();
     final isGrouped = groupedStations != null && groupedStations.length > 1;
+    // '올리기' 미리보기 — 서버가 권장목표 시나리오를 미리 계산해 내려줌. 탭하면 값만 스왑(재호출 X).
+    final raisePreview =
+        station['raise_preview'] is Map ? station['raise_preview'] as Map : null;
+    final canRaise = raisePreview != null;
+    final showRaised = _raised && canRaise;
+    final effAfterCharge = showRaised
+        ? (raisePreview['target'] as num?)?.toInt()
+        : afterChargeSoc;
+    final effDestSoc = showRaised
+        ? (raisePreview['dest_soc'] as num?)?.toInt()
+        : destSocAfterCharge;
+    final effDestStatus = showRaised ? 'safe' : destStatus;
+    final effKwh = showRaised
+        ? (raisePreview['charge_kwh'] as num?)?.toDouble()
+        : estChargeKwh;
+    final effCostMember = showRaised
+        ? (raisePreview['cost_member'] as num?)?.toInt()
+        : estCostMember;
+    final effCostNonMember = showRaised
+        ? (raisePreview['cost_nonmember'] as num?)?.toInt()
+        : estCostNonMember;
+
+    // 통합(다운영사) 충전소면 예상 충전요금을 운영사별로 각각 (올린 kWh 반영).
+    final estOperators = <Map<String, dynamic>>[];
+    if (isGrouped && effKwh != null && effKwh > 0) {
+      for (final g in groupedStations!) {
+        final m = (g['unit_price'] as num?)?.toInt();
+        final n = (g['unit_price_nonmember'] as num?)?.toInt();
+        if (m == null && n == null) continue;
+        estOperators.add({
+          'op': (g['operator'] ?? '').toString(),
+          'member': m != null ? (effKwh * m).round() : null,
+          'nonmember': n != null ? (effKwh * n).round() : null,
+        });
+      }
+    }
     // 운영사명 목록 — 단일은 1개, 그룹은 여러 운영사(중복 제거). 카드에 배지로 나열.
     final opNames = isGrouped
         ? groupedStations!
@@ -1296,17 +1421,23 @@ class _StationCardState extends State<_StationCard> {
                 // 도착 시 배터리 잔량 → 충전 후 예측
                 if (arrivalSoc != null) ...[
                   const SizedBox(height: 11),
-                  _socBar(arrivalSoc, afterChargeSoc, chargingMin, accentColor,
+                  _socBar(arrivalSoc, effAfterCharge, chargingMin, accentColor,
                       mutedTextColor, isDark,
-                      destSoc: destSocAfterCharge,
-                      destStatus: destStatus,
+                      destSoc: effDestSoc,
+                      destStatus: effDestStatus,
                       destTargetNow: destTargetNow,
                       destComfortTarget: destComfortTarget,
                       destMaxSoc: destMaxSoc,
                       betterAltName: betterAltName,
-                      estCostMember: estCostMember,
-                      estCostNonMember: estCostNonMember,
-                      estChargeKwh: estChargeKwh),
+                      estCostMember: effCostMember,
+                      estCostNonMember: effCostNonMember,
+                      estChargeKwh: effKwh,
+                      estOperators: estOperators,
+                      canRaise: canRaise,
+                      isRaised: _raised,
+                      onToggleRaise: canRaise
+                          ? () => setState(() => _raised = !_raised)
+                          : null),
                 ],
                 const SizedBox(height: 10),
                 if (headingCount > 0) ...[
