@@ -2777,16 +2777,16 @@ class _ComparisonDetailSheet extends StatelessWidget {
     String verdict;
     if (extraMin <= 0) {
       verdict = fuelBenefit > 0
-          ? '우회 추가시간이 거의 없이 더 저렴해 우회 추천'
-          : '추가시간·연료까지 보면 경로상이 유리해 경로상 추천';
+          ? '추가 우회 없이 더 저렴해 우회를 추천해요'
+          : '추가 시간·연료까지 감안하면 경로상이 유리해요';
     } else if (worth) {
       verdict =
-          '$extraMin분 더 걸려도 연료 기준 ${wonF.format(fuelBenefit)}원 이득이라 우회할 값어치가 있어요';
+          '$extraMin분 더 걸려도 연료 기준 ${wonF.format(fuelBenefit)}원 절약돼 우회할 만해요';
     } else if (fuelBenefit > 0) {
       verdict =
-          '${wonF.format(fuelBenefit)}원 아끼려고 $extraMin분 우회하는 건 비효율이라 경로상 추천';
+          '연료 기준 ${wonF.format(fuelBenefit)}원 저렴하지만, $extraMin분 더 우회할 만큼 차이가 크진 않아 경로상을 추천해요';
     } else {
-      verdict = '우회하면 추가 연료비까지 쳐서 오히려 손해라 경로상 추천';
+      verdict = '추가 연료비까지 감안하면 오히려 더 들어 경로상을 추천해요';
     }
     return Container(
       padding: const EdgeInsets.all(13),
