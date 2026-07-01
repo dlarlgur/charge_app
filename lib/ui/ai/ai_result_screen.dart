@@ -287,7 +287,7 @@ class _AiResultBodyState extends State<AiResultBody> {
         'price': price,
         'detour': isNone ? 0 : _i(item['detour_time_min']),
         'cost': _i(item['expected_cost_won']),
-        'savings': _i(item['savings_vs_on_route_won']),
+        'savings': _fuelSavingsWon(item),
         'role': role,
         'isRec': isRec,
       };
@@ -342,11 +342,7 @@ class _AiResultBodyState extends State<AiResultBody> {
   String _buildAltMessage(Map altItem, String name, int price) {
     final detourM = _i(altItem['detour_distance_m']);
     // 실질 절약(부가비용 뺀) 우선, 없으면 단순 절약 폴백.
-    final savings = altItem['real_savings_won'] is num
-        ? _i(altItem['real_savings_won'])
-        : (altItem['savings_vs_primary_won'] != null
-            ? _i(altItem['savings_vs_primary_won'])
-            : _i(altItem['savings_vs_on_route_won']));
+    final savings = _fuelSavingsWon(altItem);
     final detourTimeMin = altItem['detour_time_min'] is num
         ? altItem['detour_time_min'] as num
         : null;
@@ -462,9 +458,8 @@ class _AiResultBodyState extends State<AiResultBody> {
     } else {
       dtTimeMinsBanner = _meaningfulDetourMinutes(dtDetourTimeMin);
     }
-    // 실질 절약(부가비용 다 뺀 최종). 음수면 0 처리(카드엔 '절약'만, 상세표에서 손해 확인).
-    final _rsDt =
-        (bestDetour?['real_savings_won'] is num) ? _i(bestDetour?['real_savings_won']) : 0;
+    // 연료 기준 절약(시간값 제외). 음수면 0 처리(카드엔 '절약'만, 상세표에서 확인).
+    final _rsDt = bestDetour is Map ? _fuelSavingsWon(bestDetour as Map) : 0;
     final dtSavings = _rsDt > 0 ? _rsDt : 0;
 
     // 서버가 best_detour를 보냈으면 비교표에 항상 노출 (가격 우열은 추천 로직이 결정).
@@ -1081,6 +1076,16 @@ class _ExtraInfo {
   final int savings;
   final int? timeMins;
   const _ExtraInfo({required this.savings, required this.timeMins});
+}
+
+// 사용자 표시용 '연료 기준 절약'(시간값 제외) — 전 카드/후보 통일. 서버 fuel_savings_won 우선.
+// (시간당 손해 계산은 내부 추천 로직일 뿐, 사용자에겐 연료 기준 금액만 보여줘야 안 헷갈림)
+int _fuelSavingsWon(Map item) {
+  int p(dynamic v) => v is num ? v.round() : (int.tryParse('${v ?? 0}') ?? 0);
+  if (item['fuel_savings_won'] is num) return p(item['fuel_savings_won']);
+  if (item['real_savings_won'] is num) return p(item['real_savings_won']); // 구서버 폴백
+  if (item['savings_vs_primary_won'] is num) return p(item['savings_vs_primary_won']);
+  return p(item['savings_vs_on_route_won']);
 }
 
 String _fuelCodeToLabel(String? code) {
@@ -2923,11 +2928,7 @@ class _AltSection extends StatelessWidget {
               final price = _d(st?['price_won_per_liter']);
               final detourM = _i(item['detour_distance_m']);
               // 실질 절약(부가비용 뺀) 우선, 없으면 단순 절약 폴백.
-              final savings = item['real_savings_won'] is num
-                  ? _i(item['real_savings_won'])
-                  : (item['savings_vs_primary_won'] != null
-                      ? _i(item['savings_vs_primary_won'])
-                      : _i(item['savings_vs_on_route_won']));
+              final savings = _fuelSavingsWon(item);
               final detourTimeMin = item['detour_is_none'] == true
                   ? 0
                   : (item['detour_time_min'] is num
