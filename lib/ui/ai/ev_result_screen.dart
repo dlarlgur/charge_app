@@ -426,7 +426,7 @@ class _StationCardState extends State<_StationCard> {
 
   // 도착 시 배터리 잔량 → 충전 후 잔량 예측. 각 숫자에 라벨(도착 시 / 충전 후)을 붙여 명확하게.
   Widget _socBar(int arrival, int? afterCharge, int? chargeMin, Color accent,
-      Color mutedColor, bool isDark) {
+      Color mutedColor, bool isDark, {int? destSoc}) {
     final after =
         (afterCharge != null && afterCharge > arrival) ? afterCharge : arrival;
     final hasCharge = after > arrival;
@@ -552,6 +552,70 @@ class _StationCardState extends State<_StationCard> {
                 ],
               );
             }),
+          ),
+          // 충전 후 목적지 도착 예상 잔량 (여유=초록 / 빠듯=주황)
+          if (destSoc != null) ...[
+            const SizedBox(height: 10),
+            _destAfterChargeLine(destSoc, accent, labelColor, isDark),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // 이 충전소에서 목표 충전 후 목적지까지 갔을 때 예상 잔량 — 확신 닫아주는 보조 한 줄.
+  Widget _destAfterChargeLine(
+      int destSoc, Color accent, Color labelColor, bool isDark) {
+    const green = Color(0xFF16A34A);
+    const orange = Color(0xFFEA580C);
+    final tight = destSoc < 10;
+    final comfortable = destSoc >= 20;
+    final c = tight ? orange : (comfortable ? green : accent);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: c.withValues(alpha: isDark ? 0.14 : 0.08),
+        borderRadius: BorderRadius.circular(9),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(
+                tight ? Icons.warning_amber_rounded : Icons.flag_rounded,
+                size: 15,
+                color: c),
+          ),
+          const SizedBox(width: 7),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: TextStyle(
+                    fontSize: 12,
+                    height: 1.35,
+                    color: labelColor,
+                    fontWeight: FontWeight.w600),
+                children: tight
+                    ? [
+                        const TextSpan(
+                            text: '여기 충전만으론 목적지까지 빠듯해요 — 도착 시 '),
+                        TextSpan(
+                            text: '$destSoc%',
+                            style: TextStyle(
+                                color: c, fontWeight: FontWeight.w800)),
+                      ]
+                    : [
+                        const TextSpan(text: '충전 후 목적지 도착 시 '),
+                        TextSpan(
+                            text: '약 $destSoc%',
+                            style: TextStyle(
+                                color: c, fontWeight: FontWeight.w800)),
+                        TextSpan(
+                            text: comfortable ? ' 남아 여유 있게 도착해요' : ' 남아요'),
+                      ],
+              ),
+            ),
           ),
         ],
       ),
@@ -811,6 +875,7 @@ class _StationCardState extends State<_StationCard> {
     final originEtaMin = (station['origin_eta_min'] as num?)?.toInt();
     final arrivalSoc = (station['arrival_soc'] as num?)?.toInt();
     final afterChargeSoc = (station['after_charge_soc'] as num?)?.toInt();
+    final destSocAfterCharge = (station['dest_soc_after_charge'] as num?)?.toInt();
     final chargingMin = (station['charging_time_min'] as num?)?.toInt();
     final statId = station['statId']?.toString();
     final groupedStations = station['grouped_stations'] is List
@@ -997,7 +1062,7 @@ class _StationCardState extends State<_StationCard> {
                 if (arrivalSoc != null) ...[
                   const SizedBox(height: 11),
                   _socBar(arrivalSoc, afterChargeSoc, chargingMin, accentColor,
-                      mutedTextColor, isDark),
+                      mutedTextColor, isDark, destSoc: destSocAfterCharge),
                 ],
                 const SizedBox(height: 10),
                 if (headingCount > 0) ...[
