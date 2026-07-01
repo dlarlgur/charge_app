@@ -311,6 +311,10 @@ class _AiResultBodyState extends State<AiResultBody> {
         'savings_won': rawSav,
         'detour_cost_won': rawSav - netSav,
         'net_benefit_won': netSav,
+        'detour_fuel_won':
+            sel['detour_fuel_won'] is num ? _i(sel['detour_fuel_won']) : null,
+        'detour_extra_min':
+            sel['detour_extra_min'] is num ? _i(sel['detour_extra_min']) : null,
         'verdict': netSav >= 0 ? 'detour_worth' : 'on_route_worth',
       };
     } else {
@@ -2754,12 +2758,36 @@ class _ComparisonDetailSheet extends StatelessWidget {
       return int.tryParse('${v ?? 0}') ?? 0;
     }
 
-    final savings = gi('savings_won');
-    final cost = gi('detour_cost_won');
-    final net = gi('net_benefit_won');
+    final savings = gi('savings_won'); // 순수 가격차(연료값)
     final worth = ca['verdict'] == 'detour_worth';
-    if (savings <= 0 && cost <= 0) return const SizedBox.shrink();
-    final c = worth ? const Color(0xFF1D9E75) : const Color(0xFFE8700A);
+    // 시간값(원)을 돈에 안 섞고 '연료 기준 이득 + 우회 시간(분)'으로 분리 표시.
+    final fuelWon = ca['detour_fuel_won'] is num ? gi('detour_fuel_won') : 0;
+    final extraMin = ca['detour_extra_min'] is num ? gi('detour_extra_min') : 0;
+    final fuelBenefit = savings - fuelWon; // 연료 기준 순이득(추가연료비까지 뺀 순수 돈)
+    if (savings <= 0 && fuelWon <= 0 && extraMin <= 0) {
+      return const SizedBox.shrink();
+    }
+    const green = Color(0xFF1D9E75);
+    const orange = Color(0xFFE8700A);
+    const red = Color(0xFFE24B4A);
+    final c = worth ? green : orange; // 헤더/판정 색
+    final bC = fuelBenefit >= 0 ? green : red; // 이득/손해 색
+    final wonF = wonFmt;
+    // 판정 문구 — 시간은 분으로만, 이득은 연료 기준.
+    String verdict;
+    if (extraMin <= 0) {
+      verdict = fuelBenefit > 0
+          ? '우회 추가시간이 거의 없이 더 저렴해 우회 추천'
+          : '추가시간·연료까지 보면 경로상이 유리해 경로상 추천';
+    } else if (worth) {
+      verdict =
+          '$extraMin분 더 걸려도 연료 기준 ${wonF.format(fuelBenefit)}원 이득이라 우회할 값어치가 있어요';
+    } else if (fuelBenefit > 0) {
+      verdict =
+          '${wonF.format(fuelBenefit)}원 아끼려고 $extraMin분 우회하는 건 비효율이라 경로상 추천';
+    } else {
+      verdict = '우회하면 추가 연료비까지 쳐서 오히려 손해라 경로상 추천';
+    }
     return Container(
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
@@ -2771,30 +2799,40 @@ class _ComparisonDetailSheet extends StatelessWidget {
         Row(children: [
           Icon(Icons.calculate_rounded, size: 15, color: c),
           const SizedBox(width: 5),
-          Text('우회 비용 판정',
+          Text('우회 이득 판정',
               style: TextStyle(
                   fontSize: 12.5, fontWeight: FontWeight.w800, color: c)),
         ]),
         const SizedBox(height: 8),
-        _costLine('절약', '+${wonFmt.format(savings)}원', muted, ink),
-        _costLine('우회 비용(시간+연료)', '−${wonFmt.format(cost)}원', muted, ink),
+        _costLine('가격 절약(연료차)', '+${wonF.format(savings)}원', muted, ink),
+        if (fuelWon > 0)
+          _costLine('추가 연료비', '−${wonF.format(fuelWon)}원', muted, ink),
         Divider(height: 14, color: c.withValues(alpha: 0.2)),
         Row(children: [
           Expanded(
-              child: Text(net >= 0 ? '순이득' : '순손해',
+              child: Text(fuelBenefit >= 0 ? '연료 기준 순이득' : '연료 기준 순손해',
                   style: TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w800, color: c))),
-          Text('${net >= 0 ? '+' : '−'}${wonFmt.format(net.abs())}원',
+                      fontSize: 13, fontWeight: FontWeight.w800, color: bC))),
+          Text(
+              '${fuelBenefit >= 0 ? '+' : '−'}${wonF.format(fuelBenefit.abs())}원',
               style: TextStyle(
-                  fontSize: 15, fontWeight: FontWeight.w900, color: c)),
+                  fontSize: 15, fontWeight: FontWeight.w900, color: bC)),
         ]),
-        const SizedBox(height: 4),
-        Text(
-            worth
-                ? '우회 시간 대비 충분히 이득이라 우회 추천'
-                : '우회 시간 대비 이득이 작아 경로상 추천',
+        if (extraMin > 0) ...[
+          const SizedBox(height: 3),
+          Row(children: [
+            Expanded(
+                child: Text('우회 시간',
+                    style: TextStyle(fontSize: 12, color: muted))),
+            Text('+$extraMin분',
+                style: TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w800, color: ink)),
+          ]),
+        ],
+        const SizedBox(height: 6),
+        Text(verdict,
             style: TextStyle(
-                fontSize: 11, fontWeight: FontWeight.w600, color: muted)),
+                fontSize: 11, height: 1.35, fontWeight: FontWeight.w600, color: muted)),
       ]),
     );
   }
