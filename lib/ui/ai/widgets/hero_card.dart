@@ -324,7 +324,8 @@ class HeroCard extends StatelessWidget {
   }
 
   // 목적지 도착 예상잔량 — 현재 잔량으로 추가 주유/충전 없이 도착 시.
-  // 도달 가능: '약 N% · Nkm 여유' / 도달 불가: '도착 전 주유·충전 필요 · 약 Nkm 모자라요'.
+  // 도착 예상 잔량을 '주인공'으로 — 링(도착 %) + 상태 라벨. (B안)
+  // 도달 가능: 링에 도착% + '여유/빠듯하게 도착'. 도달 불가: 빨간 링+번개, '도착 전 충전 필요'.
   Widget _arrivalRow() {
     final arrivalRangeKm = reachableKm - routeDistanceKm;
     final canReach = arrivalRangeKm > 0;
@@ -339,79 +340,112 @@ class HeroCard extends StatelessWidget {
         ? const Color(0xFFE5484D)
         : (low ? const Color(0xFFE0820A) : const Color(0xFF1D9E75));
     final action = isEv ? '충전' : '주유';
+    final title = !canReach
+        ? '도착 전 $action 필요'
+        : (low ? '조금 빠듯하게 도착' : '여유 있게 도착');
+    final sub = !canReach
+        ? '지금 잔량으론 약 ${shortfallKm}km 모자라요'
+        : '도착 시 약 $pct%${arrivalRangeKm > 0 ? ' · ${arrivalRangeKm.round()}km 남아요' : ''}';
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: c.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(15),
         border: Border.all(color: c.withValues(alpha: 0.20)),
       ),
       child: Row(
         children: [
-          Container(
-            width: 30,
-            height: 30,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: c.withValues(alpha: 0.13),
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: Icon(
-                isEv
-                    ? Icons.battery_charging_full_rounded
-                    : Icons.local_gas_station_rounded,
-                size: 17,
-                color: c),
-          ),
-          const SizedBox(width: 10),
+          _arrivalRing(c,
+              pct: canReach ? pct : null,
+              icon: canReach
+                  ? null
+                  : (isEv
+                      ? Icons.bolt_rounded
+                      : Icons.local_gas_station_rounded)),
+          const SizedBox(width: 13),
           Expanded(
-            child: canReach
-                ? Text.rich(TextSpan(children: [
-                    const TextSpan(
-                        text: '목적지 도착 시 ',
-                        style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                            color: kInk2)),
-                    TextSpan(
-                        text: '약 $pct%',
-                        style: TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w800,
-                            color: c)),
-                    if (arrivalRangeKm > 0)
-                      TextSpan(
-                          text: ' · ${arrivalRangeKm.round()}km 여유',
-                          style: const TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w600,
-                              color: kMute2)),
-                  ]), maxLines: 1, overflow: TextOverflow.ellipsis)
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('도착 전 $action 필요',
-                          style: TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w800,
-                              color: c)),
-                      const SizedBox(height: 1),
-                      Text('지금 잔량으론 약 ${shortfallKm}km 모자라요',
-                          style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: kMute2)),
-                    ],
-                  ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: TextStyle(
+                        fontSize: 15,
+                        height: 1.15,
+                        fontWeight: FontWeight.w800,
+                        color: c)),
+                const SizedBox(height: 2),
+                Text.rich(
+                  _subSpans(sub, c),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
+          const SizedBox(width: 8),
           Icon(
               !canReach
-                  ? Icons.error_outline_rounded
+                  ? Icons.error_rounded
                   : (low
                       ? Icons.priority_high_rounded
                       : Icons.check_circle_rounded),
-              size: 16,
+              size: 21,
               color: c),
+        ],
+      ),
+    );
+  }
+
+  // 도착 % 를 강조한 서브텍스트(숫자만 컬러 볼드).
+  TextSpan _subSpans(String sub, Color c) {
+    final m = RegExp(r'약 (\d+%|\d+km)').firstMatch(sub);
+    if (m == null) {
+      return TextSpan(
+          text: sub,
+          style: const TextStyle(
+              fontSize: 11.5, fontWeight: FontWeight.w600, color: kMute2));
+    }
+    return TextSpan(
+      style: const TextStyle(
+          fontSize: 11.5, fontWeight: FontWeight.w600, color: kMute2),
+      children: [
+        TextSpan(text: sub.substring(0, m.start + 2)), // '...약 '
+        TextSpan(
+            text: m.group(1),
+            style: TextStyle(fontWeight: FontWeight.w800, color: c)),
+        TextSpan(text: sub.substring(m.end)),
+      ],
+    );
+  }
+
+  // 작은 진행 링 — 도달 가능하면 도착% 채움+텍스트, 불가면 꽉 찬 링+아이콘.
+  Widget _arrivalRing(Color c, {int? pct, IconData? icon}) {
+    return SizedBox(
+      width: 46,
+      height: 46,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox(
+            width: 46,
+            height: 46,
+            child: CircularProgressIndicator(
+              value: pct != null ? (pct / 100).clamp(0.04, 1.0) : 1.0,
+              strokeWidth: 4.5,
+              strokeCap: StrokeCap.round,
+              backgroundColor: c.withValues(alpha: 0.16),
+              valueColor: AlwaysStoppedAnimation<Color>(c),
+            ),
+          ),
+          if (icon != null)
+            Icon(icon, size: 19, color: c)
+          else
+            Text('$pct%',
+                style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.0,
+                    fontWeight: FontWeight.w900,
+                    color: c)),
         ],
       ),
     );
