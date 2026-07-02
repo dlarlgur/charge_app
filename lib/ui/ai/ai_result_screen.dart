@@ -2509,7 +2509,7 @@ class _OptionCard extends StatelessWidget {
                             size: 15, color: Color(0xFF1D6FE0)),
                         const SizedBox(width: 6),
                         Text(
-                          '경로상 대비 ${wonFmt.format(extraInfo!.savings)}원 절약',
+                          'AI 추천 대비 ${wonFmt.format(extraInfo!.savings)}원 절약',
                           style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
@@ -2778,20 +2778,21 @@ class _ComparisonDetailSheet extends StatelessWidget {
     final c = worth ? green : orange; // 헤더/판정 색
     final bC = fuelBenefit >= 0 ? green : red; // 이득/손해 색
     final wonF = wonFmt;
-    // 판정 문구 — 시간은 분으로만, 이득은 연료 기준.
+    // 판정 문구 — 시간은 분으로만, 이득은 연료 기준. 누굴 추천하는지는 카드 뱃지·AI 메시지가
+    // 담당하므로(선택 비교에선 '경로상' 표현이 어긋남) 여긴 판단 근거만 중립적으로.
     String verdict;
     if (extraMin <= 0) {
       verdict = fuelBenefit > 0
-          ? '추가 우회 없이 더 저렴해 우회를 추천해요'
-          : '추가 시간·연료까지 감안하면 경로상이 유리해요';
+          ? '추가 우회 없이 더 저렴한 곳이에요'
+          : '추가 시간·연료까지 감안하면 이득이 없어요';
     } else if (worth) {
       verdict =
           '$extraMin분 더 걸려도 연료 기준 ${wonF.format(fuelBenefit)}원 절약돼 우회할 만해요';
     } else if (fuelBenefit > 0) {
       verdict =
-          '연료 기준 ${wonF.format(fuelBenefit)}원 저렴하지만, $extraMin분 더 우회할 만큼 차이가 크진 않아 경로상을 추천해요';
+          '연료 기준 ${wonF.format(fuelBenefit)}원 저렴하지만, $extraMin분 더 우회할 만큼 차이가 크진 않아요';
     } else {
-      verdict = '추가 연료비까지 감안하면 오히려 더 들어 경로상을 추천해요';
+      verdict = '추가 연료비까지 감안하면 오히려 더 들어요';
     }
     return Container(
       padding: const EdgeInsets.all(13),
@@ -2809,7 +2810,14 @@ class _ComparisonDetailSheet extends StatelessWidget {
                   fontSize: 12.5, fontWeight: FontWeight.w800, color: c)),
         ]),
         const SizedBox(height: 8),
-        _costLine('가격 절약(연료차)', '+${wonF.format(savings)}원', muted, ink),
+        // 가격차 — 음수(비교 대상이 더 비쌈)면 부호 정확히. '+−500원' 오표기 방지.
+        _costLine(
+            '가격 차이(기름값)',
+            savings >= 0
+                ? '+${wonF.format(savings)}원'
+                : '−${wonF.format(-savings)}원',
+            muted,
+            ink),
         if (fuelWon > 0)
           _costLine('추가 연료비', '−${wonF.format(fuelWon)}원', muted, ink),
         Divider(height: 14, color: c.withValues(alpha: 0.2)),
@@ -3088,16 +3096,22 @@ class _AltSection extends StatelessWidget {
                                                 : const Color(0xFF9CA3AF))),
                                     const SizedBox(height: 1),
                                     Text(
-                                      savings >= 0
-                                          ? '${wonFmt.format(savings)}원 저렴'
-                                          : '${wonFmt.format(-savings)}원 비쌈',
+                                      savings == 0
+                                          ? '가격 동일'
+                                          : (savings > 0
+                                              ? '${wonFmt.format(savings)}원 저렴'
+                                              : '${wonFmt.format(-savings)}원 비쌈'),
                                       style: TextStyle(
                                         fontSize: 12,
                                         height: 1.1,
                                         fontWeight: FontWeight.w700,
-                                        color: savings >= 0
-                                            ? const Color(0xFF1D9E75)
-                                            : const Color(0xFFE24B4A),
+                                        color: savings == 0
+                                            ? (isDark
+                                                ? AppColors.darkTextSecondary
+                                                : const Color(0xFF6B7280))
+                                            : (savings > 0
+                                                ? const Color(0xFF1D9E75)
+                                                : const Color(0xFFE24B4A)),
                                       ),
                                     ),
                                   ],
