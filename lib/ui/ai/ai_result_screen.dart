@@ -3074,17 +3074,33 @@ class _AltSection extends StatelessWidget {
                                     color: _kUnreachableAccent,
                                   ),
                                 )
-                              : Text(
-                                  savings >= 0
-                                      ? '${wonFmt.format(savings)}원 절약'
-                                      : '${wonFmt.format(-savings)}원 더 비쌈',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: savings >= 0
-                                        ? const Color(0xFF1D9E75)
-                                        : const Color(0xFFE24B4A),
-                                  ),
+                              : Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text('추천보다',
+                                        style: TextStyle(
+                                            fontSize: 9,
+                                            height: 1.1,
+                                            fontWeight: FontWeight.w600,
+                                            color: isDark
+                                                ? AppColors.darkTextMuted
+                                                : const Color(0xFF9CA3AF))),
+                                    const SizedBox(height: 1),
+                                    Text(
+                                      savings >= 0
+                                          ? '${wonFmt.format(savings)}원 저렴'
+                                          : '${wonFmt.format(-savings)}원 비쌈',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        height: 1.1,
+                                        fontWeight: FontWeight.w700,
+                                        color: savings >= 0
+                                            ? const Color(0xFF1D9E75)
+                                            : const Color(0xFFE24B4A),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                           const SizedBox(width: 8),
                           // 확인 버튼 — alt 섹션 톤(보라)으로 통일. 선택 상태는 강조 보라.
