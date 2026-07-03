@@ -43,7 +43,14 @@ class GasStationMapBadge {
 
   static Future<void> precacheBrandImages(BuildContext context) async {
     for (final path in brandLogos.values) {
-      if (path.toLowerCase().endsWith('.svg')) continue; // SVG 는 자체 캐시
+      if (path.toLowerCase().endsWith('.svg')) {
+        // SVG 도 프리로드 — 안 하면 첫 마커 캡처(fromWidget) 때 비동기 로딩이
+        // 안 끝나 로고가 빈 채로 찍힘 (두 번째부터 정상이던 버그의 원인).
+        final loader = SvgAssetLoader(path);
+        await svg.cache
+            .putIfAbsent(loader.cacheKey(null), () => loader.loadBytes(null));
+        continue;
+      }
       await precacheImage(AssetImage(path), context);
     }
     await precacheImage(const AssetImage(_highwayLogo), context);
