@@ -2541,7 +2541,7 @@ class _ComparisonDetailSheet extends StatelessWidget {
                 c2 != null ? _won(c2['cost'] as int?) : null),
             if (cost != null) ...[
               const SizedBox(height: 14),
-              _costBox(cost!, ink, muted, isDark),
+              _costVerdictBox(cost!, wonFmt, ink, muted, isDark),
             ],
           ],
         ),
@@ -2603,122 +2603,123 @@ class _ComparisonDetailSheet extends StatelessWidget {
     ]);
   }
 
-  // 비용 판정 박스 — 절약 − 우회비용 = 순이득.
-  Widget _costBox(
-      Map<String, dynamic> ca, Color ink, Color muted, bool isDark) {
-    int gi(String k) {
-      final v = ca[k];
-      if (v is num) return v.round();
-      return int.tryParse('${v ?? 0}') ?? 0;
-    }
+}
 
-    // 원시 가격차(음수=비교대상이 더 비쌈) 우선 — savings_won은 0 클램프라 '+0원' 정보유실.
-    final priceDiff =
-        ca['price_diff_won'] is num ? gi('price_diff_won') : gi('savings_won');
-    final worth = ca['verdict'] == 'detour_worth';
-    // 시간값(원)을 돈에 안 섞고 '연료 기준 이득 + 우회 시간(분)'으로 분리 표시.
-    final fuelWon = ca['detour_fuel_won'] is num ? gi('detour_fuel_won') : 0;
-    final extraMin = ca['detour_extra_min'] is num ? gi('detour_extra_min') : 0;
-    final fuelBenefit = priceDiff - fuelWon; // 연료 기준 순이득(추가연료비까지 뺀 순수 돈)
-    // 비교 대상 호칭 — 기본은 우회 후보, 대안 선택 비교면 '선택한 곳'.
-    final subject = (ca['subject'] ?? '우회 쪽').toString();
-    if (priceDiff == 0 && fuelWon <= 0 && extraMin <= 0) {
-      return const SizedBox.shrink();
-    }
-    const green = Color(0xFF1D9E75);
-    const orange = Color(0xFFE8700A);
-    const red = Color(0xFFE24B4A);
-    final c = worth ? green : orange; // 헤더/판정 색
-    final bC = fuelBenefit >= 0 ? green : red; // 이득/손해 색
-    final wonF = wonFmt;
-    // 판정 문구 — 시간은 분으로만, 이득은 연료 기준. 누굴 추천하는지는 카드 뱃지·AI 메시지가
-    // 담당하므로(선택 비교에선 '경로상' 표현이 어긋남) 여긴 판단 근거만 중립적으로.
-    String verdict;
-    if (extraMin <= 0) {
-      verdict = fuelBenefit > 0
-          ? '추가 우회 없이 더 저렴한 곳이에요'
-          : '추가 시간·연료까지 감안하면 이득이 없어요';
-    } else if (worth) {
-      verdict =
-          '$extraMin분 더 걸려도 ${wonF.format(fuelBenefit)}원 아껴져서 갈 만해요';
-    } else if (fuelBenefit > 0) {
-      verdict =
-          '${wonF.format(fuelBenefit)}원 아껴지긴 하지만, $extraMin분 더 갈 만큼 차이가 크진 않아요';
-    } else {
-      verdict = '기름값 차이보다 우회에 드는 기름이 더 커서 이득이 없어요';
-    }
-    return Container(
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: c.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: c.withValues(alpha: 0.22)),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Icon(Icons.calculate_rounded, size: 15, color: c),
-          const SizedBox(width: 5),
-          Text('우회 이득 판정',
-              style: TextStyle(
-                  fontSize: 12.5, fontWeight: FontWeight.w800, color: c)),
-        ]),
-        const SizedBox(height: 8),
-        // 부호(+/−) 대신 자연어 — '−273원'이 절약인지 손해인지 해석하게 만들지 않기.
-        _costLine(
-            '기름값만 보면',
-            priceDiff == 0
-                ? '두 곳 가격 같음'
-                : (priceDiff > 0
-                    ? '$subject이 ${wonF.format(priceDiff)}원 저렴'
-                    : '$subject이 ${wonF.format(-priceDiff)}원 비쌈'),
-            muted,
-            priceDiff > 0 ? green : (priceDiff < 0 ? red : ink)),
-        if (fuelWon > 0)
-          _costLine('우회하는 데 드는 기름', '약 ${wonF.format(fuelWon)}원', muted, ink),
-        Divider(height: 14, color: c.withValues(alpha: 0.2)),
-        Row(children: [
-          Expanded(
-              child: Text('둘 다 계산하면',
-                  style: TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w800, color: bC))),
-          Text(
-              fuelBenefit == 0
-                  ? '차이 없음'
-                  : '${wonF.format(fuelBenefit.abs())}원 ${fuelBenefit > 0 ? '절약' : '더 들어요'}',
-              style: TextStyle(
-                  fontSize: 15, fontWeight: FontWeight.w900, color: bC)),
-        ]),
-        if (extraMin > 0) ...[
-          const SizedBox(height: 3),
-          Row(children: [
-            Expanded(
-                child: Text('시간은',
-                    style: TextStyle(fontSize: 12, color: muted))),
-            Text('$extraMin분 더 걸려요',
-                style: TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w800, color: ink)),
-          ]),
-        ],
-        const SizedBox(height: 6),
-        Text(verdict,
-            style: TextStyle(
-                fontSize: 11, height: 1.35, fontWeight: FontWeight.w600, color: muted)),
-      ]),
-    );
+// 비용 판정 박스 (공용 — AI 상세비교표·직접선택 A/B 비교에서 동일 사용) — 절약 − 우회비용 = 순이득.
+Widget _costVerdictBox(Map<String, dynamic> ca, NumberFormat wonFmt,
+    Color ink, Color muted, bool isDark) {
+  int gi(String k) {
+    final v = ca[k];
+    if (v is num) return v.round();
+    return int.tryParse('${v ?? 0}') ?? 0;
   }
 
-  Widget _costLine(String label, String value, Color muted, Color ink) =>
-      Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(children: [
+  // 원시 가격차(음수=비교대상이 더 비쌈) 우선 — savings_won은 0 클램프라 '+0원' 정보유실.
+  final priceDiff =
+      ca['price_diff_won'] is num ? gi('price_diff_won') : gi('savings_won');
+  final worth = ca['verdict'] == 'detour_worth';
+  // 시간값(원)을 돈에 안 섞고 '연료 기준 이득 + 우회 시간(분)'으로 분리 표시.
+  final fuelWon = ca['detour_fuel_won'] is num ? gi('detour_fuel_won') : 0;
+  final extraMin = ca['detour_extra_min'] is num ? gi('detour_extra_min') : 0;
+  final fuelBenefit = priceDiff - fuelWon; // 연료 기준 순이득(추가연료비까지 뺀 순수 돈)
+  // 비교 대상 호칭 — 기본은 우회 후보, 대안 선택 비교면 '선택한 곳'.
+  final subject = (ca['subject'] ?? '우회 쪽').toString();
+  if (priceDiff == 0 && fuelWon <= 0 && extraMin <= 0) {
+    return const SizedBox.shrink();
+  }
+  const green = Color(0xFF1D9E75);
+  const orange = Color(0xFFE8700A);
+  const red = Color(0xFFE24B4A);
+  final c = worth ? green : orange; // 헤더/판정 색
+  final bC = fuelBenefit >= 0 ? green : red; // 이득/손해 색
+  final wonF = wonFmt;
+  // 판정 문구 — 시간은 분으로만, 이득은 연료 기준. 누굴 추천하는지는 카드 뱃지·AI 메시지가
+  // 담당하므로(선택 비교에선 '경로상' 표현이 어긋남) 여긴 판단 근거만 중립적으로.
+  String verdict;
+  if (extraMin <= 0) {
+    verdict = fuelBenefit > 0
+        ? '추가 우회 없이 더 저렴한 곳이에요'
+        : '추가 시간·연료까지 감안하면 이득이 없어요';
+  } else if (worth) {
+    verdict =
+        '$extraMin분 더 걸려도 ${wonF.format(fuelBenefit)}원 아껴져서 갈 만해요';
+  } else if (fuelBenefit > 0) {
+    verdict =
+        '${wonF.format(fuelBenefit)}원 아껴지긴 하지만, $extraMin분 더 갈 만큼 차이가 크진 않아요';
+  } else {
+    verdict = '기름값 차이보다 우회에 드는 기름이 더 커서 이득이 없어요';
+  }
+  return Container(
+    padding: const EdgeInsets.all(13),
+    decoration: BoxDecoration(
+      color: c.withValues(alpha: 0.07),
+      borderRadius: BorderRadius.circular(13),
+      border: Border.all(color: c.withValues(alpha: 0.22)),
+    ),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Icon(Icons.calculate_rounded, size: 15, color: c),
+        const SizedBox(width: 5),
+        Text('우회 이득 판정',
+            style: TextStyle(
+                fontSize: 12.5, fontWeight: FontWeight.w800, color: c)),
+      ]),
+      const SizedBox(height: 8),
+      // 부호(+/−) 대신 자연어 — '−273원'이 절약인지 손해인지 해석하게 만들지 않기.
+      _costVerdictLine(
+          '기름값만 보면',
+          priceDiff == 0
+              ? '두 곳 가격 같음'
+              : (priceDiff > 0
+                  ? '$subject이 ${wonF.format(priceDiff)}원 저렴'
+                  : '$subject이 ${wonF.format(-priceDiff)}원 비쌈'),
+          muted,
+          priceDiff > 0 ? green : (priceDiff < 0 ? red : ink)),
+      if (fuelWon > 0)
+        _costVerdictLine('우회하는 데 드는 기름', '약 ${wonF.format(fuelWon)}원', muted, ink),
+      Divider(height: 14, color: c.withValues(alpha: 0.2)),
+      Row(children: [
+        Expanded(
+            child: Text('둘 다 계산하면',
+                style: TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w800, color: bC))),
+        Text(
+            fuelBenefit == 0
+                ? '차이 없음'
+                : '${wonF.format(fuelBenefit.abs())}원 ${fuelBenefit > 0 ? '절약' : '더 들어요'}',
+            style: TextStyle(
+                fontSize: 15, fontWeight: FontWeight.w900, color: bC)),
+      ]),
+      if (extraMin > 0) ...[
+        const SizedBox(height: 3),
+        Row(children: [
           Expanded(
-              child: Text(label, style: TextStyle(fontSize: 12, color: muted))),
-          Text(value,
+              child: Text('시간은',
+                  style: TextStyle(fontSize: 12, color: muted))),
+          Text('$extraMin분 더 걸려요',
               style: TextStyle(
-                  fontSize: 12.5, fontWeight: FontWeight.w700, color: ink)),
+                  fontSize: 13, fontWeight: FontWeight.w800, color: ink)),
         ]),
-      );
+      ],
+      const SizedBox(height: 6),
+      Text(verdict,
+          style: TextStyle(
+              fontSize: 11, height: 1.35, fontWeight: FontWeight.w600, color: muted)),
+    ]),
+  );
 }
+
+Widget _costVerdictLine(String label, String value, Color muted, Color ink) =>
+    Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(children: [
+        Expanded(
+            child: Text(label, style: TextStyle(fontSize: 12, color: muted))),
+        Text(value,
+            style: TextStyle(
+                fontSize: 12.5, fontWeight: FontWeight.w700, color: ink)),
+      ]),
+    );
 
 // ─── 다른 후보 섹션 ───────────────────────────────────────────────────────────
 
@@ -3243,6 +3244,9 @@ class CompareResultBody extends StatelessWidget {
           savingsWon: savingsWon,
           timeDiffMin: timeDiffMin,
           reasonCode: reasonCode,
+          costAnalysisData: comparison?['cost_analysis'] is Map
+              ? Map<String, dynamic>.from(comparison!['cost_analysis'] as Map)
+              : null,
           wonFmt: wonFmt,
           fuelLabel: fuelLabel,
           originLat: originLat,
@@ -3365,6 +3369,7 @@ class _UserCompareTable extends StatelessWidget {
   final int savingsWon;
   final int? timeDiffMin;
   final String reasonCode;
+  final Map<String, dynamic>? costAnalysisData; // 서버 비용분해(판정 박스용)
   final NumberFormat wonFmt;
   final String? fuelLabel;
   final double originLat;
@@ -3381,6 +3386,7 @@ class _UserCompareTable extends StatelessWidget {
     required this.savingsWon,
     required this.timeDiffMin,
     required this.reasonCode,
+    this.costAnalysisData,
     required this.wonFmt,
     required this.fuelLabel,
     required this.originLat,
@@ -3473,6 +3479,7 @@ class _UserCompareTable extends StatelessWidget {
           fuelB: fuelB,
           brandA: stA['brand']?.toString() ?? '',
           brandB: stB['brand']?.toString() ?? '',
+          costAnalysis: costAnalysisData,
           costA: costA,
           costB: costB,
           detourMinA: detourMinA,
@@ -3677,6 +3684,7 @@ class _UserComparisonTable extends StatelessWidget {
   final double? priceA, priceB;
   final String fuelA, fuelB;
   final String brandA, brandB;
+  final Map<String, dynamic>? costAnalysis; // 서버 비용분해 — AI 상세비교표와 동일한 판정 박스
   final int costA, costB;
   final int? detourMinA, detourMinB;
   final double? latA, lngA, latB, lngB;
@@ -3700,6 +3708,7 @@ class _UserComparisonTable extends StatelessWidget {
     required this.fuelB,
     this.brandA = '',
     this.brandB = '',
+    this.costAnalysis,
     required this.costA,
     required this.costB,
     required this.detourMinA,
@@ -4022,7 +4031,26 @@ class _UserComparisonTable extends StatelessWidget {
             ),
           ),
 
-          // 판정 — 자연어 (부호 없이). 승자=싼쪽 / 승자=빠른쪽 케이스 분리.
+          // 우회 이득 판정 — AI 상세비교표와 동일 박스(서버 cost_analysis). 구서버 응답이면 아래 한 줄 폴백.
+          if (costAnalysis != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
+              child: _costVerdictBox(
+                {
+                  ...costAnalysis!,
+                  // 비교 주체 = 싼 쪽 이름 ("우회 쪽" 대신 실명으로)
+                  'subject': costAnalysis!['cheaper_side'] == 'station_a'
+                      ? nameA
+                      : nameB,
+                },
+                wonFmt,
+                ink,
+                muted,
+                isDark,
+              ),
+            )
+          else
+          // (폴백) 판정 한 줄 — 자연어. 승자=싼쪽 / 승자=빠른쪽 케이스 분리.
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 13),
