@@ -1398,6 +1398,9 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
             }
           },
           touchTooltipData: LineTouchTooltipData(
+            // 우측 끝(오늘) 포인트 탭 시 툴팁이 화면 밖으로 잘리던 문제 — 차트 안쪽으로 클램프.
+            fitInsideHorizontally: true,
+            fitInsideVertically: true,
             getTooltipColor: (_) => isDark ? const Color(0xFF1E2530) : _kInk,
             getTooltipItems: (spots) => spots.asMap().entries.map((e) {
               final s = e.value;
