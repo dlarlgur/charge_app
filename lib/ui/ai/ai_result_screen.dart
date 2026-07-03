@@ -3492,6 +3492,10 @@ class _UserCompareTable extends StatelessWidget {
           // 싼 쪽을 오른쪽 슬롯(절약 표시 지원)에 배치.
           final aCheaper =
               (priceA ?? double.infinity) <= (priceB ?? double.infinity);
+          // 카드의 '↓ 절약'은 AI 카드와 동일하게 우회 연료비 차감 후 금액.
+          // (하단 안내문 "부대비용까지 반영한 최종 차액" 과 일치, 시간값은 제외)
+          final fuelAdjSavings = savingsWon -
+              ((costAnalysisData?['detour_fuel_won'] as num?)?.round() ?? 0);
           final lName = aCheaper ? nameB : nameA;
           final rName = aCheaper ? nameA : nameB;
           return _CompareCards(
@@ -3505,7 +3509,7 @@ class _UserCompareTable extends StatelessWidget {
             detourCost: aCheaper ? costA : costB,
             detourDetourLabel: _detourText(aCheaper ? detourMinA : detourMinB),
             detourFuelLabel: aCheaper ? fuelA : fuelB,
-            savings: savingsWon,
+            savings: fuelAdjSavings > 0 ? fuelAdjSavings : 0,
             detourMins: timeDiffMin,
             // 오른쪽(싼 쪽)이 승자면 오른쪽 강조
             aiRecIsDetour: aCheaper ? aIsWinner : bIsWinner,
