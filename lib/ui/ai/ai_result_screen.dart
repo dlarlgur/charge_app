@@ -309,6 +309,8 @@ class _AiResultBodyState extends State<AiResultBody> {
           sel['real_savings_won'] is num ? _i(sel['real_savings_won']) : rawSav;
       sheetCost = {
         'savings_won': rawSav,
+        'price_diff_won': rawSav, // savings_vs_primary_won은 클램프 없음 — 그대로 원시 가격차
+        'subject': '선택한 곳',
         'detour_cost_won': rawSav - netSav,
         'net_benefit_won': netSav,
         'detour_fuel_won':
@@ -2763,13 +2765,17 @@ class _ComparisonDetailSheet extends StatelessWidget {
       return int.tryParse('${v ?? 0}') ?? 0;
     }
 
-    final savings = gi('savings_won'); // 순수 가격차(연료값)
+    // 원시 가격차(음수=비교대상이 더 비쌈) 우선 — savings_won은 0 클램프라 '+0원' 정보유실.
+    final priceDiff =
+        ca['price_diff_won'] is num ? gi('price_diff_won') : gi('savings_won');
     final worth = ca['verdict'] == 'detour_worth';
     // 시간값(원)을 돈에 안 섞고 '연료 기준 이득 + 우회 시간(분)'으로 분리 표시.
     final fuelWon = ca['detour_fuel_won'] is num ? gi('detour_fuel_won') : 0;
     final extraMin = ca['detour_extra_min'] is num ? gi('detour_extra_min') : 0;
-    final fuelBenefit = savings - fuelWon; // 연료 기준 순이득(추가연료비까지 뺀 순수 돈)
-    if (savings <= 0 && fuelWon <= 0 && extraMin <= 0) {
+    final fuelBenefit = priceDiff - fuelWon; // 연료 기준 순이득(추가연료비까지 뺀 순수 돈)
+    // 비교 대상 호칭 — 기본은 우회 후보, 대안 선택 비교면 '선택한 곳'.
+    final subject = (ca['subject'] ?? '우회 쪽').toString();
+    if (priceDiff == 0 && fuelWon <= 0 && extraMin <= 0) {
       return const SizedBox.shrink();
     }
     const green = Color(0xFF1D9E75);
@@ -2787,12 +2793,12 @@ class _ComparisonDetailSheet extends StatelessWidget {
           : '추가 시간·연료까지 감안하면 이득이 없어요';
     } else if (worth) {
       verdict =
-          '$extraMin분 더 걸려도 연료 기준 ${wonF.format(fuelBenefit)}원 절약돼 우회할 만해요';
+          '$extraMin분 더 걸려도 ${wonF.format(fuelBenefit)}원 아껴져서 갈 만해요';
     } else if (fuelBenefit > 0) {
       verdict =
-          '연료 기준 ${wonF.format(fuelBenefit)}원 저렴하지만, $extraMin분 더 우회할 만큼 차이가 크진 않아요';
+          '${wonF.format(fuelBenefit)}원 아껴지긴 하지만, $extraMin분 더 갈 만큼 차이가 크진 않아요';
     } else {
-      verdict = '추가 연료비까지 감안하면 오히려 더 들어요';
+      verdict = '기름값 차이보다 우회에 드는 기름이 더 커서 이득이 없어요';
     }
     return Container(
       padding: const EdgeInsets.all(13),
@@ -2810,24 +2816,28 @@ class _ComparisonDetailSheet extends StatelessWidget {
                   fontSize: 12.5, fontWeight: FontWeight.w800, color: c)),
         ]),
         const SizedBox(height: 8),
-        // 가격차 — 음수(비교 대상이 더 비쌈)면 부호 정확히. '+−500원' 오표기 방지.
+        // 부호(+/−) 대신 자연어 — '−273원'이 절약인지 손해인지 해석하게 만들지 않기.
         _costLine(
-            '가격 차이(기름값)',
-            savings >= 0
-                ? '+${wonF.format(savings)}원'
-                : '−${wonF.format(-savings)}원',
+            '기름값만 보면',
+            priceDiff == 0
+                ? '두 곳 가격 같음'
+                : (priceDiff > 0
+                    ? '$subject이 ${wonF.format(priceDiff)}원 저렴'
+                    : '$subject이 ${wonF.format(-priceDiff)}원 비쌈'),
             muted,
-            ink),
+            priceDiff > 0 ? green : (priceDiff < 0 ? red : ink)),
         if (fuelWon > 0)
-          _costLine('추가 연료비', '−${wonF.format(fuelWon)}원', muted, ink),
+          _costLine('우회하는 데 드는 기름', '약 ${wonF.format(fuelWon)}원', muted, ink),
         Divider(height: 14, color: c.withValues(alpha: 0.2)),
         Row(children: [
           Expanded(
-              child: Text('연료 기준',
+              child: Text('둘 다 계산하면',
                   style: TextStyle(
                       fontSize: 13, fontWeight: FontWeight.w800, color: bC))),
           Text(
-              '${wonF.format(fuelBenefit.abs())}원 ${fuelBenefit >= 0 ? '절약' : '더 비쌈'}',
+              fuelBenefit == 0
+                  ? '차이 없음'
+                  : '${wonF.format(fuelBenefit.abs())}원 ${fuelBenefit > 0 ? '절약' : '더 들어요'}',
               style: TextStyle(
                   fontSize: 15, fontWeight: FontWeight.w900, color: bC)),
         ]),
@@ -2835,9 +2845,9 @@ class _ComparisonDetailSheet extends StatelessWidget {
           const SizedBox(height: 3),
           Row(children: [
             Expanded(
-                child: Text('우회 시간',
+                child: Text('시간은',
                     style: TextStyle(fontSize: 12, color: muted))),
-            Text('+$extraMin분',
+            Text('$extraMin분 더 걸려요',
                 style: TextStyle(
                     fontSize: 13, fontWeight: FontWeight.w800, color: ink)),
           ]),
