@@ -4677,10 +4677,13 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
               ),
 
             // ── 일반 모드: 상단 오버레이 ──
+            // 직접선택 결과(_isCompareResultMode)도 결과 화면 — 검색창·경로칩이 남아
+            // 결과 요약 헤더와 겹치던 버그 방지.
             if (!_isPickerMode &&
                 !_isResultMode &&
                 !_isEvResultMode &&
-                !_isEvSelectMode)
+                !_isEvSelectMode &&
+                !_isCompareResultMode)
               Positioned(
                 top: 0,
                 left: 0,
@@ -4820,7 +4823,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 !_isResultMode &&
                 !_isEvResultMode &&
                 !_isEvSelectMode &&
-                !_isSelectMode)
+                !_isSelectMode &&
+                !_isCompareResultMode)
               Positioned(
                 bottom: 0,
                 left: 0,
