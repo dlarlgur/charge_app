@@ -1719,6 +1719,8 @@ class _CompareCards extends StatelessWidget {
   final bool aiRecIsDetour;
   final bool isDualDetour;
   final bool isOnRouteVirtual;
+  // A/B 직접선택 비교 재사용 시 기본 라벨('경로상/우회 최저가') 대체
+  final String? tagLeft, tagRight;
   final String? fuelLabel;
   final NumberFormat wonFmt;
   final VoidCallback? onViewOnMapRoute;
@@ -1743,6 +1745,8 @@ class _CompareCards extends StatelessWidget {
     required this.aiRecIsDetour,
     this.isDualDetour = false,
     this.isOnRouteVirtual = false,
+    this.tagLeft,
+    this.tagRight,
     required this.fuelLabel,
     required this.wonFmt,
     this.onViewOnMapRoute,
@@ -1791,7 +1795,7 @@ class _CompareCards extends StatelessWidget {
     if (hasOnRoute) {
       cols.add(_col(
         isDark: isDark,
-        tag: isOnRouteVirtual ? '근거리 우회' : '경로상 최저가',
+        tag: tagLeft ?? (isOnRouteVirtual ? '근거리 우회' : '경로상 최저가'),
         isWinner: !detourIsWinner,
         name: onRouteName,
         price: onRoutePrice,
@@ -1805,7 +1809,7 @@ class _CompareCards extends StatelessWidget {
     if (hasDetour) {
       cols.add(_col(
         isDark: isDark,
-        tag: '우회 최저가',
+        tag: tagRight ?? '우회 최저가',
         isWinner: detourIsWinner,
         name: detourName,
         price: detourPrice,
@@ -3467,45 +3471,150 @@ class _UserCompareTable extends StatelessWidget {
               : null,
         ),
 
+        const SizedBox(height: 14),
+
+        // 주유소 비교 — AI 결과와 동일한 2칼럼 카드 (왼쪽=비싼 쪽, 오른쪽=싼 쪽에 절약 표시)
+        Row(children: [
+          const Icon(Icons.compare_arrows_rounded,
+              size: 15, color: Color(0xFF1D6FE0)),
+          const SizedBox(width: 5),
+          Text('주유소 비교',
+              style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w800,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? AppColors.darkTextPrimary
+                      : const Color(0xFF1A1A2E))),
+        ]),
+        const SizedBox(height: 8),
+        Builder(builder: (context) {
+          // 싼 쪽을 오른쪽 슬롯(절약 표시 지원)에 배치.
+          final aCheaper =
+              (priceA ?? double.infinity) <= (priceB ?? double.infinity);
+          final lName = aCheaper ? nameB : nameA;
+          final rName = aCheaper ? nameA : nameB;
+          return _CompareCards(
+            onRouteName: lName,
+            onRoutePrice: aCheaper ? priceB : priceA,
+            onRouteCost: aCheaper ? costB : costA,
+            onRouteDetourLabel: _detourText(aCheaper ? detourMinB : detourMinA),
+            onRouteFuelLabel: aCheaper ? fuelB : fuelA,
+            detourName: rName,
+            detourPrice: aCheaper ? priceA : priceB,
+            detourCost: aCheaper ? costA : costB,
+            detourDetourLabel: _detourText(aCheaper ? detourMinA : detourMinB),
+            detourFuelLabel: aCheaper ? fuelA : fuelB,
+            savings: savingsWon,
+            detourMins: timeDiffMin,
+            // 오른쪽(싼 쪽)이 승자면 오른쪽 강조
+            aiRecIsDetour: aCheaper ? aIsWinner : bIsWinner,
+            tagLeft: aCheaper ? 'B 선택' : 'A 선택',
+            tagRight: aCheaper ? 'A 선택' : 'B 선택',
+            fuelLabel: fuelLabel,
+            wonFmt: wonFmt,
+            onViewOnMapRoute: onCardTap != null
+                ? () => onCardTap!(aCheaper ? stationBData : stationAData)
+                : null,
+            onViewOnMapDetour: onCardTap != null
+                ? () => onCardTap!(aCheaper ? stationAData : stationBData)
+                : null,
+            onRouteLat: aCheaper ? latB : latA,
+            onRouteLng: aCheaper ? lngB : lngA,
+            dtLat: aCheaper ? latA : latB,
+            dtLng: aCheaper ? lngA : lngB,
+            destLat: destLat,
+            destLng: destLng,
+            destinationName: destinationName,
+            originLat: originLat,
+            originLng: originLng,
+          );
+        }),
+
         const SizedBox(height: 12),
 
-        // 비교 테이블
-        _UserComparisonTable(
-          nameA: nameA,
-          nameB: nameB,
-          priceA: priceA,
-          priceB: priceB,
-          fuelA: fuelA,
-          fuelB: fuelB,
-          brandA: stA['brand']?.toString() ?? '',
-          brandB: stB['brand']?.toString() ?? '',
-          costAnalysis: costAnalysisData,
-          costA: costA,
-          costB: costB,
-          detourMinA: detourMinA,
-          detourMinB: detourMinB,
-          latA: latA,
-          lngA: lngA,
-          latB: latB,
-          lngB: lngB,
-          aIsWinner: aIsWinner,
-          bIsWinner: bIsWinner,
-          savingsWon: savingsWon,
-          timeDiffMin: timeDiffMin,
-          fuelLabel: fuelLabel,
-          wonFmt: wonFmt,
-          originLat: originLat,
-          originLng: originLng,
-          destLat: destLat,
-          destLng: destLng,
-          destinationName: destinationName,
-          onViewOnMapA:
-              onCardTap != null ? () => onCardTap!(stationAData) : null,
-          onViewOnMapB:
-              onCardTap != null ? () => onCardTap!(stationBData) : null,
-        ),
+        // 상세 비교표 보기 — AI 결과와 동일한 팝업(카드 2장 + 우회 이득 판정 박스)
+        Builder(builder: (context) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          return GestureDetector(
+            onTap: () {
+              final cards = <Map<String, dynamic>>[
+                {
+                  'name': nameA,
+                  'brand': stA['brand']?.toString(),
+                  'price': priceA?.round(),
+                  'detour': detourMinA ?? 0,
+                  'cost': costA,
+                  'savings': aIsWinner ? savingsWon : 0,
+                  'role': 'A 선택',
+                  'isRec': aIsWinner,
+                },
+                {
+                  'name': nameB,
+                  'brand': stB['brand']?.toString(),
+                  'price': priceB?.round(),
+                  'detour': detourMinB ?? 0,
+                  'cost': costB,
+                  'savings': bIsWinner ? savingsWon : 0,
+                  'role': 'B 선택',
+                  'isRec': bIsWinner,
+                },
+              ];
+              Map<String, dynamic>? cost;
+              if (costAnalysisData != null) {
+                cost = {
+                  ...costAnalysisData!,
+                  'subject': costAnalysisData!['cheaper_side'] == 'station_a'
+                      ? nameA
+                      : nameB,
+                };
+              }
+              showModalBottomSheet(
+                context: context,
+                backgroundColor: Colors.transparent,
+                isScrollControlled: true,
+                builder: (_) => _ComparisonDetailSheet(
+                    cards: cards, cost: cost, wonFmt: wonFmt),
+              );
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0x14FFFFFF) : Colors.white,
+                borderRadius: BorderRadius.circular(13),
+                border: Border.all(
+                    color: isDark
+                        ? AppColors.darkCardBorder
+                        : const Color(0xFFE5E7EB)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.table_chart_outlined,
+                      size: 15,
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : const Color(0xFF555555)),
+                  const SizedBox(width: 7),
+                  Text('상세 비교표 보기',
+                      style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: isDark
+                              ? AppColors.darkTextPrimary
+                              : const Color(0xFF333333))),
+                ],
+              ),
+            ),
+          );
+        }),
       ],
     );
+  }
+
+  static String _detourText(int? detourMin) {
+    if (detourMin == null || detourMin < _kDetourStartMinutes) return '우회 없음';
+    return '+$detourMin분';
   }
 }
 
@@ -3669,458 +3778,6 @@ class _CompareRecommendCard extends StatelessWidget {
                     style:
                         TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── 사용자 비교 테이블 ────────────────────────────────────────────────────────
-
-class _UserComparisonTable extends StatelessWidget {
-  final String nameA, nameB;
-  final double? priceA, priceB;
-  final String fuelA, fuelB;
-  final String brandA, brandB;
-  final Map<String, dynamic>? costAnalysis; // 서버 비용분해 — AI 상세비교표와 동일한 판정 박스
-  final int costA, costB;
-  final int? detourMinA, detourMinB;
-  final double? latA, lngA, latB, lngB;
-  final bool aIsWinner, bIsWinner;
-  final int savingsWon;
-  final int? timeDiffMin;
-  final String? fuelLabel;
-  final NumberFormat wonFmt;
-  final double originLat, originLng;
-  final double? destLat, destLng;
-  final String destinationName;
-  final VoidCallback? onViewOnMapA;
-  final VoidCallback? onViewOnMapB;
-
-  const _UserComparisonTable({
-    required this.nameA,
-    required this.nameB,
-    required this.priceA,
-    required this.priceB,
-    required this.fuelA,
-    required this.fuelB,
-    this.brandA = '',
-    this.brandB = '',
-    this.costAnalysis,
-    required this.costA,
-    required this.costB,
-    required this.detourMinA,
-    required this.detourMinB,
-    required this.latA,
-    required this.lngA,
-    required this.latB,
-    required this.lngB,
-    required this.aIsWinner,
-    required this.bIsWinner,
-    required this.savingsWon,
-    required this.timeDiffMin,
-    required this.fuelLabel,
-    required this.wonFmt,
-    required this.originLat,
-    required this.originLng,
-    required this.destLat,
-    required this.destLng,
-    required this.destinationName,
-    this.onViewOnMapA,
-    this.onViewOnMapB,
-  });
-
-  String _detourLabel(int? detourMin) {
-    if (detourMin == null || detourMin < _kDetourStartMinutes) return '우회 없음';
-    return '+${detourMin}분';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = isDark ? AppColors.darkCard : Colors.white;
-    final cardBorder =
-        isDark ? AppColors.darkCardBorder : const Color(0xFFE8EAEF);
-    final ink = isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A2E);
-    final muted =
-        isDark ? AppColors.darkTextMuted : const Color(0xFF9CA3AF);
-    final divider =
-        isDark ? const Color(0x1FFFFFFF) : const Color(0xFFF0F2F5);
-    const colA = Color(0xFFE8700A); // A — 주황 (지도 마커와 동일)
-    const colB = Color(0xFF1D6FE0); // B — 파랑
-
-    // 판정 문구 재료 — 승자가 싼 쪽인지 / 빠른 쪽인지
-    final winnerName = aIsWinner ? nameA : nameB;
-    final loserName = aIsWinner ? nameB : nameA;
-    final winnerCol = aIsWinner ? colA : colB;
-    final wPrice = aIsWinner ? priceA : priceB;
-    final lPrice = aIsWinner ? priceB : priceA;
-    final winnerIsCheaper =
-        wPrice != null && lPrice != null && wPrice <= lPrice;
-
-    Widget navBtn(String label, IconData icon, Color c, VoidCallback? onTap) {
-      if (onTap == null) return const SizedBox.shrink();
-      return GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: c.withValues(alpha: isDark ? 0.16 : 0.09),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 12, color: c),
-              const SizedBox(width: 4),
-              Text(label,
-                  style: TextStyle(
-                      fontSize: 11,
-                      height: 1.1,
-                      fontWeight: FontWeight.w700,
-                      color: c)),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // 한 열(주유소) 헤더 — 로고 · 이름 · A/B칩(+추천)
-    Widget colHeader({
-      required String name,
-      required String brand,
-      required String tag,
-      required Color c,
-      required bool isWinner,
-    }) {
-      return Column(
-        children: [
-          BrandLogo(brand: brand, stationName: name, size: 40),
-          const SizedBox(height: 7),
-          Text(name,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  fontSize: 12.5,
-                  height: 1.25,
-                  fontWeight: isWinner ? FontWeight.w800 : FontWeight.w600,
-                  color: isWinner ? c : ink)),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 22,
-                height: 22,
-                decoration: BoxDecoration(
-                    color: c, borderRadius: BorderRadius.circular(7)),
-                child: Center(
-                    child: Text(tag,
-                        style: const TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white))),
-              ),
-              if (isWinner) ...[
-                const SizedBox(width: 5),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                  decoration: BoxDecoration(
-                      color: c.withValues(alpha: isDark ? 0.20 : 0.12),
-                      borderRadius: BorderRadius.circular(6)),
-                  child: Text('추천',
-                      style: TextStyle(
-                          fontSize: 10,
-                          height: 1.1,
-                          fontWeight: FontWeight.w800,
-                          color: c)),
-                ),
-              ],
-            ],
-          ),
-        ],
-      );
-    }
-
-    Widget valueRow(String label, String a, String b,
-        {bool emphasize = false}) {
-      TextStyle vs(bool winner, Color c) => TextStyle(
-            fontSize: emphasize ? 14.5 : 13,
-            height: 1.2,
-            fontWeight: winner ? FontWeight.w900 : FontWeight.w600,
-            color: winner ? c : ink,
-          );
-      return Container(
-        padding: const EdgeInsets.symmetric(vertical: 11),
-        decoration:
-            BoxDecoration(border: Border(top: BorderSide(color: divider))),
-        child: Row(
-          children: [
-            SizedBox(
-                width: 84,
-                child: Text(label,
-                    style: TextStyle(fontSize: 11.5, color: muted))),
-            Expanded(
-                child: Text(a,
-                    textAlign: TextAlign.center, style: vs(aIsWinner, colA))),
-            Expanded(
-                child: Text(b,
-                    textAlign: TextAlign.center, style: vs(bIsWinner, colB))),
-          ],
-        ),
-      );
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cardBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 타이틀
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-            child: Row(
-              children: [
-                const Icon(Icons.compare_arrows_rounded,
-                    size: 16, color: Color(0xFF1D6FE0)),
-                const SizedBox(width: 6),
-                Text('상세 비교',
-                    style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: ink)),
-                if (fuelLabel != null) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: _kPrimary.withValues(alpha: isDark ? 0.18 : 0.09),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(fuelLabel!,
-                        style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: _kPrimary)),
-                  ),
-                ],
-              ],
-            ),
-          ),
-
-          // 두 주유소 헤더
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(width: 84),
-                Expanded(
-                    child: colHeader(
-                        name: nameA,
-                        brand: brandA,
-                        tag: 'A',
-                        c: colA,
-                        isWinner: aIsWinner)),
-                Expanded(
-                    child: colHeader(
-                        name: nameB,
-                        brand: brandB,
-                        tag: 'B',
-                        c: colB,
-                        isWinner: bIsWinner)),
-              ],
-            ),
-          ),
-
-          // 값 행들
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              children: [
-                valueRow(
-                    '리터당 가격',
-                    priceA != null ? '${wonFmt.format(priceA!.round())}원' : '—',
-                    priceB != null ? '${wonFmt.format(priceB!.round())}원' : '—',
-                    emphasize: true),
-                valueRow(
-                    '예상 주유비',
-                    costA > 0 ? '${wonFmt.format(costA)}원' : '—',
-                    costB > 0 ? '${wonFmt.format(costB)}원' : '—'),
-                valueRow('우회 시간', _detourLabel(detourMinA),
-                    _detourLabel(detourMinB)),
-              ],
-            ),
-          ),
-
-          // 지도 · 경로안내
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
-            child: Row(
-              children: [
-                const SizedBox(width: 84),
-                Expanded(
-                  child: Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      navBtn('지도', Icons.map_outlined, colA, onViewOnMapA),
-                      if (latA != null &&
-                          lngA != null &&
-                          destLat != null &&
-                          destLng != null)
-                        navBtn(
-                            '경로안내',
-                            Icons.navigation_rounded,
-                            colA,
-                            () => showViaWaypointNavigationSheet(
-                                  context,
-                                  originLat: originLat,
-                                  originLng: originLng,
-                                  waypointLat: latA!,
-                                  waypointLng: lngA!,
-                                  waypointName: nameA,
-                                  destinationLat: destLat!,
-                                  destinationLng: destLng!,
-                                  destinationName: destinationName,
-                                )),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      navBtn('지도', Icons.map_outlined, colB, onViewOnMapB),
-                      if (latB != null &&
-                          lngB != null &&
-                          destLat != null &&
-                          destLng != null)
-                        navBtn(
-                            '경로안내',
-                            Icons.navigation_rounded,
-                            colB,
-                            () => showViaWaypointNavigationSheet(
-                                  context,
-                                  originLat: originLat,
-                                  originLng: originLng,
-                                  waypointLat: latB!,
-                                  waypointLng: lngB!,
-                                  waypointName: nameB,
-                                  destinationLat: destLat!,
-                                  destinationLng: destLng!,
-                                  destinationName: destinationName,
-                                )),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // 우회 이득 판정 — AI 상세비교표와 동일 박스(서버 cost_analysis). 구서버 응답이면 아래 한 줄 폴백.
-          if (costAnalysis != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
-              child: _costVerdictBox(
-                {
-                  ...costAnalysis!,
-                  // 비교 주체 = 싼 쪽 이름 ("우회 쪽" 대신 실명으로)
-                  'subject': costAnalysis!['cheaper_side'] == 'station_a'
-                      ? nameA
-                      : nameB,
-                },
-                wonFmt,
-                ink,
-                muted,
-                isDark,
-              ),
-            )
-          else
-          // (폴백) 판정 한 줄 — 자연어. 승자=싼쪽 / 승자=빠른쪽 케이스 분리.
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 13),
-            decoration: BoxDecoration(
-              color: winnerCol.withValues(alpha: isDark ? 0.12 : 0.06),
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(16),
-                bottomRight: Radius.circular(16),
-              ),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 1),
-                  child: Icon(Icons.emoji_events_rounded,
-                      size: 15, color: winnerCol),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: RichText(
-                    text: TextSpan(
-                      style: TextStyle(
-                          fontSize: 12.5,
-                          height: 1.4,
-                          fontWeight: FontWeight.w600,
-                          color: ink),
-                      children: winnerIsCheaper
-                          ? [
-                              TextSpan(
-                                  text: winnerName,
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      color: winnerCol)),
-                              const TextSpan(text: '가 '),
-                              if (savingsWon > 0)
-                                TextSpan(
-                                    text:
-                                        '${wonFmt.format(savingsWon)}원 더 저렴해요',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                        color: winnerCol))
-                              else
-                                const TextSpan(text: '가격이 같아 더 빠른 쪽으로 추천해요'),
-                              if (savingsWon > 0 &&
-                                  timeDiffMin != null &&
-                                  timeDiffMin! > 0)
-                                TextSpan(
-                                    text:
-                                        ' · ${timeDiffMin}분 더 걸려도 그만한 값어치가 있어요'),
-                            ]
-                          : [
-                              TextSpan(
-                                  text: loserName,
-                                  style:
-                                      const TextStyle(fontWeight: FontWeight.w800)),
-                              TextSpan(
-                                  text:
-                                      '가 ${wonFmt.format(savingsWon)}원 더 저렴하지만, ${timeDiffMin != null && timeDiffMin! > 0 ? '$timeDiffMin분 더 걸려 ' : ''}'),
-                              TextSpan(
-                                  text: winnerName,
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      color: winnerCol)),
-                              const TextSpan(text: '를 추천해요'),
-                            ],
-                    ),
-                  ),
-                ),
-              ],
             ),
           ),
         ],
