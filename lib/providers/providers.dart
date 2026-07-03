@@ -11,6 +11,7 @@ import '../data/services/location_service.dart';
 import '../data/services/station_alias_service.dart';
 import '../data/services/widget_service.dart';
 import '../data/services/user_sync_service.dart';
+import '../data/services/push_topic_service.dart';
 
 /// 두 좌표 사이 거리(m) — 즐겨찾기처럼 distance가 서버에서 안 내려오는 경우
 /// 사용자 현재 위치로 클라이언트에서 보정해서 표시.
@@ -133,6 +134,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     _box.put(AppConstants.keyVehicleType, type.code);
     _box.put(AppConstants.keyDefaultTab, state.defaultTab);
     UserSyncService.instance.putPrefs(vehicleType: type.code); // 로그인 회원이면 서버 미러
+    PushTopicService.syncVehicleTopics(); // 차량타입별 푸시 토픽 재동기화 (fire-and-forget)
   }
 
   void setFuelType(FuelType type) {

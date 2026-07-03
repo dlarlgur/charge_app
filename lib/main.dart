@@ -20,6 +20,7 @@ import 'app.dart';
 import 'core/constants/api_constants.dart';
 import 'core/constants/secrets.dart';
 import 'data/services/admob_warmup.dart';
+import 'data/services/push_topic_service.dart';
 import 'data/services/exit_ad_service.dart';
 import 'data/services/alert_service.dart';
 import 'data/services/map_runtime_config.dart';
@@ -350,6 +351,8 @@ void main() async {
     try {
       await FirebaseMessaging.instance.subscribeToTopic(DkswCore.noticesTopic());
       await FirebaseMessaging.instance.subscribeToTopic(DkswCore.eventsTopic());
+      // 차량타입별 토픽(veh_gas/veh_ev) — 콘솔 '주유/전기' 타겟 푸시용. 매 부팅 재동기화.
+      await PushTopicService.syncVehicleTopics();
     } catch (_) {}
   }());
 
