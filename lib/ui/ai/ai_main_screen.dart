@@ -39,6 +39,7 @@ import 'ai_result_screen.dart';
 import 'ai_vehicle_list_screen.dart';
 import 'ai_vehicle_setup_screen.dart';
 import 'ev_result_screen.dart';
+import '../detail/gas_detail_screen.dart';
 import '../widgets/gas_station_map_badge.dart';
 import 'ai_constants.dart';
 import '../../data/services/rating_prompt_service.dart';
@@ -2745,6 +2746,36 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
               ),
               // "이걸로 선택" 버튼 제거 — 마커 탭은 정보 확인 용도. 후보 변경은 결과 화면의
               // '다른 후보 → 확인' 버튼에서.
+              if (id.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      Navigator.of(context, rootNavigator: true).push(
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                GasDetailScreen(stationId: id)),
+                      );
+                    },
+                    icon: Icon(Icons.storefront_outlined,
+                        size: 17, color: fuelColor),
+                    label: Text('주유소 상세보기',
+                        style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: fuelColor)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: BorderSide(
+                          color: fuelColor.withValues(alpha: 0.45)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         );
@@ -3732,6 +3763,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   Future<void> _drawSelectModeMap() async {
     if (_mapController == null || _selectableStations == null) return;
 
+    // 브랜드 로고 캐시 완료 대기 — 첫 렌더에서 로고 없는 배지 방지 (_drawResultOnMap 과 동일)
+    if (!_brandImagesCached) {
+      await GasStationMapBadge.precacheBrandImages(context);
+      _brandImagesCached = true;
+    }
+
     await _mapController!.clearOverlays();
 
     // 경로 그리기 — 목적지 입력 경로(_drawResultOnMap)와 동일 렌더(혼잡도 구간색).
@@ -4010,6 +4047,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     // 비교 결과 지도 그리기 (간단 버전)
     if (_mapController == null) return;
 
+    // 브랜드 로고 캐시 완료 대기 — 첫 렌더에서 로고 없는 배지 방지 (_drawResultOnMap 과 동일)
+    if (!_brandImagesCached) {
+      await GasStationMapBadge.precacheBrandImages(context);
+      _brandImagesCached = true;
+    }
+
     await _mapController!.clearOverlays();
 
     // 경로 — 목적지 입력 경로와 동일 렌더(혼잡도 구간색)
@@ -4032,72 +4075,71 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     );
     await _mapController!.addOverlay(destMarker);
 
-    // A, B 주유소 마커
-    final stAData = data['station_a'] is Map ? data['station_a'] as Map : null;
-    final stBData = data['station_b'] is Map ? data['station_b'] as Map : null;
+    // A, B 주유소 마커 — 서버 응답은 {station:{...}, detour_time_min, ...} 중첩 구조.
+    // (기존엔 최상위에서 lat/lng 를 읽어 항상 null → 마커가 아예 안 찍히던 버그)
+    final stAWrap =
+        data['station_a'] is Map ? data['station_a'] as Map : null;
+    final stBWrap =
+        data['station_b'] is Map ? data['station_b'] as Map : null;
     final winner = data['comparison'] is Map
         ? (data['comparison'] as Map)['winner']?.toString()
         : null;
 
-    if (stAData != null) {
-      final lat =
-          stAData['lat'] is num ? (stAData['lat'] as num).toDouble() : null;
-      final lng =
-          stAData['lng'] is num ? (stAData['lng'] as num).toDouble() : null;
-      if (lat != null && lng != null) {
-        final isWin = winner == 'station_a';
-        final color = isWin ? const Color(0xFFE8700A) : const Color(0xFF1D6FE0);
-        final p = stAData['price_won_per_liter'] is num
-            ? (stAData['price_won_per_liter'] as num).round()
-            : null;
-        final label = p != null ? 'A ${_wonFmt.format(p)}원' : 'A';
-        final marker = NMarker(
-          id: 'compare_a',
-          position: NLatLng(lat, lng),
-          icon: await GasStationMapBadge.overlayImage(
-            context,
-            label: label,
-            brand: stAData['brand']?.toString(),
-            stationName: stAData['name']?.toString(),
-            borderColor: color,
-            textColor: color,
-            emphasizeBorder: isWin,
-          ),
-          anchor: const NPoint(0.5, 1.0),
-        );
-        await _mapController!.addOverlay(marker);
-      }
+    final stPoints = <NLatLng>[];
+    Future<void> addStationMarker(Map? wrap, String tag, bool isWin) async {
+      if (wrap == null) return;
+      // 중첩(station) 우선, 혹시 몰라 평면 구조도 지원.
+      final st = wrap['station'] is Map
+          ? Map<String, dynamic>.from(wrap['station'] as Map)
+          : Map<String, dynamic>.from(wrap);
+      final lat = st['lat'] is num ? (st['lat'] as num).toDouble() : null;
+      final lng = st['lng'] is num ? (st['lng'] as num).toDouble() : null;
+      if (lat == null || lng == null) return;
+      final color = isWin ? const Color(0xFFE8700A) : const Color(0xFF1D6FE0);
+      final p = st['price_won_per_liter'] is num
+          ? (st['price_won_per_liter'] as num).round()
+          : null;
+      final label = p != null ? '$tag ${_wonFmt.format(p)}원' : tag;
+      final marker = NMarker(
+        id: 'compare_${tag.toLowerCase()}',
+        position: NLatLng(lat, lng),
+        icon: await GasStationMapBadge.overlayImage(
+          context,
+          label: label,
+          brand: st['brand']?.toString(),
+          stationName: st['name']?.toString(),
+          borderColor: color,
+          textColor: color,
+          emphasizeBorder: isWin,
+        ),
+        anchor: const NPoint(0.5, 1.0),
+      );
+      // 탭 → AI 추천과 동일한 미니시트(이름/주소/리터당/우회) — wrap 이 altItem 과 같은 형태.
+      marker.setOnTapListener(
+          (_) => _showStationMiniSheet(Map<String, dynamic>.from(wrap)));
+      await _mapController!.addOverlay(marker);
+      stPoints.add(NLatLng(lat, lng));
     }
 
-    if (stBData != null) {
-      final lat =
-          stBData['lat'] is num ? (stBData['lat'] as num).toDouble() : null;
-      final lng =
-          stBData['lng'] is num ? (stBData['lng'] as num).toDouble() : null;
-      if (lat != null && lng != null) {
-        final isWin = winner == 'station_b';
-        final color = isWin ? const Color(0xFFE8700A) : const Color(0xFF1D6FE0);
-        final p = stBData['price_won_per_liter'] is num
-            ? (stBData['price_won_per_liter'] as num).round()
-            : null;
-        final label = p != null ? 'B ${_wonFmt.format(p)}원' : 'B';
-        final marker = NMarker(
-          id: 'compare_b',
-          position: NLatLng(lat, lng),
-          icon: await GasStationMapBadge.overlayImage(
-            context,
-            label: label,
-            brand: stBData['brand']?.toString(),
-            stationName: stBData['name']?.toString(),
-            borderColor: color,
-            textColor: color,
-            emphasizeBorder: isWin,
-          ),
-          anchor: const NPoint(0.5, 1.0),
-        );
-        await _mapController!.addOverlay(marker);
-      }
-    }
+    await addStationMarker(stAWrap, 'A', winner == 'station_a');
+    await addStationMarker(stBWrap, 'B', winner == 'station_b');
+
+    // 카메라 — 출발/목적지/두 주유소가 모두 보이게
+    final pts = <NLatLng>[
+      NLatLng(_lastStartLat, _lastStartLng),
+      NLatLng(_destLat!, _destLng!),
+      ...stPoints,
+    ];
+    final minLat = pts.map((p) => p.latitude).reduce(min);
+    final maxLat = pts.map((p) => p.latitude).reduce(max);
+    final minLng = pts.map((p) => p.longitude).reduce(min);
+    final maxLng = pts.map((p) => p.longitude).reduce(max);
+    await _mapController!.updateCamera(NCameraUpdate.fitBounds(
+      NLatLngBounds(
+          southWest: NLatLng(minLat, minLng),
+          northEast: NLatLng(maxLat, maxLng)),
+      padding: const EdgeInsets.all(80),
+    ));
   }
 
   void _showExitDialog() {

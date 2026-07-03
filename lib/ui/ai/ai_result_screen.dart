@@ -3475,19 +3475,7 @@ class _UserCompareTable extends StatelessWidget {
         const SizedBox(height: 14),
 
         // 주유소 비교 — AI 결과와 동일한 2칼럼 카드 (왼쪽=비싼 쪽, 오른쪽=싼 쪽에 절약 표시)
-        Row(children: [
-          const Icon(Icons.compare_arrows_rounded,
-              size: 15, color: Color(0xFF1D6FE0)),
-          const SizedBox(width: 5),
-          Text('주유소 비교',
-              style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w800,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? AppColors.darkTextPrimary
-                      : const Color(0xFF1A1A2E))),
-        ]),
-        const SizedBox(height: 8),
+        // 헤더는 _CompareCards 가 자체 렌더('주유소 비교'+유종칩) — 여기서 또 그리면 중복.
         Builder(builder: (context) {
           // 싼 쪽을 오른쪽 슬롯(절약 표시 지원)에 배치.
           final aCheaper =
