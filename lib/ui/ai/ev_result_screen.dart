@@ -437,6 +437,7 @@ class _StationCardState extends State<_StationCard> {
       int? estCostMember,
       int? estCostNonMember,
       double? estChargeKwh,
+      int? unitPriceWon,
       List<Map<String, dynamic>>? estOperators,
       bool canRaise = false,
       bool isRaised = false,
@@ -447,7 +448,9 @@ class _StationCardState extends State<_StationCard> {
     final trackBg = isDark ? const Color(0x22FFFFFF) : const Color(0xFFE8ECF1);
     final labelColor =
         isDark ? AppColors.darkTextSecondary : const Color(0xFF64748B);
-    const green = Color(0xFF16A34A);
+    // 도착=주황(낮음) → 충전 후=초록(회복) 그라디언트 — 카드 accent 무관 고정 의미색.
+    const socLow = Color(0xFFE8964B);
+    const socHigh = Color(0xFF2FBE71);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(13, 11, 13, 12),
@@ -460,49 +463,50 @@ class _StationCardState extends State<_StationCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               // 도착 시
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.battery_charging_full_rounded,
-                          size: 13, color: accent),
-                      const SizedBox(width: 3),
-                      Text('도착 시',
-                          style: TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w600,
-                              color: labelColor)),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text('$arrival%',
+                  Text('도착 시',
                       style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          height: 1,
-                          color: accent)),
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          color: labelColor)),
+                  const SizedBox(height: 3),
+                  Text.rich(TextSpan(children: [
+                    TextSpan(
+                        text: '$arrival',
+                        style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            height: 1,
+                            color: socLow)),
+                    const TextSpan(
+                        text: '%',
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: socLow)),
+                  ])),
                 ],
               ),
               if (hasCharge) ...[
-                // 가운데 — '충전' 표시(화살표). 충전 소요시간은 차량 수용속도(차종별 상이)를
-                // 반영 못 해 부정확하므로 분 표시는 하지 않음(SOC 예측만 노출).
+                // 가운데 — 이번 충전으로 넣는 양(kWh). 충전 '시간'은 차량 수용속도 편차로 미표기.
                 Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('충전',
-                          style: TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w600,
-                              color: labelColor)),
-                      const SizedBox(height: 1),
-                      Icon(Icons.arrow_right_alt_rounded,
-                          size: 22, color: mutedColor),
-                    ],
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 3),
+                    child: Text(
+                      estChargeKwh != null && estChargeKwh > 0
+                          ? '약 ${estChargeKwh.toStringAsFixed(estChargeKwh < 10 ? 1 : 0)}kWh 충전'
+                          : '충전',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: labelColor),
+                    ),
                   ),
                 ),
                 // 충전 후
@@ -514,19 +518,28 @@ class _StationCardState extends State<_StationCard> {
                             fontSize: 10.5,
                             fontWeight: FontWeight.w600,
                             color: labelColor)),
-                    const SizedBox(height: 2),
-                    Text('$after%',
-                        style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            height: 1,
-                            color: green)),
+                    const SizedBox(height: 3),
+                    Text.rich(TextSpan(children: [
+                      TextSpan(
+                          text: '$after',
+                          style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              height: 1,
+                              color: socHigh)),
+                      const TextSpan(
+                          text: '%',
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: socHigh)),
+                    ])),
                   ],
                 ),
               ] else
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.only(left: 10),
+                    padding: const EdgeInsets.only(left: 10, bottom: 2),
                     child: Text('목표 충전량 이상 — 바로 출발 가능',
                         style: TextStyle(
                             fontSize: 11.5,
@@ -536,8 +549,8 @@ class _StationCardState extends State<_StationCard> {
                 ),
             ],
           ),
-          const SizedBox(height: 10),
-          // 바 — 도착(진한 accent) + 충전 후(연한 accent)
+          const SizedBox(height: 9),
+          // 바 — 도착 지점까지 주황, 충전 구간은 주황→초록 그라디언트로 회복감.
           SizedBox(
             height: 7,
             child: LayoutBuilder(builder: (context, c) {
@@ -550,18 +563,12 @@ class _StationCardState extends State<_StationCard> {
                       decoration: BoxDecoration(
                           color: trackBg,
                           borderRadius: BorderRadius.circular(99))),
-                  if (hasCharge)
-                    Container(
-                        width: w * (after / 100).clamp(0.0, 1.0),
-                        height: 7,
-                        decoration: BoxDecoration(
-                            color: accent.withValues(alpha: 0.32),
-                            borderRadius: BorderRadius.circular(99))),
                   Container(
-                      width: w * (arrival / 100).clamp(0.0, 1.0),
+                      width: w * ((hasCharge ? after : arrival) / 100).clamp(0.0, 1.0),
                       height: 7,
                       decoration: BoxDecoration(
-                          color: accent,
+                          gradient: const LinearGradient(
+                              colors: [socLow, socLow, socHigh]),
                           borderRadius: BorderRadius.circular(99))),
                 ],
               );
@@ -574,7 +581,7 @@ class _StationCardState extends State<_StationCard> {
                   (estOperators != null && estOperators.isNotEmpty))) ...[
             const SizedBox(height: 9),
             _estCostLine(estChargeKwh, estCostMember, estCostNonMember,
-                estOperators, labelColor, isDark),
+                unitPriceWon, estOperators, labelColor, isDark),
           ],
           // 충전 후 목적지 도착 예상 잔량 — 4단계(여유/목표상향/빠듯/부족) 색·아이콘 안내
           if (destSoc != null && destStatus != null) ...[
@@ -591,9 +598,11 @@ class _StationCardState extends State<_StationCard> {
     );
   }
 
-  // 예상 충전 금액 — 도착 시 배터리에서 목표까지 채울 때. 회원가·비회원가 둘 다.
+  // 예상 충전 금액 — 도착 시 배터리에서 목표까지 채울 때.
+  // 단일 운영사: 초록 히어로 박스(큰 금액 + 단가) / 통합: 운영사별 요금 테이블(최저 뱃지).
   Widget _estCostLine(double? kwh, int? member, int? nonMember,
-      List<Map<String, dynamic>>? operators, Color labelColor, bool isDark) {
+      int? unitPriceWon, List<Map<String, dynamic>>? operators,
+      Color labelColor, bool isDark) {
     String won(int v) {
       final s = v.toString();
       final b = StringBuffer();
@@ -604,126 +613,226 @@ class _StationCardState extends State<_StationCard> {
       return b.toString();
     }
 
-    final accent = isDark ? const Color(0xFF7DD3FC) : const Color(0xFF0369A1);
-    final bg = isDark ? const Color(0x180EA5E9) : const Color(0x0F0EA5E9);
+    const green = Color(0xFF16A34A);
+    final ink = isDark ? AppColors.darkTextPrimary : const Color(0xFF16243D);
+    final kwhLabel = (kwh != null && kwh > 0)
+        ? '약 ${kwh.toStringAsFixed(kwh < 10 ? 1 : 0)}kWh'
+        : null;
+    final grouped = operators != null && operators.length > 1;
 
-    // 금액 텍스트 — 라벨은 흐리게, 숫자는 볼드 컬러. 같으면 한 값 + '동일'.
-    final numStyle = TextStyle(
-        fontSize: 14, height: 1.3, color: accent, fontWeight: FontWeight.w900);
-    final lblStyle = TextStyle(
-        fontSize: 11.5,
-        height: 1.3,
-        color: labelColor.withValues(alpha: 0.85),
-        fontWeight: FontWeight.w600);
-    // '회원 23,943원'을 통째로 안 쪼개지는 덩어리로 — Wrap이 넘길 때 숫자 중간에서 안 끊김.
-    Widget priceChunk(String label, int v) => Text.rich(
-        TextSpan(children: [
-          TextSpan(text: '$label ', style: lblStyle),
-          TextSpan(text: '${won(v)}원', style: numStyle),
-        ]),
-        softWrap: false,
-        overflow: TextOverflow.visible);
-    Widget priceText(int? m, int? n) {
-      if (m != null && n != null && m == n) {
-        return Wrap(
-          spacing: 8,
-          runSpacing: 2,
-          crossAxisAlignment: WrapCrossAlignment.center,
+    // ── 통합 충전소: 운영사별 예상요금 테이블 (회원가 낮은 순, 최저 뱃지) ──
+    if (grouped) {
+      final rows = [...operators]..sort((a, b) {
+          int keyOf(Map o) =>
+              (o['member'] as int?) ?? (o['nonmember'] as int?) ?? 1 << 30;
+          return keyOf(a).compareTo(keyOf(b));
+        });
+      int rowKey(Map o) =>
+          (o['member'] as int?) ?? (o['nonmember'] as int?) ?? 1 << 30;
+      final minVal = rowKey(rows.first);
+      final divider = isDark ? const Color(0x1FFFFFFF) : const Color(0xFFEDF0F4);
+      return Container(
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0x12FFFFFF) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+              color: isDark ? const Color(0x24FFFFFF) : const Color(0xFFE6EAF0)),
+        ),
+        child: Column(
           children: [
-            Text('${won(m)}원', style: numStyle, softWrap: false),
-            Text('회원·비회원 동일', style: lblStyle.copyWith(fontSize: 10.5)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+              child: Row(
+                children: [
+                  Icon(Icons.storefront_rounded, size: 14, color: labelColor),
+                  const SizedBox(width: 6),
+                  Text('운영사별 예상요금',
+                      style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                          color: labelColor)),
+                  const Spacer(),
+                  Text(
+                      kwhLabel != null ? '회원가 기준 · $kwhLabel' : '회원가 기준',
+                      style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w500,
+                          color: labelColor.withValues(alpha: 0.8))),
+                ],
+              ),
+            ),
+            ...List.generate(rows.length, (i) {
+              final o = rows[i];
+              final m = o['member'] as int?;
+              final n = o['nonmember'] as int?;
+              final isMin = rowKey(o) == minVal;
+              final main = m ?? n;
+              return Container(
+                decoration: BoxDecoration(
+                    border: Border(top: BorderSide(color: divider))),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                          color: isMin
+                              ? green
+                              : (isDark
+                                  ? const Color(0x40FFFFFF)
+                                  : const Color(0xFFCBD2DC)),
+                          shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text((o['op'] ?? '').toString(),
+                          style: TextStyle(
+                              fontSize: 13,
+                              height: 1.2,
+                              fontWeight:
+                                  isMin ? FontWeight.w800 : FontWeight.w600,
+                              color: ink),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                    if (isMin) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                            color: green,
+                            borderRadius: BorderRadius.circular(5)),
+                        child: const Text('최저',
+                            style: TextStyle(
+                                fontSize: 9.5,
+                                height: 1.1,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white)),
+                      ),
+                    ],
+                    const Spacer(),
+                    // 비회원가는 다르면 작게 병기
+                    if (m != null && n != null && n != m) ...[
+                      Text('비회원 ${won(n)}',
+                          style: TextStyle(
+                              fontSize: 10.5,
+                              height: 1.2,
+                              fontWeight: FontWeight.w500,
+                              color: labelColor.withValues(alpha: 0.85))),
+                      const SizedBox(width: 8),
+                    ],
+                    if (main != null)
+                      Text.rich(TextSpan(children: [
+                        TextSpan(
+                            text: won(main),
+                            style: TextStyle(
+                                fontSize: 15.5,
+                                height: 1.1,
+                                fontWeight: FontWeight.w900,
+                                color: isMin ? green : ink)),
+                        TextSpan(
+                            text: '원',
+                            style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                                color: isMin ? green : labelColor)),
+                      ])),
+                  ],
+                ),
+              );
+            }),
           ],
-        );
-      }
-      return Wrap(
-        spacing: 14,
-        runSpacing: 3,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          if (m != null) priceChunk('회원', m),
-          if (n != null) priceChunk('비회원', n),
-        ],
+        ),
       );
     }
 
-    final nameColor =
-        isDark ? AppColors.darkTextPrimary : const Color(0xFF1F2937);
-    final grouped = operators != null && operators.isNotEmpty;
-
+    // ── 단일 운영사: 초록 히어로 박스 — 큰 금액 + 단가 병기 ──
+    final m = member;
+    final n = nonMember;
+    final same = m != null && n != null && m == n;
+    final main = m ?? n;
+    if (main == null) return const SizedBox.shrink();
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(13, 11, 13, 12),
       decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(10),
-        border:
-            Border.all(color: accent.withValues(alpha: isDark ? 0.30 : 0.18)),
+        color: green.withValues(alpha: isDark ? 0.14 : 0.08),
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 1),
-            child: Icon(Icons.bolt_rounded, size: 16, color: accent),
-          ),
-          const SizedBox(width: 7),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text('예상 충전요금',
-                        style: TextStyle(
-                            fontSize: 11.5,
-                            height: 1.2,
-                            color: labelColor,
-                            fontWeight: FontWeight.w700)),
-                    if (kwh != null && kwh > 0) ...[
-                      const SizedBox(width: 6),
-                      Text('약 ${kwh.toStringAsFixed(kwh < 10 ? 1 : 0)}kWh 충전',
-                          style: TextStyle(
-                              fontSize: 11,
-                              height: 1.2,
-                              color: labelColor.withValues(alpha: 0.75),
-                              fontWeight: FontWeight.w500)),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 6),
-                if (grouped)
-                  // 통합 충전소 — 운영사별로 각각 (이름 정렬 + 금액). 워터로 X / 한국전력으로 Y.
-                  ...List.generate(operators.length, (idx) {
-                    final o = operators[idx];
-                    return Padding(
-                      padding: EdgeInsets.only(
-                          top: idx == 0 ? 0 : 5),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                        textBaseline: TextBaseline.alphabetic,
-                        children: [
-                          SizedBox(
-                            width: 76,
-                            child: Text((o['op'] ?? '').toString(),
-                                style: TextStyle(
-                                    fontSize: 12.5,
-                                    height: 1.3,
-                                    color: nameColor,
-                                    fontWeight: FontWeight.w800),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                              child: priceText(
-                                  o['member'] as int?, o['nonmember'] as int?)),
-                        ],
-                      ),
-                    );
-                  })
-                else
-                  priceText(member, nonMember),
+          Row(
+            children: [
+              const Icon(Icons.bolt_rounded, size: 15, color: green),
+              const SizedBox(width: 5),
+              Text('예상 충전요금',
+                  style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                      color: labelColor)),
+              if (unitPriceWon != null) ...[
+                const SizedBox(width: 6),
+                Text('· ${won(unitPriceWon)}원/kWh',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: labelColor.withValues(alpha: 0.8))),
               ],
-            ),
+              if (kwhLabel != null) ...[
+                const Spacer(),
+                Text('$kwhLabel 충전',
+                    style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w500,
+                        color: labelColor.withValues(alpha: 0.8))),
+              ],
+            ],
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 3,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text.rich(TextSpan(children: [
+                TextSpan(
+                    text: won(main),
+                    style: TextStyle(
+                        fontSize: 24,
+                        height: 1.05,
+                        fontWeight: FontWeight.w900,
+                        color: ink)),
+                TextSpan(
+                    text: '원',
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: ink)),
+              ])),
+              if (same)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                      color: green.withValues(alpha: isDark ? 0.22 : 0.13),
+                      borderRadius: BorderRadius.circular(6)),
+                  child: const Text('회원·비회원 동일',
+                      style: TextStyle(
+                          fontSize: 10.5,
+                          height: 1.1,
+                          fontWeight: FontWeight.w700,
+                          color: green)),
+                )
+              else if (m != null && n != null)
+                Text('회원가 기준 · 비회원 ${won(n)}원',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: labelColor)),
+            ],
           ),
         ],
       ),
@@ -1408,6 +1517,7 @@ class _StationCardState extends State<_StationCard> {
                       estCostMember: effCostMember,
                       estCostNonMember: effCostNonMember,
                       estChargeKwh: effKwh,
+                      unitPriceWon: unitPriceMember,
                       estOperators: estOperators,
                       canRaise: canRaise,
                       isRaised: _raised,
