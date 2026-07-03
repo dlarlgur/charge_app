@@ -2461,7 +2461,7 @@ class _ComparisonDetailSheet extends StatelessWidget {
     Color colColor(Map<String, dynamic> c) =>
         c['isRec'] == true ? recColor : ink;
     String detTxt(Map<String, dynamic> c) {
-      final d = c['detour'] as int? ?? 0;
+      final d = (c['detour'] as num?)?.round() ?? 0;
       return d > 0 ? '+$d분' : '우회 없음';
     }
 
@@ -2533,16 +2533,14 @@ class _ComparisonDetailSheet extends StatelessWidget {
             line(),
             mRow(
                 '리터당 가격',
-                '${wonFmt.format((c1['price'] as double).round())}원',
-                c2 != null
-                    ? '${wonFmt.format((c2['price'] as double).round())}원'
-                    : null,
+                _wonNum(c1['price']),
+                c2 != null ? _wonNum(c2['price']) : null,
                 big: true),
             line(),
             mRow('우회 시간', detTxt(c1), c2 != null ? detTxt(c2) : null),
             line(),
-            mRow('예상 주유비', _won(c1['cost'] as int?),
-                c2 != null ? _won(c2['cost'] as int?) : null),
+            mRow('예상 주유비', _wonNum(c1['cost']),
+                c2 != null ? _wonNum(c2['cost']) : null),
             if (cost != null) ...[
               const SizedBox(height: 14),
               _costVerdictBox(cost!, wonFmt, ink, muted, isDark),
@@ -2553,7 +2551,10 @@ class _ComparisonDetailSheet extends StatelessWidget {
     );
   }
 
-  String _won(int? n) => (n != null && n > 0) ? '${wonFmt.format(n)}원' : '-';
+  // 직접선택 경로는 price 가 int(.round()), AI 경로는 double 로 들어와서
+  // 캐스트 대신 num 으로 받는다 (int→double 캐스트 크래시 방지).
+  String _wonNum(dynamic n) =>
+      (n is num && n > 0) ? '${wonFmt.format(n.round())}원' : '-';
 
   Widget _head(Map<String, dynamic> c, Color ink, Color recColor) {
     final isRec = c['isRec'] == true;
