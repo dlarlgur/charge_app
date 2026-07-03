@@ -1114,30 +1114,17 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 헤더: 타이틀 + 범례
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('가격 추이',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800,
-                      letterSpacing: -0.3,
-                      color: isDark ? Colors.white : _kInk)),
-              Wrap(
-                spacing: 10,
-                children: [
-                  _legend('휘발유', _kFuelRegular, isDark),
-                  _legend('고급', _kFuelPremium, isDark),
-                  _legend('경유', _kFuelDiesel, isDark),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          // 기간 세그먼트
+          // 헤더 — 범례는 타이틀 옆이 아니라 차트 위 별도 줄 (좁은 폰에서 잘리던 문제 원천 차단)
+          Text('가격 추이',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
+                  color: isDark ? Colors.white : _kInk)),
+          const SizedBox(height: 12),
+          // 기간 세그먼트 — 알약 인디케이터
           Container(
             decoration: BoxDecoration(
-              color: isDark ? Colors.white.withValues(alpha: 0.05) : _kLineSoft,
-              borderRadius: BorderRadius.circular(10),
+              color: isDark ? Colors.white.withValues(alpha: 0.06) : _kLineSoft,
+              borderRadius: BorderRadius.circular(22),
             ),
             padding: const EdgeInsets.all(3),
             child: Row(
@@ -1149,7 +1136,21 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
               ],
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
+          // 범례 — 차트 바로 위 우측, 폭과 무관하게 줄바꿈 안전
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 4,
+              children: [
+                _legend('휘발유', _kFuelRegular, isDark),
+                _legend('고급휘발유', _kFuelPremium, isDark),
+                _legend('경유', _kFuelDiesel, isDark),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
           SizedBox(
             height: 180,
             child: _chartLoading
@@ -1185,18 +1186,22 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
         onTap: () => _loadChart(value),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(vertical: 7),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: active ? (isDark ? const Color(0xFF1E2530) : _kCard) : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
+            color: active
+                ? (isDark ? const Color(0xFF2B3757) : _kCard)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(19),
             boxShadow: active && !isDark ? [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 2, offset: const Offset(0, 1)),
+              BoxShadow(color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 6, offset: const Offset(0, 1)),
             ] : null,
           ),
           alignment: Alignment.center,
           child: Text(label, style: TextStyle(
-            fontSize: 11, fontWeight: FontWeight.w700,
+            fontSize: 12.5, height: 1.1,
+            fontWeight: active ? FontWeight.w800 : FontWeight.w600,
             color: active
                 ? (isDark ? Colors.white : _kInk)
                 : _kMuted,
