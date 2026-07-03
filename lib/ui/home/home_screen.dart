@@ -114,6 +114,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           body: message.notification?.body,
           inquiryId: int.tryParse(message.data['inquiryId']?.toString() ?? ''),
         );
+        _saveToInbox(message);
       } else if (message.data['type'] == 'event') {
         // 이벤트 — 포그라운드 직접 표시 (탭하면 그 이벤트 상세로)
         showEventNotification(
@@ -121,12 +122,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           body: message.notification?.body,
           eventId: int.tryParse(message.data['id']?.toString() ?? ''),
         );
+        _saveToInbox(message);
       } else if (message.data['type'] == 'notice') {
         showNoticeNotification(
           title: message.notification?.title,
           body: message.notification?.body,
           noticeId: int.tryParse(message.data['id']?.toString() ?? ''),
         );
+        _saveToInbox(message);
+      } else if (message.notification != null) {
+        // 자유 푸시·브리핑 등 그 외 모든 알림 — 포그라운드 직접 표시 + 내역 저장
+        showNoticeNotification(
+          title: message.notification?.title,
+          body: message.notification?.body,
+          noticeId: null,
+        );
+        _saveToInbox(message);
       }
     });
 
@@ -369,6 +380,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       builder: (_) =>
           item != null ? NoticeDetailScreen(notice: item) : const NoticesScreen(),
     ));
+  }
+
+  /// 모든 종류 푸시(공지·이벤트·문의답변·자유푸시 등)를 홈 우측 위 알림 내역에 저장.
+  /// (주유/EV 알람은 각자 전용 포맷터가 저장하므로 여기 안 거침)
+  void _saveToInbox(RemoteMessage message) {
+    final title = message.notification?.title;
+    final body = message.notification?.body;
+    if ((title == null || title.isEmpty) && (body == null || body.isEmpty)) {
+      return;
+    }
+    AlertService().addMessage(title: title ?? '알림', body: body ?? '');
+    _messageBadgeKey.currentState?.refreshCount();
   }
 
   void _onNavigateToEvStation() {

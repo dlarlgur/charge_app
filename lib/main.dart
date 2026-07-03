@@ -174,6 +174,36 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     final soundMode = (box.get('ev_alarm_sound_mode', defaultValue: 0) as int?) ?? 0;
     showEvWatchNotification(message.data, soundMode: soundMode);
     await _saveEvAlarmToHive(box, message.data);
+  } else if (message.notification != null) {
+    // 공지·이벤트·문의답변·자유푸시 등 — 표시는 시스템이 하고, 여기선 알림 내역에만 저장
+    // (홈 우측 위 알림함에서 모든 푸시를 다시 볼 수 있게)
+    await _saveGenericPushToHive(box, message);
+  }
+}
+
+/// 백그라운드로 온 일반 알림(공지/이벤트/자유푸시 등)을 알림 내역(Hive)에 저장.
+Future<void> _saveGenericPushToHive(dynamic box, RemoteMessage message) async {
+  try {
+    final title = message.notification?.title ?? '';
+    final body = message.notification?.body ?? '';
+    if (title.isEmpty && body.isEmpty) return;
+    final msgs = List<Map<String, dynamic>>.from(
+      ((box.get('push_messages', defaultValue: <dynamic>[]) as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))),
+    );
+    msgs.insert(0, {
+      'id': DateTime.now().millisecondsSinceEpoch.toString(),
+      'title': title.isEmpty ? '알림' : title,
+      'body': body,
+      'timestamp': DateTime.now().toIso8601String(),
+    });
+    if (msgs.length > 50) msgs.removeLast();
+    await box.put('push_messages', msgs);
+    final unread =
+        ((box.get('push_unread_count', defaultValue: 0) as int?) ?? 0) + 1;
+    await box.put('push_unread_count', unread);
+  } catch (e) {
+    if (kDebugMode) debugPrint('[fcm-bg] generic push hive save 실패: $e');
   }
 }
 
