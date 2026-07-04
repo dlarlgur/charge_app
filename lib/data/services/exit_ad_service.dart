@@ -39,7 +39,7 @@ class ExitAdService {
         cornerRadius: 12,
         callToActionTextStyle: NativeTemplateTextStyle(
           textColor: Colors.white,
-          backgroundColor: const Color(0xFFE8700A),
+          backgroundColor: AppColors.gasBlue, // 앱 브랜드 블루 (주황 X)
           style: NativeTemplateFontStyle.bold,
           size: 14,
         ),
@@ -159,7 +159,7 @@ Future<void> showExitConfirmDialog(BuildContext context) async {
                       child: ElevatedButton(
                         onPressed: () => Navigator.of(ctx).pop(true),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFE8700A),
+                          backgroundColor: AppColors.gasBlueDark,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(

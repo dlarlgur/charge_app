@@ -159,6 +159,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       DraggableScrollableController();
   double _sheetSize = 0.45;
   DateTime? _lastInScreenBackHandledAt;
+  DateTime? _lastExitBackPressTime; // 뒤로가기 2회 종료 확인용
 
   /// `DraggableScrollableSheet` 빌더가 넘기는 스크롤 컨트롤러 (결과·비교 본문)
   ScrollController? _resultSheetScrollController;
@@ -4142,8 +4143,16 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   }
 
   void _showExitDialog() {
-    // 종료 확인 다이얼로그(+네이티브 광고) — home_screen 과 동일 패턴.
-    showExitConfirmDialog(context);
+    // 뒤로가기 1회 → 토스트, 2초 내 재입력 → 종료 확인 다이얼로그 (home_screen 과 동일).
+    final now = DateTime.now();
+    if (_lastExitBackPressTime == null ||
+        now.difference(_lastExitBackPressTime!) > const Duration(seconds: 2)) {
+      _lastExitBackPressTime = now;
+      showAppToast(context, '한 번 더 누르시면 종료 확인이 표시됩니다.');
+    } else {
+      _lastExitBackPressTime = null;
+      showExitConfirmDialog(context);
+    }
   }
 
   // 커넥티드 차량(현대/기아/제네시스)에서 현재 상태를 불러와 게이지에 세팅.
