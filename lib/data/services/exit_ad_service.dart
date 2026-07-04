@@ -93,9 +93,11 @@ Future<void> showExitConfirmDialog(BuildContext context) async {
   final ink = isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A2E);
   final muted = isDark ? AppColors.darkTextMuted : const Color(0xFF94A3B8);
 
-  // 미디엄 템플릿 권장 높이 320dp — 소형 화면에선 화면의 40%까지로 클램프(잘림 방지).
+  // 미디엄 템플릿 실측 필요 높이: 미디어(가변) + 아이콘·제목 행 + CTA 버튼 ≈ 380~400dp.
+  // 320 고정 시 CTA 가 잘리는 실기기 리포트 반영 — 화면 48%(최대 410)까지 허용,
+  // 소형 폰은 300 까지 내려가되 다이얼로그 전체가 스크롤이라 안전.
   final adHeight =
-      (MediaQuery.of(context).size.height * 0.40).clamp(250.0, 320.0);
+      (MediaQuery.of(context).size.height * 0.48).clamp(300.0, 410.0);
 
   final exit = await showDialog<bool>(
     context: context,
