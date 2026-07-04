@@ -390,7 +390,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if ((title == null || title.isEmpty) && (body == null || body.isEmpty)) {
       return;
     }
-    AlertService().addMessage(title: title ?? '알림', body: body ?? '');
+    // type/refId — 알림 내역에서 항목 탭 시 해당 상세로 이동용.
+    AlertService().addMessage(
+      title: title ?? '알림',
+      body: body ?? '',
+      type: message.data['type']?.toString(),
+      refId: (message.data['id'] ?? message.data['inquiryId'])?.toString(),
+    );
     _messageBadgeKey.currentState?.refreshCount();
   }
 
@@ -1447,6 +1453,61 @@ class _AlertPageState extends State<_AlertPage> {
     }
   }
 
+  /// 항목 탭 → 알림 종류별 상세로 이동. 홈의 notifier 리스너들이 rootNavigator 로
+  /// push 하므로 이 리스트 위에 상세가 얹히고, 뒤로가기로 리스트에 돌아온다.
+  /// 구버전 저장분(type 없음)은 이동 없음.
+  void _openFromAlert(Map<String, dynamic> msg) {
+    final type = (msg['type'] ?? '').toString();
+    final refId = (msg['ref_id'] ?? '').toString();
+    final refInt = int.tryParse(refId) ?? 0;
+    switch (type) {
+      case 'notice':
+        if (refInt > 0) navigateToNoticeNotifier.value = refInt;
+        break;
+      case 'event':
+        if (refInt > 0) navigateToEventNotifier.value = refInt;
+        break;
+      case 'inquiry_reply':
+        if (refInt > 0) navigateToInquiryNotifier.value = refInt;
+        break;
+      case 'ev':
+      case 'ev_alarm':
+      case 'ev_watch':
+        if (refId.isNotEmpty) navigateToEvStationNotifier.value = refId;
+        break;
+      case 'gas_price':
+        if (refId.isNotEmpty) navigateToGasStationNotifier.value = refId;
+        break;
+    }
+  }
+
+  /// 이동 가능한 항목인지 — 탭 하이라이트/화살표 표시용.
+  bool _canOpen(Map<String, dynamic> msg) {
+    final type = (msg['type'] ?? '').toString();
+    final refId = (msg['ref_id'] ?? '').toString();
+    if (refId.isEmpty) return false;
+    return const {
+      'notice', 'event', 'inquiry_reply', 'ev', 'ev_alarm', 'ev_watch', 'gas_price',
+    }.contains(type);
+  }
+
+  ({IconData icon, Color color}) _alertVisual(Map<String, dynamic> msg) {
+    switch ((msg['type'] ?? '').toString()) {
+      case 'notice':
+        return (icon: Icons.campaign_rounded, color: const Color(0xFFE8700A));
+      case 'event':
+        return (icon: Icons.card_giftcard_rounded, color: const Color(0xFF7C3AED));
+      case 'inquiry_reply':
+        return (icon: Icons.mark_chat_read_rounded, color: const Color(0xFF16A34A));
+      case 'ev':
+      case 'ev_alarm':
+      case 'ev_watch':
+        return (icon: Icons.bolt_rounded, color: const Color(0xFF16A34A));
+      default:
+        return (icon: Icons.local_gas_station_rounded, color: AppColors.gasBlue);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -1545,8 +1606,12 @@ class _AlertPageState extends State<_AlertPage> {
                 final body = (msg['body'] as String? ?? '').trim();
                 final isSelected = _selected.contains(id);
 
+                final canOpen = _canOpen(msg);
+                final visual = _alertVisual(msg);
                 final tile = InkWell(
-                  onTap: _selectionMode ? () => _toggleSelect(id) : null,
+                  onTap: _selectionMode
+                      ? () => _toggleSelect(id)
+                      : (canOpen ? () => _openFromAlert(msg) : null),
                   onLongPress: _selectionMode
                       ? null
                       : () => _enterSelectionMode(id),
@@ -1578,11 +1643,11 @@ class _AlertPageState extends State<_AlertPage> {
                             height: 40,
                             margin: const EdgeInsets.only(right: 12),
                             decoration: BoxDecoration(
-                              color: AppColors.gasBlue.withValues(alpha: 0.1),
+                              color: visual.color.withValues(alpha: 0.1),
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.local_gas_station_rounded,
-                                color: AppColors.gasBlue, size: 20),
+                            child:
+                                Icon(visual.icon, color: visual.color, size: 20),
                           ),
                         Expanded(
                           child: Column(
@@ -1613,6 +1678,12 @@ class _AlertPageState extends State<_AlertPage> {
                             ],
                           ),
                         ),
+                        if (!_selectionMode && canOpen)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 6, top: 12),
+                            child: Icon(Icons.chevron_right_rounded,
+                                size: 18, color: mutedColor),
+                          ),
                       ],
                     ),
                   ),

@@ -163,7 +163,10 @@ class AlertService {
 
   void markAllRead() => Hive.box(_boxKey).put(_unreadCountKey, 0);
 
-  void addMessage({required String title, required String body}) {
+  /// type/refId — 알림 내역에서 항목 탭 시 이동용.
+  /// type: notice/event/inquiry_reply/ev/gas_price 등, refId: 공지id·문의id·충전소id·주유소id.
+  void addMessage(
+      {required String title, required String body, String? type, String? refId}) {
     final box = Hive.box(_boxKey);
     final msgs = receivedMessages;
     msgs.insert(0, {
@@ -171,6 +174,8 @@ class AlertService {
       'title': title,
       'body': body,
       'timestamp': DateTime.now().toIso8601String(),
+      if (type != null && type.isNotEmpty) 'type': type,
+      if (refId != null && refId.isNotEmpty) 'ref_id': refId,
     });
     if (msgs.length > 50) msgs.removeLast();
     box.put(_messagesKey, msgs);
@@ -228,7 +233,14 @@ class AlertService {
         }
       }
       
-      addMessage(title: '⛽ 오늘의 주유 가격', body: lines.join('\n'));
+      // 단일 주유소 알림이면 탭 시 그 주유소 상세로 이동 가능하게 id 저장.
+      final singleId =
+          stations.length == 1 ? (stations.first['id'] ?? '').toString() : '';
+      addMessage(
+          title: '⛽ 오늘의 주유 가격',
+          body: lines.join('\n'),
+          type: 'gas_price',
+          refId: singleId);
     } catch (e) {
       if (kDebugMode) debugPrint('[alerts] gas price 메시지 파싱 실패: $e');
     }
@@ -557,7 +569,7 @@ class AlertService {
         if (lastBody == body && lastTs != null &&
             DateTime.now().difference(lastTs).inSeconds < 60) return;
       }
-      addMessage(title: title, body: body);
+      addMessage(title: title, body: body, type: 'ev', refId: stationId);
     } catch (e) {
       if (kDebugMode) debugPrint('[alerts] ev alarm 메시지 파싱 실패: $e');
     }

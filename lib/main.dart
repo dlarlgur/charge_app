@@ -107,11 +107,16 @@ Future<void> _saveGasPriceToHive(Map<String, dynamic> data) async {
       ((box.get('push_messages', defaultValue: <dynamic>[]) as List)
           .map((e) => Map<String, dynamic>.from(e as Map))),
     );
+    // 단일 주유소 알림이면 탭 시 그 주유소 상세로 이동 가능하게 id 저장.
+    final gasSingleId =
+        stations.length == 1 ? (stations.first['id'] ?? '').toString() : '';
     msgs.insert(0, {
       'id': DateTime.now().millisecondsSinceEpoch.toString(),
       'title': '⛽ 오늘의 주유 가격',
       'body': body,
       'timestamp': DateTime.now().toIso8601String(),
+      'type': 'gas_price',
+      if (gasSingleId.isNotEmpty) 'ref_id': gasSingleId,
     });
     if (msgs.length > 50) msgs.removeLast();
     await box.put('push_messages', msgs);
@@ -191,11 +196,17 @@ Future<void> _saveGenericPushToHive(dynamic box, RemoteMessage message) async {
       ((box.get('push_messages', defaultValue: <dynamic>[]) as List)
           .map((e) => Map<String, dynamic>.from(e as Map))),
     );
+    // type/ref_id — 알림 내역에서 항목 탭 시 해당 상세로 이동용.
+    final type = message.data['type']?.toString() ?? '';
+    final refId =
+        (message.data['id'] ?? message.data['inquiryId'])?.toString() ?? '';
     msgs.insert(0, {
       'id': DateTime.now().millisecondsSinceEpoch.toString(),
       'title': title.isEmpty ? '알림' : title,
       'body': body,
       'timestamp': DateTime.now().toIso8601String(),
+      if (type.isNotEmpty) 'type': type,
+      if (refId.isNotEmpty) 'ref_id': refId,
     });
     if (msgs.length > 50) msgs.removeLast();
     await box.put('push_messages', msgs);
@@ -239,11 +250,14 @@ Future<void> _saveEvAlarmToHive(dynamic box, Map<String, dynamic> data) async {
       ((box.get('push_messages', defaultValue: <dynamic>[]) as List)
           .map((e) => Map<String, dynamic>.from(e as Map))),
     );
+    final refStationId = (data['stationId'] ?? '').toString().trim();
     msgs.insert(0, {
       'id': DateTime.now().millisecondsSinceEpoch.toString(),
       'title': title,
       'body': body,
       'timestamp': DateTime.now().toIso8601String(),
+      'type': 'ev',
+      if (refStationId.isNotEmpty) 'ref_id': refStationId,
     });
     if (msgs.length > 50) msgs.removeLast();
     await box.put('push_messages', msgs);
