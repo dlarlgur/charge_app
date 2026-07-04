@@ -1,3 +1,4 @@
+import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,7 @@ import '../../data/models/models.dart';
 import '../../providers/providers.dart';
 import '../../data/services/alert_service.dart';
 import '../../data/services/auth_service.dart';
+import '../widgets/policy_sheet.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -18,6 +20,8 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   int _step = 0;
+  // 이용약관·위치기반 약관 동의(필수) — 마지막 스텝에서 체크해야 시작 가능.
+  bool _termsAgreed = false;
   VehicleType _vehicleType = VehicleType.gas;
   // 유종 멀티 선택 — 첫 항목이 단일값 소비처(keyFuelType/AI 기본)의 primary.
   final Set<FuelType> _fuelTypes = {FuelType.gasoline};
@@ -102,10 +106,75 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
   }
 
+  /// 약관 동의 체크 행 — 필수(이용약관·위치기반). '보기'로 각 문서 열람.
+  Widget _termsAgreeRow(bool isDark) {
+    final muted = isDark ? Colors.white60 : const Color(0xFF64748B);
+    // 부트스트랩 동의 문서에서 이용약관/위치기반 문서 링크 확보 (없으면 링크 없이 체크만)
+    final docs = DkswCore.signupConsents
+        .where((c) => c.key == 'terms' || c.key == 'location')
+        .toList();
+    return InkWell(
+      onTap: () => setState(() => _termsAgreed = !_termsAgreed),
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            Icon(
+              _termsAgreed
+                  ? Icons.check_circle_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              size: 22,
+              color: _termsAgreed ? AppColors.gasBlue : muted,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text('(필수) 이용약관 및 위치기반서비스 약관 동의',
+                  style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : const Color(0xFF334155))),
+            ),
+            for (final d in docs)
+              if (d.viewUrl != null && d.viewUrl!.isNotEmpty)
+                GestureDetector(
+                  onTap: () => showPolicySheet(context, url: d.viewUrl!, title: d.title),
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Text(
+                        d.key == 'location' ? '위치약관' : '이용약관',
+                        style: TextStyle(
+                            fontSize: 11.5,
+                            color: muted,
+                            decoration: TextDecoration.underline)),
+                  ),
+                ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _finish() async {
     // 알림 권한 요청
     await FirebaseMessaging.instance.requestPermission(alert: true, badge: true, sound: true);
     AlertService().init();
+
+    // 약관 동의 증빙 기록 (게스트 포함, device 기준). 실패해도 온보딩은 막지 않음 —
+    // 다음 postConsents 계기(가입·마케팅 팝업)에서 보강.
+    try {
+      final docs = DkswCore.signupConsents;
+      String verOf(String key) {
+        for (final c in docs) {
+          if (c.key == key) return c.version;
+        }
+        return '1.0';
+      }
+      await DkswCore.postConsents([
+        ConsentChoice(key: 'terms', agreed: true, version: verOf('terms')),
+        ConsentChoice(key: 'location', agreed: true, version: verOf('location')),
+      ]);
+    } catch (_) {}
 
     final notifier = ref.read(settingsProvider.notifier);
     notifier.setVehicleType(_vehicleType);
@@ -221,14 +290,22 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               Text(_stepSubtitle, style: Theme.of(context).textTheme.bodyMedium),
               const SizedBox(height: 24),
               Expanded(child: SingleChildScrollView(child: _buildStepContent())),
+              // 마지막 스텝: 이용약관·위치기반서비스 약관 동의(필수) — 게스트도 위치 기능을
+              // 쓰기 전에 동의를 받아야 함(위치정보법). 회원가입 시트와 별개로 최초 실행에서 수집.
+              if (isLast) ...[
+                _termsAgreeRow(isDark),
+                const SizedBox(height: 10),
+              ],
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _next,
+                  onPressed: isLast && !_termsAgreed ? null : _next,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: isLast ? AppColors.gasBlueDark : _accentColor,
                   ),
-                  child: Text(isLast ? '알림 허용하고 시작하기' : '다음'),
+                  child: Text(isLast
+                      ? (_termsAgreed ? '알림 허용하고 시작하기' : '약관에 동의해주세요')
+                      : '다음'),
                 ),
               ),
               const SizedBox(height: 20),
