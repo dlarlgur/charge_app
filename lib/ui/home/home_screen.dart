@@ -1293,6 +1293,19 @@ class _AlertPageState extends State<_AlertPage> {
   void initState() {
     super.initState();
     _messages = AlertService().receivedMessages;
+    // 페이지 열람 중 새 푸시 수신 시 리스트 즉시 반영 (선택모드 중엔 선택 꼬임 방지로 보류).
+    AlertService.messagesChanged.addListener(_onMessagesChanged);
+  }
+
+  void _onMessagesChanged() {
+    if (!mounted || _selectionMode) return;
+    setState(() => _messages = AlertService().receivedMessages);
+  }
+
+  @override
+  void dispose() {
+    AlertService.messagesChanged.removeListener(_onMessagesChanged);
+    super.dispose();
   }
 
   void _enterSelectionMode(String id) {

@@ -163,6 +163,9 @@ class AlertService {
 
   void markAllRead() => Hive.box(_boxKey).put(_unreadCountKey, 0);
 
+  /// 알림 내역 변경 신호 — 알림 페이지가 열려 있는 동안 새 푸시가 오면 리스트 즉시 갱신용.
+  static final ValueNotifier<int> messagesChanged = ValueNotifier<int>(0);
+
   /// type/refId — 알림 내역에서 항목 탭 시 이동용.
   /// type: notice/event/inquiry_reply/ev/gas_price 등, refId: 공지id·문의id·충전소id·주유소id.
   void addMessage(
@@ -180,6 +183,7 @@ class AlertService {
     if (msgs.length > 50) msgs.removeLast();
     box.put(_messagesKey, msgs);
     box.put(_unreadCountKey, unreadCount + 1);
+    messagesChanged.value++;
   }
 
   /// gas_price_alert 데이터 메시지를 파싱해서 알림 내역에 저장

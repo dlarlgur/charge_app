@@ -263,10 +263,15 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
       final data = await ApiService().getGasPriceHistory(
         widget.stationId, period: period, fuels: fuels,
       );
-      if (mounted) setState(() { _chartData = data; _chartLoading = false; });
+      // 기간탭 연타 시 늦게 도착한 이전 기간 응답이 현재 탭 데이터를 덮는 race 방지.
+      if (mounted && _chartPeriod == period) {
+        setState(() { _chartData = data; _chartLoading = false; });
+      }
     } catch (e) {
       if (kDebugMode) debugPrint('[gas-detail] chart 로드 실패: $e');
-      if (mounted) setState(() { _chartData = null; _chartLoading = false; });
+      if (mounted && _chartPeriod == period) {
+        setState(() { _chartData = null; _chartLoading = false; });
+      }
     }
   }
 
@@ -1364,15 +1369,16 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
         borderData: FlBorderData(show: false),
         lineBarsData: lineBars,
         // 선택한 지점의 툴팁을 고정 표시 (손 떼도 유지). 3유종 전부 포함.
+        // _touchedChartIndex 는 '글로벌 날짜 index(=spot.x)' — 유종별 결측으로 리스트
+        // 길이가 달라도 같은 날짜의 점만 골라 표시 (리스트-로컬 index 사용 시 날짜 섞임).
         showingTooltipIndicators: (_touchedChartIndex == null)
             ? const []
             : [
                 ShowingTooltipIndicators([
                   for (int bi = 0; bi < lineBars.length; bi++)
-                    if (_touchedChartIndex! >= 0 &&
-                        _touchedChartIndex! < lineBars[bi].spots.length)
-                      LineBarSpot(lineBars[bi], bi,
-                          lineBars[bi].spots[_touchedChartIndex!]),
+                    for (final sp in lineBars[bi].spots)
+                      if (sp.x.toInt() == _touchedChartIndex)
+                        LineBarSpot(lineBars[bi], bi, sp),
                 ]),
               ],
         lineTouchData: LineTouchData(
@@ -1397,7 +1403,7 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
           touchCallback: (event, response) {
             final spots = response?.lineBarSpots;
             if (spots == null || spots.isEmpty) return;
-            final idx = spots.first.spotIndex;
+            final idx = spots.first.x.toInt(); // 글로벌 날짜 index (spot.x)
             if (idx != _touchedChartIndex) {
               setState(() => _touchedChartIndex = idx);
             }
@@ -1420,7 +1426,7 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                   fontWeight: FontWeight.w700);
               // 첫 줄 위에 날짜 헤더 한 줄 (어느 유종이 첫 항목이든 날짜는 동일).
               if (e.key == 0) {
-                final pi = s.spotIndex;
+                final pi = s.x.toInt(); // 글로벌 날짜 index — spotIndex 는 결측 시 어긋남
                 final dateRaw = (pi >= 0 &&
                         pi < points.length &&
                         points[pi] is Map)

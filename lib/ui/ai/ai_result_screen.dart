@@ -336,8 +336,8 @@ class _AiResultBodyState extends State<AiResultBody> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) =>
-          _ComparisonDetailSheet(cards: cards, cost: sheetCost, wonFmt: _wonFmt),
+      builder: (_) => _ComparisonDetailSheet(
+          cards: cards, cost: sheetCost, wonFmt: _wonFmt),
     );
   }
 
@@ -680,7 +680,6 @@ class _AiResultBodyState extends State<AiResultBody> {
         _AiMessageBanner(message: uiMessage),
         const SizedBox(height: 12),
       ],
-
 
       // ── 비교 테이블 (AI 추천 원본) / 카드 (사용자 대안 선택 시) ──
       if (!hasOverride && !noStationToRecommend) ...[
@@ -1085,8 +1084,10 @@ class _ExtraInfo {
 int _fuelSavingsWon(Map item) {
   int p(dynamic v) => v is num ? v.round() : (int.tryParse('${v ?? 0}') ?? 0);
   if (item['fuel_savings_won'] is num) return p(item['fuel_savings_won']);
-  if (item['real_savings_won'] is num) return p(item['real_savings_won']); // 구서버 폴백
-  if (item['savings_vs_primary_won'] is num) return p(item['savings_vs_primary_won']);
+  if (item['real_savings_won'] is num)
+    return p(item['real_savings_won']); // 구서버 폴백
+  if (item['savings_vs_primary_won'] is num)
+    return p(item['savings_vs_primary_won']);
   return p(item['savings_vs_on_route_won']);
 }
 
@@ -1664,11 +1665,16 @@ class _RecStatCell extends StatelessWidget {
   final String value;
   final String label;
 
+  /// true 면 다크모드에서 밝은 글자 — 다크 대응 카드(직접선택 추천카드)용.
+  /// AI 히어로 카드는 다크에서도 흰 박스 고정이라 false(진한 글자) 유지.
+  final bool darkAdaptive;
+
   const _RecStatCell({
     required this.icon,
     required this.iconColor,
     required this.value,
     required this.label,
+    this.darkAdaptive = false,
   });
 
   @override
@@ -1682,10 +1688,12 @@ class _RecStatCell extends StatelessWidget {
           const SizedBox(height: 7),
           Text(value,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF1a1a1a))),
+                  color: darkAdaptive && isDark
+                      ? AppColors.darkTextPrimary
+                      : const Color(0xFF1a1a1a))),
           const SizedBox(height: 4),
           Text(label,
               textAlign: TextAlign.center,
@@ -2064,7 +2072,6 @@ class _CompareCards extends StatelessWidget {
     );
   }
 }
-
 
 // ─── 옵션 카드 ────────────────────────────────────────────────────────────────
 
@@ -2495,57 +2502,60 @@ class _ComparisonDetailSheet extends StatelessWidget {
         );
     Widget line() => Divider(height: 1, color: lineColor);
 
-    return SafeArea(
-      top: false,
-      child: Container(
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.darkBg : Colors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
-        ),
-        padding: const EdgeInsets.fromLTRB(18, 10, 18, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                    color: Colors.grey[isDark ? 700 : 300],
-                    borderRadius: BorderRadius.circular(2))),
-            const SizedBox(height: 16),
-            Row(children: [
-              const Icon(Icons.compare_arrows_rounded,
-                  size: 18, color: recColor),
-              const SizedBox(width: 6),
-              Text('상세 비교',
-                  style: TextStyle(
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.w800,
-                      color: ink)),
-            ]),
-            const SizedBox(height: 14),
-            Row(children: [
-              const SizedBox(width: 76),
-              Expanded(child: _head(c1, ink, recColor)),
-              if (c2 != null) Expanded(child: _head(c2, ink, recColor)),
-            ]),
-            const SizedBox(height: 10),
-            line(),
-            mRow(
-                '리터당 가격',
-                _wonNum(c1['price']),
-                c2 != null ? _wonNum(c2['price']) : null,
-                big: true),
-            line(),
-            mRow('우회 시간', detTxt(c1), c2 != null ? detTxt(c2) : null),
-            line(),
-            mRow('예상 주유비', _wonNum(c1['cost']),
-                c2 != null ? _wonNum(c2['cost']) : null),
-            if (cost != null) ...[
+    // 색칠 Container 를 SafeArea 밖에 둬야 제스처 내비 기기에서 시트 아래 투명 띠가 안 생기고,
+    // 큰 글꼴/소형 폰에서 내용이 화면을 넘으면 스크롤로 흡수한다.
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkBg : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: Colors.grey[isDark ? 700 : 300],
+                      borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 16),
+              Row(children: [
+                const Icon(Icons.compare_arrows_rounded,
+                    size: 18, color: recColor),
+                const SizedBox(width: 6),
+                Text('상세 비교',
+                    style: TextStyle(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w800,
+                        color: ink)),
+              ]),
               const SizedBox(height: 14),
-              _costVerdictBox(cost!, wonFmt, ink, muted, isDark),
+              Row(children: [
+                const SizedBox(width: 76),
+                Expanded(child: _head(c1, ink, recColor)),
+                if (c2 != null) Expanded(child: _head(c2, ink, recColor)),
+              ]),
+              const SizedBox(height: 10),
+              line(),
+              mRow('리터당 가격', _wonNum(c1['price']),
+                  c2 != null ? _wonNum(c2['price']) : null,
+                  big: true),
+              line(),
+              mRow('우회 시간', detTxt(c1), c2 != null ? detTxt(c2) : null),
+              line(),
+              mRow('예상 주유비', _wonNum(c1['cost']),
+                  c2 != null ? _wonNum(c2['cost']) : null),
+              if (cost != null) ...[
+                const SizedBox(height: 14),
+                _costVerdictBox(cost!, wonFmt, ink, muted, isDark),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -2607,12 +2617,11 @@ class _ComparisonDetailSheet extends StatelessWidget {
       ]),
     ]);
   }
-
 }
 
 // 비용 판정 박스 (공용 — AI 상세비교표·직접선택 A/B 비교에서 동일 사용) — 절약 − 우회비용 = 순이득.
-Widget _costVerdictBox(Map<String, dynamic> ca, NumberFormat wonFmt,
-    Color ink, Color muted, bool isDark) {
+Widget _costVerdictBox(Map<String, dynamic> ca, NumberFormat wonFmt, Color ink,
+    Color muted, bool isDark) {
   int gi(String k) {
     final v = ca[k];
     if (v is num) return v.round();
@@ -2642,12 +2651,10 @@ Widget _costVerdictBox(Map<String, dynamic> ca, NumberFormat wonFmt,
   // 담당하므로(선택 비교에선 '경로상' 표현이 어긋남) 여긴 판단 근거만 중립적으로.
   String verdict;
   if (extraMin <= 0) {
-    verdict = fuelBenefit > 0
-        ? '추가 우회 없이 더 저렴한 곳이에요'
-        : '추가 시간·연료까지 감안하면 이득이 없어요';
-  } else if (worth) {
     verdict =
-        '$extraMin분 더 걸려도 ${wonF.format(fuelBenefit)}원 아껴져서 갈 만해요';
+        fuelBenefit > 0 ? '추가 우회 없이 더 저렴한 곳이에요' : '추가 시간·연료까지 감안하면 이득이 없어요';
+  } else if (worth) {
+    verdict = '$extraMin분 더 걸려도 ${wonF.format(fuelBenefit)}원 아껴져서 갈 만해요';
   } else if (fuelBenefit > 0) {
     verdict =
         '${wonF.format(fuelBenefit)}원 아껴지긴 하지만, $extraMin분 더 갈 만큼 차이가 크진 않아요';
@@ -2681,7 +2688,8 @@ Widget _costVerdictBox(Map<String, dynamic> ca, NumberFormat wonFmt,
           muted,
           priceDiff > 0 ? green : (priceDiff < 0 ? red : ink)),
       if (fuelWon > 0)
-        _costVerdictLine('우회하는 데 드는 기름', '약 ${wonF.format(fuelWon)}원', muted, ink),
+        _costVerdictLine(
+            '우회하는 데 드는 기름', '약 ${wonF.format(fuelWon)}원', muted, ink),
       Divider(height: 14, color: c.withValues(alpha: 0.2)),
       Row(children: [
         Expanded(
@@ -2699,8 +2707,7 @@ Widget _costVerdictBox(Map<String, dynamic> ca, NumberFormat wonFmt,
         const SizedBox(height: 3),
         Row(children: [
           Expanded(
-              child: Text('시간은',
-                  style: TextStyle(fontSize: 12, color: muted))),
+              child: Text('시간은', style: TextStyle(fontSize: 12, color: muted))),
           Text('$extraMin분 더 걸려요',
               style: TextStyle(
                   fontSize: 13, fontWeight: FontWeight.w800, color: ink)),
@@ -2709,7 +2716,10 @@ Widget _costVerdictBox(Map<String, dynamic> ca, NumberFormat wonFmt,
       const SizedBox(height: 6),
       Text(verdict,
           style: TextStyle(
-              fontSize: 11, height: 1.35, fontWeight: FontWeight.w600, color: muted)),
+              fontSize: 11,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+              color: muted)),
     ]),
   );
 }
@@ -2717,12 +2727,16 @@ Widget _costVerdictBox(Map<String, dynamic> ca, NumberFormat wonFmt,
 Widget _costVerdictLine(String label, String value, Color muted, Color ink) =>
     Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(children: [
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: TextStyle(fontSize: 12, color: muted)),
+        const SizedBox(width: 12),
+        // value 에 주유소 풀네임이 들어올 수 있어(직접선택 비교) 폭 제한 + 줄바꿈 허용.
         Expanded(
-            child: Text(label, style: TextStyle(fontSize: 12, color: muted))),
-        Text(value,
-            style: TextStyle(
-                fontSize: 12.5, fontWeight: FontWeight.w700, color: ink)),
+          child: Text(value,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                  fontSize: 12.5, fontWeight: FontWeight.w700, color: ink)),
+        ),
       ]),
     );
 
@@ -2767,11 +2781,13 @@ class _AltSection extends StatelessWidget {
       children: [
         Row(
           children: [
-            const Text('다른 후보',
+            Text('다른 후보',
                 style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF1a1a1a))),
+                    color: isDark
+                        ? AppColors.darkTextPrimary
+                        : const Color(0xFF1a1a1a))),
             const SizedBox(width: 6),
             Text('가격 순',
                 style: TextStyle(
@@ -3308,13 +3324,19 @@ class _CompareMessageBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final normalized =
         _normalizeMarkdownForKorean(message.replaceAll(r'\n', '\n'));
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF0F4FF),
+        color: isDark
+            ? _kCompareWinner.withValues(alpha: 0.10)
+            : const Color(0xFFF0F4FF),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFB8CCFF)),
+        border: Border.all(
+            color: isDark
+                ? _kCompareWinner.withValues(alpha: 0.35)
+                : const Color(0xFFB8CCFF)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3346,8 +3368,12 @@ class _CompareMessageBanner extends StatelessWidget {
                   shrinkWrap: true,
                   styleSheet:
                       MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
-                    p: const TextStyle(
-                        fontSize: 13, height: 1.5, color: Color(0xFF1a1a1a)),
+                    p: TextStyle(
+                        fontSize: 13,
+                        height: 1.5,
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : const Color(0xFF1a1a1a)),
                     strong: const TextStyle(
                       fontSize: 13,
                       height: 1.5,
@@ -3647,10 +3673,11 @@ class _CompareRecommendCard extends StatelessWidget {
     final canNav =
         stLat != null && stLng != null && destLat != null && destLng != null;
     final isNegligible = detourMin == null || detourMin! < _kDetourStartMinutes;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       decoration: BoxDecoration(
-        color: _kMarkerRecommendLight,
+        color: isDark ? AppColors.darkCard : _kMarkerRecommendLight,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _kMarkerRecommend, width: 2),
       ),
@@ -3690,10 +3717,12 @@ class _CompareRecommendCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
             child: Text(name,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF1a1a1a))),
+                    color: isDark
+                        ? AppColors.darkTextPrimary
+                        : const Color(0xFF1a1a1a))),
           ),
 
           // 수치 행
@@ -3701,7 +3730,7 @@ class _CompareRecommendCard extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDark ? const Color(0x14FFFFFF) : Colors.white,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: IntrinsicHeight(
@@ -3714,8 +3743,13 @@ class _CompareRecommendCard extends StatelessWidget {
                           ? '${wonFmt.format(price!.round())}원'
                           : '—',
                       label: '리터당 가격',
+                      darkAdaptive: true,
                     ),
-                    const VerticalDivider(width: 1, color: Color(0xFFDDDDDD)),
+                    VerticalDivider(
+                        width: 1,
+                        color: isDark
+                            ? AppColors.darkCardBorder
+                            : const Color(0xFFDDDDDD)),
                     _RecStatCell(
                       icon: Icons.access_time_rounded,
                       iconColor: isNegligible
@@ -3725,13 +3759,19 @@ class _CompareRecommendCard extends StatelessWidget {
                           ? '우회 없음'
                           : (detourMin != null ? '+${detourMin}분' : '조금 우회'),
                       label: '직행 대비',
+                      darkAdaptive: true,
                     ),
-                    const VerticalDivider(width: 1, color: Color(0xFFDDDDDD)),
+                    VerticalDivider(
+                        width: 1,
+                        color: isDark
+                            ? AppColors.darkCardBorder
+                            : const Color(0xFFDDDDDD)),
                     _RecStatCell(
                       icon: Icons.payments_outlined,
                       iconColor: _kMarkerRecommend,
                       value: cost > 0 ? '${wonFmt.format(cost)}원' : '—',
                       label: '예상 주유비',
+                      darkAdaptive: true,
                     ),
                   ],
                 ),

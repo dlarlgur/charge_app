@@ -5141,7 +5141,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
               ),
 
             // ── 결과 모드: 상단 뒤로가기 + 경로 요약 ──
-            if (_isResultMode || _isEvResultMode || _isEvSelectMode)
+            // 직접선택 결과(_isCompareResultMode)도 포함 — 없으면 iOS 에서 결과 화면을
+            // 나갈 방법이 없음(하드웨어 back 부재).
+            if (_isResultMode ||
+                _isEvResultMode ||
+                _isEvSelectMode ||
+                _isCompareResultMode)
               Positioned(
                 top: 0,
                 left: 0,
@@ -5317,7 +5322,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
               ),
 
             // ── 현재위치 버튼 (결과 모드: 시트 위에 붙어 이동) ──
-            if (_isResultMode || _isEvResultMode || _isEvSelectMode || _isSelectMode)
+            if (_isResultMode ||
+                _isEvResultMode ||
+                _isEvSelectMode ||
+                _isSelectMode ||
+                _isCompareResultMode)
               Positioned(
                 right: 16,
                 bottom: MediaQuery.of(context).padding.bottom +
