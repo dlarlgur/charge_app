@@ -93,10 +93,16 @@ Future<void> showExitConfirmDialog(BuildContext context) async {
   final ink = isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A2E);
   final muted = isDark ? AppColors.darkTextMuted : const Color(0xFF94A3B8);
 
-  // 미디엄 템플릿 높이 튜닝 이력: 320 → CTA 잘림, 410 → 다이얼로그 과대(실기기 피드백).
-  // 실측상 CTA 까지 온전히 들어가는 최소선이 ~370 — 375 상한으로 잘림 없이 최대한 컴팩트하게.
+  // 미디엄 템플릿 필요 높이는 화면 '높이'가 아니라 다이얼로그 '폭'에 비례:
+  // 미디어(폭×9/16) + 고정 행(아이콘·제목·본문·CTA ≈ 175dp).
+  // → 폭 기반 계산이라 소형(320dp)~태블릿까지 잘림·과대 없이 스케일.
+  //   (320 고정: 넓은 기기 CTA 잘림 / 410 고정: 좁은 기기 과대 — 실기기 피드백 이력)
+  final screen = MediaQuery.of(context).size;
+  // 태블릿에서 다이얼로그가 화면 전체로 퍼지지 않게 콘텐츠 폭 상한 420.
+  final contentW = (screen.width - 48 /*insetPadding*/ - 40 /*내부 padding*/)
+      .clamp(200.0, 420.0);
   final adHeight =
-      (MediaQuery.of(context).size.height * 0.44).clamp(320.0, 375.0);
+      (contentW * 9 / 16 + 175.0).clamp(280.0, screen.height * 0.55);
 
   final exit = await showDialog<bool>(
     context: context,
@@ -105,76 +111,80 @@ Future<void> showExitConfirmDialog(BuildContext context) async {
       backgroundColor: isDark ? AppColors.darkCard : Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('앱을 종료할까요?',
-                  style: TextStyle(
-                      fontSize: 17, fontWeight: FontWeight.w800, color: ink)),
-              const SizedBox(height: 5),
-              Text('다음에 또 만나요',
-                  style: TextStyle(fontSize: 12.5, color: muted)),
-              if (ad != null) ...[
-                const SizedBox(height: 16),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: SizedBox(
-                    height: adHeight,
-                    width: double.infinity,
-                    child: AdWidget(ad: ad),
-                  ),
-                ),
-              ],
-              // 광고와 버튼 사이 여백 — 오클릭(의도치 않은 광고 클릭) 방지, 정책 요건.
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
+      child: ConstrainedBox(
+        // 태블릿/폴더블 펼침에서도 폰 크기의 카드로 유지 (폭 상한 = 광고 높이 계산과 동일 기준)
+        constraints: const BoxConstraints(maxWidth: 460),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('앱을 종료할까요?',
+                    style: TextStyle(
+                        fontSize: 17, fontWeight: FontWeight.w800, color: ink)),
+                const SizedBox(height: 5),
+                Text('다음에 또 만나요',
+                    style: TextStyle(fontSize: 12.5, color: muted)),
+                if (ad != null) ...[
+                  const SizedBox(height: 16),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
                     child: SizedBox(
-                      height: 46,
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.of(ctx).pop(false),
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(
-                              color: isDark
-                                  ? AppColors.darkCardBorder
-                                  : const Color(0xFFD8DEE6)),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: Text('취소',
-                            style: TextStyle(
-                                fontSize: 14.5,
-                                fontWeight: FontWeight.w700,
-                                color: ink)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: SizedBox(
-                      height: 46,
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.of(ctx).pop(true),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.gasBlueDark,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: const Text('종료',
-                            style: TextStyle(
-                                fontSize: 14.5, fontWeight: FontWeight.w700)),
-                      ),
+                      height: adHeight,
+                      width: double.infinity,
+                      child: AdWidget(ad: ad),
                     ),
                   ),
                 ],
-              ),
-            ],
+                // 광고와 버튼 사이 여백 — 오클릭(의도치 않은 광고 클릭) 방지, 정책 요건.
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 46,
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(ctx).pop(false),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(
+                                color: isDark
+                                    ? AppColors.darkCardBorder
+                                    : const Color(0xFFD8DEE6)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: Text('취소',
+                              style: TextStyle(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: ink)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: SizedBox(
+                        height: 46,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.of(ctx).pop(true),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.gasBlueDark,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('종료',
+                              style: TextStyle(
+                                  fontSize: 14.5, fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
