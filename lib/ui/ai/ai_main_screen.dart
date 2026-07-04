@@ -159,7 +159,6 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       DraggableScrollableController();
   double _sheetSize = 0.45;
   DateTime? _lastInScreenBackHandledAt;
-  DateTime? _lastExitBackPressTime;
 
   /// `DraggableScrollableSheet` 빌더가 넘기는 스크롤 컨트롤러 (결과·비교 본문)
   ScrollController? _resultSheetScrollController;
@@ -4143,15 +4142,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   }
 
   void _showExitDialog() {
-    final now = DateTime.now();
-    if (_lastExitBackPressTime == null ||
-        now.difference(_lastExitBackPressTime!) > const Duration(seconds: 2)) {
-      _lastExitBackPressTime = now;
-      showAppToast(context, '한 번 더 누르시면 종료됩니다.');
-    } else {
-      // 종료 전 전면광고 — home_screen 과 동일. AI 탭만 직접 pop 해서 광고가 안 뜨던 버그 수정.
-      ExitAdService.instance.showThenExit(() => SystemNavigator.pop());
-    }
+    // 종료 확인 다이얼로그(+네이티브 광고) — home_screen 과 동일 패턴.
+    showExitConfirmDialog(context);
   }
 
   // 커넥티드 차량(현대/기아/제네시스)에서 현재 상태를 불러와 게이지에 세팅.

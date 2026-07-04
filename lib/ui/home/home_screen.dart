@@ -8,7 +8,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/util/app_toast.dart';
 import '../../core/utils/helpers.dart';
 import '../../data/models/models.dart';
 import 'package:share_plus/share_plus.dart';
@@ -56,7 +55,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen>
     with WidgetsBindingObserver {
   final _messageBadgeKey = GlobalKey<_HomeTabState>();
-  DateTime? _lastBackPressTime;
   double _watchDragDy = 0; // 자리변동알림 플로팅 바 세로 드래그 오프셋(아래에서 위로)
   // FCM 리스너는 hot reload / re-create 시 중복 등록되면 알림 2회 저장 등 부작용.
   // dispose 에서 명시적으로 cancel 하기 위해 subscription 보관.
@@ -470,15 +468,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         // 지도 시트가 열려있으면 MapScreen의 PopScope가 처리 중 → 토스트 띄우지 않음
         if (mapSheetOpen.value) return;
 
-        final now = DateTime.now();
-        if (_lastBackPressTime == null ||
-            now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
-          _lastBackPressTime = now;
-          showAppToast(context, '한 번 더 누르시면 종료됩니다.');
-        } else {
-          // 종료 전 전면광고 — 준비됐으면 보여주고 닫히면 종료, 없으면 즉시 종료.
-          ExitAdService.instance.showThenExit(() => SystemNavigator.pop());
-        }
+        // 종료 확인 다이얼로그(+네이티브 광고) — 종료 시 전면광고는 AdMob 금지 배치라 전환.
+        showExitConfirmDialog(context);
       },
       child: Scaffold(
       body: Stack(
