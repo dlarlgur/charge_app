@@ -11,9 +11,10 @@ final notificationPlugin = FlutterLocalNotificationsPlugin();
 /// 포그라운드/백그라운드 isolate 양쪽에서 호출되므로 AlertService 의존 없이
 /// Hive 'settings' 박스를 직접 읽는다(백그라운드 핸들러에서 이미 openBox 됨).
 /// 자정 넘김(예 23:00~07:00) 처리 포함. 박스 미오픈 등 예외 시 false(=알림 표시).
-/// 모든 알림(자리변동 감시 포함)에 적용 — "방해금지 24시간인데 빈자리 알림이 온다"
-/// 실사용 피드백으로 ev_watch 예외 폐기. 감시 상시알림(무음 상태표시)만 유지하되
-/// 방해금지 중임을 본문에 표시한다.
+/// 적용 범위: 주유가격·EV자리(ev_alarm)·공지·이벤트·문의답변·자유푸시.
+/// 유일한 예외 = ev_watch(AI 추천 직후 사용자가 직접 신청한 2시간 감시) — 그 순간의
+/// 명시적 의사가 방해금지보다 우선이라는 정책 결정(사용자 확정). 일반 빈자리
+/// 알림(ev_alarm, 상시 구독)은 방해금지를 따른다.
 bool _isWithinDnd() {
   try {
     final box = Hive.box('settings');
@@ -224,9 +225,8 @@ void showGasPriceNotification(Map<String, dynamic> data, {int soundMode = 0}) {
 /// soundMode: 0=소리, 1=진동, 2=무음
 /// 만석(newAvail=0) 도달 시 "다른 충전소" 액션 버튼 노출 → AI 재추천 트리거
 void showEvWatchNotification(Map<String, dynamic> data, {int soundMode = 0}) {
-  // 방해 금지 시간: 감시 자리변동 알림도 표시 안 함 (사용자 피드백 — DND 의사가 우선).
-  // 감시 상태·잔여시간은 상시알림(무음)이 계속 보여주고, 거기에 방해금지 중임을 표시.
-  if (_isWithinDnd()) return;
+  // 방해금지 예외 — AI 추천 직후 사용자가 직접 신청한 2시간 단발 감시라 무조건 표시.
+  // (일반 빈자리 알림 ev_alarm 은 게이트 적용 — showEvAlarmNotification 참고)
   final stationId = data['stationId'] as String? ?? '';
   final originalStationName = data['stationName'] as String? ?? '';
   // 사용자가 등록한 별칭 우선 — 알림 title / MessagingStyle conversationTitle 모두 적용
@@ -316,12 +316,9 @@ void showWatchOngoingNotification({
   final name = stationId.isEmpty
       ? stationName
       : StationAliasService.resolveEv(stationId, stationName);
-  // 방해금지 중엔 변동 알림이 표시되지 않음을 상시알림에서 안내 (감시가 무의미해 보이는 혼란 방지)
-  final dndSuffix = _isWithinDnd() ? '  ·  방해금지 중(알림 표시 안 됨)' : '';
-  final body = (avail != null
-          ? '현재 $avail자리  ·  $remainingMin분 남음'
-          : '$remainingMin분 남음') +
-      dndSuffix;
+  final body = avail != null
+      ? '현재 $avail자리  ·  $remainingMin분 남음'
+      : '$remainingMin분 남음';
   notificationPlugin.show(
     1010,
     '⚡ $name 자리 변동 감시 중',
