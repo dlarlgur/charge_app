@@ -414,6 +414,8 @@ const inquiryReplyChannel = AndroidNotificationChannel(
 /// 백그라운드/종료 상태에선 시스템이 자동 표시하므로 이 함수는 포그라운드 전용.
 /// 폰 알림이면 충분 — Android Auto 대상 아님(BigText).
 void showInquiryReplyNotification({String? title, String? body, int? inquiryId}) {
+  // 방해 금지 시간: 시스템 알림만 건너뜀 — 알림 내역 저장·뱃지는 호출부에서 그대로 수행.
+  if (_isWithinDnd()) return;
   final t = (title == null || title.isEmpty) ? '문의 답변이 도착했어요' : title;
   final b = body ?? '';
   notificationPlugin.show(
@@ -456,6 +458,9 @@ void showNoticeNotification({String? title, String? body, int? noticeId}) {
 
 void _showContentNotification(
     int id, String fallbackTitle, String? title, String? body, String payload) {
+  // 방해 금지 시간: 공지·이벤트·자유푸시도 시스템 알림 스킵 (내역 저장은 호출부 유지).
+  // 예외는 ev_watch(자리변동 감시)뿐 — 사용자가 그 순간 직접 신청한 단발 감시라 무조건 표시.
+  if (_isWithinDnd()) return;
   final t = (title == null || title.isEmpty) ? fallbackTitle : title;
   final b = body ?? '';
   notificationPlugin.show(
