@@ -4,14 +4,15 @@ import 'package:flutter_naver_map/flutter_naver_map.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/navigation_util.dart';
 
-/// 상세 화면용 미니맵 — 위치 프리뷰 + 핀치 줌.
+/// 상세 화면용 미니맵 — 위치 프리뷰 + 확대/축소.
 ///
 /// 조잡함 방지 원칙:
 ///  · 이동(팬)·회전·틸트 잠금 — 스크롤 중 지도가 딸려가는 문제 차단.
-///    줌(핀치·더블탭)만 허용: 확대해 입구 위치, 축소해 동네 맥락 확인 (사용자 피드백).
+///  · 확대/축소는 우상단 +/- 버튼(패키지 줌 위젯, 항상 동작 보장) + 핀치 병행.
+///    (스크롤뷰 안 플랫폼뷰는 핀치 포워딩이 기기에 따라 불안정 → 버튼이 확실한 경로)
 ///  · 탭 = 길안내 시트 (지도 onMapTapped + 우하단 칩 양쪽)
-///  · 높이는 폭 비례(38%)로 130~190dp 클램프 — 소형폰~태블릿 반응형
-class DetailMiniMap extends StatelessWidget {
+///  · 높이는 폭 비례(46%)로 150~230dp 클램프 — 소형폰~태블릿 반응형
+class DetailMiniMap extends StatefulWidget {
   final double lat;
   final double lng;
   final String name;
@@ -28,13 +29,20 @@ class DetailMiniMap extends StatelessWidget {
   });
 
   @override
+  State<DetailMiniMap> createState() => _DetailMiniMapState();
+}
+
+class _DetailMiniMapState extends State<DetailMiniMap> {
+  NaverMapController? _controller;
+
+  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final borderColor =
         isDark ? AppColors.darkCardBorder : const Color(0xFFE2E8F0);
 
     return LayoutBuilder(builder: (context, constraints) {
-      final h = (constraints.maxWidth * 0.38).clamp(130.0, 190.0);
+      final h = (constraints.maxWidth * 0.46).clamp(150.0, 230.0);
       return SizedBox(
         height: h,
         width: double.infinity,
@@ -43,12 +51,12 @@ class DetailMiniMap extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // 지도 — 줌(핀치·더블탭)만 허용, 이동·회전·틸트 잠금. 탭하면 길안내.
+              // 지도 — 줌(핀치)만 허용, 이동·회전·틸트 잠금. 탭하면 길안내.
               NaverMap(
                 options: NaverMapViewOptions(
                   initialCameraPosition: NCameraPosition(
-                    target: NLatLng(lat, lng),
-                    zoom: 14.3, // 동네 맥락이 보이는 배율 (15.2는 과확대 피드백)
+                    target: NLatLng(widget.lat, widget.lng),
+                    zoom: 14.3,
                   ),
                   minZoom: 11,
                   maxZoom: 18,
@@ -65,11 +73,12 @@ class DetailMiniMap extends StatelessWidget {
                 onMapReady: (controller) {
                   controller.addOverlay(NMarker(
                     id: 'detail_mini_marker',
-                    position: NLatLng(lat, lng),
+                    position: NLatLng(widget.lat, widget.lng),
                   ));
+                  if (mounted) setState(() => _controller = controller);
                 },
-                onMapTapped: (_, __) => showNavigationSheet(
-                    context, lat: lat, lng: lng, name: name),
+                onMapTapped: (_, __) => showNavigationSheet(context,
+                    lat: widget.lat, lng: widget.lng, name: widget.name),
               ),
               // 테두리 (지도 위에 살짝) — 터치는 지도로 통과
               Positioned.fill(
@@ -82,18 +91,30 @@ class DetailMiniMap extends StatelessWidget {
                   ),
                 ),
               ),
+              // 우상단 +/- 줌 버튼 — 컨트롤러 준비 후 표시 (패키지 제공 위젯, 다크 연동)
+              if (_controller != null)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: NaverMapZoomControlWidget(
+                    mapController: _controller,
+                    nightMode: isDark,
+                    size: 34,
+                    roundness: 10,
+                  ),
+                ),
               // 우하단 '길안내' 칩 — 지도 탭과 동일 동작의 실제 버튼
               Positioned(
                 right: 8,
                 bottom: 8,
                 child: GestureDetector(
-                  onTap: () => showNavigationSheet(
-                      context, lat: lat, lng: lng, name: name),
+                  onTap: () => showNavigationSheet(context,
+                      lat: widget.lat, lng: widget.lng, name: widget.name),
                   child: Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: accent,
+                      color: widget.accent,
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
