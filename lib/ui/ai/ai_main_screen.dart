@@ -1509,6 +1509,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           ? (data['meta'] as Map)['status']?.toString()
           : null;
       if (status == 'ok') {
+        // 통합 랭킹(ranked 1·2위) 있으면 기존 on_route/best_detour 슬롯에 치환 —
+        // 렌더·지도 배선 그대로 재사용. 구서버 응답(ranked 없음)은 원본 유지.
+        data = _applyRankedFrame(data);
         final originLabel = _originName ?? _currentLocationAddress ?? '현재 위치';
         final rec = data['recommendation'] is Map
             ? data['recommendation'] as Map<String, dynamic>
@@ -4144,6 +4147,84 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   void _showExitDialog() {
     // 뒤로가기 → 바로 종료 확인 다이얼로그 (home_screen 과 동일, 토스트 단계 제거).
     showExitConfirmDialog(context);
+  }
+
+  /// 서버 통합 랭킹(ranked 1·2위, additive 필드) → 기존 on_route/best_detour 프레임 치환.
+  /// - on_route 슬롯 ← 1위(추천), best_detour 슬롯 ← 2위(차선), choice='on_route' 고정
+  /// - card_mode='ranked' 로 결과 화면이 라벨(추천/차선)을 분기
+  /// - 판정 박스는 ranked_comparison(1위 vs 2위 비용 분해)으로 교체
+  /// ranked 없으면(구서버) 원본 그대로 — 앱·서버 어느 쪽이 먼저 배포돼도 안전.
+  Map<String, dynamic> _applyRankedFrame(Map<String, dynamic> d) {
+    final ranked = d['ranked'];
+    if (ranked is! List || ranked.isEmpty) return d;
+    Map<String, dynamic>? entry(int i) =>
+        (i < ranked.length && ranked[i] is Map)
+            ? Map<String, dynamic>.from(ranked[i] as Map)
+            : null;
+    final r1 = entry(0);
+    if (r1 == null || r1['station'] is! Map) return d;
+    final r2 = entry(1);
+
+    // via_route 재사용 — ranked 항목에 없으면 같은 주유소의 기존 슬롯 것.
+    Map<String, dynamic>? oldVia(String id) {
+      for (final k in const ['on_route', 'best_detour']) {
+        final o = d[k];
+        if (o is Map &&
+            o['station'] is Map &&
+            (o['station'] as Map)['id']?.toString() == id &&
+            o['via_route'] is Map) {
+          return Map<String, dynamic>.from(o['via_route'] as Map);
+        }
+      }
+      return null;
+    }
+
+    for (final r in [r1, if (r2 != null) r2]) {
+      if (r['via_route'] == null) {
+        final id = (r['station'] as Map)['id']?.toString() ?? '';
+        final v = oldVia(id);
+        if (v != null) r['via_route'] = v;
+      }
+    }
+
+    // 2위 카드의 '연료 기준 절약' — 싼 쪽이 2위일 때만 양수(초록 라벨).
+    final rc = d['ranked_comparison'];
+    if (r2 != null && rc is Map) {
+      final sv = rc['savings_won'];
+      final fw = rc['detour_fuel_won'];
+      if (rc['cheaper_rank'] == 2 && sv is num && fw is num) {
+        r2['fuel_savings_won'] = (sv - fw).round();
+        r2['detour_fuel_won'] = fw.round();
+        r2['detour_extra_min'] = rc['detour_extra_min'];
+      }
+    }
+
+    final out = Map<String, dynamic>.from(d);
+    out['on_route'] = r1;
+    out['best_detour'] = r2;
+    final rec = d['recommendation'] is Map
+        ? Map<String, dynamic>.from(d['recommendation'] as Map)
+        : <String, dynamic>{};
+    rec['choice'] = 'on_route'; // 1위 = primary 슬롯 (지도 주황 마커)
+    rec['card_mode'] = 'ranked';
+    rec['show_secondary'] = r2 != null;
+    final dt = rec['decision_trace'] is Map
+        ? Map<String, dynamic>.from(rec['decision_trace'] as Map)
+        : <String, dynamic>{};
+    if (rc is Map && r2 != null) {
+      final cheaperName = rc['cheaper_rank'] == 1
+          ? ((r1['station'] as Map)['name']?.toString() ?? '추천')
+          : ((r2['station'] as Map)['name']?.toString() ?? '차선');
+      dt['cost_analysis'] = {
+        ...Map<String, dynamic>.from(rc),
+        'subject': cheaperName,
+      };
+    } else {
+      dt['cost_analysis'] = null; // 후보 1개뿐 — 판정 박스 숨김
+    }
+    rec['decision_trace'] = dt;
+    out['recommendation'] = rec;
+    return out;
   }
 
   // 커넥티드 차량(현대/기아/제네시스)에서 현재 상태를 불러와 게이지에 세팅.

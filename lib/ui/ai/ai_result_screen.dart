@@ -320,9 +320,13 @@ class _AiResultBodyState extends State<AiResultBody> {
         'verdict': netSav >= 0 ? 'detour_worth' : 'on_route_worth',
       };
     } else {
-      final onR = toCard(d['on_route'], '경로상', choice == 'on_route');
+      final isRanked = d['recommendation'] is Map &&
+          (d['recommendation'] as Map)['card_mode'] == 'ranked';
+      final onR = toCard(
+          d['on_route'], isRanked ? '추천' : '경로상', choice == 'on_route');
       if (onR != null) cards.add(onR);
-      final det = toCard(d['best_detour'], '우회', choice == 'best_detour');
+      final det = toCard(
+          d['best_detour'], isRanked ? '차선' : '우회', choice == 'best_detour');
       if (det != null) cards.add(det);
       if (onR == null &&
           d['alternatives'] is List &&
@@ -410,12 +414,17 @@ class _AiResultBodyState extends State<AiResultBody> {
     final choice = rec?['choice']?.toString() ?? 'on_route';
     final cardMode = rec?['card_mode']?.toString() ?? 'normal';
     final isDualDetour = cardMode == 'dual_detour';
+    // 통합 랭킹 프레임 — on_route 슬롯=추천 1위, best_detour 슬롯=차선 2위 (수신 시 치환됨).
+    // 경로상/우회 라벨 대신 추천/차선으로 표기 ("경로상인데 +3분" 라벨-실측 역전 혼란 해소).
+    final isRankedMode = cardMode == 'ranked';
     // 서버가 2번째 카드 노출 여부 결정 (추천보다 비싸기만 한 우회는 숨김). 누락 시 기본 표시.
     final showSecondary = rec?['show_secondary'] != false;
     // 서버가 경로상 후보 없을 때 최소 우회시간 후보를 가상 baseline 으로 승격
     // → "경로상 최저가" 라벨을 "근거리 우회"로 분기
     final isOnRouteVirtual = onRoute?['is_on_route_virtual'] == true;
-    final onRouteLabel = isOnRouteVirtual ? '근거리 우회' : '경로상 최저가';
+    final onRouteLabel = isRankedMode
+        ? '추천'
+        : (isOnRouteVirtual ? '근거리 우회' : '경로상 최저가');
     final uiMessage = _altAiMessage ?? rec?['ui_message']?.toString() ?? '';
 
     final onRouteSt = onRoute?['station'] is Map
@@ -607,8 +616,10 @@ class _AiResultBodyState extends State<AiResultBody> {
         detourM: dtDetourM,
         detourTimeMin: dtDetourTimeMin,
         savings: dtSavings,
-        tag: '우회 최저가',
-        tagColor: const Color(0xFF1D6FE0), // 파랑
+        tag: isRankedMode ? '차선' : '우회 최저가',
+        tagColor: isRankedMode
+            ? const Color(0xFF888888)
+            : const Color(0xFF1D6FE0), // 파랑
         isAiRec: false,
         isUserSelected: false,
         rawData: bestDetour,
@@ -706,6 +717,7 @@ class _AiResultBodyState extends State<AiResultBody> {
           aiRecIsDetour: aiRecIsDetour,
           isDualDetour: isDualDetour,
           isOnRouteVirtual: isOnRouteVirtual,
+          rankedMode: isRankedMode,
           dtSavings: dtSavings,
           dtDetourMins: dtTimeMinsBanner,
           fuelLabel: widget.fuelLabel,
@@ -1283,6 +1295,7 @@ class _StationComparisonSection extends StatelessWidget {
   final bool aiRecIsDetour;
   final bool isDualDetour;
   final bool isOnRouteVirtual;
+  final bool rankedMode; // 통합 랭킹 프레임 — 태그를 추천/차선으로
   final int dtSavings;
   final int? dtDetourMins;
   final String? fuelLabel;
@@ -1317,6 +1330,7 @@ class _StationComparisonSection extends StatelessWidget {
     required this.aiRecIsDetour,
     required this.isDualDetour,
     required this.isOnRouteVirtual,
+    this.rankedMode = false,
     required this.dtSavings,
     required this.dtDetourMins,
     required this.fuelLabel,
@@ -1408,6 +1422,9 @@ class _StationComparisonSection extends StatelessWidget {
             aiRecIsDetour: aiRecIsDetour,
             isDualDetour: isDualDetour,
             isOnRouteVirtual: isOnRouteVirtual,
+            // 통합 랭킹 — 경로상/우회 대신 추천/차선 (라벨-실측 역전 혼란 해소)
+            tagLeft: rankedMode ? '추천' : null,
+            tagRight: rankedMode ? '차선' : null,
             fuelLabel: fuelLabel,
             wonFmt: wonFmt,
             onViewOnMapRoute: onViewOnMapRoute,
