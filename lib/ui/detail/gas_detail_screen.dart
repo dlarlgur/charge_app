@@ -19,6 +19,7 @@ import '../../data/services/widget_service.dart';
 import '../../providers/providers.dart' show favoritesProvider, settingsProvider;
 import '../widgets/shared_widgets.dart' show showFuelTypeAlertSheet, BrandLogo;
 import '../widgets/native_ad_card.dart' show StationDetailNativeAd;
+import '../widgets/detail_mini_map.dart';
 
 // gas_detail.html 디자인 토큰 — 헤더/가격/그래프 카드 공용.
 // 길안내·즐겨찾기·알림 액션만 앱 기존 AppColors.gasBlue 사용, 그 외는 HTML 양식 색.
@@ -1486,6 +1487,20 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                   letterSpacing: -0.3,
                   color: isDark ? Colors.white : _kInk)),
           const SizedBox(height: 8),
+          // 위치 미니맵 — EV 상세와 동일 패턴. 탭=길안내.
+          Builder(builder: (_) {
+            final mLat =
+                (d['lat'] ?? d['GIS_Y_COOR'])?.toDouble() ?? widget.station?.lat ?? 0.0;
+            final mLng =
+                (d['lng'] ?? d['GIS_X_COOR'])?.toDouble() ?? widget.station?.lng ?? 0.0;
+            if (mLat == 0.0 || mLng == 0.0) return const SizedBox.shrink();
+            final mName = (d['name'] ?? d['OS_NM'] ?? '주유소').toString();
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: DetailMiniMap(
+                  lat: mLat, lng: mLng, name: mName, accent: AppColors.gasBlue),
+            );
+          }),
           if (address.isNotEmpty) _infoRow('주소', address, isDark),
           _infoRow('영업시간', openTime, isDark,
               valueColor: isSel24 ? _kGreen : (openTime == '정보 없음' ? _kMute2 : null)),

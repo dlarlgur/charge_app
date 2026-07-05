@@ -14,6 +14,7 @@ import '../../data/services/api_service.dart';
 import '../../data/services/alert_service.dart';
 import '../widgets/shared_widgets.dart';
 import '../widgets/native_ad_card.dart' show StationDetailNativeAd;
+import '../widgets/detail_mini_map.dart';
 import '../../data/services/favorite_service.dart';
 import '../../data/services/station_alias_service.dart';
 import '../../data/services/widget_service.dart';
@@ -922,6 +923,12 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
         children: [
           _sectionTitle('충전소 정보', null, isDark),
           const SizedBox(height: 12),
+          // 위치 미니맵 — 주차장 안쪽/지하 등 텍스트 주소로 안 잡히는 위치 파악용. 탭=길안내.
+          if (s.lat != 0 && s.lng != 0) ...[
+            DetailMiniMap(
+                lat: s.lat, lng: s.lng, name: s.name, accent: AppColors.evGreen),
+            const SizedBox(height: 12),
+          ],
           _infoCard(isDark, children: [
             _infoRow('주소', s.address, isDark, copyable: true),
             _infoDivider(isDark),
