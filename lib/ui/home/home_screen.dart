@@ -8,7 +8,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/util/app_toast.dart';
 import '../../core/utils/helpers.dart';
 import '../../data/models/models.dart';
 import 'package:share_plus/share_plus.dart';
@@ -56,7 +55,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen>
     with WidgetsBindingObserver {
   final _messageBadgeKey = GlobalKey<_HomeTabState>();
-  DateTime? _lastBackPressTime; // 뒤로가기 2회 종료 확인용
   double _watchDragDy = 0; // 자리변동알림 플로팅 바 세로 드래그 오프셋(아래에서 위로)
   // FCM 리스너는 hot reload / re-create 시 중복 등록되면 알림 2회 저장 등 부작용.
   // dispose 에서 명시적으로 cancel 하기 위해 subscription 보관.
@@ -470,17 +468,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         // 지도 시트가 열려있으면 MapScreen의 PopScope가 처리 중 → 토스트 띄우지 않음
         if (mapSheetOpen.value) return;
 
-        // 뒤로가기 1회 → 토스트, 2초 내 재입력 → 종료 확인 다이얼로그(+네이티브 광고).
-        // 실수로 back 연타하는 사용자에게 광고 다이얼로그가 바로 뜨지 않게 하는 완충 단계.
-        final now = DateTime.now();
-        if (_lastBackPressTime == null ||
-            now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
-          _lastBackPressTime = now;
-          showAppToast(context, '한 번 더 누르시면 종료 확인이 표시됩니다.');
-        } else {
-          _lastBackPressTime = null;
-          showExitConfirmDialog(context);
-        }
+        // 뒤로가기 → 바로 종료 확인 다이얼로그. 다이얼로그 자체가 확인 단계(취소/종료)라
+        // "한 번 더 누르면" 토스트까지 두면 이중 확인이라 제거 (사용자 결정).
+        showExitConfirmDialog(context);
       },
       child: Scaffold(
       body: Stack(
