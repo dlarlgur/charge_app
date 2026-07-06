@@ -8,8 +8,8 @@ import '../../core/utils/navigation_util.dart';
 ///
 /// 조잡함 방지 원칙:
 ///  · 이동(팬)·회전·틸트 잠금 — 스크롤 중 지도가 딸려가는 문제 차단.
-///  · 확대/축소는 우상단 +/- 버튼(패키지 줌 위젯, 항상 동작 보장) + 핀치 병행.
-///    (스크롤뷰 안 플랫폼뷰는 핀치 포워딩이 기기에 따라 불안정 → 버튼이 확실한 경로)
+///  · 확대/축소는 우상단 +/- 버튼 전용 — 핀치는 스크롤뷰 안에서 포인터를
+///    리스트와 나눠 갖으면 역줌·옆 팅김이 나서 OFF (실기기 리포트).
 ///  · 탭 = 길안내 시트 (지도 onMapTapped + 우하단 칩 양쪽)
 ///  · 높이는 폭 비례(46%)로 150~230dp 클램프 — 소형폰~태블릿 반응형
 class DetailMiniMap extends StatefulWidget {
@@ -38,6 +38,9 @@ class _DetailMiniMapState extends State<DetailMiniMap> {
   // 흰색으로 태어나는데(SDK가 초기색 미노출), 전환 중 생성되면 다크모드에서 흰
   // 번쩍임이 가장 크게 보임. 전환 후 생성 + 테마색 커버 페이드로 이중 방어.
   bool _mountMap = false;
+  // 커버 해제는 onMapReady 가 아니라 '타일이 실제로 그려진 뒤' — ready 시점엔 아직
+  // 흰 바탕이라 즉시 페이드하면 흰색이 드러남(실기기 리포트). ready + 지연 후 해제.
+  bool _revealMap = false;
 
   @override
   void initState() {
@@ -65,7 +68,7 @@ class _DetailMiniMapState extends State<DetailMiniMap> {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // 지도 — 줌(핀치)만 허용, 이동·회전·틸트 잠금. 탭하면 길안내.
+              // 지도 — 제스처 전부 잠금(줌은 +/- 버튼). 탭하면 길안내.
               if (_mountMap)
                 NaverMap(
                   options: NaverMapViewOptions(
@@ -77,7 +80,10 @@ class _DetailMiniMapState extends State<DetailMiniMap> {
                     maxZoom: 18,
                     nightModeEnable: isDark,
                     scrollGesturesEnable: false,
-                    zoomGesturesEnable: true,
+                    // 핀치 줌 OFF — 스크롤뷰 안에서 두 손가락 중 하나를 리스트가
+                    // 가로채면 역줌·옆 팅김이 발생(실기기 리포트). 줌은 +/- 버튼 전용
+                    // (컨트롤러 줌이라 중심 고정, 안 튐).
+                    zoomGesturesEnable: false,
                     rotationGesturesEnable: false,
                     tiltGesturesEnable: false,
                     stopGesturesEnable: false,
@@ -91,6 +97,11 @@ class _DetailMiniMapState extends State<DetailMiniMap> {
                       position: NLatLng(widget.lat, widget.lng),
                     ));
                     if (mounted) setState(() => _controller = controller);
+                    // 타일 렌더 완료 대기 후 커버 해제 — ready 직후엔 아직 흰 바탕이라
+                    // 즉시 페이드하면 흰색이 드러남(실기기 리포트).
+                    Future.delayed(const Duration(milliseconds: 550), () {
+                      if (mounted) setState(() => _revealMap = true);
+                    });
                   },
                   onMapTapped: (_, __) => showNavigationSheet(context,
                       lat: widget.lat, lng: widget.lng, name: widget.name),
@@ -100,7 +111,7 @@ class _DetailMiniMapState extends State<DetailMiniMap> {
               Positioned.fill(
                 child: IgnorePointer(
                   child: AnimatedOpacity(
-                    opacity: _controller == null ? 1 : 0,
+                    opacity: _revealMap ? 0 : 1,
                     duration: const Duration(milliseconds: 350),
                     child: Container(
                       color: isDark ? AppColors.darkCard : Colors.white,
