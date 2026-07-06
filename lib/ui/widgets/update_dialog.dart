@@ -194,12 +194,20 @@ class _UpdateDialogState extends State<UpdateDialog> {
                               color: isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFE8ECF0),
                             ),
                           ),
-                          child: Text(
-                            releaseNote,
-                            style: TextStyle(
-                              fontSize: 13.5,
-                              color: textPrimary,
-                              height: 1.55,
+                          child: ConstrainedBox(
+                            // 긴 패치노트가 버튼을 밀어내지 않게 — 노트만 스크롤.
+                            constraints: BoxConstraints(
+                                maxHeight:
+                                    MediaQuery.of(context).size.height * 0.32),
+                            child: SingleChildScrollView(
+                              child: Text(
+                                releaseNote,
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  color: textPrimary,
+                                  height: 1.55,
+                                ),
+                              ),
                             ),
                           ),
                         ),
