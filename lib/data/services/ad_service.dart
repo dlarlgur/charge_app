@@ -68,8 +68,9 @@ class AdFitUnitIds {
       (_list[position] ?? _list[4]!);
 
   /// 홈 상단 배너 + 상세 화면 공용 (이미지 네이티브 2:1).
+  /// top_banner(구)는 노출 중단 상태 → top_banner2(2026-07-06 재발급)로 교체.
   static String get topBanner =>
-      _overrideUnit('adfit_units', 'top') ?? 'DAN-wT6r5XkAMbbxh6Qw'; // top_banner
+      _overrideUnit('adfit_units', 'top') ?? 'DAN-9uB2oNjhMTD4jNYA'; // top_banner2
 
   /// 앱 종료 팝업 (전용 상품 — AOS_중앙형_프로필 포함_2:1).
   static String get exit =>
