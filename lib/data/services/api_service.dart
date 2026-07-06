@@ -47,7 +47,8 @@ void _debugLogRouteStartVsFirstPolylinePoint({
       final flng = ln.toDouble();
       final d = _haversineM(requestStartLat, requestStartLng, flat, flng);
       lines.add('  path_points[0]_lat_lng: $flat, $flng');
-      lines.add('  distance_request_to_path_points[0]_m: ${d.toStringAsFixed(2)}');
+      lines.add(
+          '  distance_request_to_path_points[0]_m: ${d.toStringAsFixed(2)}');
       lines.add('  practically_same_coord: ${d < 1.0}');
     }
   } else {
@@ -66,7 +67,8 @@ void _debugLogRouteStartVsFirstPolylinePoint({
         final flng = ln.toDouble();
         final d = _haversineM(requestStartLat, requestStartLng, flat, flng);
         lines.add('  path_segments[0].coords[0]_lat_lng: $flat, $flng');
-        lines.add('  distance_request_to_segment0_first_m: ${d.toStringAsFixed(2)}');
+        lines.add(
+            '  distance_request_to_segment0_first_m: ${d.toStringAsFixed(2)}');
       }
     }
   }
@@ -100,7 +102,8 @@ class ApiService {
     // policy.refresh = 캐시 만료된 경우만 fetch / cacheKeyBuilder = URL+쿼리 기반.
     _dio.interceptors.add(DioCacheInterceptor(
       options: CacheOptions(
-        store: MemCacheStore(maxSize: 10 * 1024 * 1024, maxEntrySize: 2 * 1024 * 1024),
+        store: MemCacheStore(
+            maxSize: 10 * 1024 * 1024, maxEntrySize: 2 * 1024 * 1024),
         policy: CachePolicy.request,
         maxStale: const Duration(seconds: 30),
         priority: CachePriority.normal,
@@ -129,13 +132,17 @@ class ApiService {
     int sort = 1,
   }) async {
     final res = await _dio.get(ApiConstants.gasAround, queryParameters: {
-      'lat': lat, 'lng': lng, 'radius': radius,
-      'fuelType': fuelType, 'sort': sort,
+      'lat': lat,
+      'lng': lng,
+      'radius': radius,
+      'fuelType': fuelType,
+      'sort': sort,
     });
     return List<Map<String, dynamic>>.from(res.data['data'] ?? []);
   }
 
-  Future<Map<String, dynamic>> getGasStationDetail(String id, {String? fuelType}) async {
+  Future<Map<String, dynamic>> getGasStationDetail(String id,
+      {String? fuelType}) async {
     final res = await _dio.get(
       '${ApiConstants.gasDetail}/$id',
       queryParameters: fuelType != null ? {'fuelType': fuelType} : null,
@@ -159,7 +166,8 @@ class ApiService {
 
   /// 전국 평균 + (위치 기반) 시도 평균 둘 다 응답.
   /// 반환 키: 'data' (레거시 = 전국), 'national', 'local' (시도 매핑 성공 시).
-  Future<Map<String, dynamic>> getGasAvgPrice({double? lat, double? lng}) async {
+  Future<Map<String, dynamic>> getGasAvgPrice(
+      {double? lat, double? lng}) async {
     final res = await _dio.get(ApiConstants.gasAvgPrice, queryParameters: {
       if (lat != null) 'lat': lat,
       if (lng != null) 'lng': lng,
@@ -174,7 +182,9 @@ class ApiService {
     int radius = 3000,
   }) async {
     final res = await _dio.get(ApiConstants.evAround, queryParameters: {
-      'lat': lat, 'lng': lng, 'radius': radius,
+      'lat': lat,
+      'lng': lng,
+      'radius': radius,
     });
     return List<Map<String, dynamic>>.from(res.data['data'] ?? []);
   }
@@ -192,7 +202,9 @@ class ApiService {
   }) async {
     try {
       final res = await _dio.get(ApiConstants.teslaAround, queryParameters: {
-        'lat': lat, 'lng': lng, 'radius': radius,
+        'lat': lat,
+        'lng': lng,
+        'radius': radius,
       });
       return List<Map<String, dynamic>>.from(res.data['data'] ?? []);
     } catch (e) {
@@ -206,13 +218,15 @@ class ApiService {
   }
 
   // ─── 장소 검색 ───
-  Future<List<Map<String, dynamic>>> searchPlaces(String query, {double? lat, double? lng}) async {
+  Future<List<Map<String, dynamic>>> searchPlaces(String query,
+      {double? lat, double? lng}) async {
     final params = <String, dynamic>{'query': query};
     if (lat != null && lng != null) {
       params['lat'] = lat;
       params['lng'] = lng;
     }
-    final res = await _dio.get(ApiConstants.searchPlaces, queryParameters: params);
+    final res =
+        await _dio.get(ApiConstants.searchPlaces, queryParameters: params);
     return List<Map<String, dynamic>>.from(res.data['results'] ?? []);
   }
 
@@ -241,7 +255,9 @@ class ApiService {
       requestStartLat: startLat,
       requestStartLng: startLng,
       routeJson: out,
-      label: waypointLat != null ? 'GET /route/driving (경유)' : 'GET /route/driving',
+      label: waypointLat != null
+          ? 'GET /route/driving (경유)'
+          : 'GET /route/driving',
     );
     return out;
   }
@@ -285,6 +301,22 @@ class ApiService {
   }
 
   // ─── 주유소·충전소 정보 제보 ───
+  /// 충전소의 충전기별 공용 위치(관리자 승인분) — { chgerId: '지하 2층' }.
+  /// 실패/없음이면 빈 맵. 상세 진입 시 1회 호출해 오버레이.
+  Future<Map<String, String>> getChargerLocations(String stationId) async {
+    try {
+      final res = await _dio.get(
+        '${ApiConstants.reports}/charger-locations',
+        queryParameters: {'station_id': stationId},
+      );
+      final locs = res.data?['locations'];
+      if (locs is Map) {
+        return locs.map((k, v) => MapEntry(k.toString(), v.toString()));
+      }
+    } catch (_) {}
+    return const {};
+  }
+
   Future<bool> submitReport({
     required String stationType, // 'gas' | 'ev'
     required String stationId,
@@ -316,12 +348,16 @@ class ApiService {
     });
     final list = res.data?['inquiries'];
     if (list is List) {
-      return list.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+      return list
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
     }
     return [];
   }
 
-  Future<Map<String, dynamic>> postEvAiRecommend(Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> postEvAiRecommend(
+      Map<String, dynamic> body) async {
     final res = await _dio.post(
       ApiConstants.evAiRecommend,
       data: body,
@@ -335,24 +371,31 @@ class ApiService {
   //   게스트: x-device-id → 기기별 쿼터 (없으면 서버가 IP 폴백이라 NAT 공유돼 부정확)
   Future<Options?> _aiAuthOptions() async {
     final headers = <String, dynamic>{};
-    if (DkswCore.deviceId.isNotEmpty) headers['x-device-id'] = DkswCore.deviceId;
+    if (DkswCore.deviceId.isNotEmpty)
+      headers['x-device-id'] = DkswCore.deviceId;
     final token = await AuthService.accessToken();
     if (token != null) headers['Authorization'] = 'Bearer $token';
     return headers.isEmpty ? null : Options(headers: headers);
   }
 
-  Future<Map<String, dynamic>> postRefuelAnalyze(Map<String, dynamic> body) async {
-    final res = await _dio.post(ApiConstants.refuelAnalyze, data: body, options: await _aiAuthOptions());
+  Future<Map<String, dynamic>> postRefuelAnalyze(
+      Map<String, dynamic> body) async {
+    final res = await _dio.post(ApiConstants.refuelAnalyze,
+        data: body, options: await _aiAuthOptions());
     return Map<String, dynamic>.from(res.data ?? {});
   }
 
-  Future<Map<String, dynamic>> postRefuelRouteStations(Map<String, dynamic> body) async {
-    final res = await _dio.post(ApiConstants.refuelRouteStations, data: body, options: await _aiAuthOptions());
+  Future<Map<String, dynamic>> postRefuelRouteStations(
+      Map<String, dynamic> body) async {
+    final res = await _dio.post(ApiConstants.refuelRouteStations,
+        data: body, options: await _aiAuthOptions());
     return Map<String, dynamic>.from(res.data ?? {});
   }
 
-  Future<Map<String, dynamic>> postRefuelCompare(Map<String, dynamic> body) async {
-    final res = await _dio.post(ApiConstants.refuelCompare, data: body, options: await _aiAuthOptions());
+  Future<Map<String, dynamic>> postRefuelCompare(
+      Map<String, dynamic> body) async {
+    final res = await _dio.post(ApiConstants.refuelCompare,
+        data: body, options: await _aiAuthOptions());
     return Map<String, dynamic>.from(res.data ?? {});
   }
 
@@ -383,8 +426,10 @@ class ApiService {
       final res = await _dio.get(
         ApiConstants.poiNearby,
         queryParameters: {
-          'lat': lat, 'lng': lng,
-          if (categories != null && categories.isNotEmpty) 'categories': categories.join(','),
+          'lat': lat,
+          'lng': lng,
+          if (categories != null && categories.isNotEmpty)
+            'categories': categories.join(','),
           'radius': radiusKm,
           'count': count,
           'sort': sort,
@@ -412,5 +457,4 @@ class ApiService {
       return null;
     }
   }
-
 }

@@ -127,6 +127,9 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
   Map<String, dynamic>? _analytics;
   bool _analyticsLoading = true;
 
+  // 충전기별 공용 위치(관리자 승인분) — { chgerId: '지하 2층' }
+  Map<String, String> _chargerLocations = const {};
+
   List<GlobalKey> get _sectionKeys =>
       [_kChargers, _kPrice, _kStation, _kUsage, _kNearby];
   static const List<String> _tabLabels = ['충전기', '요금', '충전소', '이용현황', '주변'];
@@ -142,6 +145,15 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
     _scroll.addListener(_onScroll);
     _loadNearby();
     _loadAnalytics();
+    _loadChargerLocations();
+  }
+
+  Future<void> _loadChargerLocations() async {
+    try {
+      final locs =
+          await ApiService().getChargerLocations(widget.station.statId);
+      if (mounted && locs.isNotEmpty) setState(() => _chargerLocations = locs);
+    } catch (_) {}
   }
 
   Future<void> _loadAnalytics() async {
@@ -1790,6 +1802,27 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                 ),
               ],
             ),
+            const SizedBox(height: 6),
+            // 개인 이름과 별개 — 실제 위치를 모두에게 공유(관리자 검토 후 노출).
+            Center(
+              child: TextButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _reportChargerLocation(charger);
+                },
+                icon: Icon(Icons.place_outlined,
+                    size: 16,
+                    color: isDark
+                        ? AppColors.darkTextMuted
+                        : AppColors.lightTextMuted),
+                label: Text('실제 위치를 모두에게 알리기 (제보)',
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        color: isDark
+                            ? AppColors.darkTextMuted
+                            : AppColors.lightTextMuted)),
+              ),
+            ),
           ],
         ),
       ),
@@ -1797,9 +1830,86 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
     if (mounted) setState(() {});
   }
 
+  /// 충전기 실제 위치 제보 — 관리자 검토 후 전체 사용자에게 노출.
+  Future<void> _reportChargerLocation(Charger charger) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final controller =
+        TextEditingController(text: _chargerLocations[charger.chgerId] ?? '');
+    final label = _chargerNoLabel(charger);
+    final sent = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        backgroundColor: isDark ? AppColors.darkSurface1 : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Text(label.isEmpty ? '충전기 위치 제보' : '$label 위치 제보',
+            style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: isDark ? AppColors.darkTextPrimary : Colors.black87)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('이 충전기가 실제로 어디 있는지 알려주시면, 확인 후 모든 사용자에게 표시돼요.',
+                style: TextStyle(
+                    fontSize: 12.5,
+                    color: isDark
+                        ? AppColors.darkTextMuted
+                        : AppColors.lightTextMuted)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              maxLength: 30,
+              style: TextStyle(
+                  fontSize: 15,
+                  color: isDark ? AppColors.darkTextPrimary : Colors.black87),
+              decoration: InputDecoration(
+                hintText: '예: 지하 2층 / B동 3번 기둥',
+                filled: true,
+                fillColor:
+                    isDark ? AppColors.darkSurface2 : const Color(0xFFF4F6F9),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dctx, false),
+              child: const Text('취소')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.evGreen),
+            onPressed: () async {
+              final loc = controller.text.trim();
+              if (loc.isEmpty) return;
+              final ok = await ApiService().submitReport(
+                stationType: 'ev',
+                stationId: widget.station.statId,
+                stationName: widget.station.name,
+                category: 'chger_location',
+                detail: {'chgerId': charger.chgerId, 'location': loc},
+              );
+              if (dctx.mounted) Navigator.pop(dctx, ok);
+            },
+            child: const Text('제보'),
+          ),
+        ],
+      ),
+    );
+    if (sent == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('제보 감사합니다. 확인 후 반영할게요.'),
+          duration: Duration(seconds: 2)));
+    }
+  }
+
   Widget _chargerTile(Charger charger, bool isDark, String stationId) {
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     final customName = ChargerMemoService.get(stationId, charger.chgerId);
+    final publicLoc = _chargerLocations[charger.chgerId];
     final noLabel = _chargerNoLabel(charger);
     // 표시 제목: 이름 바꿨으면 "내이름 (4호기)", 아니면 "4호기". 둘 다 없으면 생략.
     final String titleText;
@@ -1905,6 +2015,29 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                     const SizedBox(height: 3),
                     Text(subText,
                         style: TextStyle(fontSize: 11, color: subTextColor)),
+                  ],
+                  if (publicLoc != null && publicLoc.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        Icon(Icons.place_outlined,
+                            size: 12,
+                            color: isDark
+                                ? AppColors.darkTextMuted
+                                : AppColors.lightTextMuted),
+                        const SizedBox(width: 3),
+                        Flexible(
+                          child: Text(publicLoc,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: isDark
+                                      ? AppColors.darkTextMuted
+                                      : AppColors.lightTextMuted)),
+                        ),
+                      ],
+                    ),
                   ],
                 ],
               ),
