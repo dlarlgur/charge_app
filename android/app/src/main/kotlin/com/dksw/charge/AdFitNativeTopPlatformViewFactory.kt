@@ -22,6 +22,8 @@ import com.kakao.adfit.ads.na.AdFitNativeAdLoader
 import com.kakao.adfit.ads.na.AdFitNativeAdRequest
 import com.kakao.adfit.ads.na.AdFitNativeAdView
 import com.kakao.adfit.ads.na.AdFitVideoAutoPlayPolicy
+import io.flutter.plugin.common.BinaryMessenger
+import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.StandardMessageCodec
 import io.flutter.plugin.platform.PlatformView
 import io.flutter.plugin.platform.PlatformViewFactory
@@ -30,18 +32,24 @@ private const val TAG = "AdFitNativeTop"
 
 class AdFitNativeTopPlatformViewFactory(
     private val activity: Activity,
+    private val messenger: BinaryMessenger? = null,
 ) : PlatformViewFactory(StandardMessageCodec.INSTANCE) {
 
     override fun create(context: Context, viewId: Int, args: Any?): PlatformView {
         val params = args as? Map<*, *>
         val clientId = params?.get("clientId") as? String ?: ""
-        return AdFitNativeTopPlatformView(activity, clientId)
+        // 로드 성공/최종 실패를 Flutter 위젯에 알림 — 실패 시 자리 접기(collapse)용.
+        val events = messenger?.let {
+            MethodChannel(it, "com.dksw.charge/adfit_top_events_$viewId")
+        }
+        return AdFitNativeTopPlatformView(activity, clientId, events)
     }
 }
 
 private class AdFitNativeTopPlatformView(
     private val activity: Activity,
     private val clientId: String,
+    private val events: MethodChannel?,
 ) : PlatformView, AdFitNativeAdLoader.AdLoadListener {
 
     private val root: View =
@@ -106,6 +114,7 @@ private class AdFitNativeTopPlatformView(
         placeholder.visibility = View.GONE
         containerView.visibility = View.VISIBLE
         httpRetryDone = false
+        events?.invokeMethod("loaded", null)
     }
 
     override fun onAdLoadError(errorCode: Int) {
@@ -121,6 +130,8 @@ private class AdFitNativeTopPlatformView(
         if (nativeAdBinder == null) {
             placeholder.visibility = View.VISIBLE
             containerView.visibility = View.INVISIBLE
+            // 최종 실패(재시도 소진) — Flutter 쪽에서 자리 접기.
+            events?.invokeMethod("failed", null)
         }
     }
 

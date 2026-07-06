@@ -67,11 +67,13 @@ class _AdMobNativeCardState extends State<AdMobNativeCard> {
       case AdNetwork.adfit:
         return Container(
           margin: widget.margin,
+          height: _height,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(14),
             child: RepaintBoundary(
               child: AdFitNativeListAdWidget(
                 adCode: AdFitUnitIds.forPosition(widget.listPosition),
+                height: _height,
               ),
             ),
           ),
@@ -153,12 +155,10 @@ class _TopBannerAdmobCardState extends State<TopBannerAdmobCard> {
       case AdNetwork.off:
         return const SizedBox.shrink();
       case AdNetwork.adfit:
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(14),
-            child: RepaintBoundary(
-                child: AdFitNativeTopAdWidget(adCode: AdFitUnitIds.topBanner)),
+        return RepaintBoundary(
+          child: AdFitNativeTopAdWidget(
+            adCode: AdFitUnitIds.topBanner,
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
           ),
         );
       case AdNetwork.admob:
@@ -227,12 +227,10 @@ class _StationDetailNativeAdState extends State<StationDetailNativeAd> {
       case AdNetwork.off:
         return const SizedBox.shrink();
       case AdNetwork.adfit:
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(14),
-            child: RepaintBoundary(
-                child: AdFitNativeTopAdWidget(adCode: AdFitUnitIds.topBanner)),
+        return RepaintBoundary(
+          child: AdFitNativeTopAdWidget(
+            adCode: AdFitUnitIds.detail,
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
           ),
         );
       case AdNetwork.admob:

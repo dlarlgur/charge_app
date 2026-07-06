@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 Widget buildAdFitSurfaceAndroidView({
   required String viewType,
   required Map<String, dynamic> creationParams,
+  void Function(int id)? onPlatformViewCreated,
 }) {
   if (kIsWeb || !Platform.isAndroid) {
     return const SizedBox.shrink();
@@ -34,6 +35,8 @@ Widget buildAdFitSurfaceAndroidView({
         creationParamsCodec: const StandardMessageCodec(),
       )
         ..addOnPlatformViewCreatedListener(params.onPlatformViewCreated)
+        ..addOnPlatformViewCreatedListener(
+            (id) => onPlatformViewCreated?.call(id))
         ..create();
     },
   );

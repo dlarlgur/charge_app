@@ -8,7 +8,11 @@ enum AdNetwork { admob, adfit, off }
 
 /// 원격설정 기반 광고 네트워크 판별.
 ///
-/// 콘솔 원격설정 키 `ads_network`: 'admob'(기본) | 'adfit' | 'off'.
+/// 콘솔 원격설정 키:
+///  · `ads_network`              : 'admob'(기본) | 'adfit' | 'off'
+///  · `ads_network_test_only`    : true 면 아래 테스트 기기에만 전환 적용(나머지 admob)
+///  · `ads_network_test_devices` : 테스트 deviceId 배열(JSON)
+///
 /// 우선순위는 하우스 광고가 항상 위 — house_ad_service 의 bypass 오버라이드가
 /// 슬롯을 차지하면 네트워크 광고 자체가 그려지지 않으므로 여기와 무관.
 class AdNetworkConfig {
@@ -18,9 +22,25 @@ class AdNetworkConfig {
     final v = (DkswCore.config<String>('ads_network') ?? 'admob')
         .trim()
         .toLowerCase();
-    if (v == 'adfit') return AdNetwork.adfit;
-    if (v == 'off' || v == 'none') return AdNetwork.off;
-    return AdNetwork.admob;
+    AdNetwork network;
+    if (v == 'adfit') {
+      network = AdNetwork.adfit;
+    } else if (v == 'off' || v == 'none') {
+      network = AdNetwork.off;
+    } else {
+      network = AdNetwork.admob;
+    }
+    // 테스트 기기 한정 모드 — 지정 기기만 새 네트워크, 나머지는 AdMob 유지.
+    // 실전 전환 전 내 기기로 먼저 검증하는 용도.
+    if (network != AdNetwork.admob &&
+        (DkswCore.config<bool>('ads_network_test_only') ?? false)) {
+      final ids = DkswCore.config<List>('ads_network_test_devices') ?? const [];
+      final mine = DkswCore.deviceId;
+      if (!ids.map((e) => e.toString().trim()).contains(mine)) {
+        return AdNetwork.admob;
+      }
+    }
+    return network;
   }
 }
 
@@ -67,10 +87,14 @@ class AdFitUnitIds {
       _overrideUnit('adfit_units', 'list', position) ??
       (_list[position] ?? _list[4]!);
 
-  /// 홈 상단 배너 + 상세 화면 공용 (이미지 네이티브 2:1).
+  /// 홈 상단 배너 (이미지 네이티브 2:1).
   /// top_banner(구)는 노출 중단 상태 → top_banner2(2026-07-06 재발급)로 교체.
   static String get topBanner =>
       _overrideUnit('adfit_units', 'top') ?? 'DAN-9uB2oNjhMTD4jNYA'; // top_banner2
+
+  /// 주유/충전 상세 화면 (이미지 네이티브 2:1, 2026-07-06 발급).
+  static String get detail =>
+      _overrideUnit('adfit_units', 'detail') ?? 'DAN-kCzG9V08OXvppqpt'; // charge_detail
 
   /// 앱 종료 팝업 (전용 상품 — AOS_중앙형_프로필 포함_2:1).
   static String get exit =>

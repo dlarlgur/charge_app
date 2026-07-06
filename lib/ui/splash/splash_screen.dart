@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../core/update/app_updater.dart';
 import '../../data/services/auth_service.dart';
+import '../../data/services/exit_ad_service.dart';
 import '../../data/services/splash_ad_cache.dart';
 import '../../providers/providers.dart';
 import '../widgets/update_dialog.dart';
@@ -69,6 +70,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     debugPrint('[SplashScreen] bootstrap 시작 (cache=${cached != null})');
     _bootstrapFuture = DkswCore.bootstrap(timeout: const Duration(seconds: 4));
     final result = await _bootstrapFuture;
+    // 원격설정(ads_network) 확정 후 종료 광고 재로드 — main 의 preload 는
+    // bootstrap 전이라 adfit 모드에서 AdFit 종료 팝업을 못 실었을 수 있음.
+    ExitAdService.instance.preload();
     debugPrint('[SplashScreen] bootstrap 결과: force=${result?.update.forceUpdate}, ad=${result?.ad != null}, maintenance=${result?.maintenance != null}');
     if (!mounted) return;
 

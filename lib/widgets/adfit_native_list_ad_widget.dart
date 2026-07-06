@@ -5,32 +5,33 @@ import 'package:flutter/material.dart';
 
 import 'adfit_android_view_surface.dart';
 
-/// Kakao AdFit 네이티브 목록 슬롯 (주유소/충전소 리스트 3번째 위치 삽입용)
+/// Kakao AdFit 네이티브 리스트 인-피드 광고.
+/// 레이아웃(adfit_native_list_row.xml)은 AdMob 리스트 카드와 동일 디자인 —
+/// 높이는 호출측이 옆 스테이션 카드와 동일하게 지정(주유 68 / EV 96).
 class AdFitNativeListAdWidget extends StatelessWidget {
   final String adCode;
+  final double height;
 
   const AdFitNativeListAdWidget({
     super.key,
     required this.adCode,
+    this.height = 68,
   });
 
   static const String _viewType = 'com.dksw.charge/adfit_native_list';
 
-  /// 광고 슬롯 고정 높이 (아이콘 44dp + 상하 패딩)
-  static const double slotHeight = 84;
-
   @override
   Widget build(BuildContext context) {
     if (kIsWeb || !Platform.isAndroid) {
-      return const SizedBox(height: slotHeight);
+      return SizedBox(height: height);
     }
     if (adCode.isEmpty) {
-      return const SizedBox(height: slotHeight);
+      return SizedBox(height: height);
     }
 
     return SizedBox(
       width: double.infinity,
-      height: slotHeight,
+      height: height,
       child: buildAdFitSurfaceAndroidView(
         viewType: _viewType,
         creationParams: <String, dynamic>{'clientId': adCode},

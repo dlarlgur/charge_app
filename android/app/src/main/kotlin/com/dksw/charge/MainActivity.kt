@@ -52,10 +52,10 @@ class MainActivity : FlutterFragmentActivity() {
     override fun configureFlutterEngine(flutterEngine: io.flutter.embedding.engine.FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        // Kakao AdFit 네이티브 상단 카드 (홈 탭바 아래) — 레거시
+        // Kakao AdFit 네이티브 상단/상세 카드 — 실패 이벤트 채널 포함(자리 접기)
         flutterEngine.platformViewsController.registry.registerViewFactory(
             ADFIT_NATIVE_TOP_VIEW_TYPE,
-            AdFitNativeTopPlatformViewFactory(this),
+            AdFitNativeTopPlatformViewFactory(this, flutterEngine.dartExecutor.binaryMessenger),
         )
         // Kakao AdFit 네이티브 목록 슬롯 (리스트 3번째) — 레거시
         flutterEngine.platformViewsController.registry.registerViewFactory(

@@ -92,7 +92,17 @@ class ExitAdService {
   /// false = 로드된 팝업 없음/오류 → 호출측이 기존 다이얼로그로 폴백.
   Future<bool> tryShowAdfitExitPopup() async {
     try {
-      final res = await _adfitExit.invokeMethod<String>('show');
+      var res = await _adfitExit.invokeMethod<String>('show');
+      if (res == 'none') {
+        // preload 가 bootstrap(원격설정) 도착 전에 지나가 미로드일 수 있음 —
+        // 즉석 로드(짧은 타임아웃) 후 1회만 재시도.
+        final ok = await _adfitExit
+            .invokeMethod<bool>('load', {'clientId': AdFitUnitIds.exit})
+            .timeout(const Duration(milliseconds: 2500), onTimeout: () => false);
+        if (ok == true) {
+          res = await _adfitExit.invokeMethod<String>('show');
+        }
+      }
       if (res == 'exit') {
         await SystemNavigator.pop();
         return true;
@@ -124,6 +134,7 @@ Future<void> showExitConfirmDialog(BuildContext context) async {
   if (AdNetworkConfig.current == AdNetwork.adfit) {
     final handled = await ExitAdService.instance.tryShowAdfitExitPopup();
     if (handled) return;
+    if (!context.mounted) return;
   }
   // preload 는 bootstrap(원격설정 수신) 전에 불릴 수 있어 노출 시점에 재확인 —
   // adfit/off 전환 시 미리 로드돼 있던 AdMob 광고가 새어 나가지 않게.
