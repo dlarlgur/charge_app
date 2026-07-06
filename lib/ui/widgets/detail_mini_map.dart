@@ -114,7 +114,10 @@ class _DetailMiniMapState extends State<DetailMiniMap> {
                     opacity: _revealMap ? 0 : 1,
                     duration: const Duration(milliseconds: 350),
                     child: Container(
-                      color: isDark ? AppColors.darkCard : Colors.white,
+                      // ⚠️ 반드시 불투명 — darkCard(7% 알파)를 쓰면 커버가 투명해서
+                      // 밑의 흰 네이티브 서피스가 그대로 비침 (흰 번쩍임의 실제 원흉).
+                      color:
+                          isDark ? AppColors.darkSurface1 : Colors.white,
                       alignment: Alignment.center,
                       child: Icon(Icons.map_outlined,
                           size: 22,
