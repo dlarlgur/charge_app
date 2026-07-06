@@ -63,6 +63,23 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   bool _isAtMyLocation = false;
   bool _suppressCameraChange = false;
   bool _addressLoaded = false;
+
+  // 마커 오탭 가드 — 핀치 첫 손가락이 마커에 닿아 탭으로 오인 → 지도 팅김 방지.
+  // (지도 탭 map_screen 과 동일 로직 이식)
+  DateTime? _lastGestureAt;
+  bool get _gestureActive =>
+      _lastGestureAt != null &&
+      DateTime.now().difference(_lastGestureAt!) <
+          const Duration(milliseconds: 220);
+
+  /// 마커 탭을 잠깐 유예 후 실행 — 탭 직후 핀치로 이어졌으면 무시.
+  Future<bool> _tapGuard() async {
+    if (_gestureActive) return false;
+    await Future.delayed(const Duration(milliseconds: 130));
+    if (!mounted || _gestureActive) return false;
+    return true;
+  }
+
   // NaverMap(PlatformView) 캐시 — setState 가 잦아도 rebuild 안 돼 제스처/줌 안 끊김.
   // consumeSymbolTapEvents 가 _isSelectMode 에 따라 바뀌므로 그 값이 변할 때만 재생성.
   Widget? _cachedMap;
@@ -141,7 +158,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   String _evChargerType = 'FAST'; // FAST | SLOW
   bool _evHighwayOnly = false; // 고속도로 충전소만
   bool _gasHighwayOnly = false; // 고속도로 휴게소 주유소만
-  final Set<String> _preferredGasBrands = {}; // 선호 브랜드(OPINET pollDivCo 키). 빈 set = 전체.
+  final Set<String> _preferredGasBrands =
+      {}; // 선호 브랜드(OPINET pollDivCo 키). 빈 set = 전체.
 
   // EV 결과 시트의 카드 스크롤 제어용 (지도 마커 탭 → 해당 카드로 이동)
   final GlobalKey<EvResultBodyState> _evResultBodyKey =
@@ -637,6 +655,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
   // ── 카메라 이동 중 ──
   void _onCameraChange(NCameraUpdateReason reason, bool animated) {
+    if (reason == NCameraUpdateReason.gesture) _lastGestureAt = DateTime.now();
     if (_suppressCameraChange) return;
     if (!_isPickerMode) {
       // 일반 모드: 카메라 이동 시 내 위치 표시 해제
@@ -2060,9 +2079,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           ? '${_wonFmt.format(stPrice)}원'
           : stName;
       // st=우회. 추천이 우회면 주황(추천색), 아니면 파랑(비교).
-      final c = _lastRecIsDetour
-          ? const Color(0xFFE8700A)
-          : const Color(0xFF1D6FE0);
+      final c =
+          _lastRecIsDetour ? const Color(0xFFE8700A) : const Color(0xFF1D6FE0);
       // 사용자가 대안 선택 시 primary 마커를 보라색으로 (선택 강조)
       final isAltSelected =
           _selectedAltStationId != null && _selectedAltStationId!.isNotEmpty;
@@ -2090,9 +2108,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       final st2Label = st2Price != null && st2Price > 0
           ? '${_wonFmt.format(st2Price)}원'
           : st2Name;
-      final c2 = _lastRecIsDetour
-          ? const Color(0xFF1D6FE0)
-          : const Color(0xFFE8700A);
+      final c2 =
+          _lastRecIsDetour ? const Color(0xFF1D6FE0) : const Color(0xFFE8700A);
       final st2Marker = NMarker(
         id: 'result_station2',
         position: NLatLng(st2Lat, st2Lng),
@@ -2185,7 +2202,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           // 마커 탭 → 이 후보의 미니 카드 sheet
           final captured = Map<String, dynamic>.from(alt);
           altMarker.setOnTapListener((_) async {
-            if (!mounted) return;
+            if (!await _tapGuard()) return; // 핀치 오탭 가드
             await _showStationMiniSheet(captured);
           });
           await _mapController!.addOverlay(altMarker);
@@ -2262,7 +2279,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           ),
           anchor: const NPoint(0.5, 1.0),
         );
-        marker.setOnTapListener((_) => _openEvStationDetail(c)); // 상세 바텀시트
+        marker.setOnTapListener((_) async {
+          if (!await _tapGuard()) return; // 핀치 오탭 가드
+          _openEvStationDetail(c); // 상세 바텀시트
+        });
         return marker;
       }());
     }
@@ -2323,8 +2343,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         );
         if (recStatId != null && recStatId.isNotEmpty) {
           marker.setOnTapListener((_) async {
+            if (!await _tapGuard()) return; // 핀치 오탭 가드
             await _focusResultStation(recStatId);
-            return true;
           });
         }
         await _mapController!.addOverlay(marker);
@@ -2356,8 +2376,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       );
       if (altStatId != null && altStatId.isNotEmpty) {
         marker.setOnTapListener((_) async {
+          if (!await _tapGuard()) return; // 핀치 오탭 가드
           await _focusResultStation(altStatId);
-          return true;
         });
       }
       await _mapController!.addOverlay(marker);
@@ -2756,8 +2776,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                       Navigator.of(ctx).pop();
                       Navigator.of(context, rootNavigator: true).push(
                         MaterialPageRoute(
-                            builder: (_) =>
-                                GasDetailScreen(stationId: id)),
+                            builder: (_) => GasDetailScreen(stationId: id)),
                       );
                     },
                     icon: Icon(Icons.storefront_outlined,
@@ -2769,8 +2788,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             color: fuelColor)),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      side: BorderSide(
-                          color: fuelColor.withValues(alpha: 0.45)),
+                      side:
+                          BorderSide(color: fuelColor.withValues(alpha: 0.45)),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
                     ),
@@ -3876,8 +3895,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           ),
           anchor: const NPoint(0.5, 1.0),
         );
-        marker.setOnTapListener((_) {
+        marker.setOnTapListener((_) async {
           if (!_isSelectMode || _selectableStations == null) return;
+          if (!await _tapGuard()) return; // 핀치 오탭 가드
           final tappedId = stId;
           setState(() {
             final isA = _selectedStationAId == tappedId;
@@ -4078,10 +4098,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
     // A, B 주유소 마커 — 서버 응답은 {station:{...}, detour_time_min, ...} 중첩 구조.
     // (기존엔 최상위에서 lat/lng 를 읽어 항상 null → 마커가 아예 안 찍히던 버그)
-    final stAWrap =
-        data['station_a'] is Map ? data['station_a'] as Map : null;
-    final stBWrap =
-        data['station_b'] is Map ? data['station_b'] as Map : null;
+    final stAWrap = data['station_a'] is Map ? data['station_a'] as Map : null;
+    final stBWrap = data['station_b'] is Map ? data['station_b'] as Map : null;
     final winner = data['comparison'] is Map
         ? (data['comparison'] as Map)['winner']?.toString()
         : null;
@@ -4116,8 +4134,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         anchor: const NPoint(0.5, 1.0),
       );
       // 탭 → AI 추천과 동일한 미니시트(이름/주소/리터당/우회) — wrap 이 altItem 과 같은 형태.
-      marker.setOnTapListener(
-          (_) => _showStationMiniSheet(Map<String, dynamic>.from(wrap)));
+      marker.setOnTapListener((_) async {
+        if (!await _tapGuard()) return; // 핀치 오탭 가드
+        await _showStationMiniSheet(Map<String, dynamic>.from(wrap));
+      });
       await _mapController!.addOverlay(marker);
       stPoints.add(NLatLng(lat, lng));
     }
@@ -5195,8 +5215,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                                     .format_list_bulleted_rounded,
                                                 size: 16,
                                                 color: isDark
-                                                    ? AppColors
-                                                        .darkTextPrimary
+                                                    ? AppColors.darkTextPrimary
                                                     : kInk),
                                             const SizedBox(width: 6),
                                             Text(
@@ -5205,8 +5224,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                                 fontSize: 14,
                                                 fontWeight: FontWeight.w800,
                                                 color: isDark
-                                                    ? AppColors
-                                                        .darkTextPrimary
+                                                    ? AppColors.darkTextPrimary
                                                     : kInk,
                                                 letterSpacing: -0.3,
                                               ),
