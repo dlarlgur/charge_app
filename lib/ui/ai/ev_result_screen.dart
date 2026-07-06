@@ -129,9 +129,13 @@ class EvResultBodyState extends State<EvResultBody> {
     final filteredOut = (data['filtered_out_count'] as num?)?.toInt() ?? 0;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final mutedColor = isDark ? AppColors.darkTextSecondary : _kGrey;
+    // 다크: 칩 텍스트/아이콘은 밝은 변형 (라이트 파랑 #1D6FE0 은 다크에서 ~3.5:1)
+    final chipFg = chargerType == 'FAST'
+        ? (isDark ? AppColors.darkBlueBright : _kBlue)
+        : (isDark ? AppColors.darkGreenBright : _kGreen);
     // FAST/SLOW 칩의 light 배경은 다크에서 너무 밝게 튀므로 accent 16% alpha 로 lift.
     final chipBg = isDark
-        ? (chargerType == 'FAST' ? _kBlue : _kGreen).withValues(alpha: 0.16)
+        ? chipFg.withValues(alpha: 0.16)
         : (chargerType == 'FAST' ? _kBlueLight : _kGreenLight);
 
     return CustomScrollView(
@@ -165,7 +169,7 @@ class EvResultBodyState extends State<EvResultBody> {
                                 ? Icons.bolt_rounded
                                 : Icons.electrical_services_rounded,
                             size: 13,
-                            color: chargerType == 'FAST' ? _kBlue : _kGreen,
+                            color: chipFg,
                           ),
                           const SizedBox(width: 3),
                           Text(
@@ -173,7 +177,7 @@ class EvResultBodyState extends State<EvResultBody> {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: chargerType == 'FAST' ? _kBlue : _kGreen,
+                              color: chipFg,
                             ),
                           ),
                         ],
@@ -848,9 +852,12 @@ class _StationCardState extends State<_StationCard> {
       {bool canRaise = false,
       bool isRaised = false,
       VoidCallback? onToggleRaise}) {
-    const green = Color(0xFF16A34A);
-    const orange = Color(0xFFEA580C);
-    const red = Color(0xFFDC2626);
+    // 다크: 밝은 변형 (라이트 원색은 다크 카드 위 대비 미달)
+    final green =
+        isDark ? AppColors.darkGreenBright : const Color(0xFF16A34A);
+    final orange =
+        isDark ? AppColors.darkOrangeBright : const Color(0xFFEA580C);
+    final red = isDark ? AppColors.darkRedBright : const Color(0xFFDC2626);
 
     // 상태별 색/아이콘/문구.
     final Color c;
@@ -1976,11 +1983,13 @@ class _HeadingBadgeState extends State<_HeadingBadge>
     final bool crowd = h > a;
     final bool tight = !crowd && h >= a && a > 0;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // 다크: Material-700 라이트 톤은 대비 미달 → 밝은 변형
     final Color color = crowd
-        ? const Color(0xFFD32F2F) // 빨강 — 자리 부족
+        ? (isDark ? AppColors.darkRedBright : const Color(0xFFD32F2F))
         : tight
-            ? const Color(0xFFEF6C00) // 진한 주황 — 딱 맞음
-            : const Color(0xFF1976D2); // 파랑 — 여유
+            ? (isDark ? AppColors.darkOrangeBright : const Color(0xFFEF6C00))
+            : (isDark ? AppColors.darkBlueBright : const Color(0xFF1976D2));
 
     final String label = crowd
         ? '$h명이 향하는 중 · 자리보다 많음'
@@ -1991,9 +2000,10 @@ class _HeadingBadgeState extends State<_HeadingBadge>
     return Container(
       padding: const EdgeInsets.fromLTRB(10, 7, 12, 7),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
+        color: color.withValues(alpha: isDark ? 0.14 : 0.08),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.25), width: 1),
+        border: Border.all(
+            color: color.withValues(alpha: isDark ? 0.35 : 0.25), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -2076,8 +2086,10 @@ class EvSelectList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accentColor = chargerType == 'FAST' ? _kBlue : _kGreen;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = chargerType == 'FAST'
+        ? (isDark ? AppColors.darkBlueBright : _kBlue)
+        : (isDark ? AppColors.darkGreenBright : _kGreen);
     final mutedColor = isDark ? AppColors.darkTextSecondary : _kGrey;
     final cardBg = isDark ? AppColors.darkCard : Colors.white;
     final cardBorder =
@@ -2288,12 +2300,13 @@ class _EvAiMessageBanner extends StatelessWidget {
     final normalized =
         _normalizeMarkdownForKoreanEv(message.replaceAll(r'\n', '\n'));
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final blue = isDark ? AppColors.darkBlueBright : _kBlue;
     final bg =
-        isDark ? _kBlue.withValues(alpha: 0.12) : const Color(0xFFEEF4FF);
+        isDark ? blue.withValues(alpha: 0.12) : const Color(0xFFEEF4FF);
     final border =
-        isDark ? _kBlue.withValues(alpha: 0.35) : const Color(0xFFB8D0FF);
+        isDark ? blue.withValues(alpha: 0.35) : const Color(0xFFB8D0FF);
     final iconBg =
-        isDark ? _kBlue.withValues(alpha: 0.22) : const Color(0xFFD0E3FF);
+        isDark ? blue.withValues(alpha: 0.22) : const Color(0xFFD0E3FF);
     final bodyTextColor =
         isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a);
     return Container(
@@ -2314,19 +2327,18 @@ class _EvAiMessageBanner extends StatelessWidget {
               color: iconBg,
               borderRadius: BorderRadius.circular(6),
             ),
-            child:
-                const Icon(Icons.auto_awesome_rounded, size: 12, color: _kBlue),
+            child: Icon(Icons.auto_awesome_rounded, size: 12, color: blue),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('AI 충전소 추천',
+                Text('AI 충전소 추천',
                     style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: _kBlue)),
+                        color: blue)),
                 const SizedBox(height: 6),
                 MarkdownBody(
                   data: normalized,
@@ -2335,11 +2347,11 @@ class _EvAiMessageBanner extends StatelessWidget {
                       MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
                     p: TextStyle(
                         fontSize: 13, height: 1.5, color: bodyTextColor),
-                    strong: const TextStyle(
+                    strong: TextStyle(
                       fontSize: 13,
                       height: 1.5,
                       fontWeight: FontWeight.w700,
-                      color: _kGreen,
+                      color: isDark ? AppColors.darkGreenBright : _kGreen,
                     ),
                   ),
                 ),
