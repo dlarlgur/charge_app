@@ -87,8 +87,21 @@ class GasStationMapBadge {
     bool emphasizeBorder = false,
     bool unreachable = false,
     int? recommendRank,
-  }) {
+  }) async {
     final String? logoAsset = logoFor(brand: brand, stationName: stationName);
+    // 로고 보장 로드 — 앱 시작 시 프리캐시만 믿으면 이미지 캐시 evict 후(마커 수백 개·
+    // 광고·사진 등) 캡처 시점에 로고가 빠져 간헐 재발. 캐시에 있으면 사실상 no-op.
+    if (logoAsset != null && context.mounted) {
+      try {
+        if (logoAsset.toLowerCase().endsWith('.svg')) {
+          final loader = SvgAssetLoader(logoAsset);
+          await svg.cache
+              .putIfAbsent(loader.cacheKey(null), () => loader.loadBytes(null));
+        } else {
+          await precacheImage(AssetImage(logoAsset), context);
+        }
+      } catch (_) {/* 로드 실패 시 기본 아이콘 폴백 (기존 동작) */}
+    }
     final bool showLogo = logoAsset != null;
     const double logoSize = 20.0;
     const double logoGap = 4.0;
