@@ -2772,7 +2772,10 @@ Widget _costVerdictBox(Map<String, dynamic> ca, NumberFormat wonFmt, Color ink,
   // 판정 문구 — 시간은 분으로만, 이득은 연료 기준. 누굴 추천하는지는 카드 뱃지·AI 메시지가
   // 담당하므로(선택 비교에선 '경로상' 표현이 어긋남) 여긴 판단 근거만 중립적으로.
   String verdict;
-  if (extraMin <= 0) {
+  if (priceDiff == 0 && extraMin > 0) {
+    // 동가 — 가격 설명이 아니라 시간 차이로 판정 (같은 가격이면 덜 우회하는 쪽)
+    verdict = '가격이 같아서, $extraMin분 덜 우회하는 추천 쪽이 이득이에요';
+  } else if (extraMin <= 0) {
     verdict =
         fuelBenefit > 0 ? '추가 우회 없이 더 저렴한 곳이에요' : '추가 시간·연료까지 감안하면 이득이 없어요';
   } else if (worth) {

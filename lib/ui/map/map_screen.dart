@@ -550,7 +550,24 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _updateMarkers();
   }
 
+  // 핀치/드래그 중 마커 오탭 가드 — 핀치의 첫 손가락이 마커에 닿으면 탭으로 오인돼
+  // 클러스터 줌·스테이션 센터링이 발동, "확대하는데 축소되고 옆으로 팅김"의 원인.
+  DateTime? _lastGestureAt;
+  bool get _gestureActive =>
+      _lastGestureAt != null &&
+      DateTime.now().difference(_lastGestureAt!) <
+          const Duration(milliseconds: 220);
+
+  /// 마커 탭을 잠깐 유예 후 실행 — 탭 직후 핀치로 이어졌으면(제스처 카메라 변화 감지) 무시.
+  Future<bool> _tapGuard() async {
+    if (_gestureActive) return false;
+    await Future.delayed(const Duration(milliseconds: 130));
+    if (!mounted || _gestureActive) return false;
+    return true;
+  }
+
   void _onCameraChange(NCameraUpdateReason reason, bool animated) {
+    if (reason == NCameraUpdateReason.gesture) _lastGestureAt = DateTime.now();
     if (_suppressCameraChange) return;
     // 사용자가 직접 지도를 확대/축소·이동하면 검색 핀을 거둠 (이동 직후 1회 표시용).
     if (_searchMarker != null &&
@@ -1287,6 +1304,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       haloColor: Colors.transparent,
     ));
     clusterMarker.setOnTapListener((_) async {
+              if (!await _tapGuard()) return; // 핀치 오탭 가드
       final c = _mapController;
       if (c == null) return;
       final pos = await c.getCameraPosition();
@@ -1462,6 +1480,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               ),
             );
             marker.setOnTapListener((_) async {
+              if (!await _tapGuard()) return; // 핀치 오탭 가드
               final prev = _selectedStation;
               if (prev is GasStation && prev.id == s.id) {
                 await _dismissSheet();
@@ -1488,6 +1507,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               ),
             );
             marker.setOnTapListener((_) async {
+              if (!await _tapGuard()) return; // 핀치 오탭 가드
               await _restoreMarkerIcon(_selectedStation);
               _selectCluster(group.cast<dynamic>());
             });
@@ -1520,6 +1540,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               ),
             );
             marker.setOnTapListener((_) async {
+              if (!await _tapGuard()) return; // 핀치 오탭 가드
               final prev = _selectedStation;
               if (prev is EvStation && prev.statId == s.statId) {
                 await _dismissSheet();
@@ -1545,6 +1566,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               ),
             );
             marker.setOnTapListener((_) async {
+              if (!await _tapGuard()) return; // 핀치 오탭 가드
               await _restoreMarkerIcon(_selectedStation);
               _selectCluster(group.cast<dynamic>());
             });

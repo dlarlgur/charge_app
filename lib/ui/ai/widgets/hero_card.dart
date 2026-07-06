@@ -79,7 +79,9 @@ class HeroCard extends StatelessWidget {
     return Container(
       padding: EdgeInsets.fromLTRB(18, topHandle != null ? 6 : 16, 18, 18),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : Colors.white,
+        // 지도 위에 뜨는 카드 — 반투명 darkCard 는 지도가 비쳐 시인성 붕괴(실기기 리포트).
+        // 지도 위 서피스는 반드시 불투명.
+        color: isDark ? AppColors.darkSurface1 : Colors.white,
         borderRadius: BorderRadius.circular(22),
         border: isDark
             ? Border.all(color: AppColors.darkCardBorder, width: 1)
@@ -273,6 +275,7 @@ class HeroCard extends StatelessWidget {
               children: [
                 for (final b in _gasBrandOptions)
                   _brandChip(
+                    isDark: isDark,
                     label: b.$2,
                     active: preferredBrands.contains(b.$1),
                     accent: accent,
@@ -289,6 +292,7 @@ class HeroCard extends StatelessWidget {
 
   // 선호 브랜드 칩 (텍스트형 — 브랜드명이 곧 아이덴티티). _prefChip 와 톤 통일.
   Widget _brandChip({
+    required bool isDark,
     required String label,
     required bool active,
     required Color accent,
@@ -301,10 +305,12 @@ class HeroCard extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: active ? accentLight : kLineSoft,
+          color: active
+              ? (isDark ? accent.withValues(alpha: 0.20) : accentLight)
+              : (isDark ? const Color(0x14FFFFFF) : kLineSoft),
           borderRadius: BorderRadius.circular(99),
           border: Border.all(
-            color: active ? accent.withValues(alpha: 0.22) : Colors.transparent,
+            color: active ? accent.withValues(alpha: 0.35) : Colors.transparent,
             width: 1,
           ),
         ),
@@ -319,7 +325,11 @@ class HeroCard extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
-                  color: active ? accent : kInk2,
+                  color: active
+                      ? accent
+                      : (isDark
+                          ? AppColors.darkTextSecondary
+                          : kInk2),
                   letterSpacing: -0.1,
                 )),
           ],
