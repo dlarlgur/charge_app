@@ -1,5 +1,42 @@
 import 'dart:io';
 
+import 'package:dksw_app_core/dksw_app_core.dart';
+
+/// 광고 네트워크 공급자 — 콘솔 원격설정 `ads_network` 로 전환.
+/// AdMob 계정 정지 등 비상 시 앱 업데이트 없이 AdFit 으로 즉시 스위칭하는 용도.
+enum AdNetwork { admob, adfit, off }
+
+/// 원격설정 기반 광고 네트워크 판별.
+///
+/// 콘솔 원격설정 키:
+///  · `ads_network`     : 'admob'(기본) | 'adfit' | 'off'
+///  · `adfit_list_unit` : AdFit 리스트 네이티브 광고단위 코드 (adfit 모드 필수)
+///  · `adfit_top_unit`  : AdFit 상단/상세 네이티브 광고단위 코드 (adfit 모드 필수)
+///
+/// 우선순위는 하우스 광고가 항상 위 — house_ad_service 의 bypass 오버라이드가
+/// 슬롯을 차지하면 네트워크 광고 자체가 그려지지 않으므로 여기와 무관.
+/// adfit 모드인데 해당 unit 코드가 비어 있으면 그 슬롯은 광고 없음(off 동일).
+class AdNetworkConfig {
+  AdNetworkConfig._();
+
+  static AdNetwork get current {
+    final v = (DkswCore.config<String>('ads_network') ?? 'admob')
+        .trim()
+        .toLowerCase();
+    if (v == 'adfit') return AdNetwork.adfit;
+    if (v == 'off' || v == 'none') return AdNetwork.off;
+    return AdNetwork.admob;
+  }
+
+  /// AdFit 리스트 인-피드 광고단위 코드 (빈 문자열이면 미발급).
+  static String get adfitListUnit =>
+      (DkswCore.config<String>('adfit_list_unit') ?? '').trim();
+
+  /// AdFit 상단 배너/상세 광고단위 코드 (빈 문자열이면 미발급).
+  static String get adfitTopUnit =>
+      (DkswCore.config<String>('adfit_top_unit') ?? '').trim();
+}
+
 /// AdMob 광고 단위 ID 상수.
 /// 본인 디바이스가 AdMob 콘솔에 테스트 기기로 등록되어 있는 전제로 항상 실광고 ID 사용.
 ///

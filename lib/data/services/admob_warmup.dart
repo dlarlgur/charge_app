@@ -16,6 +16,8 @@ class AdMobWarmup {
 
   static void run() {
     if (_done) return;
+    // AdMob 모드가 아니면 워밍업 요청 자체를 생략 (원격설정 ads_network 전환).
+    if (AdNetworkConfig.current != AdNetwork.admob) return;
     _done = true;
     // 첫 화면 즉시 노출 슬롯
     _warmSlot(AdUnitIds.forPosition(4));

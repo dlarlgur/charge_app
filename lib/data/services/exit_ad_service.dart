@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../../core/theme/app_colors.dart';
+import 'ad_service.dart';
 
 /// 앱 종료 확인 다이얼로그 + 네이티브 광고.
 ///
@@ -26,7 +27,10 @@ class ExitAdService {
   bool _loading = false;
 
   /// 네이티브 광고 미리 로드 (앱 시작 시 1회 + 다이얼로그 소비 후 재호출).
+  /// AdMob 모드가 아니면 로드하지 않음 — 다이얼로그는 광고 없이 컴팩트 표시.
+  /// (AdFit 은 종료 다이얼로그용 템플릿이 없어 대체 없이 생략)
   void preload() {
+    if (AdNetworkConfig.current != AdNetwork.admob) return;
     if (_ad != null || _loading) return;
     _loading = true;
     final ad = NativeAd(
@@ -88,7 +92,11 @@ class ExitAdService {
 
 /// 종료 확인 다이얼로그 — [취소] 는 닫기만, [종료] 는 앱 종료.
 Future<void> showExitConfirmDialog(BuildContext context) async {
-  final ad = ExitAdService.instance.takeIfLoaded();
+  // preload 는 bootstrap(원격설정 수신) 전에 불릴 수 있어 노출 시점에 재확인 —
+  // adfit/off 전환 시 미리 로드돼 있던 AdMob 광고가 새어 나가지 않게.
+  final ad = AdNetworkConfig.current == AdNetwork.admob
+      ? ExitAdService.instance.takeIfLoaded()
+      : null;
   final isDark = Theme.of(context).brightness == Brightness.dark;
   final ink = isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A2E);
   final muted = isDark ? AppColors.darkTextMuted : const Color(0xFF94A3B8);

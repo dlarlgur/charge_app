@@ -7,6 +7,8 @@ import '../../core/theme/app_colors.dart';
 import '../../data/services/ad_service.dart';
 import '../../data/services/house_ad_service.dart';
 import '../../data/services/list_ad_cache.dart';
+import '../../widgets/adfit_native_list_ad_widget.dart';
+import '../../widgets/adfit_native_top_ad_widget.dart';
 
 /// 인-리스트 광고 카드.
 ///
@@ -48,11 +50,32 @@ class _AdMobNativeCardState extends State<AdMobNativeCard> {
   void initState() {
     super.initState();
     // 이 카드가 화면 근처에서 빌드되는 시점에 비로소 로드(지연) → PlatformView mount 분산.
-    ListAdCache.ensureLoaded(_key, widget.adUnitId, _factory);
+    // AdMob 모드가 아니면 AdMob 로드 자체를 하지 않음 (원격설정 ads_network 전환).
+    if (AdNetworkConfig.current == AdNetwork.admob) {
+      ListAdCache.ensureLoaded(_key, widget.adUnitId, _factory);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    switch (AdNetworkConfig.current) {
+      case AdNetwork.off:
+        return const SizedBox.shrink();
+      case AdNetwork.adfit:
+        final code = AdNetworkConfig.adfitListUnit;
+        if (code.isEmpty) return const SizedBox.shrink();
+        return Container(
+          margin: widget.margin,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: RepaintBoundary(
+              child: AdFitNativeListAdWidget(adCode: code),
+            ),
+          ),
+        );
+      case AdNetwork.admob:
+        break;
+    }
     return ValueListenableBuilder<bool>(
       valueListenable: ListAdCache.readyNotifier(_key),
       builder: (context, ready, _) {
@@ -95,7 +118,7 @@ class _TopBannerAdmobCardState extends State<TopBannerAdmobCard> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_ad == null) _load();
+    if (_ad == null && AdNetworkConfig.current == AdNetwork.admob) _load();
   }
 
   void _load() {
@@ -123,6 +146,22 @@ class _TopBannerAdmobCardState extends State<TopBannerAdmobCard> {
 
   @override
   Widget build(BuildContext context) {
+    switch (AdNetworkConfig.current) {
+      case AdNetwork.off:
+        return const SizedBox.shrink();
+      case AdNetwork.adfit:
+        final code = AdNetworkConfig.adfitTopUnit;
+        if (code.isEmpty) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: RepaintBoundary(child: AdFitNativeTopAdWidget(adCode: code)),
+          ),
+        );
+      case AdNetwork.admob:
+        break;
+    }
     if (_failed || !_loaded || _ad == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
@@ -154,7 +193,7 @@ class _StationDetailNativeAdState extends State<StationDetailNativeAd> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_ad == null) _load();
+    if (_ad == null && AdNetworkConfig.current == AdNetwork.admob) _load();
   }
 
   void _load() {
@@ -182,6 +221,22 @@ class _StationDetailNativeAdState extends State<StationDetailNativeAd> {
 
   @override
   Widget build(BuildContext context) {
+    switch (AdNetworkConfig.current) {
+      case AdNetwork.off:
+        return const SizedBox.shrink();
+      case AdNetwork.adfit:
+        final code = AdNetworkConfig.adfitTopUnit;
+        if (code.isEmpty) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: RepaintBoundary(child: AdFitNativeTopAdWidget(adCode: code)),
+          ),
+        );
+      case AdNetwork.admob:
+        break;
+    }
     if (_failed || !_loaded || _ad == null) return const SizedBox.shrink();
     return Padding(
       // 헤더 카드 바로 아래 — 좌우 16(카드와 동일), 위 약간 띄우고 탭과 간격.
