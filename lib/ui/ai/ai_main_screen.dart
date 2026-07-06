@@ -343,10 +343,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           _isEvSelectMode = false;
         });
         _loadSaved();
-        // 모드 바뀌면 충전소/주유소 카테고리가 달라지므로 경로 개수 재집계
-        if (_destLat != null && _destLng != null) {
-          unawaited(_loadRouteAlternatives());
-        }
+        // 주유↔충전 전환 시 경로 재조회 안 함 — 경로 지오메트리는 모드와 무관하고,
+        // 칩은 시간·거리만 표시(개수 미사용)라 재조회가 순수 낭비였음(티맵 쿼터+UX 깜빡임).
+        // 사용자가 고른 경로(추천/고속도로우선)도 그대로 유지됨.
       }
     } else {
       // 차량 없음 → 등록 페이지로 (충전분석이면 전기차로 시작)
