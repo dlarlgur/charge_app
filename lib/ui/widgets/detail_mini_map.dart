@@ -80,6 +80,25 @@ class _DetailMiniMapState extends State<DetailMiniMap> {
                 onMapTapped: (_, __) => showNavigationSheet(context,
                     lat: widget.lat, lng: widget.lng, name: widget.name),
               ),
+              // 초기화 커버 — 네이티브 지도 서피스가 흰색으로 먼저 그려져 다크모드에서
+              // 흰 화면이 번쩍하는 문제 가림. 지도 준비되면 페이드아웃.
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: AnimatedOpacity(
+                    opacity: _controller == null ? 1 : 0,
+                    duration: const Duration(milliseconds: 350),
+                    child: Container(
+                      color: isDark ? AppColors.darkCard : Colors.white,
+                      alignment: Alignment.center,
+                      child: Icon(Icons.map_outlined,
+                          size: 22,
+                          color: isDark
+                              ? AppColors.darkTextMuted
+                              : const Color(0xFFB6C2CF)),
+                    ),
+                  ),
+                ),
+              ),
               // 테두리 (지도 위에 살짝) — 터치는 지도로 통과
               Positioned.fill(
                 child: IgnorePointer(
