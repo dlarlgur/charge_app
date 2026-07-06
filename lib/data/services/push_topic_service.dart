@@ -29,16 +29,20 @@ class PushTopicService {
       final fm = FirebaseMessaging.instance;
       final wantGas = vt == 'gas' || vt == 'both';
       final wantEv = vt == 'ev' || vt == 'both';
+      // v2(data-only) 토픽 — 앱이 알림을 직접 그려 방해금지·알림함·탭 라우팅이 적용됨.
+      // 레거시(veh_*)는 해지 (콘솔이 레거시+v2 이중 발송이라 이중 수신 방지).
       if (wantGas) {
-        await fm.subscribeToTopic('veh_gas_$safePkg');
+        await fm.subscribeToTopic('v2_veh_gas_$safePkg');
       } else {
-        await fm.unsubscribeFromTopic('veh_gas_$safePkg');
+        await fm.unsubscribeFromTopic('v2_veh_gas_$safePkg');
       }
+      await fm.unsubscribeFromTopic('veh_gas_$safePkg');
       if (wantEv) {
-        await fm.subscribeToTopic('veh_ev_$safePkg');
+        await fm.subscribeToTopic('v2_veh_ev_$safePkg');
       } else {
-        await fm.unsubscribeFromTopic('veh_ev_$safePkg');
+        await fm.unsubscribeFromTopic('v2_veh_ev_$safePkg');
       }
+      await fm.unsubscribeFromTopic('veh_ev_$safePkg');
       // 콘솔에 차량타입 보고 — 사용자 목록의 '차량' 컬럼·분포 통계용.
       await _reportVehicleType(vt);
     } catch (_) {

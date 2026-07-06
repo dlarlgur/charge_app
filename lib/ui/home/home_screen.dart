@@ -107,32 +107,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         if (stationId.isNotEmpty) WatchService().updateCurrentAvail(stationId, newAvail);
       } else if (message.data['type'] == 'inquiry_reply') {
         // 1:1 문의 답변 — 포그라운드에선 시스템이 자동 표시 안 하므로 직접 띄움
+        // (v2 data-only 는 title/body 가 data 에 실림 — notification 폴백 겸용)
         showInquiryReplyNotification(
-          title: message.notification?.title,
-          body: message.notification?.body,
+          title: message.notification?.title ?? message.data['title']?.toString(),
+          body: message.notification?.body ?? message.data['body']?.toString(),
           inquiryId: int.tryParse(message.data['inquiryId']?.toString() ?? ''),
         );
         _saveToInbox(message);
       } else if (message.data['type'] == 'event') {
         // 이벤트 — 포그라운드 직접 표시 (탭하면 그 이벤트 상세로)
         showEventNotification(
-          title: message.notification?.title,
-          body: message.notification?.body,
+          title: message.notification?.title ?? message.data['title']?.toString(),
+          body: message.notification?.body ?? message.data['body']?.toString(),
           eventId: int.tryParse(message.data['id']?.toString() ?? ''),
         );
         _saveToInbox(message);
       } else if (message.data['type'] == 'notice') {
         showNoticeNotification(
-          title: message.notification?.title,
-          body: message.notification?.body,
+          title: message.notification?.title ?? message.data['title']?.toString(),
+          body: message.notification?.body ?? message.data['body']?.toString(),
           noticeId: int.tryParse(message.data['id']?.toString() ?? ''),
         );
         _saveToInbox(message);
-      } else if (message.notification != null) {
+      } else if (message.notification != null ||
+          message.data['title'] != null ||
+          message.data['body'] != null) {
         // 자유 푸시·브리핑 등 그 외 모든 알림 — 포그라운드 직접 표시 + 내역 저장
         showNoticeNotification(
-          title: message.notification?.title,
-          body: message.notification?.body,
+          title: message.notification?.title ?? message.data['title']?.toString(),
+          body: message.notification?.body ?? message.data['body']?.toString(),
           noticeId: null,
         );
         _saveToInbox(message);
@@ -383,8 +386,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   /// 모든 종류 푸시(공지·이벤트·문의답변·자유푸시 등)를 홈 우측 위 알림 내역에 저장.
   /// (주유/EV 알람은 각자 전용 포맷터가 저장하므로 여기 안 거침)
   void _saveToInbox(RemoteMessage message) {
-    final title = message.notification?.title;
-    final body = message.notification?.body;
+    // v2 data-only 는 title/body 가 data 에 실림 — notification 폴백 겸용.
+    final title =
+        message.notification?.title ?? message.data['title']?.toString();
+    final body =
+        message.notification?.body ?? message.data['body']?.toString();
     if ((title == null || title.isEmpty) && (body == null || body.isEmpty)) {
       return;
     }

@@ -179,8 +179,31 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     final soundMode = (box.get('ev_alarm_sound_mode', defaultValue: 0) as int?) ?? 0;
     showEvWatchNotification(message.data, soundMode: soundMode);
     await _saveEvAlarmToHive(box, message.data);
+  } else if (message.notification == null &&
+      (message.data['title'] != null || message.data['body'] != null)) {
+    // v2 data-only 공지·이벤트·문의답변·자유푸시 — 앱이 직접 그림.
+    // show* 내부의 방해금지 게이트가 백그라운드에서도 적용되고, 알림함에도 저장됨.
+    // (notification payload 방식은 OS 가 직접 그려서 방해금지를 못 거는 문제의 해법)
+    await androidPlugin?.createNotificationChannel(eventNoticeChannel);
+    await androidPlugin?.createNotificationChannel(inquiryReplyChannel);
+    final t = message.data['title']?.toString();
+    final b = message.data['body']?.toString();
+    final type = message.data['type']?.toString() ?? '';
+    final id = int.tryParse(
+        (message.data['id'] ?? message.data['inquiryId'])?.toString() ?? '');
+    switch (type) {
+      case 'event':
+        showEventNotification(title: t, body: b, eventId: id);
+        break;
+      case 'inquiry_reply':
+        showInquiryReplyNotification(title: t, body: b, inquiryId: id);
+        break;
+      default: // notice·free_push 등
+        showNoticeNotification(title: t, body: b, noticeId: id);
+    }
+    await _saveGenericPushToHive(box, message);
   } else if (message.notification != null) {
-    // 공지·이벤트·문의답변·자유푸시 등 — 표시는 시스템이 하고, 여기선 알림 내역에만 저장
+    // 레거시(notification payload) — 표시는 시스템이 하고, 여기선 알림 내역에만 저장
     // (홈 우측 위 알림함에서 모든 푸시를 다시 볼 수 있게)
     await _saveGenericPushToHive(box, message);
   }
@@ -189,8 +212,12 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 /// 백그라운드로 온 일반 알림(공지/이벤트/자유푸시 등)을 알림 내역(Hive)에 저장.
 Future<void> _saveGenericPushToHive(dynamic box, RemoteMessage message) async {
   try {
-    final title = message.notification?.title ?? '';
-    final body = message.notification?.body ?? '';
+    // v2 data-only 는 title/body 가 data 에 실려 옴 — notification 페이로드 폴백 겸용.
+    final title = message.notification?.title ??
+        message.data['title']?.toString() ??
+        '';
+    final body =
+        message.notification?.body ?? message.data['body']?.toString() ?? '';
     if (title.isEmpty && body.isEmpty) return;
     final msgs = List<Map<String, dynamic>>.from(
       ((box.get('push_messages', defaultValue: <dynamic>[]) as List)
@@ -393,8 +420,18 @@ void main() async {
   // 반드시 DkswCore.init 이후: 토픽명이 events_<package> 로 패키지명에 의존하기 때문.
   unawaited(() async {
     try {
-      await FirebaseMessaging.instance.subscribeToTopic(DkswCore.noticesTopic());
-      await FirebaseMessaging.instance.subscribeToTopic(DkswCore.eventsTopic());
+      // v2 토픽(data-only) 구독 — 공지/이벤트를 OS 가 아닌 '앱이' 그려서
+      // 방해금지 게이트·알림함 저장·탭 라우팅이 백그라운드에서도 동작.
+      // 레거시 토픽(notification payload)은 해지 — 이중 수신 방지. 콘솔은 두 토픽에
+      // 이중 발송하므로 구버전(레거시 구독)도 계속 받음.
+      await FirebaseMessaging.instance
+          .subscribeToTopic('v2_${DkswCore.noticesTopic()}');
+      await FirebaseMessaging.instance
+          .subscribeToTopic('v2_${DkswCore.eventsTopic()}');
+      await FirebaseMessaging.instance
+          .unsubscribeFromTopic(DkswCore.noticesTopic());
+      await FirebaseMessaging.instance
+          .unsubscribeFromTopic(DkswCore.eventsTopic());
       // 차량타입별 토픽(veh_gas/veh_ev) — 콘솔 '주유/전기' 타겟 푸시용. 매 부팅 재동기화.
       await PushTopicService.syncVehicleTopics();
     } catch (_) {}
