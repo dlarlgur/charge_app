@@ -108,7 +108,7 @@ Future<void> showExitConfirmDialog(BuildContext context) async {
     context: context,
     barrierDismissible: true,
     builder: (ctx) => Dialog(
-      backgroundColor: isDark ? AppColors.darkCard : Colors.white,
+      backgroundColor: isDark ? AppColors.darkSurface1 : Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: ConstrainedBox(

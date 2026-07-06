@@ -21,9 +21,22 @@ class AppColors {
   static const darkCardBorder = Color(0x24FFFFFF);
   static const darkTextPrimary = Color(0xFFF1F5F9);
   static const darkTextSecondary = Color(0xFF94A3B8);
-  static const darkTextMuted = Color(0xFF475569);
+  // muted: #475569 는 darkBg 위 대비 ~2.4:1 로 캡션이 안 읽혔음 → ~4.6:1 로 상향
+  static const darkTextMuted = Color(0xFF7E8CA0);
   static const darkIconBg = Color(0xFF1E293B);
   static const darkEvIconBg = Color(0xFF064E3B);
+
+  // ─── Dark surface 사다리 (반투명 스택 대신 불투명 계층) ───
+  // 시트(darkBg) → 카드(surface1) → 카드 내 수치셀(surface2) — 밝기 1단계씩 상승.
+  static const darkSurface1 = Color(0xFF171E27);
+  static const darkSurface2 = Color(0xFF212A35);
+
+  // ─── Dark 전용 밝은 accent 변형 (라이트 원색은 다크에서 대비 미달) ───
+  static const darkOrangeBright = Color(0xFFFFA14E); // ← #E8700A
+  static const darkBlueBright = Color(0xFF6EA8FF); //   ← #1D6FE0
+  static const darkGreenBright = Color(0xFF3ECF9A); //  ← #1D9E75
+  static const darkRedBright = Color(0xFFFF7A76); //    ← #E24B4A/#DC2626
+  static const darkAmberBright = Color(0xFFEDC65A); //  ← 앰버 안내배너 텍스트
 
   // Gas active card (dark)
   static const darkGasActiveCard = Color(0x12397CF6);

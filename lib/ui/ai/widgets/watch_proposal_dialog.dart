@@ -15,7 +15,7 @@ class WatchProposalDialog extends StatelessWidget {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       elevation: 0,
-      backgroundColor: isDark ? AppColors.darkCard : Colors.white,
+      backgroundColor: isDark ? AppColors.darkSurface1 : Colors.white,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
         child: Column(

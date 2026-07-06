@@ -1887,7 +1887,7 @@ class _WidgetOpacityTileState extends State<_WidgetOpacityTile> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: isDark ? AppColors.darkCard : Colors.white,
+      backgroundColor: isDark ? AppColors.darkSurface1 : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),

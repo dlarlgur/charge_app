@@ -638,18 +638,32 @@ class _AiResultBodyState extends State<AiResultBody> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFF3CD),
+            color: isDark
+                ? AppColors.darkAmberBright.withValues(alpha: 0.14)
+                : const Color(0xFFFFF3CD),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFFFFD95A), width: 1),
+            border: Border.all(
+                color: isDark
+                    ? AppColors.darkAmberBright.withValues(alpha: 0.35)
+                    : const Color(0xFFFFD95A),
+                width: 1),
           ),
           child: Row(
-            children: const [
-              Icon(Icons.local_gas_station, size: 15, color: Color(0xFF856404)),
-              SizedBox(width: 6),
+            children: [
+              Icon(Icons.local_gas_station,
+                  size: 15,
+                  color: isDark
+                      ? AppColors.darkAmberBright
+                      : const Color(0xFF856404)),
+              const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   '현재 연료로 갈 수 있는 거리 안의 주유소만 표시했어요.',
-                  style: TextStyle(fontSize: 12, color: Color(0xFF856404)),
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: isDark
+                          ? AppColors.darkAmberBright
+                          : const Color(0xFF856404)),
                 ),
               ),
             ],
@@ -665,21 +679,33 @@ class _AiResultBodyState extends State<AiResultBody> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFF9E8),
+            color: isDark
+                ? AppColors.darkAmberBright.withValues(alpha: 0.14)
+                : const Color(0xFFFFF9E8),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFFFE6A6)),
+            border: Border.all(
+                color: isDark
+                    ? AppColors.darkAmberBright.withValues(alpha: 0.35)
+                    : const Color(0xFFFFE6A6)),
           ),
-          child: const Row(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(Icons.info_outline_rounded,
-                  size: 17, color: Color(0xFF8A6D3B)),
-              SizedBox(width: 8),
+                  size: 17,
+                  color: isDark
+                      ? AppColors.darkAmberBright
+                      : const Color(0xFF8A6D3B)),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   '선택한 선호 브랜드가 이 경로엔 없어 전체 주유소에서 추천했어요.',
                   style: TextStyle(
-                      fontSize: 13, color: Color(0xFF8A6D3B), height: 1.4),
+                      fontSize: 13,
+                      color: isDark
+                          ? AppColors.darkAmberBright
+                          : const Color(0xFF8A6D3B),
+                      height: 1.4),
                 ),
               ),
             ],
@@ -739,21 +765,33 @@ class _AiResultBodyState extends State<AiResultBody> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFF9E8),
+            color: isDark
+                ? AppColors.darkAmberBright.withValues(alpha: 0.14)
+                : const Color(0xFFFFF9E8),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFFFE6A6)),
+            border: Border.all(
+                color: isDark
+                    ? AppColors.darkAmberBright.withValues(alpha: 0.35)
+                    : const Color(0xFFFFE6A6)),
           ),
-          child: const Row(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(Icons.info_outline_rounded,
-                  size: 18, color: Color(0xFF8A6D3B)),
-              SizedBox(width: 8),
+                  size: 18,
+                  color: isDark
+                      ? AppColors.darkAmberBright
+                      : const Color(0xFF8A6D3B)),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   '현재 연료로 목적지 도달이 가능해 지금은 추천 주유소를 표시하지 않습니다.',
                   style: TextStyle(
-                      fontSize: 13, color: Color(0xFF8A6D3B), height: 1.4),
+                      fontSize: 13,
+                      color: isDark
+                          ? AppColors.darkAmberBright
+                          : const Color(0xFF8A6D3B),
+                      height: 1.4),
                 ),
               ),
             ],
@@ -1210,14 +1248,22 @@ class _AiMessageBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final normalized =
         _normalizeMarkdownForKorean(message.replaceAll(r'\n', '\n'));
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // 다크: 파랑 틴트 공식 (accent 14% bg + 35% border + 밝은 파랑 텍스트)
+    final blue = isDark ? AppColors.darkBlueBright : const Color(0xFF1D6FE0);
 
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         // 주유 AI 경로추천 배너 — 파랑 톤 (추천카드 주황과 구분).
-        color: const Color(0xFFF0F6FF),
+        color: isDark
+            ? AppColors.darkBlueBright.withValues(alpha: 0.12)
+            : const Color(0xFFF0F6FF),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFD6E4FF)),
+        border: Border.all(
+            color: isDark
+                ? AppColors.darkBlueBright.withValues(alpha: 0.35)
+                : const Color(0xFFD6E4FF)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1227,35 +1273,40 @@ class _AiMessageBanner extends StatelessWidget {
             height: 20,
             margin: const EdgeInsets.only(top: 1),
             decoration: BoxDecoration(
-              color: const Color(0xFFE3EEFF),
+              color: isDark
+                  ? AppColors.darkBlueBright.withValues(alpha: 0.18)
+                  : const Color(0xFFE3EEFF),
               borderRadius: BorderRadius.circular(6),
             ),
-            child: const Icon(Icons.auto_awesome_rounded,
-                size: 12, color: Color(0xFF1D6FE0)),
+            child: Icon(Icons.auto_awesome_rounded, size: 12, color: blue),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('AI 경로 추천',
+                Text('AI 경로 추천',
                     style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF1D6FE0))),
+                        color: blue)),
                 const SizedBox(height: 6),
                 MarkdownBody(
                   data: normalized,
                   shrinkWrap: true,
                   styleSheet:
                       MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
-                    p: const TextStyle(
-                        fontSize: 13, height: 1.5, color: Color(0xFF1a1a1a)),
-                    strong: const TextStyle(
+                    p: TextStyle(
+                        fontSize: 13,
+                        height: 1.5,
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : const Color(0xFF1a1a1a)),
+                    strong: TextStyle(
                       fontSize: 13,
                       height: 1.5,
                       fontWeight: FontWeight.w700,
-                      color: _kPrimary,
+                      color: isDark ? AppColors.darkGreenBright : _kPrimary,
                     ),
                   ),
                 ),
@@ -1487,12 +1538,19 @@ class _RecommendedCard extends StatelessWidget {
     final isNegligible =
         _detourIsNegligible(detourM: detourM, detourTimeMin: detourTimeMin);
     final detourMins = _meaningfulDetourMinutes(detourTimeMin);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // 다크: 주황 14% 프리블렌드 카드 + 밝은 주황 보더 — '라이트 카드 그대로' 인상 제거.
+    final subBadgeBg = isDark ? const Color(0x1FFFFFFF) : Colors.white;
+    final subBadgeBorder =
+        isDark ? AppColors.darkCardBorder : const Color(0xFFCCEEDE);
 
     return Container(
       decoration: BoxDecoration(
-        color: _kMarkerRecommendLight,
+        color: isDark ? const Color(0xFF2B2014) : _kMarkerRecommendLight,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _kMarkerRecommend, width: 2),
+        border: Border.all(
+            color: isDark ? AppColors.darkOrangeBright : _kMarkerRecommend,
+            width: 2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1527,16 +1585,18 @@ class _RecommendedCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: subBadgeBg,
                     borderRadius: BorderRadius.circular(5),
-                    border: Border.all(color: const Color(0xFFCCEEDE)),
+                    border: Border.all(color: subBadgeBorder),
                   ),
                   child: Text(
                     isDetour ? '우회 최저가' : '경로상 최저가',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF444444)),
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : const Color(0xFF444444)),
                   ),
                 ),
                 const Spacer(),
@@ -1547,20 +1607,26 @@ class _RecommendedCard extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: subBadgeBg,
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFFCCEEDE)),
+                        border: Border.all(color: subBadgeBorder),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.map_outlined, size: 13, color: _kPrimary),
-                          SizedBox(width: 3),
+                          Icon(Icons.map_outlined,
+                              size: 13,
+                              color: isDark
+                                  ? AppColors.darkGreenBright
+                                  : _kPrimary),
+                          const SizedBox(width: 3),
                           Text('지도',
                               style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
-                                  color: _kPrimary)),
+                                  color: isDark
+                                      ? AppColors.darkGreenBright
+                                      : _kPrimary)),
                         ],
                       ),
                     ),
@@ -1580,10 +1646,12 @@ class _RecommendedCard extends StatelessWidget {
                 ],
                 Expanded(
                   child: Text(name,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF1a1a1a))),
+                          color: isDark
+                              ? AppColors.darkTextPrimary
+                              : const Color(0xFF1a1a1a))),
                 ),
               ],
             ),
@@ -1597,38 +1665,55 @@ class _RecommendedCard extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 18),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDark ? AppColors.darkSurface2 : Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFCCEEDE)),
+                border: Border.all(color: subBadgeBorder),
               ),
               child: IntrinsicHeight(
                 child: Row(
                   children: [
                     _RecStatCell(
                       icon: Icons.local_gas_station_rounded,
-                      iconColor: _kMarkerRecommend,
+                      iconColor: isDark
+                          ? AppColors.darkOrangeBright
+                          : _kMarkerRecommend,
                       value: price != null
                           ? '${wonFmt.format(price!.round())}원'
                           : '—',
                       label: '리터당 가격',
+                      darkAdaptive: true,
                     ),
-                    const VerticalDivider(width: 1, color: Color(0xFFDDDDDD)),
+                    VerticalDivider(
+                        width: 1,
+                        color: isDark
+                            ? AppColors.darkCardBorder
+                            : const Color(0xFFDDDDDD)),
                     _RecStatCell(
                       icon: Icons.access_time_rounded,
                       iconColor: isNegligible
-                          ? _kMarkerRecommend
+                          ? (isDark
+                              ? AppColors.darkOrangeBright
+                              : _kMarkerRecommend)
                           : const Color(0xFFE07B1D),
                       value: isNegligible
                           ? '우회 없음'
                           : (detourMins != null ? '+${detourMins}분' : '조금 우회'),
                       label: '직행 대비',
+                      darkAdaptive: true,
                     ),
-                    const VerticalDivider(width: 1, color: Color(0xFFDDDDDD)),
+                    VerticalDivider(
+                        width: 1,
+                        color: isDark
+                            ? AppColors.darkCardBorder
+                            : const Color(0xFFDDDDDD)),
                     _RecStatCell(
                       icon: Icons.payments_outlined,
-                      iconColor: _kMarkerRecommend,
+                      iconColor: isDark
+                          ? AppColors.darkOrangeBright
+                          : _kMarkerRecommend,
                       value: cost > 0 ? '${wonFmt.format(cost)}원' : '—',
                       label: '예상 주유비',
+                      darkAdaptive: true,
                     ),
                   ],
                 ),
@@ -2273,20 +2358,27 @@ class _OptionCard extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF0F0F0),
+                        color: isDark
+                            ? const Color(0x1FFFFFFF)
+                            : const Color(0xFFF0F0F0),
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.map_outlined,
-                              size: 13, color: Color(0xFF666666)),
-                          SizedBox(width: 3),
+                              size: 13,
+                              color: isDark
+                                  ? AppColors.darkTextSecondary
+                                  : const Color(0xFF666666)),
+                          const SizedBox(width: 3),
                           Text('지도',
                               style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
-                                  color: Color(0xFF666666))),
+                                  color: isDark
+                                      ? AppColors.darkTextSecondary
+                                      : const Color(0xFF666666))),
                         ],
                       ),
                     ),
@@ -2374,7 +2466,9 @@ class _OptionCard extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEEF4FF),
+                  color: isDark
+                      ? AppColors.darkBlueBright.withValues(alpha: 0.12)
+                      : const Color(0xFFEEF4FF),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Column(
@@ -2382,15 +2476,20 @@ class _OptionCard extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.savings_outlined,
-                            size: 15, color: Color(0xFF1D6FE0)),
+                        Icon(Icons.savings_outlined,
+                            size: 15,
+                            color: isDark
+                                ? AppColors.darkBlueBright
+                                : const Color(0xFF1D6FE0)),
                         const SizedBox(width: 6),
                         Text(
                           'AI 추천 대비 ${wonFmt.format(extraInfo!.savings)}원 절약',
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF1D6FE0)),
+                              color: isDark
+                                  ? AppColors.darkBlueBright
+                                  : const Color(0xFF1D6FE0)),
                         ),
                       ],
                     ),
@@ -2476,7 +2575,8 @@ class _ComparisonDetailSheet extends StatelessWidget {
     final ink = isDark ? Colors.white : const Color(0xFF1A1A1A);
     final muted =
         isDark ? AppColors.darkTextSecondary : const Color(0xFF94A3B8);
-    const recColor = Color(0xFF1D6FE0);
+    final recColor =
+        isDark ? AppColors.darkBlueBright : const Color(0xFF1D6FE0);
     final lineColor =
         isDark ? AppColors.darkCardBorder : const Color(0xFFEEF1F5);
     final c1 = cards[0];
@@ -2542,8 +2642,7 @@ class _ComparisonDetailSheet extends StatelessWidget {
                       borderRadius: BorderRadius.circular(2))),
               const SizedBox(height: 16),
               Row(children: [
-                const Icon(Icons.compare_arrows_rounded,
-                    size: 18, color: recColor),
+                Icon(Icons.compare_arrows_rounded, size: 18, color: recColor),
                 const SizedBox(width: 6),
                 Text('상세 비교',
                     style: TextStyle(
@@ -2554,8 +2653,9 @@ class _ComparisonDetailSheet extends StatelessWidget {
               const SizedBox(height: 14),
               Row(children: [
                 const SizedBox(width: 76),
-                Expanded(child: _head(c1, ink, recColor)),
-                if (c2 != null) Expanded(child: _head(c2, ink, recColor)),
+                Expanded(child: _head(c1, ink, recColor, isDark: isDark)),
+                if (c2 != null)
+                  Expanded(child: _head(c2, ink, recColor, isDark: isDark)),
               ]),
               const SizedBox(height: 10),
               line(),
@@ -2583,12 +2683,14 @@ class _ComparisonDetailSheet extends StatelessWidget {
   String _wonNum(dynamic n) =>
       (n is num && n > 0) ? '${wonFmt.format(n.round())}원' : '-';
 
-  Widget _head(Map<String, dynamic> c, Color ink, Color recColor) {
+  Widget _head(Map<String, dynamic> c, Color ink, Color recColor,
+      {required bool isDark}) {
     final isRec = c['isRec'] == true;
     final role = c['role'] as String? ?? '';
     final brand = (c['brand'] as String?) ?? '';
-    final roleColor =
-        role == '경로상' ? const Color(0xFFE8700A) : const Color(0xFF1D6FE0);
+    final roleColor = (role == '경로상' || role == '추천')
+        ? (isDark ? AppColors.darkOrangeBright : const Color(0xFFE8700A))
+        : (isDark ? AppColors.darkBlueBright : const Color(0xFF1D6FE0));
     return Column(children: [
       if (brand.isNotEmpty)
         BrandLogo(brand: brand, stationName: c['name'] as String, size: 30)
@@ -2658,9 +2760,12 @@ Widget _costVerdictBox(Map<String, dynamic> ca, NumberFormat wonFmt, Color ink,
   if (priceDiff == 0 && fuelWon <= 0 && extraMin <= 0) {
     return const SizedBox.shrink();
   }
-  const green = Color(0xFF1D9E75);
-  const orange = Color(0xFFE8700A);
-  const red = Color(0xFFE24B4A);
+  // 다크에선 밝은 변형 — 라이트 원색은 어두운 배경에서 대비 미달.
+  final green =
+      isDark ? AppColors.darkGreenBright : const Color(0xFF1D9E75);
+  final orange =
+      isDark ? AppColors.darkOrangeBright : const Color(0xFFE8700A);
+  final red = isDark ? AppColors.darkRedBright : const Color(0xFFE24B4A);
   final c = worth ? green : orange; // 헤더/판정 색
   final bC = fuelBenefit >= 0 ? green : red; // 이득/손해 색
   final wonF = wonFmt;
@@ -2681,9 +2786,10 @@ Widget _costVerdictBox(Map<String, dynamic> ca, NumberFormat wonFmt, Color ink,
   return Container(
     padding: const EdgeInsets.all(13),
     decoration: BoxDecoration(
-      color: c.withValues(alpha: 0.07),
+      // 다크: 7% 틴트는 darkCard 와 구분 불가 → 14% + 보더 35%로 존재감 확보
+      color: c.withValues(alpha: isDark ? 0.14 : 0.07),
       borderRadius: BorderRadius.circular(13),
-      border: Border.all(color: c.withValues(alpha: 0.22)),
+      border: Border.all(color: c.withValues(alpha: isDark ? 0.35 : 0.22)),
     ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
@@ -2817,9 +2923,13 @@ class _AltSection extends StatelessWidget {
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
-            color: _kAltBg,
+            // 다크: 라이트 라벤더 블록 대신 surface 계층 + 보라 힌트 보더
+            color: isDark ? AppColors.darkSurface1 : _kAltBg,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: _kAltBorder),
+            border: Border.all(
+                color: isDark
+                    ? _kSelected.withValues(alpha: 0.25)
+                    : _kAltBorder),
           ),
           clipBehavior: Clip.antiAlias,
           child: Column(
@@ -2870,8 +2980,12 @@ class _AltSection extends StatelessWidget {
                               color: isSelected
                                   ? _kSelected
                                   : isUnreachable
-                                      ? _kUnreachableChipBg
-                                      : _kAltBadgeBg,
+                                      ? (isDark
+                                          ? const Color(0x1FFFFFFF)
+                                          : _kUnreachableChipBg)
+                                      : (isDark
+                                          ? _kSelected.withValues(alpha: 0.22)
+                                          : _kAltBadgeBg),
                             ),
                             child: Center(
                               child: isSelected
@@ -2881,10 +2995,13 @@ class _AltSection extends StatelessWidget {
                                       ? const Icon(Icons.warning_amber_rounded,
                                           size: 14, color: _kUnreachableAccent)
                                       : Text('${idx + 1}',
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                               fontSize: 11,
                                               fontWeight: FontWeight.w700,
-                                              color: _kAltBadgeText)),
+                                              // 다크: 밝은 보라 변형
+                                              color: isDark
+                                                  ? const Color(0xFFA292FF)
+                                                  : _kAltBadgeText)),
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -2903,11 +3020,16 @@ class _AltSection extends StatelessWidget {
                                               fontSize: 13,
                                               fontWeight: FontWeight.w600,
                                               color: isSelected
-                                                  ? _kSelected
+                                                  ? (isDark
+                                                      ? const Color(0xFFA292FF)
+                                                      : _kSelected)
                                                   : isUnreachable
                                                       ? _kUnreachableAccent
-                                                      : const Color(
-                                                          0xFF1a1a1a))),
+                                                      : (isDark
+                                                          ? AppColors
+                                                              .darkTextPrimary
+                                                          : const Color(
+                                                              0xFF1a1a1a)))),
                                     ),
                                     if (isUnreachable) ...[
                                       const SizedBox(width: 6),

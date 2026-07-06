@@ -30,7 +30,7 @@ Future<void> maybeShowChargeMarketingReprompt(BuildContext context, {bool force 
   final accent = AppColors.gasBlue;
   final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
   final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-  final bg = isDark ? AppColors.darkCard : Colors.white;
+  final bg = isDark ? AppColors.darkSurface1 : Colors.white;
 
   await showDialog<void>(
     context: context,

@@ -19,7 +19,7 @@ Future<T?> showAppDialog<T>(
   bool barrierDismissible = true,
 }) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
-  final bg = isDark ? AppColors.darkCard : Colors.white;
+  final bg = isDark ? AppColors.darkSurface1 : Colors.white;
   final textPrimary =
       isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
   final textSecondary =

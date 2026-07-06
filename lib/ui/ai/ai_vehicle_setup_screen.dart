@@ -581,7 +581,7 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) => Container(
           decoration: BoxDecoration(
-            color: isDark ? AppColors.darkCard : Colors.white,
+            color: isDark ? AppColors.darkSurface1 : Colors.white,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           padding: EdgeInsets.fromLTRB(
