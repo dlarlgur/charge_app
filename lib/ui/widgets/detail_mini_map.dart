@@ -34,6 +34,20 @@ class DetailMiniMap extends StatefulWidget {
 
 class _DetailMiniMapState extends State<DetailMiniMap> {
   NaverMapController? _controller;
+  // 화면 전환(라우트 애니메이션)이 끝난 뒤에 지도 생성 — 네이티브 서피스는 무조건
+  // 흰색으로 태어나는데(SDK가 초기색 미노출), 전환 중 생성되면 다크모드에서 흰
+  // 번쩍임이 가장 크게 보임. 전환 후 생성 + 테마색 커버 페이드로 이중 방어.
+  bool _mountMap = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 320), () {
+        if (mounted) setState(() => _mountMap = true);
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,34 +66,35 @@ class _DetailMiniMapState extends State<DetailMiniMap> {
             fit: StackFit.expand,
             children: [
               // 지도 — 줌(핀치)만 허용, 이동·회전·틸트 잠금. 탭하면 길안내.
-              NaverMap(
-                options: NaverMapViewOptions(
-                  initialCameraPosition: NCameraPosition(
-                    target: NLatLng(widget.lat, widget.lng),
-                    zoom: 14.3,
+              if (_mountMap)
+                NaverMap(
+                  options: NaverMapViewOptions(
+                    initialCameraPosition: NCameraPosition(
+                      target: NLatLng(widget.lat, widget.lng),
+                      zoom: 14.3,
+                    ),
+                    minZoom: 11,
+                    maxZoom: 18,
+                    nightModeEnable: isDark,
+                    scrollGesturesEnable: false,
+                    zoomGesturesEnable: true,
+                    rotationGesturesEnable: false,
+                    tiltGesturesEnable: false,
+                    stopGesturesEnable: false,
+                    scaleBarEnable: false,
+                    indoorLevelPickerEnable: false,
+                    locationButtonEnable: false,
                   ),
-                  minZoom: 11,
-                  maxZoom: 18,
-                  nightModeEnable: isDark,
-                  scrollGesturesEnable: false,
-                  zoomGesturesEnable: true,
-                  rotationGesturesEnable: false,
-                  tiltGesturesEnable: false,
-                  stopGesturesEnable: false,
-                  scaleBarEnable: false,
-                  indoorLevelPickerEnable: false,
-                  locationButtonEnable: false,
+                  onMapReady: (controller) {
+                    controller.addOverlay(NMarker(
+                      id: 'detail_mini_marker',
+                      position: NLatLng(widget.lat, widget.lng),
+                    ));
+                    if (mounted) setState(() => _controller = controller);
+                  },
+                  onMapTapped: (_, __) => showNavigationSheet(context,
+                      lat: widget.lat, lng: widget.lng, name: widget.name),
                 ),
-                onMapReady: (controller) {
-                  controller.addOverlay(NMarker(
-                    id: 'detail_mini_marker',
-                    position: NLatLng(widget.lat, widget.lng),
-                  ));
-                  if (mounted) setState(() => _controller = controller);
-                },
-                onMapTapped: (_, __) => showNavigationSheet(context,
-                    lat: widget.lat, lng: widget.lng, name: widget.name),
-              ),
               // 초기화 커버 — 네이티브 지도 서피스가 흰색으로 먼저 그려져 다크모드에서
               // 흰 화면이 번쩍하는 문제 가림. 지도 준비되면 페이드아웃.
               Positioned.fill(
