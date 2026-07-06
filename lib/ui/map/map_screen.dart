@@ -204,7 +204,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   Future<void> _dismissSheet() async {
     final prev = _selectedStation;
-    mapSheetOpen.value = false;
+    // 상세시트를 닫아도 지역 리스트가 펼쳐져 있으면 back 처리는 여전히 지도 탭 몫.
+    mapSheetOpen.value = _listExpanded;
     setState(() {
       _selectedStation = null;
       _selectedCluster = null;
@@ -1875,6 +1876,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final expanded = _listSheetController.size > _listCollapsed + 0.04;
     if (expanded != _listExpanded && mounted) {
       setState(() => _listExpanded = expanded);
+      // 홈 PopScope 에 "지도 탭이 뒤로가기를 처리 중" 알림 — 안 하면 리스트를 접는 순간
+      // 홈이 동시에 종료 다이얼로그를 띄움 (리스트에서 back → 곧장 종료광고 버그).
+      mapSheetOpen.value = expanded;
     }
   }
 
