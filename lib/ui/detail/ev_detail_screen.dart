@@ -1687,8 +1687,9 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
     return c.chgerId;
   }
 
-  /// 충전기 메모 편집 바텀시트 — 저장/삭제 후 setState 로 타일 갱신.
-  Future<void> _editChargerMemo(String stationId, Charger charger) async {
+  /// 충전기 이름 변경 바텀시트 — 저장/초기화 후 setState 로 타일 갱신.
+  /// 저장한 이름은 타일에 "내이름 (N호기)" 형태로 표시(원래 호기 번호는 괄호로 유지).
+  Future<void> _editChargerName(String stationId, Charger charger) async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final existing = ChargerMemoService.get(stationId, charger.chgerId) ?? '';
     final controller = TextEditingController(text: existing);
@@ -1706,14 +1707,14 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label.isEmpty ? '충전기 메모' : '$label 메모',
+            Text(label.isEmpty ? '충전기 이름 변경' : '$label 이름 변경',
                 style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
                     color:
                         isDark ? AppColors.darkTextPrimary : Colors.black87)),
             const SizedBox(height: 4),
-            Text('위치나 특징을 기록해 두면 다음에 바로 찾을 수 있어요',
+            Text('내가 알아보기 쉬운 이름으로 바꿔보세요. 원래 번호는 괄호로 함께 표시돼요.',
                 style: TextStyle(
                     fontSize: 12,
                     color: isDark
@@ -1728,7 +1729,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                   fontSize: 15,
                   color: isDark ? AppColors.darkTextPrimary : Colors.black87),
               decoration: InputDecoration(
-                hintText: '예: 지하 1층 3번 기둥 옆',
+                hintText: '예: 지하 1층 3번 기둥',
                 hintStyle: TextStyle(
                     color: isDark
                         ? AppColors.darkTextMuted
@@ -1764,7 +1765,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: const Text('삭제'),
+                      child: const Text('기본이름'),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -1798,8 +1799,15 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
 
   Widget _chargerTile(Charger charger, bool isDark, String stationId) {
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    final memo = ChargerMemoService.get(stationId, charger.chgerId);
+    final customName = ChargerMemoService.get(stationId, charger.chgerId);
     final noLabel = _chargerNoLabel(charger);
+    // 표시 제목: 이름 바꿨으면 "내이름 (4호기)", 아니면 "4호기". 둘 다 없으면 생략.
+    final String titleText;
+    if (customName != null && customName.isNotEmpty) {
+      titleText = noLabel.isNotEmpty ? '$customName ($noLabel)' : customName;
+    } else {
+      titleText = noLabel;
+    }
 
     Color statusColor;
     String statusText;
@@ -1841,7 +1849,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
     }
 
     return InkWell(
-      onTap: () => _editChargerMemo(stationId, charger),
+      onTap: () => _editChargerName(stationId, charger),
       borderRadius: BorderRadius.circular(12),
       child: Container(
         margin: const EdgeInsets.only(top: 8),
@@ -1870,14 +1878,20 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                 children: [
                   Row(
                     children: [
-                      if (noLabel.isNotEmpty) ...[
-                        Text(noLabel,
-                            style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w800,
-                                color: isDark
-                                    ? AppColors.darkTextPrimary
-                                    : Colors.black87)),
+                      if (titleText.isNotEmpty) ...[
+                        Flexible(
+                          child: Text(titleText,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: customName != null
+                                      ? AppColors.evGreen
+                                      : (isDark
+                                          ? AppColors.darkTextPrimary
+                                          : Colors.black87))),
+                        ),
                         const SizedBox(width: 6),
                       ],
                       Text(statusText,
@@ -1891,25 +1905,6 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                     const SizedBox(height: 3),
                     Text(subText,
                         style: TextStyle(fontSize: 11, color: subTextColor)),
-                  ],
-                  if (memo != null) ...[
-                    const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        Icon(Icons.sticky_note_2_outlined,
-                            size: 12, color: AppColors.evGreen),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(memo,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.evGreen)),
-                        ),
-                      ],
-                    ),
                   ],
                 ],
               ),
@@ -1929,9 +1924,9 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.edit_note, size: 13, color: muted),
+                    Icon(Icons.edit_outlined, size: 13, color: muted),
                     const SizedBox(width: 2),
-                    Text(memo == null ? '메모' : '수정',
+                    Text('이름변경',
                         style: TextStyle(fontSize: 10.5, color: muted)),
                   ],
                 ),
