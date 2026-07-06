@@ -80,6 +80,6 @@ configurations.all {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-    // Kakao AdFit
-    implementation("com.kakao.adfit:ads-base:3.21.17")
+    // Kakao AdFit — 3.22.2: Android 15 지원중단 API(setStatusBarColor 등) 경고 대응 버전업
+    implementation("com.kakao.adfit:ads-base:3.22.2")
 }

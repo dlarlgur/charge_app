@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.INTERNET"/>
@@ -155,6 +156,13 @@
         <meta-data android:name="com.naver.sdk.clientId" android:value="F8KFHjLPiaLBTrOrfk3N" />
         <meta-data android:name="com.naver.sdk.clientSecret" android:value="Y3CopbAxAF" />
         <meta-data android:name="com.naver.sdk.clientName" android:value="전기차 기름차" />
+
+        <!-- 네이버 로그인 SDK 가 심는 screenOrientation=BEHIND 제거 —
+             Android 16부터 대형화면에서 방향 제한이 무시되며 Play Console 경고 대상.
+             (SDK 매니페스트 병합 오버라이드) -->
+        <activity
+            android:name="com.navercorp.nid.oauth.activity.NidOAuthCustomTabActivity"
+            tools:remove="android:screenOrientation" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
