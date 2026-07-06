@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  AdFit EV 리스트 인-피드 광고 — AdMob(native_ad_list_ev.xml)과 동일한 시각.
+  좌측 4dp 컬러 스트립(EV 카드 단서) + 44dp 아이콘 + AD 칩. 다크 대응(@color/ad_*).
+  높이는 Flutter SizedBox(96dp)가 지정 — 내용은 세로 중앙 정렬.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <View
+        android:id="@+id/adfit_placeholder"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/ad_card_bg" />
+
+    <com.kakao.adfit.ads.na.AdFitNativeAdView
+        android:id="@+id/containerView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="invisible">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/ad_card_bg"
+            android:clipChildren="true"
+            android:orientation="horizontal">
+
+            <!-- 좌측 4dp 스트립 — EV 카드와 동일한 시각 단서 -->
+            <View
+                android:layout_width="4dp"
+                android:layout_height="match_parent"
+                android:background="@drawable/ad_strip_ev" />
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:paddingStart="12dp"
+                android:paddingEnd="14dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_vertical"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <!-- 아이콘 44x44 — 미디어(2:1)를 썸네일로 -->
+                    <FrameLayout
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:background="@drawable/ad_logo_bg"
+                        android:clipToOutline="true">
+
+                        <ImageView
+                            android:id="@+id/profileIconView"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:contentDescription="광고주 아이콘"
+                            android:scaleType="centerCrop"
+                            tools:src="@mipmap/ic_launcher" />
+
+                        <com.kakao.adfit.ads.na.AdFitMediaView
+                            android:id="@+id/mediaView"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:contentDescription="광고 미디어" />
+                    </FrameLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:layout_marginEnd="8dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/titleTextView"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:textColor="@color/ad_text_primary"
+                            android:textSize="13sp"
+                            android:textStyle="bold"
+                            tools:text="광고 제목" />
+
+                        <TextView
+                            android:id="@+id/bodyTextView"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="3dp"
+                            android:ellipsize="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:textColor="@color/ad_text_secondary"
+                            android:textSize="11sp"
+                            tools:text="광고 설명 문구" />
+
+                        <!-- AD 라벨 — EV 카드 status chip 자리 -->
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:background="@drawable/ad_label_bg"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingStart="7dp"
+                            android:paddingEnd="7dp"
+                            android:paddingTop="3dp"
+                            android:paddingBottom="3dp">
+
+                            <View
+                                android:layout_width="5dp"
+                                android:layout_height="5dp"
+                                android:layout_marginEnd="5dp"
+                                android:background="@drawable/ad_strip_ev" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:includeFontPadding="false"
+                                android:text="광고"
+                                android:textColor="@color/ad_label_text"
+                                android:textSize="10.5sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+
+                        <!-- 광고주명 — 바인딩 필수라 유지하되 비표시 -->
+                        <TextView
+                            android:id="@+id/profileNameTextView"
+                            android:layout_width="1dp"
+                            android:layout_height="1dp"
+                            android:textSize="1sp"
+                            android:visibility="invisible" />
+                    </LinearLayout>
+
+                    <Button
+                        android:id="@+id/callToActionButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="28dp"
+                        android:background="@drawable/ad_cta_bg"
+                        android:minWidth="0dp"
+                        android:minHeight="0dp"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:paddingTop="0dp"
+                        android:paddingBottom="0dp"
+                        android:stateListAnimator="@null"
+                        android:textAllCaps="false"
+                        android:textColor="#FFFFFFFF"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        tools:text="설치" />
+                </LinearLayout>
+            </FrameLayout>
+        </LinearLayout>
+    </com.kakao.adfit.ads.na.AdFitNativeAdView>
+</FrameLayout>

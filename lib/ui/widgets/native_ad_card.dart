@@ -74,6 +74,7 @@ class _AdMobNativeCardState extends State<AdMobNativeCard> {
               child: AdFitNativeListAdWidget(
                 adCode: AdFitUnitIds.forPosition(widget.listPosition),
                 height: _height,
+                isEv: widget.isEv,
               ),
             ),
           ),

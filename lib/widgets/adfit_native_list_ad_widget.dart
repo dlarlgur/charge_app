@@ -12,10 +12,14 @@ class AdFitNativeListAdWidget extends StatelessWidget {
   final String adCode;
   final double height;
 
+  /// EV 탭 — 좌측 4dp 컬러 스트립 있는 레이아웃 사용.
+  final bool isEv;
+
   const AdFitNativeListAdWidget({
     super.key,
     required this.adCode,
     this.height = 68,
+    this.isEv = false,
   });
 
   static const String _viewType = 'com.dksw.charge/adfit_native_list';
@@ -34,7 +38,7 @@ class AdFitNativeListAdWidget extends StatelessWidget {
       height: height,
       child: buildAdFitSurfaceAndroidView(
         viewType: _viewType,
-        creationParams: <String, dynamic>{'clientId': adCode},
+        creationParams: <String, dynamic>{'clientId': adCode, 'isEv': isEv},
       ),
     );
   }

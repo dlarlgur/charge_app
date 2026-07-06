@@ -35,17 +35,22 @@ class AdFitNativeListPlatformViewFactory(
     override fun create(context: Context, viewId: Int, args: Any?): PlatformView {
         val params = args as? Map<*, *>
         val clientId = params?.get("clientId") as? String ?: ""
-        return AdFitNativeListPlatformView(activity, clientId)
+        val isEv = params?.get("isEv") as? Boolean ?: false
+        return AdFitNativeListPlatformView(activity, clientId, isEv)
     }
 }
 
 private class AdFitNativeListPlatformView(
     private val activity: Activity,
     private val clientId: String,
+    isEv: Boolean,
 ) : PlatformView, AdFitNativeAdLoader.AdLoadListener {
 
-    private val root: View =
-        LayoutInflater.from(activity).inflate(R.layout.adfit_native_list_row, null, false)
+    // EV 탭은 좌측 4dp 스트립 있는 레이아웃 (AdMob native_ad_list_ev 와 동일 시각)
+    private val root: View = LayoutInflater.from(activity).inflate(
+        if (isEv) R.layout.adfit_native_list_row_ev else R.layout.adfit_native_list_row,
+        null, false,
+    )
 
     private val placeholder: View = root.findViewById(R.id.adfit_placeholder)
     private val containerView: AdFitNativeAdView = root.findViewById(R.id.containerView)
