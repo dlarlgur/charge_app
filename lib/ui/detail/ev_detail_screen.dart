@@ -12,6 +12,7 @@ import '../../core/util/app_toast.dart';
 import '../../data/models/models.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/alert_service.dart';
+import '../../data/services/charger_memo_service.dart';
 import '../widgets/shared_widgets.dart';
 import '../widgets/native_ad_card.dart' show StationDetailNativeAd;
 import '../widgets/detail_mini_map.dart';
@@ -24,7 +25,8 @@ class EvDetailScreen extends ConsumerStatefulWidget {
   final String stationId;
   final EvStation? station;
   final VoidCallback? onSelectRoute;
-  const EvDetailScreen({super.key, required this.stationId, this.station, this.onSelectRoute});
+  const EvDetailScreen(
+      {super.key, required this.stationId, this.station, this.onSelectRoute});
   @override
   ConsumerState<EvDetailScreen> createState() => _EvDetailScreenState();
 }
@@ -49,7 +51,11 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
   Future<void> _loadDetail() async {
     try {
       final detail = await ApiService().getEvStationDetail(widget.stationId);
-      if (mounted) setState(() { _station = EvStation.fromJson(detail); _loading = false; });
+      if (mounted)
+        setState(() {
+          _station = EvStation.fromJson(detail);
+          _loading = false;
+        });
     } catch (e) {
       if (mounted) setState(() => _loading = false);
     }
@@ -60,7 +66,8 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('충전소 상세')),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.evGreen))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.evGreen))
           : _station == null
               ? const Center(child: Text('정보를 불러올 수 없습니다'))
               : EvDetailContent(
@@ -104,7 +111,11 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
 
   // 주변 POI 상태
   static const List<String> _nearbyCategories = [
-    '카페', '편의점', '마트', '주차장', '음식점',
+    '카페',
+    '편의점',
+    '마트',
+    '주차장',
+    '음식점',
   ];
   List<NearbyPoi> _nearbyAll = const [];
   bool _nearbyLoading = true;
@@ -118,8 +129,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
 
   List<GlobalKey> get _sectionKeys =>
       [_kChargers, _kPrice, _kStation, _kUsage, _kNearby];
-  static const List<String> _tabLabels =
-      ['충전기', '요금', '충전소', '이용현황', '주변'];
+  static const List<String> _tabLabels = ['충전기', '요금', '충전소', '이용현황', '주변'];
 
   @override
   void initState() {
@@ -159,7 +169,8 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
 
   void _onSubsChanged() {
     if (mounted) {
-      setState(() => _isAlarm = AlertService().isEvAlarmSubscribed(widget.station.statId));
+      setState(() =>
+          _isAlarm = AlertService().isEvAlarmSubscribed(widget.station.statId));
     }
   }
 
@@ -180,7 +191,9 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                 '원본: $originalName',
                 style: TextStyle(
                     fontSize: 12,
-                    color: isDark ? AppColors.darkTextSecondary : const Color(0xFF888888)),
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : const Color(0xFF888888)),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -203,7 +216,9 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                 style: TextButton.styleFrom(foregroundColor: Colors.red),
                 child: const Text('삭제'),
               ),
-            TextButton(onPressed: () => Navigator.of(ctx).pop(null), child: const Text('취소')),
+            TextButton(
+                onPressed: () => Navigator.of(ctx).pop(null),
+                child: const Text('취소')),
             FilledButton(
               onPressed: () => Navigator.of(ctx).pop(controller.text),
               child: const Text('저장'),
@@ -237,12 +252,13 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
         final ids = AlertService().evAlarmStationIds;
         if (!ids.contains(sid) && ids.length >= AlertService.evAlarmMaxCount) {
           if (mounted) {
-            showAppToast(context, '충전소 현황 알림은 최대 ${AlertService.evAlarmMaxCount}개까지 설정할 수 있어요');
+            showAppToast(context,
+                '충전소 현황 알림은 최대 ${AlertService.evAlarmMaxCount}개까지 설정할 수 있어요');
           }
           return;
         }
-        final ok = await AlertService().subscribeEvAlarm(
-            stationId: sid, stationName: widget.station.name);
+        final ok = await AlertService()
+            .subscribeEvAlarm(stationId: sid, stationName: widget.station.name);
         if (mounted) setState(() => _isAlarm = ok);
       }
     } finally {
@@ -255,8 +271,11 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
     // provider.toggle 이 로컬 저장 + 서버 동기화(회원) + 위젯/상태 갱신을 모두 처리.
     // (기존엔 FavoriteService.toggle 로컬만 호출 → 서버 미동기화로 재설치/재로그인 시 풀렸음)
     final result = ref.read(favoritesProvider.notifier).toggle(
-      id: s.statId, type: 'ev', name: s.name, subtitle: s.address,
-    );
+          id: s.statId,
+          type: 'ev',
+          name: s.name,
+          subtitle: s.address,
+        );
     setState(() => _isFavorite = result);
   }
 
@@ -264,7 +283,8 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
     final s = widget.station;
     try {
       final raw = await ApiService().getNearbyPois(
-        lat: s.lat, lng: s.lng,
+        lat: s.lat,
+        lng: s.lng,
         categories: _nearbyCategories,
         radiusKm: 1,
         count: 30,
@@ -273,7 +293,8 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
           .map(NearbyPoi.fromJson)
           .where((p) => _nearbyCategories.contains(p.category))
           .toList()
-        ..sort((a, b) => (a.distanceM ?? 1 << 30).compareTo(b.distanceM ?? 1 << 30));
+        ..sort((a, b) =>
+            (a.distanceM ?? 1 << 30).compareTo(b.distanceM ?? 1 << 30));
       if (mounted) {
         setState(() {
           _nearbyAll = list;
@@ -328,8 +349,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
     return CustomScrollView(
       controller: _scroll,
       slivers: [
-        if (widget.sheetMode)
-          SliverToBoxAdapter(child: _dragHandle(isDark)),
+        if (widget.sheetMode) SliverToBoxAdapter(child: _dragHandle(isDark)),
         SliverToBoxAdapter(child: _heroCard(s, isDark)),
         // 상단 카드 바로 아래 광고 — 콘솔(placement=station_detail) house ad 우선,
         // 없으면 AdMob 네이티브 폴백 (로드 전/실패 시 높이 0).
@@ -356,7 +376,9 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
         SliverToBoxAdapter(child: _nearbySection(s, isDark)),
         if (widget.onSelectRoute != null)
           SliverToBoxAdapter(child: _routeIncludeButton()),
-        SliverToBoxAdapter(child: SizedBox(height: MediaQuery.of(context).padding.bottom + 24)),
+        SliverToBoxAdapter(
+            child:
+                SizedBox(height: MediaQuery.of(context).padding.bottom + 24)),
       ],
     );
   }
@@ -366,7 +388,8 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
     return Center(
       child: Container(
         margin: const EdgeInsets.only(top: 8, bottom: 6),
-        width: 40, height: 4,
+        width: 40,
+        height: 4,
         decoration: BoxDecoration(
           color: isDark ? Colors.white24 : Colors.black26,
           borderRadius: BorderRadius.circular(2),
@@ -392,14 +415,20 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
     // 출력(kW) 기반이 아니라 커넥터 분류로 집계 — 아래 커넥터 원 카운트와 일치하도록
     // (예: DC콤보 30kW도 DC 커넥터이므로 '급속'으로 집계)
     bool isDcType(String t) =>
-        t == '01' || t == '03' || t == '04' || t == '05' ||
-        t == '06' || t == '08' || t == '09' || t == 'SC' || t == 'DT';
+        t == '01' ||
+        t == '03' ||
+        t == '04' ||
+        t == '05' ||
+        t == '06' ||
+        t == '08' ||
+        t == '09' ||
+        t == 'SC' ||
+        t == 'DT';
     final fastAvail = s.chargers
         .where((c) => isDcType(c.type) && c.status == ChargerStatus.available)
         .length;
     final slowAvail = s.chargers
-        .where((c) =>
-            !isDcType(c.type) && c.status == ChargerStatus.available)
+        .where((c) => !isDcType(c.type) && c.status == ChargerStatus.available)
         .length;
 
     final cardBg = isDark ? const Color(0xFF151B22) : Colors.white;
@@ -510,9 +539,13 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                         child: Padding(
                           padding: const EdgeInsets.all(6),
                           child: Icon(
-                            alias != null ? Icons.edit_rounded : Icons.edit_outlined,
+                            alias != null
+                                ? Icons.edit_rounded
+                                : Icons.edit_outlined,
                             size: 18,
-                            color: alias != null ? AppColors.evGreen : titleColor.withValues(alpha: 0.55),
+                            color: alias != null
+                                ? AppColors.evGreen
+                                : titleColor.withValues(alpha: 0.55),
                           ),
                         ),
                       ),
@@ -536,7 +569,8 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
             const SizedBox(height: 5),
             // 3) 주소 + 복사 + 거리
             InkWell(
-              onTap: s.address.isNotEmpty ? () => _copyAddress(s.address) : null,
+              onTap:
+                  s.address.isNotEmpty ? () => _copyAddress(s.address) : null,
               borderRadius: BorderRadius.circular(8),
               child: Row(
                 children: [
@@ -586,9 +620,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                       ? Icons.check_circle_rounded
                       : Icons.do_not_disturb_on_rounded,
                   size: 16,
-                  color: hasAvail
-                      ? AppColors.evGreen
-                      : AppColors.statusOffline,
+                  color: hasAvail ? AppColors.evGreen : AppColors.statusOffline,
                 ),
                 const SizedBox(width: 5),
                 Text(
@@ -603,7 +635,8 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                 const Spacer(),
                 _availTag('급속', fastAvail, const Color(0xFFE76A3B), isDark),
                 Container(
-                  width: 1, height: 12,
+                  width: 1,
+                  height: 12,
                   margin: const EdgeInsets.symmetric(horizontal: 8),
                   color: isDark
                       ? Colors.white.withValues(alpha: 0.12)
@@ -660,8 +693,8 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => showNavigationSheet(
-                        context, lat: s.lat, lng: s.lng, name: s.name),
+                    onPressed: () => showNavigationSheet(context,
+                        lat: s.lat, lng: s.lng, name: s.name),
                     icon: const Icon(Icons.navigation_rounded, size: 18),
                     label: Text(
                       s.distanceText.isNotEmpty
@@ -713,9 +746,8 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
 
   Widget _availTag(String label, int count, Color color, bool isDark) {
     final active = count > 0;
-    final fg = active
-        ? color
-        : (isDark ? Colors.white54 : const Color(0xFF94A3B8));
+    final fg =
+        active ? color : (isDark ? Colors.white54 : const Color(0xFF94A3B8));
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -751,9 +783,8 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
     bool isDark,
   ) {
     final active = count > 0;
-    final plugColor = active
-        ? color
-        : (isDark ? Colors.white24 : const Color(0xFFCBD5E1));
+    final plugColor =
+        active ? color : (isDark ? Colors.white24 : const Color(0xFFCBD5E1));
     final bg = active
         ? color.withValues(alpha: isDark ? 0.16 : 0.09)
         : (isDark
@@ -773,7 +804,8 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
           alignment: Alignment.center,
           children: [
             Container(
-              width: 46, height: 46,
+              width: 46,
+              height: 46,
               decoration: BoxDecoration(
                 color: bg,
                 shape: BoxShape.circle,
@@ -787,10 +819,13 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
             ),
             if (active)
               Positioned(
-                top: -4, right: -4,
+                top: -4,
+                right: -4,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                  constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  constraints:
+                      const BoxConstraints(minWidth: 18, minHeight: 18),
                   decoration: BoxDecoration(
                     color: color,
                     borderRadius: BorderRadius.circular(999),
@@ -850,28 +885,40 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
           else
             Row(
               children: [
-                _statusCounter('이용가능', s.availableCount, AppColors.statusAvailable, isDark),
+                _statusCounter('이용가능', s.availableCount,
+                    AppColors.statusAvailable, isDark),
                 const SizedBox(width: 8),
-                _statusCounter('충전중', s.chargingCount, AppColors.statusCharging, isDark),
+                _statusCounter(
+                    '충전중', s.chargingCount, AppColors.statusCharging, isDark),
                 const SizedBox(width: 8),
-                _statusCounter('고장', s.offlineCount, AppColors.statusOffline, isDark),
+                _statusCounter(
+                    '고장', s.offlineCount, AppColors.statusOffline, isDark),
               ],
             ),
           if (s.chargers.isNotEmpty) ...[
             const SizedBox(height: 14),
             ...([...s.chargers]..sort((a, b) {
-                  int order(ChargerStatus s) => switch (s) {
-                        ChargerStatus.available => 0,
-                        ChargerStatus.charging => 1,
-                        _ => 2,
-                      };
-                  return order(a.status).compareTo(order(b.status));
-                })).map((c) => _chargerTile(c, isDark)),
+                    int order(ChargerStatus s) => switch (s) {
+                          ChargerStatus.available => 0,
+                          ChargerStatus.charging => 1,
+                          _ => 2,
+                        };
+                    final byStatus = order(a.status).compareTo(order(b.status));
+                    if (byStatus != 0) return byStatus;
+                    // 같은 상태끼리는 기기번호 순 — "몇 호기가 비었나" 바로 파악
+                    final an = int.tryParse(a.chgerId);
+                    final bn = int.tryParse(b.chgerId);
+                    if (an != null && bn != null) return an.compareTo(bn);
+                    return a.chgerId.compareTo(b.chgerId);
+                  }))
+                .map((c) => _chargerTile(c, isDark, s.statId)),
             const SizedBox(height: 6),
             Text('충전기 상태는 실시간과 다를 수 있습니다',
                 style: TextStyle(
                     fontSize: 11,
-                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                    color: isDark
+                        ? AppColors.darkTextMuted
+                        : AppColors.lightTextMuted)),
           ],
         ],
       ),
@@ -887,18 +934,22 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionTitle(
-              s.operator.trim().isNotEmpty ? '${s.operator.trim()} 충전요금' : '충전요금',
-              s.hasPriceInfo ? '단위 원/kWh' : null, isDark),
+              s.operator.trim().isNotEmpty
+                  ? '${s.operator.trim()} 충전요금'
+                  : '충전요금',
+              s.hasPriceInfo ? '단위 원/kWh' : null,
+              isDark),
           const SizedBox(height: 12),
           if (!s.hasPriceInfo)
             _noticeBox('요금 정보가 제공되지 않아요', isDark)
           else ...[
             _priceRow('비회원', isDark ? Colors.white60 : Colors.black54,
                 s.unitPriceFast, s.unitPriceSlow, isDark),
-            if (s.unitPriceFastMember != null || s.unitPriceSlowMember != null) ...[
+            if (s.unitPriceFastMember != null ||
+                s.unitPriceSlowMember != null) ...[
               const SizedBox(height: 8),
-              _priceRow('회원', AppColors.evGreen,
-                  s.unitPriceFastMember, s.unitPriceSlowMember, isDark),
+              _priceRow('회원', AppColors.evGreen, s.unitPriceFastMember,
+                  s.unitPriceSlowMember, isDark),
             ],
             const SizedBox(height: 10),
             Text(
@@ -926,7 +977,10 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
           // 위치 미니맵 — 주차장 안쪽/지하 등 텍스트 주소로 안 잡히는 위치 파악용. 탭=길안내.
           if (s.lat != 0 && s.lng != 0) ...[
             DetailMiniMap(
-                lat: s.lat, lng: s.lng, name: s.name, accent: AppColors.evGreen),
+                lat: s.lat,
+                lng: s.lng,
+                name: s.name,
+                accent: AppColors.evGreen),
             const SizedBox(height: 12),
           ],
           _infoCard(isDark, children: [
@@ -942,7 +996,9 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
               _infoDivider(isDark),
               _infoRow(
                 '이용제한',
-                s.limitDetail?.isNotEmpty == true ? s.limitDetail! : '외부인 이용 제한',
+                s.limitDetail?.isNotEmpty == true
+                    ? s.limitDetail!
+                    : '외부인 이용 제한',
                 isDark,
                 valueColor: AppColors.statusOffline,
               ),
@@ -950,7 +1006,9 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
               _infoDivider(isDark),
               _infoRow(
                 '부분개방',
-                s.limitDetail?.isNotEmpty == true ? s.limitDetail! : '조건부 이용 (입주민·시설 상황 등)',
+                s.limitDetail?.isNotEmpty == true
+                    ? s.limitDetail!
+                    : '조건부 이용 (입주민·시설 상황 등)',
                 isDark,
                 valueColor: AppColors.warning,
               ),
@@ -963,7 +1021,8 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
               _infoDivider(isDark),
               InkWell(
                 onTap: () => launchUrl(Uri.parse('tel:${s.phone}')),
-                child: _infoRow('전화', s.phone!, isDark, valueColor: AppColors.gasBlue),
+                child: _infoRow('전화', s.phone!, isDark,
+                    valueColor: AppColors.gasBlue),
               ),
             ],
           ]),
@@ -1023,7 +1082,8 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
             _usageTypePill(data, isDark),
             const SizedBox(height: 10),
             for (final c in (data['cards'] as List? ?? const [])) ...[
-              _usageCard(c as Map<String, dynamic>, data['stationType'] as String?, isDark),
+              _usageCard(c as Map<String, dynamic>,
+                  data['stationType'] as String?, isDark),
               const SizedBox(height: 8),
             ],
             const SizedBox(height: 4),
@@ -1036,9 +1096,12 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
 
   String _reliabilityLabel(String reliability, int weeks) {
     switch (reliability) {
-      case 'HIGH':   return '관측 3주+ 기준';
-      case 'MEDIUM': return '관측 2주 기준';
-      case 'LOW':    return '관측 ${weeks > 0 ? weeks : 1}주 기준';
+      case 'HIGH':
+        return '관측 3주+ 기준';
+      case 'MEDIUM':
+        return '관측 2주 기준';
+      case 'LOW':
+        return '관측 ${weeks > 0 ? weeks : 1}주 기준';
     }
     return '';
   }
@@ -1048,8 +1111,10 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
       padding: const EdgeInsets.symmetric(vertical: 28),
       alignment: Alignment.center,
       child: const SizedBox(
-        width: 22, height: 22,
-        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.evGreen),
+        width: 22,
+        height: 22,
+        child:
+            CircularProgressIndicator(strokeWidth: 2, color: AppColors.evGreen),
       ),
     );
   }
@@ -1092,29 +1157,47 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
 
   Color _typeAccent(String? stationType) {
     switch (stationType) {
-      case 'RESIDENTIAL': return const Color(0xFF7C5CFC); // 보라
-      case 'OFFICE':      return const Color(0xFF2F7DF6); // 파랑
-      case 'LEISURE':     return const Color(0xFFFF8A3D); // 주황
-      case 'CONVENIENCE': return const Color(0xFFE94D8C); // 핑크
-      default:            return AppColors.evGreen;        // UNKNOWN/EXCLUDED
+      case 'RESIDENTIAL':
+        return const Color(0xFF7C5CFC); // 보라
+      case 'OFFICE':
+        return const Color(0xFF2F7DF6); // 파랑
+      case 'LEISURE':
+        return const Color(0xFFFF8A3D); // 주황
+      case 'CONVENIENCE':
+        return const Color(0xFFE94D8C); // 핑크
+      default:
+        return AppColors.evGreen; // UNKNOWN/EXCLUDED
     }
   }
 
   IconData _iconOf(String? name) {
     switch (name) {
-      case 'busy':         return Icons.do_not_disturb_on_rounded;
-      case 'opening':      return Icons.trending_down_rounded;
-      case 'arrive':       return Icons.login_rounded;
-      case 'free':         return Icons.check_circle_rounded;
-      case 'stopwatch':    return Icons.timer_rounded;
-      case 'clock':        return Icons.access_time_rounded;
-      case 'moon':         return Icons.nights_stay_rounded;
-      case 'sun':          return Icons.wb_sunny_rounded;
-      case 'shopping-bag': return Icons.shopping_bag_rounded;
-      case 'battery':      return Icons.battery_charging_full_rounded;
-      case 'briefcase':    return Icons.business_center_rounded;
-      case 'calendar':     return Icons.calendar_month_rounded;
-      case 'hourglass':    return Icons.hourglass_bottom_rounded;
+      case 'busy':
+        return Icons.do_not_disturb_on_rounded;
+      case 'opening':
+        return Icons.trending_down_rounded;
+      case 'arrive':
+        return Icons.login_rounded;
+      case 'free':
+        return Icons.check_circle_rounded;
+      case 'stopwatch':
+        return Icons.timer_rounded;
+      case 'clock':
+        return Icons.access_time_rounded;
+      case 'moon':
+        return Icons.nights_stay_rounded;
+      case 'sun':
+        return Icons.wb_sunny_rounded;
+      case 'shopping-bag':
+        return Icons.shopping_bag_rounded;
+      case 'battery':
+        return Icons.battery_charging_full_rounded;
+      case 'briefcase':
+        return Icons.business_center_rounded;
+      case 'calendar':
+        return Icons.calendar_month_rounded;
+      case 'hourglass':
+        return Icons.hourglass_bottom_rounded;
     }
     return Icons.insights_rounded;
   }
@@ -1144,8 +1227,10 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 6, height: 6,
-                decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+                width: 6,
+                height: 6,
+                decoration:
+                    BoxDecoration(color: accent, shape: BoxShape.circle),
               ),
               const SizedBox(width: 6),
               Text(
@@ -1164,13 +1249,15 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
     );
   }
 
-  Widget _usageCard(Map<String, dynamic> card, String? stationType, bool isDark) {
+  Widget _usageCard(
+      Map<String, dynamic> card, String? stationType, bool isDark) {
     final accent = _typeAccent(stationType);
     final icon = _iconOf(card['icon'] as String?);
     final title = (card['title'] as String?) ?? '';
-    final body  = (card['body']  as String?) ?? '';
+    final body = (card['body'] as String?) ?? '';
     final titleColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final bodyColor  = isDark ? AppColors.darkTextMuted : const Color(0xFF64748B);
+    final bodyColor =
+        isDark ? AppColors.darkTextMuted : const Color(0xFF64748B);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
@@ -1186,7 +1273,8 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 40, height: 40,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
               color: accent.withValues(alpha: isDark ? 0.18 : 0.12),
               borderRadius: BorderRadius.circular(12),
@@ -1231,7 +1319,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
   Widget _usageFooter(Map<String, dynamic> data, bool isDark) {
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     final sessions = data['totalSessions'] as int? ?? 0;
-    final window   = (data['dataWindow'] as Map?)?['days'] as int? ?? 28;
+    final window = (data['dataWindow'] as Map?)?['days'] as int? ?? 28;
     return Padding(
       padding: const EdgeInsets.only(top: 6),
       child: Row(
@@ -1257,14 +1345,18 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
       counts[p.category] = (counts[p.category] ?? 0) + 1;
     }
     // count > 0 인 카테고리만 칩으로 표시 (빈 항목이 섞이면 separator 공백 발생)
-    final activeChips = ['전체', ..._nearbyCategories.where((c) => (counts[c] ?? 0) > 0)];
+    final activeChips = [
+      '전체',
+      ..._nearbyCategories.where((c) => (counts[c] ?? 0) > 0)
+    ];
 
     final filtered = _nearbyFilter == '전체'
         ? _nearbyAll
         : _nearbyAll.where((p) => p.category == _nearbyFilter).toList();
 
     final showAll = _nearbyExpanded || filtered.length <= _nearbyCollapsedLimit;
-    final visible = showAll ? filtered : filtered.take(_nearbyCollapsedLimit).toList();
+    final visible =
+        showAll ? filtered : filtered.take(_nearbyCollapsedLimit).toList();
     final hiddenCount = filtered.length - visible.length;
 
     return Container(
@@ -1280,8 +1372,10 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
               padding: EdgeInsets.symmetric(vertical: 24),
               child: Center(
                 child: SizedBox(
-                  width: 22, height: 22,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.evGreen),
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: AppColors.evGreen),
                 ),
               ),
             )
@@ -1297,7 +1391,9 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                     if (i > 0) const SizedBox(width: 8),
                     _nearbyChip(
                       activeChips[i],
-                      activeChips[i] == '전체' ? _nearbyAll.length : (counts[activeChips[i]] ?? 0),
+                      activeChips[i] == '전체'
+                          ? _nearbyAll.length
+                          : (counts[activeChips[i]] ?? 0),
                       _nearbyFilter == activeChips[i],
                       isDark,
                     ),
@@ -1312,7 +1408,9 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                 color: isDark ? AppColors.darkCard : AppColors.lightCard,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
+                  color: isDark
+                      ? AppColors.darkCardBorder
+                      : AppColors.lightCardBorder,
                   width: 0.6,
                 ),
               ),
@@ -1328,7 +1426,8 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
             if (hiddenCount > 0) ...[
               const SizedBox(height: 8),
               _nearbyMoreButton(hiddenCount, isDark),
-            ] else if (_nearbyExpanded && filtered.length > _nearbyCollapsedLimit) ...[
+            ] else if (_nearbyExpanded &&
+                filtered.length > _nearbyCollapsedLimit) ...[
               const SizedBox(height: 8),
               _nearbyMoreButton(null, isDark),
             ],
@@ -1342,9 +1441,8 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
     final bg = active
         ? AppColors.evGreen
         : (isDark ? AppColors.darkCard : const Color(0xFFF1F5F9));
-    final fg = active
-        ? Colors.white
-        : (isDark ? Colors.white70 : Colors.black87);
+    final fg =
+        active ? Colors.white : (isDark ? Colors.white70 : Colors.black87);
     return InkWell(
       onTap: () => setState(() => _nearbyFilter = cat),
       borderRadius: BorderRadius.circular(999),
@@ -1364,7 +1462,8 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(cat,
-                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: fg)),
+                style: TextStyle(
+                    fontSize: 12.5, fontWeight: FontWeight.w700, color: fg)),
             const SizedBox(width: 4),
             Text('$count',
                 style: TextStyle(
@@ -1414,7 +1513,8 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
             ),
             const SizedBox(width: 12),
             Text(p.category,
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: muted)),
+                style: TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w600, color: muted)),
           ],
         ),
       ),
@@ -1448,8 +1548,12 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                   color: isDark ? Colors.white70 : Colors.black87),
             ),
             const SizedBox(width: 4),
-            Icon(expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
-                size: 20, color: isDark ? Colors.white70 : Colors.black54),
+            Icon(
+                expanded
+                    ? Icons.keyboard_arrow_up_rounded
+                    : Icons.keyboard_arrow_down_rounded,
+                size: 20,
+                color: isDark ? Colors.white70 : Colors.black54),
           ],
         ),
       ),
@@ -1461,10 +1565,13 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
     final q = Uri.encodeComponent(p.name);
     final hasCoord = p.lat != null && p.lng != null;
     final appUri = hasCoord
-        ? Uri.parse('nmap://place?lat=${p.lat}&lng=${p.lng}&name=$q&appname=${AppConstants.packageName}')
-        : Uri.parse('nmap://search?query=$q&appname=${AppConstants.packageName}');
+        ? Uri.parse(
+            'nmap://place?lat=${p.lat}&lng=${p.lng}&name=$q&appname=${AppConstants.packageName}')
+        : Uri.parse(
+            'nmap://search?query=$q&appname=${AppConstants.packageName}');
     final webUri = hasCoord
-        ? Uri.parse('https://map.naver.com/p/search/$q?c=${p.lng},${p.lat},15,0,0,0,dh')
+        ? Uri.parse(
+            'https://map.naver.com/p/search/$q?c=${p.lng},${p.lat},15,0,0,0,dh')
         : Uri.parse('https://map.naver.com/p/search/$q');
 
     try {
@@ -1490,7 +1597,8 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
             backgroundColor: AppColors.evGreen,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             elevation: 0,
           ),
         ),
@@ -1516,7 +1624,9 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
             child: Text(trailing,
                 style: TextStyle(
                     fontSize: 12,
-                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                    color: isDark
+                        ? AppColors.darkTextMuted
+                        : AppColors.lightTextMuted)),
           ),
         ],
       ],
@@ -1539,7 +1649,8 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
           textAlign: TextAlign.center,
           style: TextStyle(
               fontSize: 13,
-              color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+              color:
+                  isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
     );
   }
 
@@ -1560,15 +1671,135 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
             Text(label,
                 style: TextStyle(
                     fontSize: 11,
-                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                    color: isDark
+                        ? AppColors.darkTextMuted
+                        : AppColors.lightTextMuted)),
           ],
         ),
       ),
     );
   }
 
-  Widget _chargerTile(Charger charger, bool isDark) {
+  /// chgerId → 표시용 호기 라벨. '01'→'1호기', 숫자 아니면 원문 그대로.
+  String _chargerNoLabel(Charger c) {
+    final n = int.tryParse(c.chgerId);
+    if (n != null && n > 0) return '$n호기';
+    return c.chgerId;
+  }
+
+  /// 충전기 메모 편집 바텀시트 — 저장/삭제 후 setState 로 타일 갱신.
+  Future<void> _editChargerMemo(String stationId, Charger charger) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final existing = ChargerMemoService.get(stationId, charger.chgerId) ?? '';
+    final controller = TextEditingController(text: existing);
+    final label = _chargerNoLabel(charger);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? AppColors.darkSurface1 : Colors.white,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(
+            20, 20, 20, 20 + MediaQuery.of(ctx).viewInsets.bottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label.isEmpty ? '충전기 메모' : '$label 메모',
+                style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color:
+                        isDark ? AppColors.darkTextPrimary : Colors.black87)),
+            const SizedBox(height: 4),
+            Text('위치나 특징을 기록해 두면 다음에 바로 찾을 수 있어요',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: isDark
+                        ? AppColors.darkTextMuted
+                        : AppColors.lightTextMuted)),
+            const SizedBox(height: 14),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              maxLength: ChargerMemoService.maxLength,
+              style: TextStyle(
+                  fontSize: 15,
+                  color: isDark ? AppColors.darkTextPrimary : Colors.black87),
+              decoration: InputDecoration(
+                hintText: '예: 지하 1층 3번 기둥 옆',
+                hintStyle: TextStyle(
+                    color: isDark
+                        ? AppColors.darkTextMuted
+                        : AppColors.lightTextMuted),
+                filled: true,
+                fillColor:
+                    isDark ? AppColors.darkSurface2 : const Color(0xFFF4F6F9),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none),
+                counterStyle: TextStyle(
+                    color: isDark
+                        ? AppColors.darkTextMuted
+                        : AppColors.lightTextMuted),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                if (existing.isNotEmpty) ...[
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        await ChargerMemoService.remove(
+                            stationId, charger.chgerId);
+                        if (ctx.mounted) Navigator.pop(ctx);
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.statusOffline,
+                        side: BorderSide(
+                            color: AppColors.statusOffline.withOpacity(0.5)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('삭제'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                ],
+                Expanded(
+                  flex: 2,
+                  child: FilledButton(
+                    onPressed: () async {
+                      await ChargerMemoService.set(
+                          stationId, charger.chgerId, controller.text);
+                      if (ctx.mounted) Navigator.pop(ctx);
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.evGreen,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('저장',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+    if (mounted) setState(() {});
+  }
+
+  Widget _chargerTile(Charger charger, bool isDark, String stationId) {
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final memo = ChargerMemoService.get(stationId, charger.chgerId);
+    final noLabel = _chargerNoLabel(charger);
 
     Color statusColor;
     String statusText;
@@ -1588,7 +1819,9 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
         statusText = '충전중';
         final startDt = charger.chargingStarted ?? charger.lastStatusUpdate;
         final avgMin = (_analytics?['avgSessionMin'] as int?) ?? 0;
-        subText = startDt != null ? _chargingElapsedWithMarker(startDt, avgMin) : null;
+        subText = startDt != null
+            ? _chargingElapsedWithMarker(startDt, avgMin)
+            : null;
         subTextColor = AppColors.statusCharging;
         break;
       case ChargerStatus.unknown:
@@ -1607,66 +1840,122 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
             : null;
     }
 
-    return Container(
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : AppColors.lightCard,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
-          width: 0.5,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 8, height: 8,
-            decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+    return InkWell(
+      onTap: () => _editChargerMemo(stationId, charger),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        margin: const EdgeInsets.only(top: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkCard : AppColors.lightCard,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color:
+                isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
+            width: 0.5,
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(statusText,
-                    style: TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w700, color: statusColor)),
-                if (subText != null) ...[
-                  const SizedBox(height: 3),
-                  Text(subText, style: TextStyle(fontSize: 11, color: subTextColor)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration:
+                  BoxDecoration(color: statusColor, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      if (noLabel.isNotEmpty) ...[
+                        Text(noLabel,
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                color: isDark
+                                    ? AppColors.darkTextPrimary
+                                    : Colors.black87)),
+                        const SizedBox(width: 6),
+                      ],
+                      Text(statusText,
+                          style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: statusColor)),
+                    ],
+                  ),
+                  if (subText != null) ...[
+                    const SizedBox(height: 3),
+                    Text(subText,
+                        style: TextStyle(fontSize: 11, color: subTextColor)),
+                  ],
+                  if (memo != null) ...[
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        Icon(Icons.sticky_note_2_outlined,
+                            size: 12, color: AppColors.evGreen),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(memo,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.evGreen)),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(charger.typeText,
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white70 : Colors.black87)),
+                const SizedBox(height: 2),
+                Text('${charger.output}kW',
+                    style: TextStyle(fontSize: 11, color: muted)),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.edit_note, size: 13, color: muted),
+                    const SizedBox(width: 2),
+                    Text(memo == null ? '메모' : '수정',
+                        style: TextStyle(fontSize: 10.5, color: muted)),
+                  ],
+                ),
               ],
             ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(charger.typeText,
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white70 : Colors.black87)),
-              const SizedBox(height: 2),
-              Text('${charger.output}kW',
-                  style: TextStyle(fontSize: 11, color: muted)),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _priceRow(String tier, Color tierColor, int? fast, int? slow, bool isDark) {
+  Widget _priceRow(
+      String tier, Color tierColor, int? fast, int? slow, bool isDark) {
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    final border = isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder;
+    final border =
+        isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder;
 
     Widget col(String label, int? price, Color accent) {
       return Expanded(
         child: Column(
           children: [
             Text(label,
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: muted)),
+                style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w500, color: muted)),
             const SizedBox(height: 4),
             price != null
                 ? RichText(
@@ -1694,7 +1983,9 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                   )
                 : Text('-',
                     style: TextStyle(
-                        fontSize: 16, color: muted, fontWeight: FontWeight.w500)),
+                        fontSize: 16,
+                        color: muted,
+                        fontWeight: FontWeight.w500)),
           ],
         ),
       );
@@ -1719,7 +2010,9 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
             ),
             child: Text(tier,
                 style: TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w800, color: tierColor)),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: tierColor)),
           ),
           const SizedBox(width: 14),
           col('급속', fast, AppColors.statusFast),
@@ -1763,7 +2056,9 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                 style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                    color: isDark
+                        ? AppColors.darkTextMuted
+                        : AppColors.lightTextMuted)),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1821,8 +2116,11 @@ class _ActionIconBtn extends StatelessWidget {
   final VoidCallback onTap;
   final bool isDark;
   const _ActionIconBtn({
-    required this.icon, this.color, this.loading = false,
-    required this.onTap, required this.isDark,
+    required this.icon,
+    this.color,
+    this.loading = false,
+    required this.onTap,
+    required this.isDark,
   });
   @override
   Widget build(BuildContext context) {
@@ -1832,7 +2130,8 @@ class _ActionIconBtn extends StatelessWidget {
       onTap: loading ? null : onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        width: 48, height: 48,
+        width: 48,
+        height: 48,
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(12),
@@ -1840,9 +2139,14 @@ class _ActionIconBtn extends StatelessWidget {
         ),
         child: loading
             ? const Center(
-                child: SizedBox(width: 18, height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.evGreen)))
-            : Icon(icon, size: 22, color: color ?? (isDark ? Colors.white70 : Colors.black54)),
+                child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: AppColors.evGreen)))
+            : Icon(icon,
+                size: 22,
+                color: color ?? (isDark ? Colors.white70 : Colors.black54)),
       ),
     );
   }
@@ -1910,7 +2214,8 @@ class _TabsDelegate extends SliverPersistentHeaderDelegate {
   double get maxExtent => 48;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Container(
       color: isDark ? AppColors.darkBg : Colors.white,
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
@@ -1939,7 +2244,9 @@ class _TabsDelegate extends SliverPersistentHeaderDelegate {
                     fontWeight: active ? FontWeight.w800 : FontWeight.w600,
                     color: active
                         ? (isDark ? Colors.white : Colors.black87)
-                        : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                        : (isDark
+                            ? AppColors.darkTextMuted
+                            : AppColors.lightTextMuted),
                   ),
                 ),
               ),

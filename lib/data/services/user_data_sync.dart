@@ -5,6 +5,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../core/constants/api_constants.dart';
 import 'alert_service.dart';
+import 'charger_memo_service.dart';
 import 'favorite_service.dart';
 import 'station_alias_service.dart';
 import 'user_sync_service.dart';
@@ -21,21 +22,23 @@ class UserDataSync {
     final favorites = (remote['favorites'] as List?) ?? const [];
     final alarms = (remote['alarms'] as List?) ?? const [];
     final aliases = (remote['aliases'] as List?) ?? const [];
+    final chargerMemos = (remote['chargerMemos'] as List?) ?? const [];
     final prefs = (remote['prefs'] as Map?) ?? const {};
     final hasRemote = vehicles.isNotEmpty ||
         favorites.isNotEmpty ||
         alarms.isNotEmpty ||
         aliases.isNotEmpty ||
+        chargerMemos.isNotEmpty ||
         prefs['vehicleType'] != null ||
         prefs['marketingConsent'] == true;
     if (hasRemote) {
-      await _applyRemote(prefs, vehicles, favorites, alarms, aliases);
+      await _applyRemote(prefs, vehicles, favorites, alarms, aliases, chargerMemos);
     } else {
       await UserSyncService.instance.import(buildLocalSnapshot());
     }
   }
 
-  static Future<void> _applyRemote(Map prefs, List vehicles, List favorites, List alarms, List aliases) async {
+  static Future<void> _applyRemote(Map prefs, List vehicles, List favorites, List alarms, List aliases, List chargerMemos) async {
     final box = Hive.box(AppConstants.settingsBox);
 
     // 기본 차량설정(서버 우선)
@@ -98,6 +101,15 @@ class UserDataSync {
       final alias = (a['alias'] ?? '').toString();
       if (id.isEmpty || type.isEmpty || alias.isEmpty) continue;
       await StationAliasService.set(id, alias, type: type, mirror: false);
+    }
+
+    // 충전기 메모 복원 (mirror:false 로 루프 방지)
+    for (final m in chargerMemos.whereType<Map>()) {
+      final id = (m['stationId'] ?? '').toString();
+      final chger = (m['chgerId'] ?? '').toString();
+      final memo = (m['memo'] ?? '').toString();
+      if (id.isEmpty || chger.isEmpty || memo.isEmpty) continue;
+      await ChargerMemoService.set(id, chger, memo, mirror: false);
     }
 
     // 알람 — 현재 기기로 재구독(device 테이블 등록)
@@ -175,6 +187,7 @@ class UserDataSync {
       'favorites': favorites,
       'alarms': alarms,
       'aliases': StationAliasService.allEntries(),
+      'chargerMemos': ChargerMemoService.allEntries(),
     };
   }
 }

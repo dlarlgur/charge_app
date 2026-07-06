@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 바깥 여백은 Flutter(AdFitNativeTopAdWidget.padding)가 담당 — 여기 패딩을 두면
+     이중 패딩으로 AdMob 상단 카드보다 폭이 좁아짐. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:paddingHorizontal="16dp"
-    android:paddingTop="4dp"
-    android:paddingBottom="8dp">
+    android:layout_height="wrap_content">
 
     <View
         android:id="@+id/adfit_placeholder"

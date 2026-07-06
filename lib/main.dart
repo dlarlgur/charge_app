@@ -400,6 +400,7 @@ void main() async {
   await Hive.openBox('settings');
   await Hive.openBox('favorites');
   await Hive.openBox('station_aliases');
+  await Hive.openBox('charger_memos');
 
   // House ad: 디스크 캐시 즉시 로드 → 첫 프레임에 광고가 있으면 바로 보임.
   // 네트워크 fetch 는 백그라운드에서 갱신 (stale-while-revalidate).

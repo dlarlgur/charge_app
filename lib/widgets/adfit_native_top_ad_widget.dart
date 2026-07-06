@@ -25,8 +25,9 @@ class AdFitNativeTopAdWidget extends StatefulWidget {
 
   static const String _viewType = 'com.dksw.charge/adfit_native_top';
 
-  /// 스폰서줄 + 제목2줄 + 90dp 미디어 + 상하패딩 기준
-  static const double slotHeight = 150;
+  /// 스폰서줄 + 제목2줄 + 90dp 미디어 + 내부패딩 기준
+  /// (XML 루트 패딩 제거 후 실측 ~141 — 폰트 확대 여유 포함)
+  static const double slotHeight = 144;
 
   @override
   State<AdFitNativeTopAdWidget> createState() => _AdFitNativeTopAdWidgetState();

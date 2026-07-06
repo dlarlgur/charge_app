@@ -93,6 +93,23 @@ class UserSyncService {
     } catch (_) {}
   }
 
+  Future<void> addChargerMemo(String stationId, String chgerId, String memo) async {
+    final opt = await _auth();
+    if (opt == null) return;
+    try {
+      await _dio.post('/user/charger-memos',
+          data: {'stationId': stationId, 'chgerId': chgerId, 'memo': memo}, options: opt);
+    } catch (_) {}
+  }
+
+  Future<void> removeChargerMemo(String stationId, String chgerId) async {
+    final opt = await _auth();
+    if (opt == null) return;
+    try {
+      await _dio.delete('/user/charger-memos/$stationId/$chgerId', options: opt);
+    } catch (_) {}
+  }
+
   Future<void> addAlarm(Map<String, dynamic> alarm) async {
     final opt = await _auth();
     if (opt == null) return;
