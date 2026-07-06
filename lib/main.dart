@@ -160,11 +160,17 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     onDidReceiveBackgroundNotificationResponse: _onBackgroundNotificationResponse,
   );
   await Hive.initFlutter();
+  // 백그라운드 isolate 은 프로세스 생존 동안 유지되는데, openBox 는 최초 1회만
+  // 디스크를 읽고 이후엔 캐시 반환 — 메인 isolate 이 그 뒤 바꾼 설정(방해금지
+  // 토글 등)을 못 봐서 ev_alarm 이 방해금지를 뚫던 원인. 매 메시지마다 닫고
+  // 다시 열어 최신 스냅샷으로 판정한다. (다른 isolate 의 box 와는 무관)
+  if (Hive.isBoxOpen('settings')) await Hive.box('settings').close();
   final box = await Hive.openBox('settings');
-  // 알림 본문 별칭 치환용 — 백그라운드 isolate 에서도 box 필요
-  if (!Hive.isBoxOpen('station_aliases')) {
-    await Hive.openBox('station_aliases');
+  // 알림 본문 별칭 치환용 — 같은 이유로 매번 새로 읽음
+  if (Hive.isBoxOpen('station_aliases')) {
+    await Hive.box('station_aliases').close();
   }
+  await Hive.openBox('station_aliases');
   if (message.data['type'] == 'gas_price_alert') {
     final soundMode = (box.get('alert_sound_mode', defaultValue: 0) as int?) ?? 0;
     showGasPriceNotification(message.data, soundMode: soundMode);
