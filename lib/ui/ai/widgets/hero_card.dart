@@ -147,12 +147,17 @@ class HeroCard extends StatelessWidget {
                               width: 28,
                               height: 28,
                               decoration: BoxDecoration(
-                                color: kLineSoft,
+                                color: isDark
+                                    ? const Color(0x1FFFFFFF)
+                                    : kLineSoft,
                                 borderRadius: BorderRadius.circular(9),
                               ),
                               alignment: Alignment.center,
-                              child: const Icon(Icons.edit_outlined,
-                                  size: 14, color: kMute2),
+                              child: Icon(Icons.edit_outlined,
+                                  size: 14,
+                                  color: isDark
+                                      ? AppColors.darkTextSecondary
+                                      : kMute2),
                             ),
                           ),
                         ],
@@ -339,10 +344,10 @@ class HeroCard extends StatelessWidget {
         ? const Color(0xFFE5484D)
         : (low ? const Color(0xFFE0820A) : const Color(0xFF1D9E75));
     final action = isEv ? '충전' : '주유';
-    final title = !canReach
-        ? '도착 전 $action 필요'
-        : (low ? '조금 빠듯하게 도착' : '여유 있게 도착');
-    final detail = canReach ? '${arrivalRangeKm.round()}km 남음' : '${shortfallKm}km 부족';
+    final title =
+        !canReach ? '도착 전 $action 필요' : (low ? '조금 빠듯하게 도착' : '여유 있게 도착');
+    final detail =
+        canReach ? '${arrivalRangeKm.round()}km 남음' : '${shortfallKm}km 부족';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
       decoration: BoxDecoration(
@@ -364,9 +369,7 @@ class HeroCard extends StatelessWidget {
                 TextSpan(
                     text: title,
                     style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w800,
-                        color: c)),
+                        fontSize: 13.5, fontWeight: FontWeight.w800, color: c)),
                 TextSpan(
                     text: ' · $detail',
                     style: const TextStyle(
@@ -398,32 +401,38 @@ class HeroCard extends StatelessWidget {
   }
 
   Widget _statBox({required String label, required String value}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
-      decoration: BoxDecoration(
-        color: kLineSoft,
-        borderRadius: BorderRadius.circular(11),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 10, fontWeight: FontWeight.w700, color: kMute2)),
-          const SizedBox(height: 2),
-          Text(value,
-              style: const TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w800,
-                color: kInk,
-                letterSpacing: -0.2,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis),
-        ],
-      ),
-    );
+    return Builder(builder: (context) {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+        decoration: BoxDecoration(
+          // 다크: 근백색 박스 → 카드 위 한 단계 밝은 반투명 (계층 유지)
+          color: isDark ? const Color(0x1FFFFFFF) : kLineSoft,
+          borderRadius: BorderRadius.circular(11),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label,
+                style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? AppColors.darkTextSecondary : kMute2)),
+            const SizedBox(height: 2),
+            Text(value,
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? AppColors.darkTextPrimary : kInk,
+                  letterSpacing: -0.2,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
+          ],
+        ),
+      );
+    });
   }
 
   Widget _prefChip({

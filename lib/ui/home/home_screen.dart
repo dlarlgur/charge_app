@@ -1893,8 +1893,10 @@ class _WidgetOpacityTileState extends State<_WidgetOpacityTile> {
       ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) {
-          final muted =
-              isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+          // 설명문은 secondary — muted 는 캡션용이라 설명 문장엔 한 단계 밝게.
+          final desc = isDark
+              ? AppColors.darkTextSecondary
+              : AppColors.lightTextMuted;
           return SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
@@ -1909,7 +1911,11 @@ class _WidgetOpacityTileState extends State<_WidgetOpacityTile> {
                           ?.copyWith(fontWeight: FontWeight.w800)),
                   const SizedBox(height: 4),
                   Text('높일수록 홈 화면 위젯 배경이 투명해져요. (0% = 불투명)',
-                      style: TextStyle(fontSize: 12.5, color: muted)),
+                      style: TextStyle(fontSize: 12.5, color: desc)),
+                  const SizedBox(height: 12),
+                  // 실시간 미리보기 — 체커보드(배경화면 대용) 위에 투명도 적용 위젯 목업.
+                  // 홈 런처로 나가지 않아도 몇 %가 적당한지 바로 보이게.
+                  _WidgetOpacityPreview(transparency: temp, isDark: isDark),
                   const SizedBox(height: 6),
                   Row(
                     children: [
@@ -1933,7 +1939,11 @@ class _WidgetOpacityTileState extends State<_WidgetOpacityTile> {
                         width: 46,
                         child: Text('$temp%',
                             textAlign: TextAlign.right,
-                            style: const TextStyle(fontWeight: FontWeight.w700)),
+                            style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: isDark
+                                    ? AppColors.darkTextPrimary
+                                    : null)),
                       ),
                     ],
                   ),
@@ -1970,6 +1980,95 @@ class _WidgetOpacityTileState extends State<_WidgetOpacityTile> {
       onTap: _openSheet,
     );
   }
+}
+
+/// 위젯 투명도 실시간 미리보기 — 체커보드(배경화면 대용) 위에
+/// 투명도가 적용된 위젯 목업을 그려 결과를 시트 안에서 바로 확인.
+class _WidgetOpacityPreview extends StatelessWidget {
+  final int transparency; // 0=불투명, 100=완전 투명
+  final bool isDark;
+  const _WidgetOpacityPreview(
+      {required this.transparency, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    final widgetBg = (isDark ? const Color(0xFF1E242E) : Colors.white)
+        .withValues(alpha: (100 - transparency) / 100);
+    final ink = isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A2E);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        height: 108,
+        width: double.infinity,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // 체커보드 — '뒤가 비치는 정도'를 보여주는 표준 표현
+            CustomPaint(painter: _CheckerPainter(isDark: isDark)),
+            Center(
+              child: Container(
+                width: 250,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: widgetBg,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.local_gas_station_rounded,
+                        size: 18, color: AppColors.gasBlue),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('즐겨찾는 주유소',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: ink.withValues(alpha: 0.75))),
+                          const SizedBox(height: 2),
+                          Text('1,864원 · 휘발유',
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                  color: ink)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CheckerPainter extends CustomPainter {
+  final bool isDark;
+  const _CheckerPainter({required this.isDark});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final a = Paint()
+      ..color = isDark ? const Color(0xFF2A313C) : const Color(0xFFE7EBF0);
+    final b = Paint()
+      ..color = isDark ? const Color(0xFF39424F) : const Color(0xFFCBD3DC);
+    const cell = 12.0;
+    for (double y = 0; y < size.height; y += cell) {
+      for (double x = 0; x < size.width; x += cell) {
+        final even = ((x / cell).floor() + (y / cell).floor()) % 2 == 0;
+        canvas.drawRect(Rect.fromLTWH(x, y, cell, cell), even ? a : b);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _CheckerPainter old) => old.isDark != isDark;
 }
 
 /// 마케팅(이벤트·혜택) 수신 동의 토글 — 설정 카드 톤(settingsIconChip + Switch)에 맞춤.

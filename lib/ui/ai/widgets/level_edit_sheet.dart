@@ -153,12 +153,17 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                         child: Container(
                           width: 32,
                           height: 32,
-                          decoration: const BoxDecoration(
-                            color: kLineSoft,
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0x1FFFFFFF)
+                                : kLineSoft,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.close_rounded,
-                              size: 18, color: kMuted),
+                          child: Icon(Icons.close_rounded,
+                              size: 18,
+                              color: isDark
+                                  ? AppColors.darkTextSecondary
+                                  : kMuted),
                         ),
                       ),
                     ],
@@ -172,12 +177,17 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
+                        // 다크: 파스텔 대신 accent 힌트 프리블렌드 (라이트 블록 방지)
                         colors: widget.isEv
-                            ? [const Color(0xFFECFDF5), const Color(0xFFD1FAE5)]
-                            : [
-                                const Color(0xFFFFFBEB),
-                                const Color(0xFFFEF3C7)
-                              ],
+                            ? (isDark
+                                ? [const Color(0xFF14261E), const Color(0xFF173028)]
+                                : [const Color(0xFFECFDF5), const Color(0xFFD1FAE5)])
+                            : (isDark
+                                ? [const Color(0xFF2A2416), const Color(0xFF2E2A18)]
+                                : [
+                                    const Color(0xFFFFFBEB),
+                                    const Color(0xFFFEF3C7)
+                                  ]),
                       ),
                       borderRadius: BorderRadius.circular(20),
                     ),
@@ -200,10 +210,10 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                               text: TextSpan(children: [
                                 TextSpan(
                                   text: _level.round().toString(),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 42,
                                     fontWeight: FontWeight.w800,
-                                    color: kInk,
+                                    color: inkColor,
                                     letterSpacing: -2,
                                     height: 1,
                                   ),
@@ -234,10 +244,10 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                               text: TextSpan(children: [
                                 TextSpan(
                                   text: '약 ${_reachableKm.round()}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 22,
                                     fontWeight: FontWeight.w800,
-                                    color: kInk,
+                                    color: inkColor,
                                     letterSpacing: -0.6,
                                   ),
                                 ),

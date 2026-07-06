@@ -5169,10 +5169,16 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                 child: Container(
                                   height: 54,
                                   decoration: BoxDecoration(
-                                    color: Colors.white,
+                                    // 다크: 주변은 전부 다크인데 혼자 순백이던 버튼
+                                    color: isDark
+                                        ? AppColors.darkSurface1
+                                        : Colors.white,
                                     borderRadius: BorderRadius.circular(16),
-                                    border:
-                                        Border.all(color: kLine, width: 1.5),
+                                    border: Border.all(
+                                        color: isDark
+                                            ? AppColors.darkCardBorder
+                                            : kLine,
+                                        width: 1.5),
                                   ),
                                   alignment: Alignment.center,
                                   child: _userSelecting
@@ -5185,18 +5191,24 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                       : Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            const Icon(
+                                            Icon(
                                                 Icons
                                                     .format_list_bulleted_rounded,
                                                 size: 16,
-                                                color: kInk),
+                                                color: isDark
+                                                    ? AppColors
+                                                        .darkTextPrimary
+                                                    : kInk),
                                             const SizedBox(width: 6),
-                                            const Text(
+                                            Text(
                                               '직접 선택',
                                               style: TextStyle(
                                                 fontSize: 14,
                                                 fontWeight: FontWeight.w800,
-                                                color: kInk,
+                                                color: isDark
+                                                    ? AppColors
+                                                        .darkTextPrimary
+                                                    : kInk,
                                                 letterSpacing: -0.3,
                                               ),
                                             ),
