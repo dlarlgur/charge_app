@@ -1761,18 +1761,22 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
             const SizedBox(height: 12),
             Row(
               children: [
-                if (existing.isNotEmpty) ...[
+                if (label.isNotEmpty) ...[
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () async {
-                        await ChargerMemoService.remove(
-                            stationId, charger.chgerId);
-                        if (ctx.mounted) Navigator.pop(ctx);
+                      // 기본이름(호기 번호)을 입력칸에 넣어줌 — 저장은 사용자가 직접.
+                      onPressed: () {
+                        controller.text = label;
+                        controller.selection = TextSelection.fromPosition(
+                            TextPosition(offset: label.length));
                       },
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.statusOffline,
+                        foregroundColor:
+                            isDark ? AppColors.darkTextPrimary : Colors.black87,
                         side: BorderSide(
-                            color: AppColors.statusOffline.withOpacity(0.5)),
+                            color: isDark
+                                ? AppColors.darkCardBorder
+                                : AppColors.lightCardBorder),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
@@ -1786,8 +1790,15 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                   flex: 2,
                   child: FilledButton(
                     onPressed: () async {
-                      await ChargerMemoService.set(
-                          stationId, charger.chgerId, controller.text);
+                      final text = controller.text.trim();
+                      // 기본이름 그대로면 커스텀 이름 해제(‘1호기 (1호기)’ 중복 방지).
+                      if (text.isEmpty || text == label) {
+                        await ChargerMemoService.remove(
+                            stationId, charger.chgerId);
+                      } else {
+                        await ChargerMemoService.set(
+                            stationId, charger.chgerId, text);
+                      }
                       if (ctx.mounted) Navigator.pop(ctx);
                     },
                     style: FilledButton.styleFrom(
@@ -1802,25 +1813,29 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 14),
             // 개인 이름과 별개 — 실제 위치를 모두에게 공유(관리자 검토 후 노출).
-            Center(
-              child: TextButton.icon(
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
                 onPressed: () {
                   Navigator.pop(ctx);
                   _reportChargerLocation(charger);
                 },
-                icon: Icon(Icons.place_outlined,
-                    size: 16,
-                    color: isDark
-                        ? AppColors.darkTextMuted
-                        : AppColors.lightTextMuted),
-                label: Text('실제 위치를 모두에게 알리기 (제보)',
+                icon: const Icon(Icons.campaign_outlined,
+                    size: 18, color: AppColors.gasBlue),
+                label: const Text('실제 위치를 모두에게 알리기',
                     style: TextStyle(
-                        fontSize: 12.5,
-                        color: isDark
-                            ? AppColors.darkTextMuted
-                            : AppColors.lightTextMuted)),
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.gasBlue)),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  side: BorderSide(color: AppColors.gasBlue.withOpacity(0.45)),
+                  backgroundColor: AppColors.gasBlue.withOpacity(0.06),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
               ),
             ),
           ],
