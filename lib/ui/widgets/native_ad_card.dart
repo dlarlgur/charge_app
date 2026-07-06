@@ -20,6 +20,8 @@ import '../../widgets/adfit_native_top_ad_widget.dart';
 class AdMobNativeCard extends StatefulWidget {
   /// AdMob 광고 단위 ID.
   final String adUnitId;
+  /// 리스트 위치 — AdFit 모드에서 위치별 AdFit 단위 매핑에 사용.
+  final int listPosition;
   /// EV 탭 컨텍스트 — 좌측 4dp 컬러 스트립이 있는 layout 사용.
   final bool isEv;
   final EdgeInsets margin;
@@ -27,6 +29,7 @@ class AdMobNativeCard extends StatefulWidget {
   const AdMobNativeCard({
     super.key,
     required this.adUnitId,
+    this.listPosition = 4,
     this.isEv = false,
     this.margin = const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
   });
@@ -62,14 +65,14 @@ class _AdMobNativeCardState extends State<AdMobNativeCard> {
       case AdNetwork.off:
         return const SizedBox.shrink();
       case AdNetwork.adfit:
-        final code = AdNetworkConfig.adfitListUnit;
-        if (code.isEmpty) return const SizedBox.shrink();
         return Container(
           margin: widget.margin,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(14),
             child: RepaintBoundary(
-              child: AdFitNativeListAdWidget(adCode: code),
+              child: AdFitNativeListAdWidget(
+                adCode: AdFitUnitIds.forPosition(widget.listPosition),
+              ),
             ),
           ),
         );
@@ -150,13 +153,12 @@ class _TopBannerAdmobCardState extends State<TopBannerAdmobCard> {
       case AdNetwork.off:
         return const SizedBox.shrink();
       case AdNetwork.adfit:
-        final code = AdNetworkConfig.adfitTopUnit;
-        if (code.isEmpty) return const SizedBox.shrink();
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(14),
-            child: RepaintBoundary(child: AdFitNativeTopAdWidget(adCode: code)),
+            child: RepaintBoundary(
+                child: AdFitNativeTopAdWidget(adCode: AdFitUnitIds.topBanner)),
           ),
         );
       case AdNetwork.admob:
@@ -225,13 +227,12 @@ class _StationDetailNativeAdState extends State<StationDetailNativeAd> {
       case AdNetwork.off:
         return const SizedBox.shrink();
       case AdNetwork.adfit:
-        final code = AdNetworkConfig.adfitTopUnit;
-        if (code.isEmpty) return const SizedBox.shrink();
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(14),
-            child: RepaintBoundary(child: AdFitNativeTopAdWidget(adCode: code)),
+            child: RepaintBoundary(
+                child: AdFitNativeTopAdWidget(adCode: AdFitUnitIds.topBanner)),
           ),
         );
       case AdNetwork.admob:

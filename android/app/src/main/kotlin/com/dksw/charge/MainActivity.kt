@@ -10,7 +10,11 @@ class MainActivity : FlutterFragmentActivity() {
     companion object {
         const val ADFIT_NATIVE_TOP_VIEW_TYPE  = "com.dksw.charge/adfit_native_top"
         const val ADFIT_NATIVE_LIST_VIEW_TYPE = "com.dksw.charge/adfit_native_list"
+        const val ADFIT_EXIT_CHANNEL          = "com.dksw.charge/adfit_exit"
     }
+
+    // AdFit 앱 종료 팝업 광고 (전용 상품 — SDK 다이얼로그) MethodChannel 연동.
+    private val adFitExitAd by lazy { AdFitExitAdHandler(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -83,6 +87,18 @@ class MainActivity : FlutterFragmentActivity() {
             "inquiryCard",
             InquiryNativeAdFactory(this),
         )
+
+        // AdFit 앱 종료 팝업 — load(미리 로드) / show(표시, 결과 exit|dismiss|none)
+        io.flutter.plugin.common.MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            ADFIT_EXIT_CHANNEL,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "load" -> adFitExitAd.load(call.argument<String>("clientId") ?: "", result)
+                "show" -> adFitExitAd.show(result)
+                else -> result.notImplemented()
+            }
+        }
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: io.flutter.embedding.engine.FlutterEngine) {

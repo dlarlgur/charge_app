@@ -19,22 +19,29 @@ class ExitAdService {
   ExitAdService._();
   static final ExitAdService instance = ExitAdService._();
 
-  // 종료 다이얼로그 전용 네이티브 단위 (신규 발급분 — 게재 시작까지 최대 1시간 걸릴 수 있음).
-  static const String _adUnitId = 'ca-app-pub-8640148276009977/4895744199';
+  // AdFit 앱 종료 팝업(전용 상품) 네이티브 채널 — MainActivity 에 등록됨.
+  static const MethodChannel _adfitExit =
+      MethodChannel('com.dksw.charge/adfit_exit');
 
   NativeAd? _ad;
   bool _loaded = false;
   bool _loading = false;
 
-  /// 네이티브 광고 미리 로드 (앱 시작 시 1회 + 다이얼로그 소비 후 재호출).
-  /// AdMob 모드가 아니면 로드하지 않음 — 다이얼로그는 광고 없이 컴팩트 표시.
-  /// (AdFit 은 종료 다이얼로그용 템플릿이 없어 대체 없이 생략)
+  /// 광고 미리 로드 (앱 시작 시 1회 + 다이얼로그 소비 후 재호출).
+  /// AdMob 모드 → AdMob 네이티브, AdFit 모드 → AdFit 종료 팝업(SDK 다이얼로그),
+  /// off → 아무것도 로드하지 않음(다이얼로그는 광고 없이 컴팩트 표시).
   void preload() {
-    if (AdNetworkConfig.current != AdNetwork.admob) return;
+    final network = AdNetworkConfig.current;
+    if (network == AdNetwork.adfit) {
+      _adfitExit.invokeMethod('load', {'clientId': AdFitUnitIds.exit})
+          .catchError((_) => null);
+      return;
+    }
+    if (network != AdNetwork.admob) return;
     if (_ad != null || _loading) return;
     _loading = true;
     final ad = NativeAd(
-      adUnitId: _adUnitId,
+      adUnitId: AdUnitIds.exitNative,
       request: const AdRequest(),
       // SDK 내장 미디엄 템플릿 — 'Ad' 어트리뷰션 배지 자동 포함(정책 요건).
       nativeTemplateStyle: NativeTemplateStyle(
@@ -80,6 +87,26 @@ class ExitAdService {
 
   NativeAd? takeIfLoaded() => _loaded ? _ad : null;
 
+  /// AdFit 종료 팝업 표시 시도 (adfit 모드 전용).
+  /// true = SDK 팝업이 종료 플로우를 처리함(종료 확정 시 여기서 앱 종료까지).
+  /// false = 로드된 팝업 없음/오류 → 호출측이 기존 다이얼로그로 폴백.
+  Future<bool> tryShowAdfitExitPopup() async {
+    try {
+      final res = await _adfitExit.invokeMethod<String>('show');
+      if (res == 'exit') {
+        await SystemNavigator.pop();
+        return true;
+      }
+      if (res == 'dismiss') {
+        preload(); // 다음 노출용 재로드
+        return true;
+      }
+      return false; // 'none' — 미로드
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// 다이얼로그에서 광고를 소비(노출)한 뒤 호출 — 폐기하고 다음 노출용 재로드.
   void consumeAndReload() {
     _ad?.dispose();
@@ -92,6 +119,12 @@ class ExitAdService {
 
 /// 종료 확인 다이얼로그 — [취소] 는 닫기만, [종료] 는 앱 종료.
 Future<void> showExitConfirmDialog(BuildContext context) async {
+  // AdFit 모드 — SDK 종료 팝업(광고+취소/앱 종료 버튼 일체형)이 플로우를 대신함.
+  // 미로드/실패 시에만 아래 기본 다이얼로그(광고 없음)로 폴백.
+  if (AdNetworkConfig.current == AdNetwork.adfit) {
+    final handled = await ExitAdService.instance.tryShowAdfitExitPopup();
+    if (handled) return;
+  }
   // preload 는 bootstrap(원격설정 수신) 전에 불릴 수 있어 노출 시점에 재확인 —
   // adfit/off 전환 시 미리 로드돼 있던 AdMob 광고가 새어 나가지 않게.
   final ad = AdNetworkConfig.current == AdNetwork.admob

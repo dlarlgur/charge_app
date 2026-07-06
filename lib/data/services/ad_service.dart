@@ -8,14 +8,9 @@ enum AdNetwork { admob, adfit, off }
 
 /// 원격설정 기반 광고 네트워크 판별.
 ///
-/// 콘솔 원격설정 키:
-///  · `ads_network`     : 'admob'(기본) | 'adfit' | 'off'
-///  · `adfit_list_unit` : AdFit 리스트 네이티브 광고단위 코드 (adfit 모드 필수)
-///  · `adfit_top_unit`  : AdFit 상단/상세 네이티브 광고단위 코드 (adfit 모드 필수)
-///
+/// 콘솔 원격설정 키 `ads_network`: 'admob'(기본) | 'adfit' | 'off'.
 /// 우선순위는 하우스 광고가 항상 위 — house_ad_service 의 bypass 오버라이드가
 /// 슬롯을 차지하면 네트워크 광고 자체가 그려지지 않으므로 여기와 무관.
-/// adfit 모드인데 해당 unit 코드가 비어 있으면 그 슬롯은 광고 없음(off 동일).
 class AdNetworkConfig {
   AdNetworkConfig._();
 
@@ -27,14 +22,58 @@ class AdNetworkConfig {
     if (v == 'off' || v == 'none') return AdNetwork.off;
     return AdNetwork.admob;
   }
+}
 
-  /// AdFit 리스트 인-피드 광고단위 코드 (빈 문자열이면 미발급).
-  static String get adfitListUnit =>
-      (DkswCore.config<String>('adfit_list_unit') ?? '').trim();
+/// 광고단위 ID 원격 오버라이드 — 앱 이전/단위 재발급 대비 (콘솔 광고 페이지에서 관리).
+///
+/// 원격설정 키 `admob_units` / `adfit_units`, value_type=json:
+///   {"list": {"4": "<unit>", "8": "<unit>", ...}, "top": "<unit>",
+///    "detail": "<unit>", "exit": "<unit>"}
+/// 부분 오버라이드 — 명시된 항목만 교체, 나머지는 앱 내장 기본값.
+String? _overrideUnit(String cfgKey, String field, [int? position]) {
+  final raw = DkswCore.config<Map>(cfgKey);
+  if (raw == null) return null;
+  final dynamic v = position != null
+      ? (raw[field] is Map ? (raw[field] as Map)[position.toString()] : null)
+      : raw[field];
+  final s = v?.toString().trim() ?? '';
+  return s.isEmpty ? null : s;
+}
 
-  /// AdFit 상단 배너/상세 광고단위 코드 (빈 문자열이면 미발급).
-  static String get adfitTopUnit =>
-      (DkswCore.config<String>('adfit_top_unit') ?? '').trim();
+/// Kakao AdFit 광고단위 코드 (애드핏 콘솔 발급분 2026-06-26, 매체 '전기차 기름차').
+/// AdMob 과 동일하게 리스트 위치별 별도 단위 — 임프레션 분리 카운트.
+class AdFitUnitIds {
+  AdFitUnitIds._();
+
+  // 리스트 인-피드 (이미지 네이티브 2:1) — banner_list_1~14 → 위치 4~56.
+  static const Map<int, String> _list = {
+    4: 'DAN-9njcCEiVjovKRqIt', // banner_list_1
+    8: 'DAN-s3e6wxKqbI72BCHv', // banner_list_2
+    12: 'DAN-MEVcbAOneIcWpvmy', // banner_list_3
+    16: 'DAN-0EWt8IUgxInCx3CG', // banner_list_4
+    20: 'DAN-fZ3xi92MWyRMmncn', // banner_list_5
+    24: 'DAN-laksjZHKWj93tK4o', // banner_list_6
+    28: 'DAN-LmHl20mmh0tHan3I', // banner_list_7
+    32: 'DAN-R73l7KjWdmKYTqd6', // banner_list_8
+    36: 'DAN-tLN52a96uf1Uv8Cb', // banner_list_9
+    40: 'DAN-nH2dJjIwY4zkiSbV', // banner_list_10
+    44: 'DAN-EJrKbkUS7X41NNrr', // banner_list_11
+    48: 'DAN-FHQ9S9IJMOzUpNbf', // banner_list_12
+    52: 'DAN-g4ZSWSmCrxRbPtSw', // banner_list_13
+    56: 'DAN-zOSHzOjab0QJCTZB', // banner_list_14
+  };
+
+  static String forPosition(int position) =>
+      _overrideUnit('adfit_units', 'list', position) ??
+      (_list[position] ?? _list[4]!);
+
+  /// 홈 상단 배너 + 상세 화면 공용 (이미지 네이티브 2:1).
+  static String get topBanner =>
+      _overrideUnit('adfit_units', 'top') ?? 'DAN-wT6r5XkAMbbxh6Qw'; // top_banner
+
+  /// 앱 종료 팝업 (전용 상품 — AOS_중앙형_프로필 포함_2:1).
+  static String get exit =>
+      _overrideUnit('adfit_units', 'exit') ?? 'DAN-IEU82MBhLEWWwlOx'; // app_exit
 }
 
 /// AdMob 광고 단위 ID 상수.
@@ -86,15 +125,24 @@ class AdUnitIds {
   /// 리스트 list_position 에 매핑되는 광고 단위 ID.
   /// admobSlots 외 position 호출 시 list_banner1 으로 fallback.
   static String forPosition(int position) {
+    final override = _overrideUnit('admob_units', 'list', position);
+    if (override != null) return override;
     final map = Platform.isIOS ? _listBannerIos : _listBannerAndroid;
     return map[position] ?? map[4]!;
   }
 
-  /// 상단 배너 광고 단위 ID — 현재 호출처 없음 (추후 상단 자리 추가 시).
+  /// 홈 상단 배너 광고 단위 ID (TopBannerAdmobCard — house ad 없을 때 폴백).
   static String get topBanner =>
-      Platform.isIOS ? _topBannerIos : _topBannerAndroid;
+      _overrideUnit('admob_units', 'top') ??
+      (Platform.isIOS ? _topBannerIos : _topBannerAndroid);
 
   /// 주유소·충전소 상세 상단 네이티브 광고 단위 ID (카드 바로 아래).
   static String get stationDetailNative =>
-      Platform.isIOS ? _stationDetailNativeIos : _stationDetailNativeAndroid;
+      _overrideUnit('admob_units', 'detail') ??
+      (Platform.isIOS ? _stationDetailNativeIos : _stationDetailNativeAndroid);
+
+  /// 종료 다이얼로그 네이티브 광고 단위 ID.
+  static String get exitNative =>
+      _overrideUnit('admob_units', 'exit') ??
+      'ca-app-pub-8640148276009977/4895744199'; // charge_exit_native
 }

@@ -1038,7 +1038,9 @@ class _GasListViewState extends ConsumerState<_GasListView> {
                   final item = merged[i];
                   if (item is _AdMobAt) {
                     return AdMobNativeCard(
-                        adUnitId: AdUnitIds.forPosition(item.position));
+                      adUnitId: AdUnitIds.forPosition(item.position),
+                      listPosition: item.position,
+                    );
                   }
                   if (item is HouseAd) {
                     return HouseAdCard(ad: item);
@@ -1249,6 +1251,7 @@ class _EvListViewState extends ConsumerState<_EvListView> {
                   if (item is _AdMobAt) {
                     return AdMobNativeCard(
                       adUnitId: AdUnitIds.forPosition(item.position),
+                      listPosition: item.position,
                       isEv: true,
                     );
                   }
