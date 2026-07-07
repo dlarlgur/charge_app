@@ -325,25 +325,41 @@ class ApiService {
     Map<String, dynamic>? detail,
     String? memo,
   }) async {
-    final res = await _dio.post(ApiConstants.reports, data: {
-      'app_id': AppConstants.packageName,
-      'device_id': DkswCore.deviceId,
-      'station_type': stationType,
-      'station_id': stationId,
-      'station_name': stationName,
-      'category': category,
-      if (detail != null) 'detail': detail,
-      if (memo != null && memo.trim().isNotEmpty) 'memo': memo.trim(),
-    });
+    final res = await _dio.post(ApiConstants.reports,
+        data: {
+          'app_id': AppConstants.packageName,
+          'device_id': DkswCore.deviceId,
+          'station_type': stationType,
+          'station_id': stationId,
+          'station_name': stationName,
+          'category': category,
+          if (detail != null) 'detail': detail,
+          if (memo != null && memo.trim().isNotEmpty) 'memo': memo.trim(),
+        },
+        options: await _softAuth());
     return res.data?['success'] == true;
   }
 
+  /// 로그인 상태면 Bearer 헤더 — 서버가 검증해 회원 제보로 연결(기기 변경에도 유지).
+  Future<Options?> _softAuth() async {
+    try {
+      final token = await AuthService.accessToken();
+      if (token == null || token.isEmpty) return null;
+      return Options(headers: {'Authorization': 'Bearer $token'});
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// 내 제보 내역 — 서버가 라벨·내용 문구까지 완성해 내려줌 (상태·관리자 답변 포함).
+  /// 회원: user_id 기준(+이 기기 게스트 시절 것), 게스트: 이 기기 것만.
   Future<List<Map<String, dynamic>>> getMyReports() async {
-    final res = await _dio.get('${ApiConstants.reports}/mine', queryParameters: {
-      'app_id': AppConstants.packageName,
-      'device_id': DkswCore.deviceId,
-    });
+    final res = await _dio.get('${ApiConstants.reports}/mine',
+        queryParameters: {
+          'app_id': AppConstants.packageName,
+          'device_id': DkswCore.deviceId,
+        },
+        options: await _softAuth());
     final list = res.data?['reports'];
     if (list is List) {
       return list
