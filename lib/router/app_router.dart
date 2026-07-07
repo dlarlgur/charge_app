@@ -14,9 +14,11 @@ import '../ui/settings/policies_screen.dart';
 import '../ui/auth/login_screen.dart';
 import '../ui/auth/account_screen.dart';
 import '../ui/notices/notices_screen.dart';
+import '../ui/reports/my_reports_screen.dart';
 import '../ui/events/events_screen.dart';
 import '../ui/faq/faq_screen.dart';
-import 'package:dksw_app_core/dksw_app_core.dart' show InquiryScreen, DkswTopBanner;
+import 'package:dksw_app_core/dksw_app_core.dart'
+    show InquiryScreen, DkswTopBanner;
 import 'package:flutter/widgets.dart' show EdgeInsets;
 import '../ui/widgets/inquiry_native_ad_banner.dart';
 import '../data/services/auth_service.dart' show authProvider;
@@ -32,8 +34,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: '/splash',
     routes: [
       GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
-      GoRoute(path: '/permission', builder: (_, __) => const PermissionScreen()),
-      GoRoute(path: '/onboarding', builder: (_, __) => const OnboardingScreen()),
+      GoRoute(
+          path: '/permission', builder: (_, __) => const PermissionScreen()),
+      GoRoute(
+          path: '/onboarding', builder: (_, __) => const OnboardingScreen()),
       GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
       GoRoute(
         path: '/gas/:id',
@@ -58,6 +62,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/account', builder: (_, __) => const AccountScreen()),
       GoRoute(path: '/policies', builder: (_, __) => const PoliciesScreen()),
       GoRoute(path: '/notices', builder: (_, __) => const NoticesScreen()),
+      GoRoute(path: '/my-reports', builder: (_, __) => const MyReportsScreen()),
       GoRoute(path: '/events', builder: (_, __) => const EventsScreen()),
       GoRoute(path: '/faq', builder: (_, __) => const FaqScreen()),
       GoRoute(

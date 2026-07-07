@@ -2552,6 +2552,20 @@ class _SupportEmbedState extends State<_SupportEmbed> {
               }
             },
           ),
+          // 내 제보 내역 — 기기 기준이라 로그인 불필요.
+          ListTile(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            leading: SettingsScreenEmbed.settingsIconChip(
+                Icons.fact_check_outlined, isDark),
+            title: Text('내 제보 내역',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w600)),
+            trailing: Icon(Icons.chevron_right_rounded, size: 20, color: muted),
+            onTap: () => context.push('/my-reports'),
+          ),
         ];
         // 타일 사이 구분선 삽입
         final children = <Widget>[];

@@ -338,6 +338,22 @@ class ApiService {
     return res.data?['success'] == true;
   }
 
+  /// 내 제보 내역 — 서버가 라벨·내용 문구까지 완성해 내려줌 (상태·관리자 답변 포함).
+  Future<List<Map<String, dynamic>>> getMyReports() async {
+    final res = await _dio.get('${ApiConstants.reports}/mine', queryParameters: {
+      'app_id': AppConstants.packageName,
+      'device_id': DkswCore.deviceId,
+    });
+    final list = res.data?['reports'];
+    if (list is List) {
+      return list
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
+    return [];
+  }
+
   Future<List<Map<String, dynamic>>> getMyInquiries({
     required String appId,
     required String deviceId,
