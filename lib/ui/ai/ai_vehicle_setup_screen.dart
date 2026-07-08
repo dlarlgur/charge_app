@@ -832,11 +832,60 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
                     // ── 차량 이름 ──
                     _sectionLabel('차량 이름', sectionLabelColor),
                     const SizedBox(height: 10),
+                    // 차종 검색 — 명확한 단일 버튼(눌러야 검색 시트). 이름칸과 분리해 혼동 제거.
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _openVehicleSpecSearch,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 13),
+                          decoration: BoxDecoration(
+                            color: _kGasBlue.withOpacity(isDark ? 0.14 : 0.07),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: _kGasBlue.withOpacity(0.4), width: 1),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.search_rounded,
+                                  size: 19, color: _kGasBlue),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text('차종 검색해서 자동 입력',
+                                    style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: _kGasBlue)),
+                              ),
+                              Icon(Icons.chevron_right_rounded,
+                                  size: 20, color: _kGasBlue.withOpacity(0.7)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                            child: Divider(color: hintColor.withOpacity(0.3))),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          child: Text('또는 직접 입력',
+                              style: TextStyle(fontSize: 12, color: hintColor)),
+                        ),
+                        Expanded(
+                            child: Divider(color: hintColor.withOpacity(0.3))),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
                     TextField(
                       controller: _nameController,
                       style: TextStyle(color: titleColor),
                       decoration: InputDecoration(
-                        hintText: '예: 내 차, 아반떼, 테슬라 등 (비워두면 자동 생성)',
+                        hintText: '예: 내 차, 아반떼 (비워두면 자동 생성)',
                         hintStyle: TextStyle(color: hintColor),
                         filled: true,
                         fillColor: isDark
@@ -863,30 +912,6 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
                         ),
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 14),
-                        // 차종 검색 — 공인연비 데이터에서 골라 유종·연비 자동 입력
-                        suffixIcon: IconButton(
-                          tooltip: '차종 검색',
-                          icon: const Icon(Icons.search_rounded,
-                              color: _kGasBlue),
-                          onPressed: _openVehicleSpecSearch,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    GestureDetector(
-                      onTap: _openVehicleSpecSearch,
-                      child: Row(
-                        children: [
-                          Icon(Icons.auto_awesome_rounded,
-                              size: 13, color: hintColor),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              '차종을 검색하면 유종·연비가 자동으로 입력돼요',
-                              style: TextStyle(fontSize: 12, color: hintColor),
-                            ),
-                          ),
-                        ],
                       ),
                     ),
                     const SizedBox(height: 24),
