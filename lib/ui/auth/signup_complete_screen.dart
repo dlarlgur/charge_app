@@ -126,8 +126,10 @@ class _SignupCompleteScreenState extends ConsumerState<SignupCompleteScreen> {
                 onChanged: (_) => setState(() {}),
                 inputFormatters: [
                   // 이모티콘·특수문자 차단 — 한글/영문/숫자/공백/._- 만 허용(서버 규칙과 동일).
+                  // ㆍㆎ(U+318D,318E): 천지인 키보드 아래아 점. 조합 중간 문자라 허용해야
+                  // 모음 입력이 되며, 조합 완료 시 완성형 한글로 바뀌어 남지 않음.
                   FilteringTextInputFormatter.allow(
-                      RegExp(r'[가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9 ._-]')),
+                      RegExp(r'[가-힣ㄱ-ㅎㅏ-ㅣㆍㆎa-zA-Z0-9 ._-]')),
                 ],
                 decoration: const InputDecoration(
                   hintText: '사용할 닉네임',
