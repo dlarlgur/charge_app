@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
@@ -13,6 +14,7 @@ import '../../core/util/app_toast.dart';
 import '../../data/models/models.dart';
 import '../../providers/providers.dart';
 import '../../data/services/user_sync_service.dart';
+import '../../data/services/api_service.dart';
 import '../../data/services/connected_service.dart';
 
 // 앱 컨벤션과 정합 — 내연기관(gas)은 파랑, 전기차(ev)는 초록.
@@ -165,7 +167,8 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
   }
 
   double get _gasGoalLiters {
-    final tank = double.tryParse(_tankController.text.replaceAll(',', '.')) ?? 55.0;
+    final tank =
+        double.tryParse(_tankController.text.replaceAll(',', '.')) ?? 55.0;
     if (_targetMode == 'FULL') return tank * (1 - _currentLevelPercent / 100);
     if (_targetMode == 'LITER') {
       return double.tryParse(_literController.text.replaceAll(',', '.')) ?? 0;
@@ -174,6 +177,38 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
   }
 
   // 이름 미입력 시 자동생성 — 예: 내연기관차1, 전기차2
+  // ── 차종 검색(공인연비 자동 입력) ─────────────────────────────────────────
+  // 에너지공단 표시연비 데이터 검색 → 선택 시 이름·유종·연비(전기차는 전비·배터리) 채움.
+  Future<void> _openVehicleSpecSearch() async {
+    final picked = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _VehicleSpecSearchSheet(kind: _vehicleType),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _nameController.text = (picked['model'] ?? '').toString();
+      final eff = picked['efficiency'];
+      if (_vehicleType == 'gas') {
+        final code = (picked['fuelType'] ?? 'B027').toString();
+        _fuelType = FuelType.fromCode(code);
+        if (eff is num && eff > 0)
+          _effController.text = _fmtNum(eff.toDouble());
+      } else {
+        if (eff is num && eff > 0) {
+          _evEffController.text = _fmtNum(eff.toDouble());
+          final range = picked['rangePerCharge'];
+          // 배터리 용량 = 1회충전 주행거리 ÷ 전비 (공인 기준 역산)
+          if (range is num && range > 0) {
+            _batteryController.text =
+                _fmtNum((range.toDouble() / eff.toDouble()));
+          }
+        }
+      }
+    });
+  }
+
   String _resolvedName(String vehicleType) {
     final input = _nameController.text.trim();
     if (input.isNotEmpty) return input;
@@ -206,14 +241,16 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
       return;
     }
     if (_targetMode == 'PRICE') {
-      final p = double.tryParse(_priceController.text.replaceAll(',', '.')) ?? 0;
+      final p =
+          double.tryParse(_priceController.text.replaceAll(',', '.')) ?? 0;
       if (p <= 0) {
         _showError('목표 금액을 올바르게 입력해주세요.');
         return;
       }
     }
     if (_targetMode == 'LITER') {
-      final l = double.tryParse(_literController.text.replaceAll(',', '.')) ?? 0;
+      final l =
+          double.tryParse(_literController.text.replaceAll(',', '.')) ?? 0;
       if (l <= 0) {
         _showError('목표 리터를 올바르게 입력해주세요.');
         return;
@@ -227,7 +264,8 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
             : 0.0;
 
     final v = VehicleProfile(
-      id: widget.editVehicleId ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      id: widget.editVehicleId ??
+          DateTime.now().millisecondsSinceEpoch.toString(),
       name: _resolvedName('gas'),
       vehicleType: 'gas',
       fuelType: _fuelType.code,
@@ -260,7 +298,8 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
     }
 
     final v = VehicleProfile(
-      id: widget.editVehicleId ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      id: widget.editVehicleId ??
+          DateTime.now().millisecondsSinceEpoch.toString(),
       name: _resolvedName('ev'),
       vehicleType: 'ev',
       batteryCapacity: bat,
@@ -289,7 +328,8 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
       vehicles.add(v);
     }
 
-    box.put(AppConstants.keyAiVehicles, jsonEncode(vehicles.map((x) => x.toJson()).toList()));
+    box.put(AppConstants.keyAiVehicles,
+        jsonEncode(vehicles.map((x) => x.toJson()).toList()));
 
     // 선택 차량이 없거나 이 차량이면 선택 차량으로 설정
     final selectedId = box.get(AppConstants.keyAiSelectedVehicleId) as String?;
@@ -345,7 +385,8 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
   bool _connectedBrandEnabled(String code) =>
       _flagOn('feature.connected_car.$code');
 
-  Widget _buildConnectedSection(bool isDark, Color labelColor, Color hintColor) {
+  Widget _buildConnectedSection(
+      bool isDark, Color labelColor, Color hintColor) {
     // 커넥티드 연동은 원격설정 플래그로 게이팅 — 기본 숨김.
     // 콘솔 app_remote_config 'feature.connected_car' = true 로 켜면 노출(앱 업데이트 불필요).
     if (!_flagOn('feature.connected_car')) return const SizedBox.shrink();
@@ -371,14 +412,16 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
               onTap: () => setState(() {
                 _connectedBrand = b.$1;
                 _connectLoginStarted = false;
-                if (b.$1.isEmpty) { // '안함' 선택 시 연동 해제.
+                if (b.$1.isEmpty) {
+                  // '안함' 선택 시 연동 해제.
                   _connectedCarId = '';
                   _connectedCarName = '';
                 }
               }),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 160),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
                   color: sel
                       ? accent
@@ -387,7 +430,9 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
                   border: Border.all(
                     color: sel
                         ? accent
-                        : (isDark ? AppColors.darkCardBorder : Colors.transparent),
+                        : (isDark
+                            ? AppColors.darkCardBorder
+                            : Colors.transparent),
                   ),
                 ),
                 child: Text(
@@ -433,7 +478,9 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
                   child: Text(
                     '${_brandLabel(_connectedBrand)}${_connectedCarName.isNotEmpty ? ' · $_connectedCarName' : ''} 연동됨',
                     style: TextStyle(
-                        fontSize: 13.5, fontWeight: FontWeight.w800, color: accent),
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                        color: accent),
                   ),
                 ),
                 GestureDetector(
@@ -472,7 +519,9 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
                   style: TextStyle(
                     fontSize: 12.5,
                     height: 1.4,
-                    color: isDark ? AppColors.darkTextSecondary : const Color(0xFF4B5563),
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : const Color(0xFF4B5563),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -481,23 +530,29 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
                   child: ElevatedButton(
                     onPressed: _connectBusy
                         ? null
-                        : (_connectLoginStarted ? _loadConnectedVehicles : _startConnectedLogin),
+                        : (_connectLoginStarted
+                            ? _loadConnectedVehicles
+                            : _startConnectedLogin),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: accent,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
                     ),
                     child: _connectBusy
                         ? const SizedBox(
-                            width: 18, height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
                         : Text(
                             _connectLoginStarted
                                 ? '차량 불러오기'
                                 : '${_brandLabel(_connectedBrand)} 계정으로 연동하기',
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+                            style: const TextStyle(
+                                fontSize: 14, fontWeight: FontWeight.w800),
                           ),
                   ),
                 ),
@@ -507,8 +562,11 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
                     onTap: _startConnectedLogin,
                     child: Text('로그인 다시 하기',
                         style: TextStyle(
-                          fontSize: 12.5, fontWeight: FontWeight.w700,
-                          color: isDark ? AppColors.darkTextMuted : const Color(0xFF6B7280),
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: isDark
+                              ? AppColors.darkTextMuted
+                              : const Color(0xFF6B7280),
                         )),
                   ),
                 ],
@@ -527,7 +585,8 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
         _showError('연동 URL을 받지 못했어요.');
         return;
       }
-      final ok = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      final ok =
+          await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
       if (ok && mounted) setState(() => _connectLoginStarted = true);
     } catch (e) {
       _showError(ConnectedService.errorMessage(e, '연동 시작에 실패했어요. 잠시 후 다시.'));
@@ -630,12 +689,14 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
                   onTap: () => setSheet(() => selId = c.carId),
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 8),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 14),
                     decoration: BoxDecoration(
                       color: on
                           ? accent.withValues(alpha: 0.08)
-                          : (isDark ? AppColors.darkBg : const Color(0xFFF4F5F7)),
+                          : (isDark
+                              ? AppColors.darkBg
+                              : const Color(0xFFF4F5F7)),
                       borderRadius: BorderRadius.circular(13),
                       border: Border.all(
                           color: on ? accent : Colors.transparent, width: 1.5),
@@ -708,7 +769,8 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
                         borderRadius: BorderRadius.circular(12)),
                   ),
                   child: const Text('이 차량 연결',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                      style:
+                          TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
                 ),
               ),
             ],
@@ -723,9 +785,12 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? AppColors.darkBg : AppColors.lightBg;
-    final titleColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final hintColor = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    final sectionLabelColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final titleColor =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final hintColor =
+        isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final sectionLabelColor =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
     return Scaffold(
       backgroundColor: bg,
@@ -780,22 +845,48 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: isDark
-                              ? const BorderSide(color: AppColors.darkCardBorder)
+                              ? const BorderSide(
+                                  color: AppColors.darkCardBorder)
                               : BorderSide.none,
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: isDark
-                              ? const BorderSide(color: AppColors.darkCardBorder)
+                              ? const BorderSide(
+                                  color: AppColors.darkCardBorder)
                               : BorderSide.none,
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                              color: _kGasBlue, width: 1.2),
+                          borderSide:
+                              const BorderSide(color: _kGasBlue, width: 1.2),
                         ),
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 14),
+                        // 차종 검색 — 공인연비 데이터에서 골라 유종·연비 자동 입력
+                        suffixIcon: IconButton(
+                          tooltip: '차종 검색',
+                          icon: const Icon(Icons.search_rounded,
+                              color: _kGasBlue),
+                          onPressed: _openVehicleSpecSearch,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    GestureDetector(
+                      onTap: _openVehicleSpecSearch,
+                      child: Row(
+                        children: [
+                          Icon(Icons.auto_awesome_rounded,
+                              size: 13, color: hintColor),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              '차종을 검색하면 유종·연비가 자동으로 입력돼요',
+                              style: TextStyle(fontSize: 12, color: hintColor),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -815,7 +906,8 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
                     const SizedBox(height: 24),
 
                     // ── 커넥티드 연동 (선택) ──
-                    _buildConnectedSection(isDark, sectionLabelColor, hintColor),
+                    _buildConnectedSection(
+                        isDark, sectionLabelColor, hintColor),
                     const SizedBox(height: 24),
 
                     // ── 동적 폼 ──
@@ -886,8 +978,7 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
 
         _sectionLabel('평균 연비', sectionLabelColor),
         const SizedBox(height: 8),
-        _InputField(
-            controller: _effController, suffix: 'km/L', hint: '12.5'),
+        _InputField(controller: _effController, suffix: 'km/L', hint: '12.5'),
         const SizedBox(height: 20),
 
         _sectionLabel('현재 잔량', sectionLabelColor),
@@ -938,8 +1029,7 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
             controller: _literController,
             suffix: 'L',
             hint: '20',
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
           ),
         ],
         const SizedBox(height: 16),
@@ -952,7 +1042,8 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
             icon: Icons.local_gas_station_rounded,
             iconColor: _kGasBlue,
             text: '예상 주유량:  약 ${_gasGoalLiters.toStringAsFixed(1)} L',
-            textColor: isDark ? const Color(0xFF93C5FD) : const Color(0xFF1E40AF),
+            textColor:
+                isDark ? const Color(0xFF93C5FD) : const Color(0xFF1E40AF),
           ),
         const SizedBox(height: 8),
       ],
@@ -961,16 +1052,15 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
 
   // ─── 전기차 폼 ────────────────────────────────────────────────────────────
   Widget _buildEvForm(bool isDark, Color sectionLabelColor, Color hintColor) {
-    final chargeGoal = (_targetChargePercent - _currentLevelPercent)
-        .clamp(0.0, 100.0);
+    final chargeGoal =
+        (_targetChargePercent - _currentLevelPercent).clamp(0.0, 100.0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionLabel('배터리 용량', sectionLabelColor),
         const SizedBox(height: 8),
-        _InputField(
-            controller: _batteryController, suffix: 'kWh', hint: '64'),
+        _InputField(controller: _batteryController, suffix: 'kWh', hint: '64'),
         const SizedBox(height: 20),
 
         _sectionLabel('평균 전비', sectionLabelColor),
@@ -988,7 +1078,8 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
             setState(() {
               _currentLevelPercent = v;
               if (_targetChargePercent <= _currentLevelPercent) {
-                _targetChargePercent = (_currentLevelPercent + 10).clamp(0, 100);
+                _targetChargePercent =
+                    (_currentLevelPercent + 10).clamp(0, 100);
               }
             });
           },
@@ -1265,8 +1356,7 @@ class _ChipRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inactiveBg =
-        isDark ? AppColors.darkCard : const Color(0xFFFAFAFA);
+    final inactiveBg = isDark ? AppColors.darkCard : const Color(0xFFFAFAFA);
     final inactiveBorder =
         isDark ? AppColors.darkCardBorder : const Color(0xFFEEEEEE);
     final inactiveTextColor =
@@ -1281,8 +1371,7 @@ class _ChipRow extends StatelessWidget {
           onTap: () => onSelect(item),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
             decoration: BoxDecoration(
               color: active ? activeLight : inactiveBg,
               borderRadius: BorderRadius.circular(10),
@@ -1316,8 +1405,7 @@ class _InputField extends StatelessWidget {
     required this.controller,
     required this.suffix,
     required this.hint,
-    this.keyboardType =
-        const TextInputType.numberWithOptions(decimal: true),
+    this.keyboardType = const TextInputType.numberWithOptions(decimal: true),
   });
 
   @override
@@ -1402,8 +1490,7 @@ class _GaugeSlider extends StatelessWidget {
               thumbColor: _thumbColor,
               overlayColor: _thumbColor.withValues(alpha: 0.12),
               trackHeight: 8,
-              thumbShape:
-                  const RoundSliderThumbShape(enabledThumbRadius: 10),
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
             ),
             child: Slider(
               value: value,
@@ -1428,6 +1515,243 @@ class _GaugeSlider extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// 차종 검색 바텀시트 — 에너지공단 공인연비 데이터.
+/// 선택하면 {model, fuelType, efficiency, rangePerCharge, ...} 를 pop 으로 반환.
+class _VehicleSpecSearchSheet extends StatefulWidget {
+  final String kind; // 'gas' | 'ev'
+  const _VehicleSpecSearchSheet({required this.kind});
+
+  @override
+  State<_VehicleSpecSearchSheet> createState() =>
+      _VehicleSpecSearchSheetState();
+}
+
+class _VehicleSpecSearchSheetState extends State<_VehicleSpecSearchSheet> {
+  final _searchCtrl = TextEditingController();
+  Timer? _debounce;
+  List<Map<String, dynamic>> _results = const [];
+  bool _loading = false;
+  bool _searched = false;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onQuery(String q) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 350), () async {
+      final term = q.trim();
+      if (term.length < 2) {
+        if (mounted)
+          setState(() {
+            _results = const [];
+            _searched = false;
+          });
+        return;
+      }
+      setState(() => _loading = true);
+      final items =
+          await ApiService().searchVehicleSpecs(term, kind: widget.kind);
+      if (!mounted) return;
+      setState(() {
+        _results = items;
+        _loading = false;
+        _searched = true;
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isEv = widget.kind == 'ev';
+    final accent = isEv ? AppColors.evGreen : AppColors.gasBlue;
+    final ink = isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A2E);
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.78,
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface1 : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 10),
+          Container(
+            width: 38,
+            height: 4,
+            decoration: BoxDecoration(
+              color: muted.withOpacity(0.4),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+            child: Row(
+              children: [
+                Text('차종 검색',
+                    style: TextStyle(
+                        fontSize: 17, fontWeight: FontWeight.w800, color: ink)),
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: accent.withOpacity(isDark ? 0.16 : 0.10),
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  child: Text(isEv ? '전기차' : '내연기관',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: accent)),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 2, 20, 0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text('공인연비 기준이에요 — 선택하면 자동으로 채워드려요',
+                  style: TextStyle(fontSize: 12, color: muted)),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+            child: TextField(
+              controller: _searchCtrl,
+              autofocus: true,
+              onChanged: _onQuery,
+              style: TextStyle(fontSize: 15, color: ink),
+              decoration: InputDecoration(
+                hintText: isEv ? '예: 아이오닉5, EV6, 모델Y' : '예: 쏘나타, 아반떼, 스포티지',
+                hintStyle: TextStyle(color: muted),
+                prefixIcon: Icon(Icons.search_rounded, color: muted),
+                filled: true,
+                fillColor:
+                    isDark ? AppColors.darkSurface2 : const Color(0xFFF4F6F9),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              ),
+            ),
+          ),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : !_searched
+                    ? Center(
+                        child: Text('차 이름을 2글자 이상 입력해 보세요',
+                            style: TextStyle(fontSize: 13, color: muted)))
+                    : _results.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.search_off_rounded,
+                                    size: 36, color: muted),
+                                const SizedBox(height: 10),
+                                Text('검색 결과가 없어요',
+                                    style: TextStyle(fontSize: 14, color: ink)),
+                                const SizedBox(height: 4),
+                                Text('시트를 닫고 직접 입력해 주세요',
+                                    style:
+                                        TextStyle(fontSize: 12, color: muted)),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+                            itemCount: _results.length,
+                            itemBuilder: (_, i) => _specTile(
+                                _results[i], isDark, accent, ink, muted),
+                          ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _specTile(Map<String, dynamic> it, bool isDark, Color accent,
+      Color ink, Color muted) {
+    final isEv = widget.kind == 'ev';
+    final eff = it['efficiency'];
+    final range = it['rangePerCharge'];
+    final sub = [
+      if ((it['company'] ?? '').toString().isNotEmpty) it['company'],
+      if ((it['year'] ?? '').toString().isNotEmpty) '${it['year']}년',
+      if ((it['fuelName'] ?? '').toString().isNotEmpty) it['fuelName'],
+      if ((it['gearType'] ?? '').toString().isNotEmpty) it['gearType'],
+    ].join(' · ');
+
+    return InkWell(
+      onTap: () => Navigator.pop(context, it),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkCard : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color:
+                isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
+            width: 0.5,
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text((it['model'] ?? '').toString(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                          color: ink)),
+                  if (sub.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(sub,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: muted)),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  eff is num ? '${eff.toStringAsFixed(1)}' : '-',
+                  style: TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w800, color: accent),
+                ),
+                Text(isEv ? 'km/kWh' : 'km/L',
+                    style: TextStyle(fontSize: 10.5, color: muted)),
+                if (isEv && range is num)
+                  Text('${range.toInt()}km',
+                      style: TextStyle(fontSize: 10.5, color: muted)),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

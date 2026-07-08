@@ -351,6 +351,26 @@ class ApiService {
     }
   }
 
+  /// 차량 제원 검색(에너지공단 공인연비) — 차량 등록 자동 입력용.
+  /// kind: 'gas'|'ev'. 2글자 미만이면 빈 목록.
+  Future<List<Map<String, dynamic>>> searchVehicleSpecs(String q,
+      {String? kind}) async {
+    try {
+      final res = await _dio.get('/vehicle-specs/search', queryParameters: {
+        'q': q,
+        if (kind != null) 'kind': kind,
+      });
+      final list = res.data?['items'];
+      if (list is List) {
+        return list
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+      }
+    } catch (_) {}
+    return const [];
+  }
+
   /// 내 제보 내역 — 서버가 라벨·내용 문구까지 완성해 내려줌 (상태·관리자 답변 포함).
   /// 회원: user_id 기준(+이 기기 게스트 시절 것), 게스트: 이 기기 것만.
   Future<List<Map<String, dynamic>>> getMyReports() async {
