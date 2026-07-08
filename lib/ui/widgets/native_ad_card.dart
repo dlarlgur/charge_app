@@ -7,6 +7,7 @@ import '../../core/theme/app_colors.dart';
 import '../../data/services/ad_service.dart';
 import '../../data/services/house_ad_service.dart';
 import '../../data/services/list_ad_cache.dart';
+import '../../data/services/ad_fallback_cache.dart';
 import '../../widgets/adfit_native_list_ad_widget.dart';
 import '../../widgets/adfit_native_top_ad_widget.dart';
 
@@ -20,8 +21,10 @@ import '../../widgets/adfit_native_top_ad_widget.dart';
 class AdMobNativeCard extends StatefulWidget {
   /// AdMob 광고 단위 ID.
   final String adUnitId;
+
   /// 리스트 위치 — AdFit 모드에서 위치별 AdFit 단위 매핑에 사용.
   final int listPosition;
+
   /// EV 탭 컨텍스트 — 좌측 4dp 컬러 스트립이 있는 layout 사용.
   final bool isEv;
   final EdgeInsets margin;
@@ -160,12 +163,15 @@ class _TopBannerAdmobCardState extends State<TopBannerAdmobCard> {
           child: AdFitNativeTopAdWidget(
             adCode: AdFitUnitIds.topBanner,
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            fallback: const HouseFallbackAd(placement: 'home_top'),
           ),
         );
       case AdNetwork.admob:
         break;
     }
-    if (_failed || !_loaded || _ad == null) return const SizedBox.shrink();
+    // AdMob 실패(no-fill) → 하우스 폴백. 로드 중엔 자리 접음(깜빡임 방지).
+    if (_failed) return const HouseFallbackAd(placement: 'home_top');
+    if (!_loaded || _ad == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
       child: ClipRRect(
@@ -232,12 +238,20 @@ class _StationDetailNativeAdState extends State<StationDetailNativeAd> {
           child: AdFitNativeTopAdWidget(
             adCode: AdFitUnitIds.detail,
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            fallback: const HouseFallbackAd(
+                placement: 'station_detail',
+                padding: EdgeInsets.fromLTRB(16, 4, 16, 8)),
           ),
         );
       case AdNetwork.admob:
         break;
     }
-    if (_failed || !_loaded || _ad == null) return const SizedBox.shrink();
+    if (_failed) {
+      return const HouseFallbackAd(
+          placement: 'station_detail',
+          padding: EdgeInsets.fromLTRB(16, 4, 16, 8));
+    }
+    if (!_loaded || _ad == null) return const SizedBox.shrink();
     return Padding(
       // 헤더 카드 바로 아래 — 좌우 16(카드와 동일), 위 약간 띄우고 탭과 간격.
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
@@ -253,6 +267,7 @@ class _StationDetailNativeAdState extends State<StationDetailNativeAd> {
 /// 콘솔에서 등록한 house ad 카드. 우리가 직접 그림 (자유 디자인).
 class HouseAdCard extends StatefulWidget {
   final HouseAd ad;
+
   /// EV 탭 컨텍스트 — 좌측 4dp 컬러 스트립 노출.
   final bool isEv;
   final EdgeInsets margin;
@@ -349,9 +364,8 @@ class _StructuredAdContent extends StatelessWidget {
         isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     final secondary =
         isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-    final labelBg = isDark
-        ? Colors.white.withValues(alpha: 0.08)
-        : const Color(0xFFE8ECF0);
+    final labelBg =
+        isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE8ECF0);
 
     final iconSize = isEv ? 44.0 : 38.0;
     final headlineSize = isEv ? 13.0 : 13.0;
@@ -497,6 +511,130 @@ class _BannerAdContent extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// 폴백 하우스 광고 카드 — 네트워크(AdMob/AdFit) no-fill 시 상단/상세 자리에 노출.
+/// 캐시에 폴백 광고 없으면 SizedBox.shrink() (자리 접음).
+class HouseFallbackAd extends StatelessWidget {
+  final String placement; // 'home_top' | 'station_detail'
+  final EdgeInsets padding;
+
+  const HouseFallbackAd({
+    super.key,
+    required this.placement,
+    this.padding = const EdgeInsets.fromLTRB(16, 8, 16, 4),
+  });
+
+  Future<void> _onTap(FallbackAd ad) async {
+    final url = ad.ctaUrl;
+    if (url == null || url.isEmpty || ad.ctaType == 'none') return;
+    try {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ad = AdFallbackCache.at(placement);
+    if (ad == null || ad.imageUrl.isEmpty) return const SizedBox.shrink();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? AppColors.darkSurface1 : Colors.white;
+    final border =
+        isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder;
+    final ink = isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A2E);
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final imgUrl = DkswCore.resolveAssetUrl(ad.imageUrl);
+
+    return Padding(
+      padding: padding,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => _onTap(ad),
+          child: ad.displayStyle == 'banner' || !ad.isStructured
+              // 풀폭 배너 — 이미지만
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: AspectRatio(
+                    aspectRatio: 16 / 5,
+                    child: CachedNetworkImage(
+                      imageUrl: imgUrl,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                    ),
+                  ),
+                )
+              // 2단 카드 — 아이콘 + 헤드라인/본문 + (광고)
+              : Container(
+                  height: 116,
+                  decoration: BoxDecoration(
+                    color: cardColor,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: border, width: 0.5),
+                  ),
+                  padding: const EdgeInsets.all(13),
+                  child: Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: CachedNetworkImage(
+                          imageUrl: imgUrl,
+                          width: 90,
+                          height: 90,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, __, ___) =>
+                              const SizedBox(width: 90, height: 90),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 5, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: muted.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text('AD',
+                                      style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w800,
+                                          color: muted)),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 5),
+                            Text(ad.headline ?? '',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: ink)),
+                            if ((ad.bodyText ?? '').isNotEmpty) ...[
+                              const SizedBox(height: 3),
+                              Text(ad.bodyText!,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 12, color: muted)),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+        ),
+      ),
     );
   }
 }

@@ -18,10 +18,14 @@ class AdFitNativeTopAdWidget extends StatefulWidget {
   /// 광고가 보일 때만 적용되는 바깥 여백 — 실패로 접힐 땐 여백도 없음.
   final EdgeInsets padding;
 
+  /// 최종 실패(no-fill) 시 대신 그릴 위젯(하우스 폴백). 없으면 자리 접음.
+  final Widget? fallback;
+
   const AdFitNativeTopAdWidget({
     super.key,
     required this.adCode,
     this.padding = EdgeInsets.zero,
+    this.fallback,
   });
 
   static const String _viewType = 'com.dksw.charge/adfit_native_top';
@@ -55,7 +59,9 @@ class _AdFitNativeTopAdWidgetState extends State<AdFitNativeTopAdWidget> {
   @override
   Widget build(BuildContext context) {
     if (kIsWeb || !Platform.isAndroid) return const SizedBox.shrink();
-    if (widget.adCode.isEmpty || _failed) return const SizedBox.shrink();
+    if (widget.adCode.isEmpty || _failed) {
+      return widget.fallback ?? const SizedBox.shrink();
+    }
 
     return Padding(
       padding: widget.padding,

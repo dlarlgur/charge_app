@@ -25,6 +25,7 @@ import 'data/services/exit_ad_service.dart';
 import 'data/services/alert_service.dart';
 import 'data/services/map_runtime_config.dart';
 import 'data/services/house_ad_service.dart';
+import 'data/services/ad_fallback_cache.dart';
 import 'data/services/notification_service.dart';
 import 'data/services/widget_service.dart';
 
@@ -38,8 +39,7 @@ Future<void> _consumePendingWidgetIntent() async {
     final stationId =
         await HomeWidget.getWidgetData<String>('widget_pending_station_id');
     await HomeWidget.saveWidgetData<String>('widget_pending_type', '');
-    await HomeWidget.saveWidgetData<String>(
-        'widget_pending_station_id', '');
+    await HomeWidget.saveWidgetData<String>('widget_pending_station_id', '');
     if (stationId == null || stationId.isEmpty) return;
     if (type == 'ev') {
       navigateToEvStationNotifier.value = stationId;
@@ -73,8 +73,7 @@ Future<void> _saveGasPriceToHive(Map<String, dynamic> data) async {
     final box = await Hive.openBox('settings');
     final raw = data['stations'];
     if (raw == null) return;
-    final stations =
-        List<Map<String, dynamic>>.from(jsonDecode(raw as String));
+    final stations = List<Map<String, dynamic>>.from(jsonDecode(raw as String));
     if (stations.isEmpty) return;
     // 별칭 lookup (background isolate) — 가스 알람 히스토리에도 별칭 표시.
     Box? aliasBox;
@@ -91,13 +90,12 @@ Future<void> _saveGasPriceToHive(Map<String, dynamic> data) async {
           : null;
       final name = (alias != null && alias.isNotEmpty) ? alias : originalName;
       final price = s['price'] as int;
-      final priceStr = price
-          .toString()
-          .replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-              (m) => '${m[1]},');
+      final priceStr = price.toString().replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
       final change = s['change'] as int? ?? 0;
       String changeStr = '';
-      if (change > 0) changeStr = ' ▲$change원';
+      if (change > 0)
+        changeStr = ' ▲$change원';
       else if (change < 0) changeStr = ' ▼${change.abs()}원';
       final fuelType = s['fuelType'] as String? ?? '';
       final fuelSuffix = fuelType.isNotEmpty ? ' ($fuelType)' : '';
@@ -120,7 +118,8 @@ Future<void> _saveGasPriceToHive(Map<String, dynamic> data) async {
     });
     if (msgs.length > 50) msgs.removeLast();
     await box.put('push_messages', msgs);
-    final unread = ((box.get('push_unread_count', defaultValue: 0) as int?) ?? 0) + 1;
+    final unread =
+        ((box.get('push_unread_count', defaultValue: 0) as int?) ?? 0) + 1;
     await box.put('push_unread_count', unread);
   } catch (e) {
     if (kDebugMode) debugPrint('[fcm-bg] gas price hive save 실패: $e');
@@ -144,8 +143,9 @@ void _onBackgroundNotificationResponse(NotificationResponse details) async {
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  final androidPlugin = notificationPlugin
-      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+  final androidPlugin =
+      notificationPlugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
   await androidPlugin?.createNotificationChannel(gasPriceChannel);
   await androidPlugin?.createNotificationChannel(gasPriceChannelVibrate);
   await androidPlugin?.createNotificationChannel(gasPriceChannelSilent);
@@ -157,7 +157,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     const InitializationSettings(
       android: AndroidInitializationSettings('@mipmap/ic_launcher'),
     ),
-    onDidReceiveBackgroundNotificationResponse: _onBackgroundNotificationResponse,
+    onDidReceiveBackgroundNotificationResponse:
+        _onBackgroundNotificationResponse,
   );
   await Hive.initFlutter();
   // 백그라운드 isolate 은 프로세스 생존 동안 유지되는데, openBox 는 최초 1회만
@@ -172,17 +173,20 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   }
   await Hive.openBox('station_aliases');
   if (message.data['type'] == 'gas_price_alert') {
-    final soundMode = (box.get('alert_sound_mode', defaultValue: 0) as int?) ?? 0;
+    final soundMode =
+        (box.get('alert_sound_mode', defaultValue: 0) as int?) ?? 0;
     showGasPriceNotification(message.data, soundMode: soundMode);
     await _saveGasPriceToHive(message.data);
   } else if (message.data['type'] == 'ev_alarm') {
     if (box.get('ev_alarm_enabled', defaultValue: true) == true) {
-      final soundMode = (box.get('ev_alarm_sound_mode', defaultValue: 0) as int?) ?? 0;
+      final soundMode =
+          (box.get('ev_alarm_sound_mode', defaultValue: 0) as int?) ?? 0;
       showEvAlarmNotification(message.data, soundMode: soundMode);
       await _saveEvAlarmToHive(box, message.data);
     }
   } else if (message.data['type'] == 'ev_watch') {
-    final soundMode = (box.get('ev_alarm_sound_mode', defaultValue: 0) as int?) ?? 0;
+    final soundMode =
+        (box.get('ev_alarm_sound_mode', defaultValue: 0) as int?) ?? 0;
     showEvWatchNotification(message.data, soundMode: soundMode);
     await _saveEvAlarmToHive(box, message.data);
   } else if (message.notification == null &&
@@ -219,9 +223,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> _saveGenericPushToHive(dynamic box, RemoteMessage message) async {
   try {
     // v2 data-only 는 title/body 가 data 에 실려 옴 — notification 페이로드 폴백 겸용.
-    final title = message.notification?.title ??
-        message.data['title']?.toString() ??
-        '';
+    final title =
+        message.notification?.title ?? message.data['title']?.toString() ?? '';
     final body =
         message.notification?.body ?? message.data['body']?.toString() ?? '';
     if (title.isEmpty && body.isEmpty) return;
@@ -294,7 +297,8 @@ Future<void> _saveEvAlarmToHive(dynamic box, Map<String, dynamic> data) async {
     });
     if (msgs.length > 50) msgs.removeLast();
     await box.put('push_messages', msgs);
-    final unread = ((box.get('push_unread_count', defaultValue: 0) as int?) ?? 0) + 1;
+    final unread =
+        ((box.get('push_unread_count', defaultValue: 0) as int?) ?? 0) + 1;
     await box.put('push_unread_count', unread);
   } catch (e) {
     if (kDebugMode) debugPrint('[fcm-bg] ev alarm hive save 실패: $e');
@@ -304,8 +308,9 @@ Future<void> _saveEvAlarmToHive(dynamic box, Map<String, dynamic> data) async {
 /// 로컬 알림 채널 + 핸들러 초기화. main() 을 빨리 끝내기 위해 분리.
 /// 채널 생성은 OS 측에서 idempotent — 첫 알림이 발송되기 전에만 끝나면 됨.
 Future<void> _initLocalNotifications() async {
-  final androidPlugin = notificationPlugin
-      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+  final androidPlugin =
+      notificationPlugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
   await androidPlugin?.createNotificationChannel(gasPriceChannel);
   await androidPlugin?.createNotificationChannel(gasPriceChannelVibrate);
   await androidPlugin?.createNotificationChannel(gasPriceChannelSilent);
@@ -321,7 +326,8 @@ Future<void> _initLocalNotifications() async {
       final payload = details.payload ?? '';
       if (details.actionId == 'mark_read') {
         AlertService().markAllRead();
-      } else if (details.actionId == 'find_alt' && payload.startsWith('ev_watch:')) {
+      } else if (details.actionId == 'find_alt' &&
+          payload.startsWith('ev_watch:')) {
         // "다른 충전소" 액션 — 만석 도달 시 AI 재추천 트리거
         final stationId = payload.substring('ev_watch:'.length);
         excludeStationOnReplanNotifier.value = stationId;
@@ -367,7 +373,8 @@ Future<void> _initLocalNotifications() async {
         navigateToAlertsNotifier.value++;
       }
     },
-    onDidReceiveBackgroundNotificationResponse: _onBackgroundNotificationResponse,
+    onDidReceiveBackgroundNotificationResponse:
+        _onBackgroundNotificationResponse,
   );
 }
 
@@ -499,6 +506,8 @@ Future<void> _initBackgroundTasks() async {
   }
   // house ad — 디스크 캐시는 main 에서 이미 install 됨. 여기선 백그라운드 갱신.
   unawaited(HouseAdCache.fetch());
+  // 폴백 하우스 광고(상단·상세) — 네트워크 no-fill 시 대체 노출용, 미리 받아둠.
+  unawaited(AdFallbackCache.fetchAll());
   // 지도 런타임 설정(클러스터 줌 등) — 원격설정으로 빌드 없이 조정. 지도 열기 전에 미리 받아둠.
   unawaited(MapRuntimeConfig.fetch());
 }

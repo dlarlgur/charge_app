@@ -198,9 +198,12 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
       } else {
         if (eff is num && eff > 0) {
           _evEffController.text = _fmtNum(eff.toDouble());
+          // 배터리: 아는 값(batteryCapacity) 우선, 없으면 주행거리÷전비 역산
+          final bat = picked['batteryCapacity'];
           final range = picked['rangePerCharge'];
-          // 배터리 용량 = 1회충전 주행거리 ÷ 전비 (공인 기준 역산)
-          if (range is num && range > 0) {
+          if (bat is num && bat > 0) {
+            _batteryController.text = _fmtNum(bat.toDouble());
+          } else if (range is num && range > 0) {
             _batteryController.text =
                 _fmtNum((range.toDouble() / eff.toDouble()));
           }
