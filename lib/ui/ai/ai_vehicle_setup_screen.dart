@@ -399,19 +399,21 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
     return v == true || v == 1 || v == '1' || v == 'true';
   }
 
-  // 브랜드별 노출 — 콘솔 'feature.connected_car.<brand>' = true 일 때만 칩 노출.
-  bool _connectedBrandEnabled(String code) =>
-      _flagOn('feature.connected_car.$code');
-
-  // 커넥티드 노출 여부 — 전체 플래그 ON 이거나, 베타 화이트리스트에 내 기기가 있을 때.
-  // 베타: 공지→1:1 문의로 신청받은 사용자의 deviceId 를 콘솔 원격설정
-  // 'connected_beta_devices'(JSON 배열)에 넣으면 그 기기에만 메뉴가 열림.
-  bool get _connectedVisible {
-    if (_flagOn('feature.connected_car')) return true;
+  // 베타 화이트리스트 — 공지→1:1 문의로 신청받은 사용자의 deviceId 를 콘솔
+  // 원격설정 'connected_beta_devices'(JSON 배열)에 넣으면 그 기기에만 열림.
+  bool get _connectedBetaDevice {
     final list = DkswCore.config<List>('connected_beta_devices') ?? const [];
-    final mine = DkswCore.deviceId;
-    return list.map((e) => e.toString().trim()).contains(mine);
+    return list.map((e) => e.toString().trim()).contains(DkswCore.deviceId);
   }
+
+  // 브랜드별 노출 — 'feature.connected_car.<brand>' = true 일 때만 칩 노출.
+  // 베타 기기는 3사 모두 노출(브랜드 플래그 없이 바로 테스트).
+  bool _connectedBrandEnabled(String code) =>
+      _flagOn('feature.connected_car.$code') || _connectedBetaDevice;
+
+  // 커넥티드 노출 여부 — 전체 플래그 ON 이거나 베타 기기일 때.
+  bool get _connectedVisible =>
+      _flagOn('feature.connected_car') || _connectedBetaDevice;
 
   Widget _buildConnectedSection(
       bool isDark, Color labelColor, Color hintColor) {
