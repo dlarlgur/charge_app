@@ -909,19 +909,21 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
                         fillColor: isDark
                             ? AppColors.darkCard
                             : const Color(0xFFF8F8F8),
+                        // 라이트에서도 테두리 — 배경과 톤이 비슷해 입력칸인지
+                        // 안 보이던 문제(경계 없음) 수정.
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: isDark
-                              ? const BorderSide(
-                                  color: AppColors.darkCardBorder)
-                              : BorderSide.none,
+                          borderSide: BorderSide(
+                              color: isDark
+                                  ? AppColors.darkCardBorder
+                                  : const Color(0xFFD8DEE7)),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: isDark
-                              ? const BorderSide(
-                                  color: AppColors.darkCardBorder)
-                              : BorderSide.none,
+                          borderSide: BorderSide(
+                              color: isDark
+                                  ? AppColors.darkCardBorder
+                                  : const Color(0xFFD8DEE7)),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -1492,7 +1494,7 @@ class _InputField extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final fieldBg = isDark ? AppColors.darkCard : const Color(0xFFFAFAFA);
     final fieldBorder =
-        isDark ? AppColors.darkCardBorder : const Color(0xFFEEEEEE);
+        isDark ? AppColors.darkCardBorder : const Color(0xFFD8DEE7);
     final textColor =
         isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a);
     final hintColor =
