@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:dksw_app_core/dksw_app_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -89,6 +90,26 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
     _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeInOut);
     _animCtrl.forward();
     _loadSaved();
+    _debugConnectedGate();
+  }
+
+  // [임시 진단] 커넥티드 베타 게이트가 실제로 뭘 보는지 flutter run 콘솔에 찍음.
+  //   - myDeviceId: 이 기기의 runtime DkswCore.deviceId (콘솔 화이트리스트와 비교할 값)
+  //   - whitelist:  bootstrap 으로 받은 connected_beta_devices (null=bootstrap 실패/미수신)
+  //   - featureFlag/beta/visible: 최종 판정
+  void _debugConnectedGate() {
+    if (!kDebugMode) return;
+    final raw = DkswCore.config<dynamic>('connected_beta_devices');
+    final list = DkswCore.config<List>('connected_beta_devices');
+    debugPrint('════════ [CONNECTED-GATE] ════════');
+    debugPrint('  myDeviceId   = "${DkswCore.deviceId}"');
+    debugPrint('  bootstrap?   = ${DkswCore.lastBootstrap != null}');
+    debugPrint('  whitelistRaw = $raw (${raw.runtimeType})');
+    debugPrint('  whitelist    = ${list?.map((e) => '"${e.toString().trim()}"').toList()}');
+    debugPrint('  featureFlag  = ${_flagOn('feature.connected_car')}');
+    debugPrint('  isBetaDevice = $_connectedBetaDevice');
+    debugPrint('  → visible    = $_connectedVisible');
+    debugPrint('═══════════════════════════════════');
   }
 
   void _loadSaved() {
@@ -648,6 +669,9 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
       if (e.response?.statusCode == 401) {
         if (mounted) setState(() => _connectLoginStarted = false);
         _showError('로그인이 안 됐어요. "연동하기"부터 다시 해주세요.');
+      } else if (ConnectedService.errorCode(e) == '5005') {
+        // 제3자 정보제공 미동의 → 동의 페이지로 넘겨 복구
+        await _startConnectedConsent();
       } else {
         _showError(ConnectedService.errorMessage(e, '차량을 불러오지 못했어요.'));
       }
@@ -655,6 +679,25 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
       _showError(ConnectedService.errorMessage(e, '차량을 불러오지 못했어요.'));
     } finally {
       if (mounted) setState(() => _connectBusy = false);
+    }
+  }
+
+  // 제3자제공 동의 시작 — 서버에서 동의 URL 받아 Custom Tab 으로 연다.
+  // 동의 완료 후 사용자가 앱에 돌아오면 "차량 불러오기"를 다시 눌러 진행.
+  Future<void> _startConnectedConsent() async {
+    if (_connectedBrand.isEmpty) return;
+    try {
+      final url = await ConnectedService.getAgreeUrl(_connectedBrand);
+      if (url == null || url.isEmpty) {
+        _showError('동의 URL을 받지 못했어요.');
+        return;
+      }
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      if (mounted) {
+        showAppToast(context, '정보제공 동의 후 "차량 불러오기"를 다시 눌러주세요');
+      }
+    } catch (e) {
+      _showError(ConnectedService.errorMessage(e, '동의 진행에 실패했어요. 잠시 후 다시.'));
     }
   }
 

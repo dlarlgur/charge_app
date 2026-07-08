@@ -41,6 +41,13 @@ class ConnectedService {
     return url is String ? url : null;
   }
 
+  /// 제3자제공 '동의' URL 받기 — 5005(미동의) 복구용. Custom Tab 으로 열면 됨.
+  static Future<String?> getAgreeUrl(String brand) async {
+    final res = await _dio.get('/connected/$brand/agree-url', options: await _auth());
+    final url = res.data is Map ? res.data['agreeUrl'] : null;
+    return url is String ? url : null;
+  }
+
   /// 연동·동의 완료된 차량 리스트.
   static Future<List<ConnectedCar>> vehicles(String brand) async {
     final res = await _dio.get('/connected/vehicles',
@@ -87,5 +94,14 @@ class ConnectedService {
       if (m is String && m.isNotEmpty) return m;
     }
     return fallback;
+  }
+
+  /// CCAPI errCode 추출 (예: '5005'=제3자 미동의). 없으면 null.
+  static String? errorCode(Object e) {
+    if (e is DioException && e.response?.data is Map) {
+      final c = (e.response!.data as Map)['errCode'];
+      if (c != null) return '$c';
+    }
+    return null;
   }
 }
