@@ -60,6 +60,8 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
   final _tankController = TextEditingController();
   // 차종 검색으로 채운 탱크 용량이 AI 추정값임을 표시(안내문 노출용)
   bool _tankFromEstimate = false;
+  // 차종 검색으로 채운 배터리 용량 — 트림별 차이 가능, 확인 안내용
+  bool _batteryFromSpec = false;
   final _effController = TextEditingController();
   String _targetMode = 'FULL';
   final _priceController = TextEditingController(text: '50000');
@@ -214,9 +216,11 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
           final range = picked['rangePerCharge'];
           if (bat is num && bat > 0) {
             _batteryController.text = _fmtNum(bat.toDouble());
+            _batteryFromSpec = true;
           } else if (range is num && range > 0) {
             _batteryController.text =
                 _fmtNum((range.toDouble() / eff.toDouble()));
+            _batteryFromSpec = true;
           }
         }
       }
@@ -1118,6 +1122,24 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
         _sectionLabel('배터리 용량', sectionLabelColor),
         const SizedBox(height: 8),
         _InputField(controller: _batteryController, suffix: 'kWh', hint: '64'),
+        if (_batteryFromSpec) ...[
+          const SizedBox(height: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.info_outline_rounded,
+                  size: 13, color: AppColors.warning),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  '자동 입력값이에요 — 트림에 따라 다를 수 있으니 확인하고 수정해 주세요',
+                  style: TextStyle(
+                      fontSize: 11.5, color: AppColors.warning, height: 1.4),
+                ),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: 20),
 
         _sectionLabel('평균 전비', sectionLabelColor),
