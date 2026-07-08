@@ -58,6 +58,8 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
   // 내연기관 필드
   FuelType _fuelType = FuelType.gasoline;
   final _tankController = TextEditingController();
+  // 차종 검색으로 채운 탱크 용량이 AI 추정값임을 표시(안내문 노출용)
+  bool _tankFromEstimate = false;
   final _effController = TextEditingController();
   String _targetMode = 'FULL';
   final _priceController = TextEditingController(text: '50000');
@@ -193,8 +195,17 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
       if (_vehicleType == 'gas') {
         final code = (picked['fuelType'] ?? 'B027').toString();
         _fuelType = FuelType.fromCode(code);
-        if (eff is num && eff > 0)
+        if (eff is num && eff > 0) {
           _effController.text = _fmtNum(eff.toDouble());
+        }
+        // 탱크 용량 — AI 추정값 프리필 (안내문 노출 + 수정 유도)
+        final tank = picked['tankCapacity'];
+        if (tank is num && tank > 0) {
+          _tankController.text = _fmtNum(tank.toDouble());
+          _tankFromEstimate = true;
+        } else {
+          _tankFromEstimate = false;
+        }
       } else {
         if (eff is num && eff > 0) {
           _evEffController.text = _fmtNum(eff.toDouble());
@@ -1002,6 +1013,24 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
         _sectionLabel('탱크 용량', sectionLabelColor),
         const SizedBox(height: 8),
         _InputField(controller: _tankController, suffix: 'L', hint: '55'),
+        if (_tankFromEstimate) ...[
+          const SizedBox(height: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.info_outline_rounded,
+                  size: 13, color: AppColors.warning),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  'AI 추정값이에요 — 실제와 다를 수 있으니 차량 제원을 확인하고 수정해 주세요',
+                  style: TextStyle(
+                      fontSize: 11.5, color: AppColors.warning, height: 1.4),
+                ),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: 20),
 
         _sectionLabel('평균 연비', sectionLabelColor),
