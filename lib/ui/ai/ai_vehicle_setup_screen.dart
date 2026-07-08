@@ -403,11 +403,21 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
   bool _connectedBrandEnabled(String code) =>
       _flagOn('feature.connected_car.$code');
 
+  // 커넥티드 노출 여부 — 전체 플래그 ON 이거나, 베타 화이트리스트에 내 기기가 있을 때.
+  // 베타: 공지→1:1 문의로 신청받은 사용자의 deviceId 를 콘솔 원격설정
+  // 'connected_beta_devices'(JSON 배열)에 넣으면 그 기기에만 메뉴가 열림.
+  bool get _connectedVisible {
+    if (_flagOn('feature.connected_car')) return true;
+    final list = DkswCore.config<List>('connected_beta_devices') ?? const [];
+    final mine = DkswCore.deviceId;
+    return list.map((e) => e.toString().trim()).contains(mine);
+  }
+
   Widget _buildConnectedSection(
       bool isDark, Color labelColor, Color hintColor) {
-    // 커넥티드 연동은 원격설정 플래그로 게이팅 — 기본 숨김.
-    // 콘솔 app_remote_config 'feature.connected_car' = true 로 켜면 노출(앱 업데이트 불필요).
-    if (!_flagOn('feature.connected_car')) return const SizedBox.shrink();
+    // 커넥티드 연동은 원격설정 게이팅 — 기본 숨김.
+    // 전체 공개: 'feature.connected_car'=true / 베타: 'connected_beta_devices' 배열.
+    if (!_connectedVisible) return const SizedBox.shrink();
     final accent = _vehicleType == 'gas' ? _kGasBlue : _kEvGreen;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
