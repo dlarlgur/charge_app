@@ -26,6 +26,10 @@ class AlertService {
   static const _alertsEnabledKey = 'alerts_enabled';
   static const _messagesKey = 'push_messages';             // List of received messages
   static const _unreadCountKey = 'push_unread_count';      // 미읽음 수
+  // 알림 내역 전용 박스 — settings 와 분리. 백그라운드 아이솔레이트가 디스크에 쓴 알림을
+  // 메인 아이솔레이트가 resume 시 이 박스만 닫았다 다시 열어 최신화한다.
+  // (settings 박스는 앱 전체가 동기적으로 물고 있어 닫을 수 없어 별도 박스로 분리)
+  static const _inboxBoxKey = 'push_inbox';
   static const _alertHourKey = 'alert_hour';
   static const _alertMinuteKey = 'alert_minute';
   static const _soundModeKey = 'alert_sound_mode'; // 0=소리, 1=진동, 2=무음
@@ -150,8 +154,36 @@ class AlertService {
 
   // ── 수신된 푸시 메시지 관리 ──
 
+  // 알림 내역 박스 — 닫혀있으면(재오픈 순간) null. 읽기는 빈값, 쓰기는 스킵.
+  Box? get _inbox => Hive.isBoxOpen(_inboxBoxKey) ? Hive.box(_inboxBoxKey) : null;
+
+  /// 앱 시작 시 1회 — 전용 박스 오픈 + 기존 settings 의 알림 내역 이전(마이그레이션).
+  static Future<void> initInbox() async {
+    if (!Hive.isBoxOpen(_inboxBoxKey)) await Hive.openBox(_inboxBoxKey);
+    final inbox = Hive.box(_inboxBoxKey);
+    // settings 에 남아있던 옛 내역을 1회 이전 (이후 settings 쪽은 안 씀)
+    if (inbox.get(_messagesKey) == null && Hive.isBoxOpen(_boxKey)) {
+      final settings = Hive.box(_boxKey);
+      final old = settings.get(_messagesKey);
+      if (old != null) {
+        await inbox.put(_messagesKey, old);
+        await inbox.put(_unreadCountKey, settings.get(_unreadCountKey, defaultValue: 0));
+        await settings.delete(_messagesKey);
+      }
+    }
+  }
+
+  /// 백그라운드 아이솔레이트가 쓴 알림을 최신화 — 앱 resume·알림함 진입 시 호출.
+  static Future<void> reloadInbox() async {
+    try {
+      if (Hive.isBoxOpen(_inboxBoxKey)) await Hive.box(_inboxBoxKey).close();
+      await Hive.openBox(_inboxBoxKey);
+    } catch (_) {}
+    messagesChanged.value++;
+  }
+
   List<Map<String, dynamic>> get receivedMessages {
-    final raw = Hive.box(_boxKey).get(_messagesKey, defaultValue: <dynamic>[]);
+    final raw = _inbox?.get(_messagesKey, defaultValue: <dynamic>[]) ?? <dynamic>[];
     return List<Map<String, dynamic>>.from(
         (raw as List).map((e) => Map<String, dynamic>.from(e as Map)));
   }
@@ -159,9 +191,9 @@ class AlertService {
   int get messageCount => receivedMessages.length;
 
   int get unreadCount =>
-      (Hive.box(_boxKey).get(_unreadCountKey, defaultValue: 0) as int?) ?? 0;
+      (_inbox?.get(_unreadCountKey, defaultValue: 0) as int?) ?? 0;
 
-  void markAllRead() => Hive.box(_boxKey).put(_unreadCountKey, 0);
+  void markAllRead() => _inbox?.put(_unreadCountKey, 0);
 
   /// 알림 내역 변경 신호 — 알림 페이지가 열려 있는 동안 새 푸시가 오면 리스트 즉시 갱신용.
   static final ValueNotifier<int> messagesChanged = ValueNotifier<int>(0);
@@ -170,7 +202,8 @@ class AlertService {
   /// type: notice/event/inquiry_reply/ev/gas_price 등, refId: 공지id·문의id·충전소id·주유소id.
   void addMessage(
       {required String title, required String body, String? type, String? refId}) {
-    final box = Hive.box(_boxKey);
+    final box = _inbox;
+    if (box == null) return; // 박스 재오픈 순간(극히 드묾) — 스킵
     final msgs = receivedMessages;
     msgs.insert(0, {
       'id': const Uuid().v4(),
@@ -253,11 +286,11 @@ class AlertService {
   void deleteMessage(String id) {
     final msgs = receivedMessages;
     msgs.removeWhere((m) => m['id'] == id);
-    Hive.box(_boxKey).put(_messagesKey, msgs);
+    _inbox?.put(_messagesKey, msgs);
   }
 
   void clearMessages() {
-    Hive.box(_boxKey).put(_messagesKey, <dynamic>[]);
+    _inbox?.put(_messagesKey, <dynamic>[]);
   }
 
   /// 알림 전체 켜기/끄기

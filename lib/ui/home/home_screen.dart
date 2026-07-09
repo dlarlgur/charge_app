@@ -289,6 +289,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (state == AppLifecycleState.resumed) {
       // 앱이 포그라운드로 돌아올 때 위젯 딥링크 대기값 소비
       _consumeWidgetPendingOnResume();
+      // 백그라운드 아이솔레이트가 저장한 알림 내역을 재오픈으로 최신화 → 뱃지·목록 갱신.
+      AlertService.reloadInbox().then((_) {
+        if (mounted) _messageBadgeKey.currentState?.refreshCount();
+      });
     }
   }
 

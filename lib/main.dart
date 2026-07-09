@@ -66,11 +66,9 @@ void callbackDispatcher() {
   });
 }
 
-/// 백그라운드 isolate에서 Hive에 알림 내역 저장
-Future<void> _saveGasPriceToHive(Map<String, dynamic> data) async {
+/// 백그라운드 isolate에서 Hive에 알림 내역 저장 (box = push_inbox, 호출부에서 최신 오픈)
+Future<void> _saveGasPriceToHive(dynamic box, Map<String, dynamic> data) async {
   try {
-    await Hive.initFlutter();
-    final box = await Hive.openBox('settings');
     final raw = data['stations'];
     if (raw == null) return;
     final stations = List<Map<String, dynamic>>.from(jsonDecode(raw as String));
@@ -132,9 +130,9 @@ void _onBackgroundNotificationResponse(NotificationResponse details) async {
   if (details.actionId == 'mark_read') {
     try {
       await Hive.initFlutter();
-      final box = Hive.isBoxOpen('settings')
-          ? Hive.box('settings')
-          : await Hive.openBox('settings');
+      final box = Hive.isBoxOpen('push_inbox')
+          ? Hive.box('push_inbox')
+          : await Hive.openBox('push_inbox');
       await box.put('push_unread_count', 0);
     } catch (_) {}
   }
@@ -172,23 +170,27 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     await Hive.box('station_aliases').close();
   }
   await Hive.openBox('station_aliases');
+  // 알림 내역 전용 박스 — 같은 이유(크로스 아이솔레이트 stale)로 매번 닫고 다시 열어
+  // 메인 아이솔레이트(포그라운드)가 쓴 최신 리스트에 이어붙인다. 메인은 resume 시 재오픈해 이걸 읽음.
+  if (Hive.isBoxOpen('push_inbox')) await Hive.box('push_inbox').close();
+  final inbox = await Hive.openBox('push_inbox');
   if (message.data['type'] == 'gas_price_alert') {
     final soundMode =
         (box.get('alert_sound_mode', defaultValue: 0) as int?) ?? 0;
     showGasPriceNotification(message.data, soundMode: soundMode);
-    await _saveGasPriceToHive(message.data);
+    await _saveGasPriceToHive(inbox, message.data);
   } else if (message.data['type'] == 'ev_alarm') {
     if (box.get('ev_alarm_enabled', defaultValue: true) == true) {
       final soundMode =
           (box.get('ev_alarm_sound_mode', defaultValue: 0) as int?) ?? 0;
       showEvAlarmNotification(message.data, soundMode: soundMode);
-      await _saveEvAlarmToHive(box, message.data);
+      await _saveEvAlarmToHive(inbox, message.data);
     }
   } else if (message.data['type'] == 'ev_watch') {
     final soundMode =
         (box.get('ev_alarm_sound_mode', defaultValue: 0) as int?) ?? 0;
     showEvWatchNotification(message.data, soundMode: soundMode);
-    await _saveEvAlarmToHive(box, message.data);
+    await _saveEvAlarmToHive(inbox, message.data);
   } else if (message.notification == null &&
       (message.data['title'] != null || message.data['body'] != null)) {
     // v2 data-only 공지·이벤트·문의답변·자유푸시 — 앱이 직접 그림.
@@ -211,11 +213,11 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       default: // notice·free_push 등
         showNoticeNotification(title: t, body: b, noticeId: id);
     }
-    await _saveGenericPushToHive(box, message);
+    await _saveGenericPushToHive(inbox, message);
   } else if (message.notification != null) {
     // 레거시(notification payload) — 표시는 시스템이 하고, 여기선 알림 내역에만 저장
     // (홈 우측 위 알림함에서 모든 푸시를 다시 볼 수 있게)
-    await _saveGenericPushToHive(box, message);
+    await _saveGenericPushToHive(inbox, message);
   }
 }
 
@@ -414,6 +416,8 @@ void main() async {
   await Hive.openBox('favorites');
   await Hive.openBox('station_aliases');
   await Hive.openBox('charger_memos');
+  // 알림 내역 전용 박스 오픈 + 기존 settings 내역 1회 이전 (백그라운드 저장분 resume 최신화용)
+  await AlertService.initInbox();
 
   // House ad: 디스크 캐시 즉시 로드 → 첫 프레임에 광고가 있으면 바로 보임.
   // 네트워크 fetch 는 백그라운드에서 갱신 (stale-while-revalidate).
