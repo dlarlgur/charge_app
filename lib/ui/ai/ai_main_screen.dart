@@ -1295,6 +1295,28 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
               ),
             );
           }
+          // 한글 초성 그룹(가나다순). 쌍자음은 기본자음으로, 영문/기타는 별도.
+          String initialOf(String name) {
+            if (name.isEmpty) return '#';
+            final c = name.codeUnitAt(0);
+            if (c >= 0xAC00 && c <= 0xD7A3) {
+              const leads = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+              const merge = {'ㄲ':'ㄱ','ㄸ':'ㄷ','ㅃ':'ㅂ','ㅆ':'ㅅ','ㅉ':'ㅈ'};
+              final l = leads[(c - 0xAC00) ~/ 588];
+              return merge[l] ?? l;
+            }
+            if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122)) return 'A-Z';
+            return '#';
+          }
+          const initialOrder = ['ㄱ','ㄴ','ㄷ','ㄹ','ㅁ','ㅂ','ㅅ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ','A-Z','#'];
+          final grouped = <String, List<Map<String, dynamic>>>{};
+          for (final o in _evOperatorAll) {
+            (grouped[initialOf((o['name'] as String? ?? ''))] ??= []).add(o);
+          }
+          for (final list in grouped.values) {
+            list.sort((a, b) => (a['name'] as String? ?? '')
+                .compareTo(b['name'] as String? ?? ''));
+          }
 
           return Container(
             decoration: BoxDecoration(
@@ -1398,19 +1420,62 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                   .map((o) => chip(o['name'] as String? ?? '',
                                       (o['count'] as num?)?.toInt() ?? 0))
                                   .toList()),
-                          // 대표 외에 추가로 고른 사업자(검색으로 선택한 것)도 칩으로 노출
-                          ...(() {
-                            final repNames =
-                                _evOperatorRep.map((o) => o['name']).toSet();
-                            final extra = sel
-                                .where((n) => !repNames.contains(n))
-                                .toList();
-                            if (extra.isEmpty) return <Widget>[];
-                            return [
-                              const SizedBox(height: 6),
-                              Wrap(children: extra.map((n) => chip(n, 0)).toList()),
-                            ];
-                          })(),
+                          const SizedBox(height: 20),
+                          // 전체 충전소 사업자 — 가나다순 전체 목록 + 전체선택(=미선택) 토글
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('전체 충전소 사업자',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark
+                                          ? AppColors.darkTextMuted
+                                          : const Color(0xFF9CA3AF))),
+                              GestureDetector(
+                                onTap: () => setSheet(() => sel.clear()),
+                                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                  Icon(Icons.check_rounded,
+                                      size: 15,
+                                      color: sel.isEmpty
+                                          ? accent
+                                          : (isDark
+                                              ? AppColors.darkTextMuted
+                                              : const Color(0xFF9CA3AF))),
+                                  const SizedBox(width: 3),
+                                  Text('전체 선택',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: sel.isEmpty
+                                              ? accent
+                                              : (isDark
+                                                  ? AppColors.darkTextMuted
+                                                  : const Color(0xFF9CA3AF)))),
+                                ]),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          for (final ini in initialOrder)
+                            if ((grouped[ini] ?? const []).isNotEmpty) ...[
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4, bottom: 8),
+                                child: Text(ini,
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                        color: isDark
+                                            ? AppColors.darkTextMuted
+                                            : const Color(0xFFB0B6C0))),
+                              ),
+                              Wrap(
+                                  children: grouped[ini]!
+                                      .map((o) => chip(o['name'] as String? ?? '',
+                                          (o['count'] as num?)?.toInt() ?? 0))
+                                      .toList()),
+                              const SizedBox(height: 10),
+                            ],
                         ] else if (searchHits.isEmpty)
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 20),
