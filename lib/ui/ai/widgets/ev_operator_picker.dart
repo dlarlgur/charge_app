@@ -31,8 +31,9 @@ Future<Set<String>?> showEvOperatorPicker(
   // 저장된 필터 없음(빈 집합) = 전체 → 모두 켜서 시작. 부분선택이면 그것만.
   final sel = initial.isEmpty ? Set<String>.from(allNames) : Set<String>.from(initial);
   String query = '';
+  final searchCtrl = TextEditingController();
 
-  return showModalBottomSheet<Set<String>>(
+  final result = await showModalBottomSheet<Set<String>>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
@@ -47,10 +48,21 @@ Future<Set<String>?> showEvOperatorPicker(
                 .take(30)
                 .toList();
 
-        Widget chip(String name, int count) {
+        Widget chip(String name, int count, {bool fromSearch = false}) {
           final on = sel.contains(name);
           return GestureDetector(
-            onTap: () => setSheet(() => on ? sel.remove(name) : sel.add(name)),
+            onTap: () => setSheet(() {
+              if (on) {
+                sel.remove(name);
+              } else {
+                sel.add(name);
+              }
+              // 검색으로 고르면 검색을 비우고 선택 목록으로 복귀 → 이어서 또 검색·추가 가능.
+              if (fromSearch) {
+                searchCtrl.clear();
+                query = '';
+              }
+            }),
             child: Container(
               margin: const EdgeInsets.only(right: 8, bottom: 8),
               padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
@@ -175,6 +187,7 @@ Future<Set<String>?> showEvOperatorPicker(
                   style: TextStyle(fontSize: 12.5, color: muted)),
               const SizedBox(height: 14),
               TextField(
+                controller: searchCtrl,
                 onChanged: (v) => setSheet(() => query = v),
                 decoration: InputDecoration(
                   hintText: '사업자 검색 (예: 환경부, 스타코프)',
@@ -274,7 +287,8 @@ Future<Set<String>?> showEvOperatorPicker(
                         Wrap(
                             children: searchHits
                                 .map((o) => chip(o['name'] as String? ?? '',
-                                    (o['count'] as num?)?.toInt() ?? 0))
+                                    (o['count'] as num?)?.toInt() ?? 0,
+                                    fromSearch: true))
                                 .toList()),
                     ],
                   ),
@@ -314,6 +328,8 @@ Future<Set<String>?> showEvOperatorPicker(
       },
     ),
   );
+  searchCtrl.dispose();
+  return result;
 }
 
 /// /operators 목록 세션 캐시 — 시트 열 때마다 재요청하지 않도록.
