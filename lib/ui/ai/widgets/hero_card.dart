@@ -29,6 +29,10 @@ class HeroCard extends StatelessWidget {
   // 주유 전용 — 선호 브랜드(OPINET pollDivCo 키) 멀티선택. 빈 set = 전체.
   final Set<String> preferredBrands;
   final ValueChanged<String>? onToggleBrand;
+  // 충전 전용 — 사업자 필터. 요약 텍스트(예: "환경부, 워터" / "전체")·선택 수·탭 콜백.
+  final int operatorCount;         // 선택된 사업자 수 (0 = 전체)
+  final String operatorSummary;    // 행 오른쪽 요약 텍스트
+  final VoidCallback? onTapOperators;
   final Widget? topHandle;
 
   // 선호 브랜드 칩 옵션 (키=pollDivCo, 라벨). 알뜰은 RTO 키 하나로 받고 서버 전송 시 RTX 도 확장.
@@ -63,6 +67,9 @@ class HeroCard extends StatelessWidget {
     this.onChangeChargerMode,
     this.preferredBrands = const <String>{},
     this.onToggleBrand,
+    this.operatorCount = 0,
+    this.operatorSummary = '전체',
+    this.onTapOperators,
     this.topHandle,
     this.isConnected = false,
     this.isFetching = false,
@@ -262,6 +269,53 @@ class HeroCard extends StatelessWidget {
               ],
             ],
           ),
+          // ── 충전 사업자 (충전 전용) — 선호 조건과 같은 섹션, 탭하면 바텀시트 ──
+          if (isEv) ...[
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: onTapOperators,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+                decoration: BoxDecoration(
+                  color: operatorCount > 0
+                      ? modeAccentLight(isEv)
+                      : (isDark ? AppColors.darkBg : const Color(0xFFF7F8FA)),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: operatorCount > 0 ? accent : Colors.transparent,
+                      width: 1.2),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.ev_station_rounded, size: 16, color: accent),
+                    const SizedBox(width: 7),
+                    const Text('충전 사업자',
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: kMute2)),
+                    const Spacer(),
+                    Flexible(
+                      child: Text(
+                        operatorCount > 0 ? operatorSummary : '전체',
+                        textAlign: TextAlign.right,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: operatorCount > 0
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: operatorCount > 0 ? accent : kMute2),
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    Icon(Icons.chevron_right_rounded, size: 18, color: kMute2),
+                  ],
+                ),
+              ),
+            ),
+          ],
           // ── 주유 선호 브랜드 (가스 전용, 복수 선택) ──
           if (!isEv) ...[
             const SizedBox(height: 12),

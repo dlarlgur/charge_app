@@ -1227,70 +1227,6 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     );
   }
 
-  // 충전 사업자 필터 진입 행 — 선택 수 요약 + 탭하면 바텀시트.
-  Widget _buildEvOperatorRow() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    const accent = Color(0xFF10B981);
-    final n = _preferredEvOperators.length;
-    final label = n == 0
-        ? '충전 사업자 전체'
-        : (n <= 2
-            ? _preferredEvOperators.join(', ')
-            : '${_preferredEvOperators.take(2).join(', ')} 외 ${n - 2}');
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: InkWell(
-        onTap: _openEvOperatorSheet,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.darkSurface1 : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-                color: n > 0
-                    ? accent
-                    : (isDark ? AppColors.darkCardBorder : const Color(0xFFE5E7EB)),
-                width: n > 0 ? 1.4 : 1),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.ev_station_rounded, size: 18, color: accent),
-              const SizedBox(width: 8),
-              Text('충전 사업자',
-                  style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                      color: isDark
-                          ? AppColors.darkTextPrimary
-                          : const Color(0xFF111827))),
-              const Spacer(),
-              Flexible(
-                child: Text(label,
-                    textAlign: TextAlign.right,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: n > 0 ? FontWeight.w700 : FontWeight.w400,
-                        color: n > 0
-                            ? accent
-                            : (isDark
-                                ? AppColors.darkTextMuted
-                                : const Color(0xFF9CA3AF)))),
-              ),
-              const SizedBox(width: 4),
-              Icon(Icons.chevron_right_rounded,
-                  size: 20,
-                  color: isDark
-                      ? AppColors.darkTextMuted
-                      : const Color(0xFFB6BCC6)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   // 충전 사업자 선택 바텀시트 — 상단 검색 + 대표 칩 + 검색 결과. 복수 선택, 미선택=전체.
   Future<void> _openEvOperatorSheet() async {
     // 목록 최초 1회 로드 (실패해도 대표 칩 없이 검색만 빈 상태로 열림)
@@ -1389,6 +1325,23 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           color: isDark
                               ? AppColors.darkTextPrimary
                               : const Color(0xFF111827))),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: sel.isEmpty
+                          ? (isDark ? AppColors.darkBg : const Color(0xFFEFF1F5))
+                          : accent.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(sel.isEmpty ? '전체' : '${sel.length}개 선택',
+                        style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: sel.isEmpty
+                                ? (isDark ? AppColors.darkTextMuted : const Color(0xFF6B7280))
+                                : accent)),
+                  ),
                   const Spacer(),
                   if (sel.isNotEmpty)
                     GestureDetector(
@@ -5400,8 +5353,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                 _preferredGasBrands.add(k);
                               }
                             }),
+                            operatorCount: _preferredEvOperators.length,
+                            operatorSummary: _preferredEvOperators.length <= 2
+                                ? _preferredEvOperators.join(', ')
+                                : '${_preferredEvOperators.take(2).join(', ')} 외 ${_preferredEvOperators.length - 2}',
+                            onTapOperators: _openEvOperatorSheet,
                           ),
-                        if (isEvVehicle) _buildEvOperatorRow(),
                         _buildRouteSelector(isEv: isEvVehicle),
                         const SizedBox(height: 12),
                         // ─── HTML CTA row: gradient primary + 흰 secondary ───
