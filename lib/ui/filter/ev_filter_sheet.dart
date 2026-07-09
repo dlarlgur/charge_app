@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/models.dart';
 import '../../providers/providers.dart';
+import '../ai/widgets/ev_operator_picker.dart';
 
 class EvFilterSheet extends ConsumerStatefulWidget {
   /// 홈 목록 화면은 검색 반경을 직접 지정해야 가까운 충전소 위주로 좁혀볼 수 있음.
@@ -42,16 +43,15 @@ class _EvFilterSheetState extends ConsumerState<EvFilterSheet> {
     ('DT', '데스티네이션', 'assets/connectors/destination.svg'),
   ];
 
-  // 주요 업체 목록 (기타 = 이 목록 외)
-  static const _mainOperators = ['환경부', 'GS차지비', '파워큐브', '에버온', 'SK일렉링크', '채비', 'Tesla'];
-
   @override
   void initState() {
     super.initState();
     _options = ref.read(evFilterProvider);
+    // 구버전 '__other__'(=대표 외 전체) 토큰은 새 canonical 필터로 이관 불가 → 전체로 리셋.
+    if (_options.operators.contains('__other__')) {
+      _options = _options.copyWith(operators: const []);
+    }
   }
-
-  bool get _otherSelected => _options.operators.contains('__other__');
 
   void _toggleType(String type) {
     setState(() {
@@ -76,29 +76,17 @@ class _EvFilterSheetState extends ConsumerState<EvFilterSheet> {
     });
   }
 
-  void _toggleOp(String op) {
-    setState(() {
-      final ops = List<String>.from(_options.operators);
-      if (ops.isEmpty) {
-        // 전체 선택 상태 → 해당 운영기관만 해제 (나머지 유지)
-        final allKeys = [..._mainOperators, '__other__'];
-        _options = _options.copyWith(
-            operators: allKeys.where((o) => o != op).toList());
-      } else if (ops.contains(op)) {
-        // 이미 선택됨 → 해제 (비면 전체로)
-        ops.remove(op);
-        _options = _options.copyWith(operators: ops);
-      } else {
-        // 미선택 → 추가 (전부 선택되면 전체로)
-        ops.add(op);
-        final allKeys = [..._mainOperators, '__other__'];
-        if (allKeys.every((o) => ops.contains(o))) {
-          _options = _options.copyWith(operators: []);
-        } else {
-          _options = _options.copyWith(operators: ops);
-        }
-      }
-    });
+  Future<void> _openOperatorPicker() async {
+    final result = await showEvOperatorPicker(
+      context,
+      initial: _options.operators.toSet(),
+      // 지도·홈은 Tesla 도 노출되므로 대표 칩에 Tesla 주입(/operators엔 없음).
+      extraReps: [
+        {'name': 'Tesla', 'count': 0}
+      ],
+    );
+    if (result == null) return; // 취소
+    setState(() => _options = _options.copyWith(operators: result.toList()));
   }
 
   static const _kindGroups = {
@@ -423,41 +411,64 @@ class _EvFilterSheetState extends ConsumerState<EvFilterSheet> {
   }
 
   Widget _operatorSection(bool isDark, Color accent) {
+    final ops = _options.operators;
+    final isAll = ops.isEmpty;
+    final summary = isAll
+        ? '전체 사업자'
+        : (ops.length <= 2
+            ? ops.join(', ')
+            : '${ops.take(2).join(', ')} 외 ${ops.length - 2}');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            _sectionHeader('운영기관', isDark),
-            const SizedBox(width: 10),
-            GestureDetector(
-              onTap: () => setState(() => _options = _options.copyWith(operators: [])),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: _options.operators.isEmpty ? accent.withValues(alpha: 0.12) : Colors.transparent,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text('전체',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
-                    color: _options.operators.isEmpty ? accent
-                      : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted))),
+        _sectionHeader('운영기관', isDark),
+        const SizedBox(height: 10),
+        // 탭하면 공용 사업자 선택 시트(대표+ㄱㄴㄷ 전체+검색). AI 추천과 동일.
+        GestureDetector(
+          onTap: _openOperatorPicker,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: isAll
+                  ? (isDark ? const Color(0x08FFFFFF) : const Color(0xFFF5F6F8))
+                  : accent.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isAll
+                    ? (isDark ? AppColors.darkCardBorder : const Color(0xFFDEE1E6))
+                    : accent,
+                width: isAll ? 0.8 : 1.5,
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 7,
-          runSpacing: 7,
-          children: [
-            ..._mainOperators.map((op) {
-              final active = _options.operators.isEmpty || _options.operators.contains(op);
-              return _opChip(op, active, isDark, accent, () => _toggleOp(op), isTesla: op == 'Tesla');
-            }),
-            _opChip('기타', _options.operators.isEmpty || _otherSelected, isDark, accent,
-              () => _toggleOp('__other__'), isOther: true),
-          ],
+            child: Row(
+              children: [
+                Icon(Icons.ev_station_rounded,
+                    size: 18,
+                    color: isAll
+                        ? (isDark ? AppColors.darkTextMuted : const Color(0xFF6C757D))
+                        : accent),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(summary,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: isAll
+                              ? (isDark
+                                  ? AppColors.darkTextSecondary
+                                  : const Color(0xFF374151))
+                              : accent)),
+                ),
+                Icon(Icons.chevron_right_rounded,
+                    size: 20,
+                    color: isDark
+                        ? AppColors.darkTextMuted
+                        : const Color(0xFF9CA3AF)),
+              ],
+            ),
+          ),
         ),
       ],
     );

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../core/constants/api_constants.dart';
+import '../core/utils/ev_operator.dart';
 import '../data/models/models.dart';
 import '../data/services/api_service.dart';
 import '../data/services/favorite_service.dart';
@@ -512,14 +513,11 @@ final evStationsProvider = Provider<AsyncValue<List<EvStation>>>((ref) {
               s.chargers.any((c) => _chargerMatchesFilter(c.type, filter.chargerTypes))).toList();
           }
           if (filter.operators.isNotEmpty) {
-            final includeOther = filter.operators.contains('__other__');
-            final mainOps = filter.operators.where((o) => o != '__other__').toList();
-            nonFavStations = nonFavStations.where((s) {
-              if (mainOps.any((op) => s.operator.contains(op))) return true;
-              if (includeOther && !['환경부','GS차지비','파워큐브','에버온','SK일렉링크','채비','Tesla']
-                  .any((op) => s.operator.contains(op))) return true;
-              return false;
-            }).toList();
+            // filter.operators = canonical 사업자명 화이트리스트(빈 리스트=전체).
+            final sel = filter.operators.toSet();
+            nonFavStations = nonFavStations
+                .where((s) => sel.contains(canonicalEvOperator(s.operator)))
+                .toList();
           }
           if (filter.kinds.isNotEmpty) {
             nonFavStations = nonFavStations.where((s) => filter.kinds.contains(s.kind)).toList();
@@ -623,14 +621,10 @@ final mapEvStationsProvider = FutureProvider<List<EvStation>>((ref) async {
       s.chargers.any((c) => _chargerMatchesFilter(c.type, filter.chargerTypes))).toList();
   }
   if (filter.operators.isNotEmpty) {
-    final includeOther = filter.operators.contains('__other__');
-    final mainOps = filter.operators.where((o) => o != '__other__').toList();
-    stations = stations.where((s) {
-      if (mainOps.any((op) => s.operator.contains(op))) return true;
-      if (includeOther && !['환경부','GS차지비','파워큐브','에버온','SK일렉링크','채비','Tesla']
-          .any((op) => s.operator.contains(op))) return true;
-      return false;
-    }).toList();
+    // filter.operators = canonical 사업자명 화이트리스트(빈 리스트=전체).
+    final sel = filter.operators.toSet();
+    stations =
+        stations.where((s) => sel.contains(canonicalEvOperator(s.operator))).toList();
   }
   if (filter.kinds.isNotEmpty) {
     stations = stations.where((s) => filter.kinds.contains(s.kind)).toList();
