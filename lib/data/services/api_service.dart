@@ -451,6 +451,12 @@ class ApiService {
     return Map<String, dynamic>.from(res.data ?? {});
   }
 
+  // 충전 사업자 목록 — 필터 팝업용. {representatives:[{name,count}], all:[...]}
+  Future<Map<String, dynamic>> getEvOperators() async {
+    final res = await _dio.get(ApiConstants.evOperators);
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
   // ─── EV 이용현황 카드 ───
   Future<Map<String, dynamic>?> getEvAnalytics(String statId) async {
     try {

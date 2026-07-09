@@ -161,6 +161,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   final Set<String> _preferredGasBrands =
       {}; // 선호 브랜드(OPINET pollDivCo 키). 빈 set = 전체.
 
+  // EV 충전 사업자 필터 — 선택한 사업자 충전소만 추천. 빈 set = 전체.
+  final Set<String> _preferredEvOperators = {};
+  List<Map<String, dynamic>> _evOperatorRep = []; // 대표(칩)
+  List<Map<String, dynamic>> _evOperatorAll = []; // 전체(검색용)
+  bool _evOperatorsLoading = false;
+
   // EV 결과 시트의 카드 스크롤 제어용 (지도 마커 탭 → 해당 카드로 이동)
   final GlobalKey<EvResultBodyState> _evResultBodyKey =
       GlobalKey<EvResultBodyState>();
@@ -1217,6 +1223,291 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             Icon(Icons.keyboard_arrow_up_rounded, size: 20, color: muted),
           ],
         ),
+      ),
+    );
+  }
+
+  // 충전 사업자 필터 진입 행 — 선택 수 요약 + 탭하면 바텀시트.
+  Widget _buildEvOperatorRow() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    const accent = Color(0xFF10B981);
+    final n = _preferredEvOperators.length;
+    final label = n == 0
+        ? '충전 사업자 전체'
+        : (n <= 2
+            ? _preferredEvOperators.join(', ')
+            : '${_preferredEvOperators.take(2).join(', ')} 외 ${n - 2}');
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        onTap: _openEvOperatorSheet,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkSurface1 : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+                color: n > 0
+                    ? accent
+                    : (isDark ? AppColors.darkCardBorder : const Color(0xFFE5E7EB)),
+                width: n > 0 ? 1.4 : 1),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.ev_station_rounded, size: 18, color: accent),
+              const SizedBox(width: 8),
+              Text('충전 사업자',
+                  style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : const Color(0xFF111827))),
+              const Spacer(),
+              Flexible(
+                child: Text(label,
+                    textAlign: TextAlign.right,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: n > 0 ? FontWeight.w700 : FontWeight.w400,
+                        color: n > 0
+                            ? accent
+                            : (isDark
+                                ? AppColors.darkTextMuted
+                                : const Color(0xFF9CA3AF)))),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.chevron_right_rounded,
+                  size: 20,
+                  color: isDark
+                      ? AppColors.darkTextMuted
+                      : const Color(0xFFB6BCC6)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 충전 사업자 선택 바텀시트 — 상단 검색 + 대표 칩 + 검색 결과. 복수 선택, 미선택=전체.
+  Future<void> _openEvOperatorSheet() async {
+    // 목록 최초 1회 로드 (실패해도 대표 칩 없이 검색만 빈 상태로 열림)
+    if (_evOperatorAll.isEmpty && !_evOperatorsLoading) {
+      setState(() => _evOperatorsLoading = true);
+      try {
+        final d = await ApiService().getEvOperators();
+        List<Map<String, dynamic>> conv(dynamic v) =>
+            (v as List? ?? []).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+        _evOperatorRep = conv(d['representatives']);
+        _evOperatorAll = conv(d['all']);
+      } catch (_) {} finally {
+        if (mounted) setState(() => _evOperatorsLoading = false);
+      }
+    }
+    if (!mounted) return;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    const accent = Color(0xFF10B981);
+    final sel = Set<String>.from(_preferredEvOperators);
+    String query = '';
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          final q = query.trim();
+          // 검색 결과: 질의 있으면 전체에서 매칭, 없으면 대표만.
+          final searchHits = q.isEmpty
+              ? const <Map<String, dynamic>>[]
+              : _evOperatorAll
+                  .where((o) => (o['name'] as String? ?? '').contains(q))
+                  .take(30)
+                  .toList();
+          Widget chip(String name, int count) {
+            final on = sel.contains(name);
+            return GestureDetector(
+              onTap: () => setSheet(() => on ? sel.remove(name) : sel.add(name)),
+              child: Container(
+                margin: const EdgeInsets.only(right: 8, bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+                decoration: BoxDecoration(
+                  color: on
+                      ? accent.withValues(alpha: 0.12)
+                      : (isDark ? AppColors.darkBg : const Color(0xFFF4F5F7)),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: on ? accent : Colors.transparent, width: 1.3),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  if (on)
+                    const Padding(
+                        padding: EdgeInsets.only(right: 4),
+                        child: Icon(Icons.check, size: 14, color: accent)),
+                  Text(name,
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: on ? FontWeight.w700 : FontWeight.w500,
+                          color: on
+                              ? accent
+                              : (isDark
+                                  ? AppColors.darkTextPrimary
+                                  : const Color(0xFF374151)))),
+                ]),
+              ),
+            );
+          }
+
+          return Container(
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkSurface1 : Colors.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            padding: EdgeInsets.fromLTRB(
+                20, 12, 20, MediaQuery.of(ctx).viewInsets.bottom + 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                    child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                            color: isDark
+                                ? AppColors.darkCardBorder
+                                : const Color(0xFFE5E7EB),
+                            borderRadius: BorderRadius.circular(2)))),
+                const SizedBox(height: 16),
+                Row(children: [
+                  Text('충전 사업자 선택',
+                      style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: isDark
+                              ? AppColors.darkTextPrimary
+                              : const Color(0xFF111827))),
+                  const Spacer(),
+                  if (sel.isNotEmpty)
+                    GestureDetector(
+                      onTap: () => setSheet(() => sel.clear()),
+                      child: Text('초기화',
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: isDark
+                                  ? AppColors.darkTextMuted
+                                  : const Color(0xFF6B7280))),
+                    ),
+                ]),
+                const SizedBox(height: 4),
+                Text('선택한 사업자 충전소만 추천해요. 안 고르면 전체.',
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        color: isDark
+                            ? AppColors.darkTextMuted
+                            : const Color(0xFF9CA3AF))),
+                const SizedBox(height: 14),
+                // 검색
+                TextField(
+                  onChanged: (v) => setSheet(() => query = v),
+                  decoration: InputDecoration(
+                    hintText: '사업자 검색 (예: 환경부, 스타코프)',
+                    prefixIcon: const Icon(Icons.search, size: 20),
+                    isDense: true,
+                    filled: true,
+                    fillColor:
+                        isDark ? AppColors.darkBg : const Color(0xFFF4F5F7),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (q.isEmpty) ...[
+                          Text('자주 쓰는 사업자',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark
+                                      ? AppColors.darkTextMuted
+                                      : const Color(0xFF9CA3AF))),
+                          const SizedBox(height: 10),
+                          Wrap(
+                              children: _evOperatorRep
+                                  .map((o) => chip(o['name'] as String? ?? '',
+                                      (o['count'] as num?)?.toInt() ?? 0))
+                                  .toList()),
+                          // 대표 외에 추가로 고른 사업자(검색으로 선택한 것)도 칩으로 노출
+                          ...(() {
+                            final repNames =
+                                _evOperatorRep.map((o) => o['name']).toSet();
+                            final extra = sel
+                                .where((n) => !repNames.contains(n))
+                                .toList();
+                            if (extra.isEmpty) return <Widget>[];
+                            return [
+                              const SizedBox(height: 6),
+                              Wrap(children: extra.map((n) => chip(n, 0)).toList()),
+                            ];
+                          })(),
+                        ] else if (searchHits.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 20),
+                            child: Text('검색 결과가 없어요',
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    color: isDark
+                                        ? AppColors.darkTextMuted
+                                        : const Color(0xFF9CA3AF))),
+                          )
+                        else
+                          Wrap(
+                              children: searchHits
+                                  .map((o) => chip(o['name'] as String? ?? '',
+                                      (o['count'] as num?)?.toInt() ?? 0))
+                                  .toList()),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _preferredEvOperators
+                          ..clear()
+                          ..addAll(sel);
+                      });
+                      Navigator.pop(ctx);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accent,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Text(
+                        sel.isEmpty ? '전체로 보기' : '${sel.length}개 사업자 적용',
+                        style: const TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -3127,6 +3418,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'pathPoints': pathPoints,
         if (directDurationMs != null) 'directDurationMs': directDurationMs,
         'highwayOnly': _evHighwayOnly,
+        if (_preferredEvOperators.isNotEmpty) 'operators': _preferredEvOperators.toList(),
       });
 
       if (!mounted) return;
@@ -3342,6 +3634,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'pathPoints': pathPoints,
         'userSelect': true,
         'highwayOnly': _evHighwayOnly,
+        if (_preferredEvOperators.isNotEmpty) 'operators': _preferredEvOperators.toList(),
       });
       if (!mounted) return;
 
@@ -5108,6 +5401,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                               }
                             }),
                           ),
+                        if (isEvVehicle) _buildEvOperatorRow(),
                         _buildRouteSelector(isEv: isEvVehicle),
                         const SizedBox(height: 12),
                         // ─── HTML CTA row: gradient primary + 흰 secondary ───

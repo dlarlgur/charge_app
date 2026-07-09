@@ -44,6 +44,7 @@ class ApiConstants {
   static const refuelRouteStations = '/v1/refuel/route-stations';
   static const refuelCompare = '/v1/refuel/compare';
   static const evAiRecommend = '/stations/ev/ai-recommend';
+  static const evOperators = '/stations/ev/operators'; // 충전 사업자 목록(필터용)
 
   // ─── 오피넷 유종 코드 ───
   static const fuelCodeGasoline = 'B027';
