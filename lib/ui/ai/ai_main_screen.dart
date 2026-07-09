@@ -1349,20 +1349,24 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                               : const Color(0xFF111827))),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: EdgeInsets.only(
+                        left: sel.isEmpty ? 7 : 8, right: 8, top: 3, bottom: 3),
                     decoration: BoxDecoration(
-                      color: sel.isEmpty
-                          ? (isDark ? AppColors.darkBg : const Color(0xFFEFF1F5))
-                          : accent.withValues(alpha: 0.14),
+                      color: sel.isEmpty ? accent : accent.withValues(alpha: 0.14),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Text(sel.isEmpty ? '전체' : '${sel.length}개 선택',
-                        style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
-                            color: sel.isEmpty
-                                ? (isDark ? AppColors.darkTextMuted : const Color(0xFF6B7280))
-                                : accent)),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      if (sel.isEmpty) ...[
+                        const Icon(Icons.check_rounded,
+                            size: 13, color: Colors.white),
+                        const SizedBox(width: 2),
+                      ],
+                      Text(sel.isEmpty ? '전체' : '${sel.length}개 선택',
+                          style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: sel.isEmpty ? Colors.white : accent)),
+                    ]),
                   ),
                   const Spacer(),
                   if (sel.isNotEmpty)
@@ -1434,25 +1438,28 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                           : const Color(0xFF9CA3AF))),
                               GestureDetector(
                                 onTap: () => setSheet(() => sel.clear()),
-                                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                  Icon(Icons.check_rounded,
-                                      size: 15,
-                                      color: sel.isEmpty
-                                          ? accent
-                                          : (isDark
-                                              ? AppColors.darkTextMuted
-                                              : const Color(0xFF9CA3AF))),
-                                  const SizedBox(width: 3),
-                                  Text('전체 선택',
-                                      style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: sel.isEmpty
-                                              ? accent
-                                              : (isDark
-                                                  ? AppColors.darkTextMuted
-                                                  : const Color(0xFF9CA3AF)))),
-                                ]),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 9, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: sel.isEmpty
+                                        ? accent
+                                        : accent.withValues(alpha: 0.10),
+                                    borderRadius: BorderRadius.circular(9),
+                                  ),
+                                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                    Icon(Icons.check_rounded,
+                                        size: 14,
+                                        color: sel.isEmpty ? Colors.white : accent),
+                                    const SizedBox(width: 3),
+                                    Text('전체 선택',
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color:
+                                                sel.isEmpty ? Colors.white : accent)),
+                                  ]),
+                                ),
                               ),
                             ],
                           ),
