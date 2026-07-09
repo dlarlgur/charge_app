@@ -1245,7 +1245,17 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     if (!mounted) return;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     const accent = Color(0xFF10B981);
-    final sel = Set<String>.from(_preferredEvOperators);
+    // 전체 사업자 이름 집합 — '전체' 디폴트를 '모두 켜짐(초록)'으로 표현하기 위해 사용.
+    final allNames = _evOperatorAll
+        .map((o) => (o['name'] as String? ?? ''))
+        .where((n) => n.isNotEmpty)
+        .toSet();
+    final total = allNames.length;
+    // 디폴트(저장된 필터 없음) = 전체 → 모든 사업자를 켠 상태로 시작.
+    // 저장된 부분선택이 있으면 그것만.
+    final sel = _preferredEvOperators.isEmpty
+        ? Set<String>.from(allNames)
+        : Set<String>.from(_preferredEvOperators);
     String query = '';
 
     await showModalBottomSheet<void>(
@@ -1255,6 +1265,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) {
           final q = query.trim();
+          // 전체 상태 = 총 사업자가 없거나(로드 실패) 모두 켜진 경우.
+          final isAll = total == 0 || sel.length >= total;
           // 검색 결과: 질의 있으면 전체에서 매칭, 없으면 대표만.
           final searchHits = q.isEmpty
               ? const <Map<String, dynamic>>[]
@@ -1350,29 +1362,30 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                   const SizedBox(width: 8),
                   Container(
                     padding: EdgeInsets.only(
-                        left: sel.isEmpty ? 7 : 8, right: 8, top: 3, bottom: 3),
+                        left: isAll ? 7 : 8, right: 8, top: 3, bottom: 3),
                     decoration: BoxDecoration(
-                      color: sel.isEmpty ? accent : accent.withValues(alpha: 0.14),
+                      color: isAll ? accent : accent.withValues(alpha: 0.14),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      if (sel.isEmpty) ...[
+                      if (isAll) ...[
                         const Icon(Icons.check_rounded,
                             size: 13, color: Colors.white),
                         const SizedBox(width: 2),
                       ],
-                      Text(sel.isEmpty ? '전체' : '${sel.length}개 선택',
+                      Text(isAll ? '전체' : '${sel.length}개 선택',
                           style: TextStyle(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w700,
-                              color: sel.isEmpty ? Colors.white : accent)),
+                              color: isAll ? Colors.white : accent)),
                     ]),
                   ),
                   const Spacer(),
-                  if (sel.isNotEmpty)
+                  if (!isAll)
                     GestureDetector(
-                      onTap: () => setSheet(() => sel.clear()),
-                      child: Text('초기화',
+                      onTap: () =>
+                          setSheet(() => sel..clear()..addAll(allNames)),
+                      child: Text('전체로',
                           style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
@@ -1382,7 +1395,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                     ),
                 ]),
                 const SizedBox(height: 4),
-                Text('선택한 사업자 충전소만 추천해요. 안 고르면 전체.',
+                Text('켜진 사업자 충전소만 추천해요. 전체면 모든 사업자.',
                     style: TextStyle(
                         fontSize: 12.5,
                         color: isDark
@@ -1425,7 +1438,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                       (o['count'] as num?)?.toInt() ?? 0))
                                   .toList()),
                           const SizedBox(height: 20),
-                          // 전체 충전소 사업자 — 가나다순 전체 목록 + 전체선택(=미선택) 토글
+                          // 전체 충전소 사업자 — 가나다순 전체 목록 + 전체선택/해제 토글
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -1436,28 +1449,28 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                       color: isDark
                                           ? AppColors.darkTextMuted
                                           : const Color(0xFF9CA3AF))),
+                              // isAll이면 '전체 해제'(하나만 고르고 싶을 때 빠르게 비움),
+                              // 아니면 '전체 선택'(모두 켬).
                               GestureDetector(
-                                onTap: () => setSheet(() => sel.clear()),
+                                onTap: () => setSheet(() => isAll
+                                    ? sel.clear()
+                                    : (sel..clear()..addAll(allNames))),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 9, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: sel.isEmpty
-                                        ? accent
-                                        : accent.withValues(alpha: 0.10),
+                                    color: accent.withValues(alpha: 0.10),
                                     borderRadius: BorderRadius.circular(9),
                                   ),
                                   child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                    Icon(Icons.check_rounded,
-                                        size: 14,
-                                        color: sel.isEmpty ? Colors.white : accent),
+                                    Icon(isAll ? Icons.clear_rounded : Icons.check_rounded,
+                                        size: 14, color: accent),
                                     const SizedBox(width: 3),
-                                    Text('전체 선택',
-                                        style: TextStyle(
+                                    Text(isAll ? '전체 해제' : '전체 선택',
+                                        style: const TextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.w700,
-                                            color:
-                                                sel.isEmpty ? Colors.white : accent)),
+                                            color: accent)),
                                   ]),
                                 ),
                               ),
@@ -1509,9 +1522,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                   child: ElevatedButton(
                     onPressed: () {
                       setState(() {
-                        _preferredEvOperators
-                          ..clear()
-                          ..addAll(sel);
+                        _preferredEvOperators.clear();
+                        // 전체(모두 켬)거나 아무것도 안 켠 경우 = 필터 없음(전체).
+                        // 부분선택일 때만 그 목록을 필터로 저장.
+                        if (!isAll && sel.isNotEmpty) {
+                          _preferredEvOperators.addAll(sel);
+                        }
                       });
                       Navigator.pop(ctx);
                     },
@@ -1524,7 +1540,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           borderRadius: BorderRadius.circular(12)),
                     ),
                     child: Text(
-                        sel.isEmpty ? '전체로 보기' : '${sel.length}개 사업자 적용',
+                        (isAll || sel.isEmpty)
+                            ? '전체로 보기'
+                            : '${sel.length}개 사업자 적용',
                         style: const TextStyle(
                             fontSize: 15, fontWeight: FontWeight.w700)),
                   ),
