@@ -2135,7 +2135,9 @@ class _ChargeMarketingTileState extends ConsumerState<_ChargeMarketingTile> {
       ConsentChoice(key: 'marketing', agreed: v, version: version),
     ]);
     marketingConsentVersion.value++; // 다른 구독 위젯도 갱신
-    UserSyncService.instance.putPrefs(marketingConsent: v); // 로그인 회원이면 서버에 기억(새 기기 재적용용)
+    // 서버 저장을 await — fire-and-forget 이면 토글 직후 로그아웃 시 요청이 유실돼
+    // 서버에 옛 값(true)이 남고, 재로그인 복원 때 다시 켜지는 버그가 있었음.
+    await UserSyncService.instance.putPrefs(marketingConsent: v);
     // 동의(ON)만으론 못 받음 — 실제 수신 위해 OS 알림 권한도 요청.
     if (v && mounted) await ensureNotifPermission(context);
     if (mounted) {

@@ -49,13 +49,18 @@ class UserDataSync {
     }
     if (prefs['fuelType'] != null) box.put(AppConstants.keyFuelType, prefs['fuelType']);
 
-    // 마케팅 동의 — 이 기기(콘솔 device)로 재적용
-    if (prefs['marketingConsent'] == true) {
-      final m = DkswCore.signupConsents.firstWhere(
-        (c) => c.key == 'marketing',
-        orElse: () => const SignupConsent(key: 'marketing', title: '마케팅 정보 수신', required: false, version: '1.0'),
-      );
-      await DkswCore.postConsents([ConsentChoice(key: 'marketing', agreed: true, version: m.version)]);
+    // 마케팅 동의 — 서버 값을 이 기기(콘솔 device)에 그대로 반영 (true/false 양방향).
+    // true 만 재적용하던 단방향 래칫은 '다른 기기/직전 세션에서 끈 상태'가 재로그인 때
+    // 다시 켜지는 버그의 원인 (서버 false 를 기기에 안 내려서 로컬 true 가 살아남음).
+    if (prefs['marketingConsent'] is bool) {
+      final want = prefs['marketingConsent'] == true;
+      if (DkswCore.consentAgreed('marketing') != want) {
+        final m = DkswCore.signupConsents.firstWhere(
+          (c) => c.key == 'marketing',
+          orElse: () => const SignupConsent(key: 'marketing', title: '마케팅 정보 수신', required: false, version: '1.0'),
+        );
+        await DkswCore.postConsents([ConsentChoice(key: 'marketing', agreed: want, version: m.version)]);
+      }
     }
 
     // AI 차량 — 서버를 소스로 ai_vehicles 갱신
