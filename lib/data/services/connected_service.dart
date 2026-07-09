@@ -9,7 +9,24 @@ class ConnectedCar {
   final String name;
   final String carType; // GN/EV/HEV/PHEV/FCEV
   final bool isEv;
-  ConnectedCar({required this.carId, required this.name, required this.carType, required this.isEv});
+
+  // 서버가 판매명으로 에너지공단 제원 DB 매칭해 내려주는 프리필값 (실패 시 전부 null).
+  // 탱크 용량은 AI 추정값 — 채울 때 '확인·수정' 안내 필수.
+  final String? specFuelType;      // 앱 유종코드 (EV 는 null)
+  final double? specEfficiency;    // km/L 또는 km/kWh
+  final double? specTankCapacity;  // L (AI 추정)
+  final double? specBatteryCapacity; // kWh
+
+  ConnectedCar({
+    required this.carId,
+    required this.name,
+    required this.carType,
+    required this.isEv,
+    this.specFuelType,
+    this.specEfficiency,
+    this.specTankCapacity,
+    this.specBatteryCapacity,
+  });
 }
 
 class ConnectedStatus {
@@ -53,16 +70,20 @@ class ConnectedService {
     final res = await _dio.get('/connected/vehicles',
         queryParameters: {'brand': brand}, options: await _auth());
     final list = (res.data is Map ? res.data['cars'] : null) as List? ?? [];
-    return list
-        .whereType<Map>()
-        .map((c) => ConnectedCar(
-              carId: '${c['carId'] ?? ''}',
-              name: '${c['name'] ?? '차량'}',
-              carType: '${c['carType'] ?? ''}',
-              isEv: c['isEv'] == true,
-            ))
-        .where((c) => c.carId.isNotEmpty)
-        .toList();
+    return list.whereType<Map>().map((c) {
+      final spec = c['spec'] is Map ? c['spec'] as Map : null;
+      double? num_(dynamic v) => v is num && v > 0 ? v.toDouble() : null;
+      return ConnectedCar(
+        carId: '${c['carId'] ?? ''}',
+        name: '${c['name'] ?? '차량'}',
+        carType: '${c['carType'] ?? ''}',
+        isEv: c['isEv'] == true,
+        specFuelType: spec?['fuelType'] is String ? spec!['fuelType'] as String : null,
+        specEfficiency: num_(spec?['efficiency']),
+        specTankCapacity: num_(spec?['tankCapacity']),
+        specBatteryCapacity: num_(spec?['batteryCapacity']),
+      );
+    }).where((c) => c.carId.isNotEmpty).toList();
   }
 
   /// 차량 현재 상태 (DTE / EV 배터리·충전).

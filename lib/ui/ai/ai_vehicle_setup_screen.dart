@@ -657,11 +657,7 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
         return;
       }
       if (cars.length == 1) {
-        setState(() {
-          _connectedCarId = cars.first.carId;
-          _connectedCarName = cars.first.name;
-        });
-        showAppToast(context, '${cars.first.name} 연결됨');
+        _applyConnectedCar(cars.first);
         return;
       }
       _showVehiclePicker(cars);
@@ -699,6 +695,52 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
     } catch (e) {
       _showError(ConnectedService.errorMessage(e, '동의 진행에 실패했어요. 잠시 후 다시.'));
     }
+  }
+
+  // 연동 차량 확정 — 식별값 저장 + 제원(유종·연비·연료탱크·배터리) 자동 프리필.
+  // 제원은 서버가 판매명으로 에너지공단 DB 매칭한 값 — 탱크는 AI 추정이라 안내문 유지.
+  void _applyConnectedCar(ConnectedCar car) {
+    final hasSpec = car.specEfficiency != null ||
+        car.specTankCapacity != null ||
+        car.specBatteryCapacity != null ||
+        car.specFuelType != null;
+    setState(() {
+      _connectedCarId = car.carId;
+      _connectedCarName = car.name;
+      // 차량 타입이 실차와 다르면 실차 기준으로 전환 (EV 연동인데 내연기관 폼인 경우 등)
+      final carVehicleType = car.isEv ? 'ev' : 'gas';
+      if (_vehicleType != carVehicleType) {
+        _animCtrl.reset();
+        _vehicleType = carVehicleType;
+        _animCtrl.forward();
+      }
+      // 차량 이름 — 비어 있을 때만 판매명으로 (사용자 입력 존중)
+      if (_nameController.text.trim().isEmpty) {
+        _nameController.text = car.name;
+      }
+      if (car.isEv) {
+        if (car.specEfficiency != null) {
+          _evEffController.text = _fmtNum(car.specEfficiency!);
+        }
+        if (car.specBatteryCapacity != null) {
+          _batteryController.text = _fmtNum(car.specBatteryCapacity!);
+          _batteryFromSpec = true;
+        }
+      } else {
+        if (car.specFuelType != null) {
+          _fuelType = FuelType.fromCode(car.specFuelType!);
+        }
+        if (car.specEfficiency != null) {
+          _effController.text = _fmtNum(car.specEfficiency!);
+        }
+        if (car.specTankCapacity != null) {
+          _tankController.text = _fmtNum(car.specTankCapacity!);
+          _tankFromEstimate = true; // AI 추정 안내문 노출
+        }
+      }
+    });
+    showAppToast(context,
+        hasSpec ? '${car.name} 연결됨 · 제원 자동 입력 (확인 후 수정하세요)' : '${car.name} 연결됨');
   }
 
   // 연동 차량 선택 — 계정 차량 중 이 app 차량과 1:1 매칭할 차를 고른다.
@@ -826,12 +868,8 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
                 child: ElevatedButton(
                   onPressed: () {
                     final car = cars.firstWhere((c) => c.carId == selId);
-                    setState(() {
-                      _connectedCarId = car.carId;
-                      _connectedCarName = car.name;
-                    });
                     Navigator.pop(ctx);
-                    showAppToast(context, '${car.name} 연결됨');
+                    _applyConnectedCar(car);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: accent,
