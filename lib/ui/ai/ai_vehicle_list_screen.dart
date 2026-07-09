@@ -378,12 +378,18 @@ class _VehicleCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Text(
-                        vehicle.name.isNotEmpty ? vehicle.name : vehicle.typeLabel,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: isSelected ? _accent : primaryText,
+                      Flexible(
+                        child: Text(
+                          vehicle.name.isNotEmpty
+                              ? vehicle.name
+                              : vehicle.typeLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: isSelected ? _accent : primaryText,
+                          ),
                         ),
                       ),
                       if (isSelected) ...[
@@ -409,6 +415,8 @@ class _VehicleCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     _buildSubLabel(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 12, color: secondaryText),
                   ),
                 ],
