@@ -118,9 +118,11 @@ class _EvOperatorPickerSheetState extends State<_EvOperatorPickerSheet> {
             _sel.add(name);
           }
           // 검색으로 고르면 검색을 비우고 선택 목록으로 복귀 → 이어서 또 검색·추가 가능.
+          // 자판도 내려서 돌아온 목록이 온전히 보이게.
           if (fromSearch) {
             _searchCtrl.clear();
             _query = '';
+            FocusScope.of(context).unfocus();
           }
         }),
         child: Container(
@@ -354,7 +356,7 @@ class _EvOperatorPickerSheetState extends State<_EvOperatorPickerSheet> {
                     borderRadius: BorderRadius.circular(12)),
               ),
               child: Text(
-                  (isAll || _sel.isEmpty) ? '전체로 보기' : '${_sel.length}개 사업자 적용',
+                  (isAll || _sel.isEmpty) ? '전체 사업자 적용' : '${_sel.length}개 사업자 적용',
                   style:
                       const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
             ),
