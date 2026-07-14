@@ -440,6 +440,9 @@ final gasStationsProvider = Provider<AsyncValue<List<GasStation>>>((ref) {
           if (filter.brands.isNotEmpty) {
             nonFavStations = nonFavStations.where((s) => filter.brands.contains(s.brand)).toList();
           }
+          if (filter.open24Only) {
+            nonFavStations = nonFavStations.where((s) => s.isSel24).toList();
+          }
 
           void sortGas(List<GasStation> list) {
             if (filter.sort == 2) {
@@ -587,6 +590,9 @@ final mapGasStationsProvider = FutureProvider<List<GasStation>>((ref) async {
   if (filter.brands.isNotEmpty) {
     stations = stations.where((s) => filter.brands.contains(s.brand)).toList();
   }
+  if (filter.open24Only) {
+    stations = stations.where((s) => s.isSel24).toList();
+  }
 
   stations.sort((a, b) => a.distance.compareTo(b.distance));
   return stations;
@@ -661,6 +667,7 @@ class GasFilterNotifier extends StateNotifier<GasFilterOptions> {
       radius: validRadius,
       fuelTypes: List<String>.from(_box.get(AppConstants.keyGasFilterFuelTypes, defaultValue: ['B027'])),
       brands: List<String>.from(_box.get(AppConstants.keyGasFilterBrands, defaultValue: [])),
+      open24Only: _box.get(AppConstants.keyGasFilterOpen24, defaultValue: false) as bool,
     );
   }
 
@@ -680,6 +687,7 @@ class GasFilterNotifier extends StateNotifier<GasFilterOptions> {
     _box.put(AppConstants.keyGasFilterRadius, opt.radius);
     _box.put(AppConstants.keyGasFilterFuelTypes, opt.fuelTypes);
     _box.put(AppConstants.keyGasFilterBrands, opt.brands);
+    _box.put(AppConstants.keyGasFilterOpen24, opt.open24Only);
   }
 
   // 설정 화면에서 유종 변경 시 filter 도 동기 (단방향: settings→filter).
@@ -690,6 +698,7 @@ class GasFilterNotifier extends StateNotifier<GasFilterOptions> {
       radius: state.radius,
       fuelTypes: types,
       brands: state.brands,
+      open24Only: state.open24Only,
     ));
   }
 }

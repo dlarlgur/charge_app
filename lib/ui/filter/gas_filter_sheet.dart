@@ -296,6 +296,24 @@ class _GasFilterSheetState extends ConsumerState<GasFilterSheet> {
                       ),
                     ],
                   )),
+                  const SizedBox(height: 10),
+                  // 영업 시간 — 24시간 영업 주유소만 (오피넷 isSel24)
+                  _card(isDark, child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _sectionHeader('영업 시간', isDark),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          _segBtn('전체', !_options.open24Only, accent, isDark,
+                            () => setState(() => _options = _options.copyWith(open24Only: false))),
+                          const SizedBox(width: 8),
+                          _segBtn('24시간 영업만', _options.open24Only, accent, isDark,
+                            () => setState(() => _options = _options.copyWith(open24Only: true))),
+                        ],
+                      ),
+                    ],
+                  )),
                   const SizedBox(height: 8),
                 ],
               ),

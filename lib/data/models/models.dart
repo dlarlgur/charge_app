@@ -22,6 +22,7 @@ class GasStation {
   final double lng;
   final String? phone;
   final bool isSelf;
+  final bool isSel24; // 24시간 영업 (오피넷 isSel24)
   final bool hasCarWash;
   final bool hasMaintenance;
   final String fuelType;
@@ -37,6 +38,7 @@ class GasStation {
     required this.lng,
     this.phone,
     this.isSelf = false,
+    this.isSel24 = false,
     this.hasCarWash = false,
     this.hasMaintenance = false,
     this.fuelType = 'B027',
@@ -55,6 +57,7 @@ class GasStation {
       lng: (json['GIS_X_COOR'] ?? json['lng'] ?? 0).toDouble(),
       phone: json['TEL'] ?? json['phone'],
       isSelf: json['SELF_DIV_CD'] == 'Y' || json['isSelf'] == true,
+      isSel24: json['isSel24'] == true,
       hasCarWash: json['CAR_WASH_YN'] == 'Y' || json['hasCarWash'] == true,
       hasMaintenance: json['MAINT_YN'] == 'Y' || json['hasMaintenance'] == true,
       fuelType: json['PROD_CD'] ?? json['fuelType'] ?? 'B027',
@@ -105,6 +108,7 @@ class GasStation {
     lng: lng,
     phone: phone,
     isSelf: isSelf,
+    isSel24: isSel24,
     hasCarWash: hasCarWash,
     hasMaintenance: hasMaintenance,
     fuelType: fuelType,
@@ -559,20 +563,24 @@ class GasFilterOptions {
   final int radius;
   final List<String> fuelTypes;
   final List<String> brands;
+  final bool open24Only; // 24시간 영업 주유소만 (false = 전체)
 
   const GasFilterOptions({
     this.sort = 1,
     this.radius = 5000,
     this.fuelTypes = const ['B027'],
     this.brands = const [],
+    this.open24Only = false,
   });
 
-  GasFilterOptions copyWith({int? sort, int? radius, List<String>? fuelTypes, List<String>? brands}) {
+  GasFilterOptions copyWith(
+      {int? sort, int? radius, List<String>? fuelTypes, List<String>? brands, bool? open24Only}) {
     return GasFilterOptions(
       sort: sort ?? this.sort,
       radius: radius ?? this.radius,
       fuelTypes: fuelTypes ?? this.fuelTypes,
       brands: brands ?? this.brands,
+      open24Only: open24Only ?? this.open24Only,
     );
   }
 }

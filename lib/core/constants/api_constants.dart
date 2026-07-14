@@ -102,6 +102,7 @@ class AppConstants {
   static const keyGasFilterRadius = 'gas_filter_radius';
   static const keyGasFilterFuelTypes = 'gas_filter_fuel_types';
   static const keyGasFilterBrands = 'gas_filter_brands';
+  static const keyGasFilterOpen24 = 'gas_filter_open24';
 
   // EV Filter Keys
   static const keyEvFilterSort = 'ev_filter_sort';
