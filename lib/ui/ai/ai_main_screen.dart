@@ -5080,6 +5080,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                 ? (selectedVehicle?.batteryCapacity ??
                                     tankCapacity)
                                 : tankCapacity,
+                            // 유종 배지 — 주유 차량만. 선택 차량 프로필 유종 우선(fuelLabel).
+                            fuelTypeLabel: isEvVehicle ? null : fuelLabel,
                             highwayOnly:
                                 isEvVehicle ? _evHighwayOnly : _gasHighwayOnly,
                             chargerMode: isEvVehicle ? _evChargerType : null,

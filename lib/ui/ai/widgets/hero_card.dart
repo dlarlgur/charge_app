@@ -19,6 +19,8 @@ class HeroCard extends StatelessWidget {
   final String vehicleName;
   final double efficiency; // km/L or km/kWh
   final double tankCapacity; // L or kWh
+  // 주유 전용 — 차량 유종 라벨(휘발유/고급휘발유/경유/LPG). 이름 옆 배지로 표시.
+  final String? fuelTypeLabel;
   final bool highwayOnly;
   final double routeDistanceKm; // 목적지 경로 거리(km). >0 이면 도착 예상잔량 표시.
   final String? chargerMode; // 'FAST' | 'SLOW' (EV 전용)
@@ -58,6 +60,7 @@ class HeroCard extends StatelessWidget {
     required this.vehicleName,
     required this.efficiency,
     required this.tankCapacity,
+    this.fuelTypeLabel,
     required this.highwayOnly,
     this.routeDistanceKm = 0,
     required this.chargerMode,
@@ -134,7 +137,7 @@ class HeroCard extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Expanded(
+                          Flexible(
                             child: Text(
                               vehicleName.isEmpty
                                   ? (isEv ? 'EV' : '차량')
@@ -150,6 +153,31 @@ class HeroCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          // 유종 배지 (주유 전용) — 이름이 유종 폴백("휘발유")일 땐 중복이라 숨김.
+                          if (!isEv &&
+                              (fuelTypeLabel ?? '').isNotEmpty &&
+                              fuelTypeLabel != vehicleName) ...[
+                            const SizedBox(width: 7),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 2.5),
+                              decoration: BoxDecoration(
+                                color: accent.withValues(
+                                    alpha: isDark ? 0.20 : 0.10),
+                                borderRadius: BorderRadius.circular(7),
+                              ),
+                              child: Text(
+                                fuelTypeLabel!,
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.2,
+                                  color: accentDeep,
+                                ),
+                              ),
+                            ),
+                          ],
+                          const Spacer(),
                           GestureDetector(
                             onTap: onTapVehicle,
                             child: Container(
