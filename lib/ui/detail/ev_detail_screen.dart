@@ -1960,7 +1960,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
       case ChargerStatus.unknown:
         // 테슬라(OCM)는 실시간 상태 자체를 제공하지 않음 — '고장/불가' 뉘앙스 대신
         // 정보성 표기. 환경부 충전소의 unknown 은 기존대로 이상 신호로 취급.
-        if (_station?.isTesla == true) {
+        if (widget.station.isTesla) {
           statusColor = muted;
           statusText = '실시간 미지원';
           subText = null;
