@@ -728,9 +728,10 @@ class EvStationCard extends ConsumerWidget {
   /// 자리없음(빨강): avail=0, 혼잡(주황): avail이 부족, 여유(녹색): 50% 이상.
   ({Color color, Color bg, String label}) _statusOf(BuildContext context, bool isDark) {
     if (station.isTesla) {
+      // 실시간 미지원은 고장이 아니라 정보 없음 — 빨강(에러 시그널) 대신 중립 회색.
       return (
-        color: const Color(0xFFE5484D),
-        bg: isDark ? const Color(0x1AE5484D) : const Color(0x12E5484D),
+        color: isDark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF),
+        bg: isDark ? const Color(0x149CA3AF) : const Color(0x0F9CA3AF),
         label: '실시간 미지원',
       );
     }
@@ -988,8 +989,9 @@ class EvStatusBadge extends StatelessWidget {
     String label;
 
     if (station.isTesla) {
-      bgColor = isDark ? const Color(0x1AE5484D) : const Color(0x12E5484D);
-      textColor = const Color(0xFFE5484D);
+      // 정보 없음이지 고장 아님 — 중립 회색 (빨강은 자리없음/에러 시그널과 혼동)
+      bgColor = isDark ? const Color(0x149CA3AF) : const Color(0x0F9CA3AF);
+      textColor = isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280);
       label = '실시간 미지원';
     } else {
       final available = station.availableCount;
