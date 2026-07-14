@@ -428,21 +428,22 @@ final gasStationsProvider = Provider<AsyncValue<List<GasStation>>>((ref) {
           // 즐겨찾기 로딩을 기다리지 않는다 — 위치 기반 결과를 먼저 그리고,
           // fav 도착 시 자연스럽게 상단에 끼어든다 (첫 진입 응답성 우선).
           final favRaw = favAsync.valueOrNull ?? [];
+          // 필터 = 조건, 즐겨찾기 = 정렬 우선순위. 필터는 즐겨찾기에도 동일 적용 —
+          // 24시간 필터에 24시간 아닌 즐겨찾기가 상단에 남으면 "통과했구나"로 오독됨.
+          bool passGas(GasStation s) =>
+              (filter.brands.isEmpty || filter.brands.contains(s.brand)) &&
+              (!filter.open24Only || s.isSel24);
           // 상세 API는 distance를 안 돌려주므로 현재 위치 기반으로 재계산
           final favStations = favRaw
+              .where(passGas)
               .map((s) => s.copyWithDistance(_haversineM(loc.lat, loc.lng, s.lat, s.lng)))
               .toList()
             ..sort((a, b) => a.distance.compareTo(b.distance));
-          final favIds = favStations.map((s) => s.id).toSet();
-          // 위치 기반 결과에서 즐겨찾기 중복 제거
-          var nonFavStations = raw.where((s) => !favIds.contains(s.id)).toList();
-
-          if (filter.brands.isNotEmpty) {
-            nonFavStations = nonFavStations.where((s) => filter.brands.contains(s.brand)).toList();
-          }
-          if (filter.open24Only) {
-            nonFavStations = nonFavStations.where((s) => s.isSel24).toList();
-          }
+          // dedupe 는 필터 통과 여부와 무관하게 전체 즐겨찾기 id 기준
+          final favIds = favRaw.map((s) => s.id).toSet();
+          // 위치 기반 결과에서 즐겨찾기 중복 제거 + 동일 필터
+          var nonFavStations =
+              raw.where((s) => !favIds.contains(s.id)).where(passGas).toList();
 
           void sortGas(List<GasStation> list) {
             if (filter.sort == 2) {
@@ -499,37 +500,27 @@ final evStationsProvider = Provider<AsyncValue<List<EvStation>>>((ref) {
           // 즐겨찾기 로딩을 기다리지 않는다 — 위치 기반 결과를 먼저 그리고,
           // fav 도착 시 자연스럽게 상단에 끼어든다 (첫 진입 응답성 우선).
           final favRaw = favAsync.valueOrNull ?? [];
+          // 필터 = 조건, 즐겨찾기 = 정렬 우선순위. 필터는 즐겨찾기에도 동일 적용 —
+          // '빈자리만' 필터에 자리 없는 즐겨찾기가 상단에 남으면 오독됨 (가스와 동일 규칙).
+          final opSel = filter.operators.toSet(); // canonical 사업자명 화이트리스트(빈=전체)
+          bool passEv(EvStation s) =>
+              (!filter.availableOnly || s.hasAvailable || s.isTesla) &&
+              (filter.chargerTypes.isEmpty ||
+                  s.chargers.any((c) => _chargerMatchesFilter(c.type, filter.chargerTypes))) &&
+              (opSel.isEmpty || opSel.contains(canonicalEvOperator(s.operator))) &&
+              (filter.kinds.isEmpty || filter.kinds.contains(s.kind)) &&
+              (filter.accessLevels.isEmpty || filter.accessLevels.contains(s.accessLevel));
           // 상세 API는 distance를 안 돌려주므로 현재 위치 기반으로 재계산
           final favStations = favRaw
+              .where(passEv)
               .map((s) => s.copyWithDistance(_haversineM(loc.lat, loc.lng, s.lat, s.lng)))
               .toList()
             ..sort((a, b) => (a.distance ?? double.infinity).compareTo(b.distance ?? double.infinity));
-          final favIds = favStations.map((s) => s.statId).toSet();
-          // 위치 기반 결과에서 즐겨찾기 중복 제거
-          var nonFavStations = raw.where((s) => !favIds.contains(s.statId)).toList();
-
-          if (filter.availableOnly) {
-            nonFavStations = nonFavStations.where((s) => s.hasAvailable || s.isTesla).toList();
-          }
-          if (filter.chargerTypes.isNotEmpty) {
-            nonFavStations = nonFavStations.where((s) =>
-              s.chargers.any((c) => _chargerMatchesFilter(c.type, filter.chargerTypes))).toList();
-          }
-          if (filter.operators.isNotEmpty) {
-            // filter.operators = canonical 사업자명 화이트리스트(빈 리스트=전체).
-            final sel = filter.operators.toSet();
-            nonFavStations = nonFavStations
-                .where((s) => sel.contains(canonicalEvOperator(s.operator)))
-                .toList();
-          }
-          if (filter.kinds.isNotEmpty) {
-            nonFavStations = nonFavStations.where((s) => filter.kinds.contains(s.kind)).toList();
-          }
-          if (filter.accessLevels.isNotEmpty) {
-            nonFavStations = nonFavStations
-                .where((s) => filter.accessLevels.contains(s.accessLevel))
-                .toList();
-          }
+          // dedupe 는 필터 통과 여부와 무관하게 전체 즐겨찾기 id 기준
+          final favIds = favRaw.map((s) => s.statId).toSet();
+          // 위치 기반 결과에서 즐겨찾기 중복 제거 + 동일 필터
+          var nonFavStations =
+              raw.where((s) => !favIds.contains(s.statId)).where(passEv).toList();
 
           int cmpPrice(int? a, int? b) {
             if (a == null && b == null) return 0;
