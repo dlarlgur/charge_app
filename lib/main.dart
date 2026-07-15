@@ -1,8 +1,10 @@
+import 'dart:io' show Platform;
 import 'dart:async';
 import 'dart:convert';
 import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
@@ -500,6 +502,19 @@ Future<void> _initBackgroundTasks() async {
     debugPrint('[BG Tasks] 초기화 실패 (무시됨): $e');
   }
   try {
+    // iOS ATT — 광고 SDK 초기화 '전'에 추적 허용 여부를 물어야 AdMob 이 그에 맞춰 동작.
+    // (Apple 심사: NSUserTrackingUsageDescription + 실제 프롬프트. 거부해도 비맞춤 광고로 정상)
+    if (Platform.isIOS) {
+      try {
+        final status =
+            await AppTrackingTransparency.trackingAuthorizationStatus;
+        if (status == TrackingStatus.notDetermined) {
+          await AppTrackingTransparency.requestTrackingAuthorization();
+        }
+      } catch (e) {
+        debugPrint('[ATT] 요청 실패 (무시됨): $e');
+      }
+    }
     await MobileAds.instance.initialize();
     // AdMob 워밍업 — 슬롯 단위 ID 로 한 번 load() 해서 SDK 내부 캐시 데움.
     AdMobWarmup.run();

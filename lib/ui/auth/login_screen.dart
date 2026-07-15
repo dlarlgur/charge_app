@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -82,7 +83,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _showEmailInUse(String provider) {
-    const names = {'kakao': '카카오', 'naver': '네이버', 'google': '구글'};
+    const names = {'kakao': '카카오', 'naver': '네이버', 'google': '구글', 'apple': '애플'};
     final name = names[provider] ?? '다른 소셜';
     showAppDialog<void>(
       context,
@@ -201,6 +202,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 ),
                               ]
                             : [
+                                // Apple 심사 가이드라인 4.8 — 제3자 소셜로그인 제공 시
+                                // 'Apple로 로그인'을 동등 이상으로 노출해야 함 (iOS 한정, 최상단).
+                                if (Platform.isIOS &&
+                                    (_enabled!['apple'] ?? true)) ...[
+                                  _SocialButton(
+                                    label: 'Apple로 시작하기',
+                                    bg: Colors.black,
+                                    fg: Colors.white,
+                                    icon: Icons.apple,
+                                    onTap: () => _onProvider('apple'),
+                                  ),
+                                  const SizedBox(height: 10),
+                                ],
                                 if (_enabled!['kakao'] ?? true) ...[
                                   _SocialButton(
                                     label: '카카오로 시작하기',

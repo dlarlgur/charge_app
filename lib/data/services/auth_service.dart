@@ -6,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:flutter_naver_login/flutter_naver_login.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:dksw_app_core/dksw_app_core.dart';
 
 /// 로그인 사용자 (서버 users 레코드).
@@ -96,6 +97,27 @@ class AuthService {
     return token;
   }
 
+  /// Apple 로그인 — identityToken(JWT)을 서버가 JWKS 로 검증.
+  /// 이름은 '최초 인가 1회'만 credential 로 오므로 함께 반환(서버가 최초 가입 닉네임으로 사용).
+  static Future<({String token, String? name})?> _appleToken() async {
+    try {
+      final cred = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+      final idToken = cred.identityToken;
+      if (idToken == null || idToken.isEmpty) return null;
+      final name =
+          [cred.familyName, cred.givenName].whereType<String>().join().trim();
+      return (token: idToken, name: name.isEmpty ? null : name);
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) return null; // 취소는 조용히
+      rethrow;
+    }
+  }
+
   static Future<String?> _googleToken() async {
     final gs = GoogleSignIn(serverClientId: _googleWebClientId, scopes: const ['email']);
     final acc = await gs.signIn(); // 취소 시 null
@@ -108,6 +130,7 @@ class AuthService {
   /// isNew=true 면 신규 가입 → 앱이 회원가입 완료 화면(닉네임/이메일/동의) 띄움.
   static Future<({AuthUser? user, bool isNew})> login(String provider) async {
     String? token;
+    String? appleName; // Apple 최초 인가 시에만 옴 — 서버에 최초 닉네임으로 전달
     switch (provider) {
       case 'kakao':
         token = await _kakaoToken();
@@ -118,6 +141,11 @@ class AuthService {
       case 'google':
         token = await _googleToken();
         break;
+      case 'apple':
+        final a = await _appleToken();
+        token = a?.token;
+        appleName = a?.name;
+        break;
     }
     if (token == null) return (user: null, isNew: false);
 
@@ -127,6 +155,7 @@ class AuthService {
         'token': token,
         'deviceId': DkswCore.deviceId,
         'package': 'com.dksw.charge',
+        if (appleName != null) 'name': appleName,
       });
     } on DioException catch (e) {
       final data = e.response?.data;
