@@ -51,6 +51,7 @@ app.*.map.json
 lib/core/constants/secrets.dart
 android/local.properties
 android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
 
 # IDE / 메타데이터
 .metadata
