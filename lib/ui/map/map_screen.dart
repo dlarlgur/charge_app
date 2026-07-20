@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
@@ -237,11 +238,31 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _markerDebounce = Timer(const Duration(milliseconds: 80), _updateMarkers);
   }
 
+  // 클러스터러블 마커 일괄 제거.
+  // iOS 는 clearOverlays(clusterableMarker) 호출 시 플러그인 내부 태그 참조가 깨져
+  // 이후 clusterMarkerBuilder 콜백이 영영 안 오는 버그가 있음(줌아웃 클러스터 원이
+  // hidden 상태로 남아 지도에서 마커가 사라져 보임) — note11g/flutter_naver_map#342.
+  // 이슈에 검증된 우회: 개별 deleteOverlay 로 제거. Android 는 정상이므로 기존
+  // clearOverlays(1회 호출, 빠름) 유지.
+  // ⚠️ _markerRefs.clear() 보다 먼저 호출할 것 — 삭제할 id 를 여기서 캡처한다.
+  Future<void> _clearClusterableOverlays(NaverMapController controller) async {
+    if (!Platform.isIOS) {
+      await controller.clearOverlays(type: NOverlayType.clusterableMarker);
+      return;
+    }
+    final ids = List<String>.from(_markerRefs.keys); // await 전 동기 캡처
+    await Future.wait(ids.map((id) => controller
+        .deleteOverlay(
+            NOverlayInfo(type: NOverlayType.clusterableMarker, id: id))
+        .catchError((_) {/* 이미 제거된 마커 무시 */})));
+  }
+
   void _clearMarkers() {
     _markerDebounce?.cancel();
     _markersGeneration++;
+    final c = _mapController;
+    if (c != null) _clearClusterableOverlays(c); // fire-and-forget (기존과 동일)
     _markerRefs.clear();
-    _mapController?.clearOverlays(type: NOverlayType.clusterableMarker);
     // 필터 변경 등으로 마커가 전부 폐기될 때 — 다음 표시 셋과 키가 거의 안 겹치므로
     // 배지 아이콘 캐시도 같이 비워 메모리 회수. 첫 진입에만 재 raster 비용 있음.
     _badgeIconCache.clear();
@@ -672,7 +693,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             NInclusiveRange(0, 8): 100,   // 광역 — 크게 묶음
             NInclusiveRange(9, 11): 70,   // 시군구 — 적당히
           },
-          maxMergeableScreenDistance: 85,
+          // 반드시 per-zoom 병합거리 최댓값(100) 이상이어야 함. 이 값보다 큰
+          // per-zoom threshold 는 iOS SDK 에서 무효 처리돼 해당 줌대역 클러스터가
+          // 생성되지 않음(안드로이드는 관대). 85→100 으로 정합성 확보.
+          maxMergeableScreenDistance: 100,
         ),
         clusterMarkerBuilder: _buildClusterMarker,
       ),
@@ -1438,8 +1462,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (_showEv && ref.read(mapEvStationsProvider).isLoading) return;
 
     final gen = ++_markersGeneration;
+    // 순서 중요: id 캡처를 위해 _markerRefs.clear() 전에 호출 (iOS #342 우회).
+    await _clearClusterableOverlays(controller);
     _markerRefs.clear();
-    await controller.clearOverlays(type: NOverlayType.clusterableMarker);
     if (gen != _markersGeneration) return;
 
     final gasStations = _spreadSample<GasStation>(
