@@ -86,6 +86,12 @@ dependencies:
       ref: v0.5.2
   dio_cache_interceptor: ^4.0.6
 
+# path_provider_foundation 2.6.0 은 FFI(package:objective_c) 구현으로 전환됐는데
+# iOS 시뮬레이터에서 objective_c.framework dlopen 실패로 부팅 크래시 (실기기는 정상).
+# 안정 구현인 2.5.x 로 고정 — objective_c 의존 자체가 제거됨.
+dependency_overrides:
+  path_provider_foundation: 2.5.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
