@@ -42,10 +42,14 @@ class AdMobNativeCard extends StatefulWidget {
 }
 
 class _AdMobNativeCardState extends State<AdMobNativeCard> {
-  // 광고는 카드가 소유하지 않고 ListAdCache 가 (unitId+factory) 키로 보관.
+  // 광고는 카드가 소유하지 않고 ListAdCache 가 키로 보관.
   // 스크롤로 벗어나면 PlatformView 는 unmount(가벼움), 인스턴스는 캐시에 살아 있어
   // 되돌아올 때 재로드 없이 다시 mount 만. (KeepAlive·프리로드 풀 불필요)
-  late final String _key = '${widget.adUnitId}|${widget.isEv}';
+  // ⚠️ 키에 listPosition 포함 필수 — 같은 유닛 ID 가 여러 슬롯에 쓰이면(디버그 테스트유닛,
+  //   또는 상용 긴 목록의 fallback) 하나의 NativeAd 를 여러 AdWidget 이 물어
+  //   "already in the Widget tree" 크래시. 슬롯별 인스턴스로 분리한다.
+  late final String _key =
+      '${widget.adUnitId}|${widget.isEv}|${widget.listPosition}';
   String get _factory => widget.isEv ? 'stationCardListEv' : 'stationCardList';
 
   // 옆 스테이션 카드와 동일 높이로 — 슬롯에 빈 공간 없이 꽉 차게.
