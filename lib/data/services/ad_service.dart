@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:dksw_app_core/dksw_app_core.dart';
 
 /// 광고 네트워크 공급자 — 콘솔 원격설정 `ads_network` 로 전환.
@@ -142,14 +143,41 @@ class AdUnitIds {
   static const String _stationDetailNativeAndroid =
       'ca-app-pub-8640148276009977/5929557058'; // charge_detail_native
 
-  // ─── iOS — TODO: iOS 단위 ID 발급 후 교체 (현재 Android 재사용) ───
-  static const Map<int, String> _listBannerIos = _listBannerAndroid;
-  static const String _topBannerIos = _topBannerAndroid;
-  static const String _stationDetailNativeIos = _stationDetailNativeAndroid;
+  // ─── iOS 단위 ID (AdMob 콘솔 iOS 앱, 같은 게시자 8640148276009977) ───
+  static const Map<int, String> _listBannerIos = {
+    4:  'ca-app-pub-8640148276009977/8423081779', // charge_list_banner1
+    8:  'ca-app-pub-8640148276009977/9565341279', // charge_list_banner2
+    12: 'ca-app-pub-8640148276009977/8252259606', // charge_list_banner3
+    16: 'ca-app-pub-8640148276009977/9473273719', // charge_list_banner4
+    20: 'ca-app-pub-8640148276009977/8160192041', // charge_list_banner5
+    24: 'ca-app-pub-8640148276009977/1199766093', // charge_list_banner6
+    28: 'ca-app-pub-8640148276009977/9645352461', // charge_list_banner7
+    32: 'ca-app-pub-8640148276009977/8886684422', // charge_list_banner8
+    36: 'ca-app-pub-8640148276009977/5796918437', // charge_list_banner9
+    40: 'ca-app-pub-8640148276009977/3307054687', // charge_list_banner10
+    44: 'ca-app-pub-8640148276009977/3075386324', // charge_list_banner11
+    48: 'ca-app-pub-8640148276009977/7573602750', // charge_list_banner12
+    52: 'ca-app-pub-8640148276009977/6260521082', // charge_list_banner13
+    56: 'ca-app-pub-8640148276009977/8571255585', // charge_list_banner14
+  };
+  static const String _topBannerIos =
+      'ca-app-pub-8640148276009977/1762304658'; // charge_top_banner (iOS)
+  static const String _stationDetailNativeIos =
+      'ca-app-pub-8640148276009977/1786355382'; // charge_detail (iOS)
+  static const String _exitNativeAndroid =
+      'ca-app-pub-8640148276009977/4895744199'; // charge_exit_native
+  static const String _exitNativeIos =
+      'ca-app-pub-8640148276009977/5945092247'; // out_dialog (iOS)
+
+  // Google 공식 네이티브 테스트 유닛 (iOS/Android 공용). debug 빌드(시뮬·개발기기)에선
+  // 무조건 이걸 반환 → 실제 광고 노출/클릭이 계정에 집계되는 사고 방지(정지 위험 차단).
+  // release 빌드에서만 실제 유닛 사용.
+  static const String _testNative = 'ca-app-pub-3940256099942544/3986624511';
 
   /// 리스트 list_position 에 매핑되는 광고 단위 ID.
   /// admobSlots 외 position 호출 시 list_banner1 으로 fallback.
   static String forPosition(int position) {
+    if (kDebugMode) return _testNative;
     final override = _overrideUnit('admob_units', 'list', position);
     if (override != null) return override;
     final map = Platform.isIOS ? _listBannerIos : _listBannerAndroid;
@@ -157,17 +185,20 @@ class AdUnitIds {
   }
 
   /// 홈 상단 배너 광고 단위 ID (TopBannerAdmobCard — house ad 없을 때 폴백).
-  static String get topBanner =>
-      _overrideUnit('admob_units', 'top') ??
-      (Platform.isIOS ? _topBannerIos : _topBannerAndroid);
+  static String get topBanner => kDebugMode
+      ? _testNative
+      : (_overrideUnit('admob_units', 'top') ??
+          (Platform.isIOS ? _topBannerIos : _topBannerAndroid));
 
   /// 주유소·충전소 상세 상단 네이티브 광고 단위 ID (카드 바로 아래).
-  static String get stationDetailNative =>
-      _overrideUnit('admob_units', 'detail') ??
-      (Platform.isIOS ? _stationDetailNativeIos : _stationDetailNativeAndroid);
+  static String get stationDetailNative => kDebugMode
+      ? _testNative
+      : (_overrideUnit('admob_units', 'detail') ??
+          (Platform.isIOS ? _stationDetailNativeIos : _stationDetailNativeAndroid));
 
   /// 종료 다이얼로그 네이티브 광고 단위 ID.
-  static String get exitNative =>
-      _overrideUnit('admob_units', 'exit') ??
-      'ca-app-pub-8640148276009977/4895744199'; // charge_exit_native
+  static String get exitNative => kDebugMode
+      ? _testNative
+      : (_overrideUnit('admob_units', 'exit') ??
+          (Platform.isIOS ? _exitNativeIos : _exitNativeAndroid));
 }

@@ -71,8 +71,13 @@
 					<string>chargehelper</string>
 				</array>
 			</dict>
-			<!-- TODO(구글로그인): Firebase iOS 앱 추가 후 GoogleService-Info.plist 의
-			     REVERSED_CLIENT_ID 값을 스킴으로 추가해야 iOS 구글 로그인 동작 -->
+			<!-- 구글 로그인 — GoogleService-Info.plist 의 REVERSED_CLIENT_ID -->
+			<dict>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>com.googleusercontent.apps.962113686833-5trgua1pu1riqet4dc85gh2dq89n5223</string>
+				</array>
+			</dict>
 		</array>
 		<!-- 네이버 로그인 (flutter_naver_login 2.x — NidThirdPartyLogin SDK) -->
 		<key>NidClientID</key>
@@ -92,10 +97,9 @@
 		<string>맞춤형 광고 제공을 위해 광고 식별자를 사용합니다. 허용하지 않아도 모든 기능을 정상적으로 이용할 수 있습니다.</string>
 		<key>UIStatusBarHidden</key>
 		<false/>
-		<!-- AdMob App ID — TODO: 본인 AdMob iOS App ID 로 교체 (ca-app-pub-XXXX~YYYY) -->
-		<!-- 현재 값은 Google 공식 테스트 App ID. 실서비스 전 반드시 교체. -->
+		<!-- AdMob iOS App ID (게시자 8640148276009977) -->
 		<key>GADApplicationIdentifier</key>
-		<string>ca-app-pub-3940256099942544~1458002511</string>
+		<string>ca-app-pub-8640148276009977~7655555317</string>
 		<!-- SKAdNetwork — ATT 미허용 사용자 대상 광고 성과 측정 (Google 공식 목록) -->
 		<key>SKAdNetworkItems</key>
 		<array>
