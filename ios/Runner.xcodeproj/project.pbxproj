@@ -11,15 +11,16 @@
 		2AE619F5A422CB03C36A9033 /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25C5748DE79394E6F860C8CD /* Pods_Runner.framework */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
-		51F933D0F96FE83BE32A31A0 /* BuildFile in Embed Foundation Extensions */ = {isa = PBXBuildFile; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		60BBA604646B1F96F88B3E22 /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D192079C372C4D2DBB40218D /* Pods_RunnerTests.framework */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
+		7FE2654244B803EB9D76E9C0 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 90901994A3DF9DAE5C2C3D57 /* Foundation.framework */; };
+		8CB935A972A33EBDF79A98EA /* ChargeWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E8F08E80CF655FB4839863F /* ChargeWidget.swift */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		A1B2C3D4E5F60010111213AA /* StationCardNativeAdFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60010111213BB /* StationCardNativeAdFactory.swift */; };
-		A76706E1EA3ECB45D0831D11 /* ChargeWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E8F08E80CF655FB4839863F /* ChargeWidget.swift */; };
 		AA10BEEF0001000000000002 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = AA10BEEF0001000000000001 /* GoogleService-Info.plist */; };
+		D029119417B4420BFC776954 /* ChargeWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 68D83C7FD577BF1963BD2DA1 /* ChargeWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -30,11 +31,11 @@
 			remoteGlobalIDString = 97C146ED1CF9000F007C117D;
 			remoteInfo = Runner;
 		};
-		CE768479F629A9CA0C59F598 /* PBXContainerItemProxy */ = {
+		EBB4468C9657831C1001E8C5 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = B7AFB21C19239FAB599C015A;
+			remoteGlobalIDString = A8CE925E0C6492C6553A70CC;
 			remoteInfo = ChargeWidget;
 		};
 /* End PBXContainerItemProxy section */
@@ -46,7 +47,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				51F933D0F96FE83BE32A31A0 /* BuildFile in Embed Foundation Extensions */,
+				D029119417B4420BFC776954 /* ChargeWidget.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -76,10 +77,12 @@
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
 		4A7F28115AF8AFB025F5A947 /* Pods-Runner.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"; sourceTree = "<group>"; };
 		4CD75E2CC24091F55E506473 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; name = Info.plist; path = ChargeWidget/Info.plist; sourceTree = "<group>"; };
+		68D83C7FD577BF1963BD2DA1 /* ChargeWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ChargeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
 		89E09A63B67299FEEE7324A3 /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
+		90901994A3DF9DAE5C2C3D57 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Debug.xcconfig; path = Flutter/Debug.xcconfig; sourceTree = "<group>"; };
 		9740EEB31CF90195004384FC /* Generated.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Generated.xcconfig; path = Flutter/Generated.xcconfig; sourceTree = "<group>"; };
 		97C146EE1CF9000F007C117D /* Runner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Runner.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -103,10 +106,11 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		49EC5401747507E25354563C /* Frameworks */ = {
+		779C52EE8B25C3F5B09EC4C7 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7FE2654244B803EB9D76E9C0 /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -138,6 +142,14 @@
 			);
 			name = ChargeWidget;
 			sourceTree = SOURCE_ROOT;
+		};
+		563696CF9C061F53CFC15BDF /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				90901994A3DF9DAE5C2C3D57 /* Foundation.framework */,
+			);
+			name = iOS;
+			sourceTree = "<group>";
 		};
 		7D590D1CEE944F37549AE0F3 /* Pods */ = {
 			isa = PBXGroup;
@@ -181,6 +193,7 @@
 			children = (
 				97C146EE1CF9000F007C117D /* Runner.app */,
 				331C8081294A63A400263BE5 /* RunnerTests.xctest */,
+				68D83C7FD577BF1963BD2DA1 /* ChargeWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -207,6 +220,7 @@
 			children = (
 				25C5748DE79394E6F860C8CD /* Pods_Runner.framework */,
 				D192079C372C4D2DBB40218D /* Pods_RunnerTests.framework */,
+				563696CF9C061F53CFC15BDF /* iOS */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -243,28 +257,28 @@
 				97C146EB1CF9000F007C117D /* Frameworks */,
 				97C146EC1CF9000F007C117D /* Resources */,
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
+				660C6C958A3A939784091FA0 /* Embed Foundation Extensions */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				808FDA8A4BF054DBBCA87AF4 /* [CP] Embed Pods Frameworks */,
 				4EADA3B0EE8070A25EF6CFD1 /* [CP] Copy Pods Resources */,
-				660C6C958A3A939784091FA0 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				B431D288EF798D69853CD116 /* PBXTargetDependency */,
+				F00068E8FDD50734756B22EF /* PBXTargetDependency */,
 			);
 			name = Runner;
 			productName = Runner;
 			productReference = 97C146EE1CF9000F007C117D /* Runner.app */;
 			productType = "com.apple.product-type.application";
 		};
-		B7AFB21C19239FAB599C015A /* ChargeWidget */ = {
+		A8CE925E0C6492C6553A70CC /* ChargeWidget */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 8673ABC6EC2A51997B759E0B /* Build configuration list for PBXNativeTarget "ChargeWidget" */;
+			buildConfigurationList = 0FC8F8B3AA8F6C5678794E8E /* Build configuration list for PBXNativeTarget "ChargeWidget" */;
 			buildPhases = (
-				9155D2F0F9D3916ECD44FE0C /* Sources */,
-				49EC5401747507E25354563C /* Frameworks */,
-				54F268D1567653AD608E7B03 /* Resources */,
+				2FECAA15C4BAB428323227A8 /* Sources */,
+				779C52EE8B25C3F5B09EC4C7 /* Frameworks */,
+				FF30BCF6D441909FB559C993 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -272,6 +286,7 @@
 			);
 			name = ChargeWidget;
 			productName = ChargeWidget;
+			productReference = 68D83C7FD577BF1963BD2DA1 /* ChargeWidget.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
@@ -309,20 +324,13 @@
 			targets = (
 				97C146ED1CF9000F007C117D /* Runner */,
 				331C8080294A63A400263BE5 /* RunnerTests */,
-				B7AFB21C19239FAB599C015A /* ChargeWidget */,
+				A8CE925E0C6492C6553A70CC /* ChargeWidget */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		331C807F294A63A400263BE5 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		54F268D1567653AD608E7B03 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -338,6 +346,13 @@
 				3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */,
 				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
 				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FF30BCF6D441909FB559C993 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -456,19 +471,19 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		2FECAA15C4BAB428323227A8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8CB935A972A33EBDF79A98EA /* ChargeWidget.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		331C807D294A63A400263BE5 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		9155D2F0F9D3916ECD44FE0C /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				A76706E1EA3ECB45D0831D11 /* ChargeWidget.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -490,11 +505,11 @@
 			target = 97C146ED1CF9000F007C117D /* Runner */;
 			targetProxy = 331C8085294A63A400263BE5 /* PBXContainerItemProxy */;
 		};
-		B431D288EF798D69853CD116 /* PBXTargetDependency */ = {
+		F00068E8FDD50734756B22EF /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = ChargeWidget;
-			target = B7AFB21C19239FAB599C015A /* ChargeWidget */;
-			targetProxy = CE768479F629A9CA0C59F598 /* PBXContainerItemProxy */;
+			target = A8CE925E0C6492C6553A70CC /* ChargeWidget */;
+			targetProxy = EBB4468C9657831C1001E8C5 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -518,15 +533,13 @@
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
-		10139EF3E45E144580E8408A /* Debug */ = {
+		00FDB6D5FD96ADE2D9A7A1F2 /* Profile */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9740EEB31CF90195004384FC /* Generated.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_ENTITLEMENTS = ChargeWidget/ChargeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = "$(CURRENT_PROJECT_VERSION)";
 				DEVELOPMENT_TEAM = Z4BC92P83W;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ChargeWidget/Info.plist;
@@ -536,15 +549,15 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = "$(MARKETING_VERSION)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.dksw.chargeHelper.ChargeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
 			};
-			name = Debug;
+			name = Profile;
 		};
 		249021D3217E4FDB00AE95B9 /* Profile */ = {
 			isa = XCBuildConfiguration;
@@ -673,6 +686,32 @@
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
 			};
 			name = Profile;
+		};
+		58982EDE98BD640F2D3A2302 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9740EEB31CF90195004384FC /* Generated.xcconfig */;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = ChargeWidget/ChargeWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = Z4BC92P83W;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ChargeWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.dksw.chargeHelper.ChargeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
 		};
 		97C147031CF9000F007C117D /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -832,15 +871,13 @@
 			};
 			name = Release;
 		};
-		C2873E4B52D0A3436C81EBA9 /* Profile */ = {
+		D8D092C564B791000555B74B /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9740EEB31CF90195004384FC /* Generated.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_ENTITLEMENTS = ChargeWidget/ChargeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = "$(CURRENT_PROJECT_VERSION)";
 				DEVELOPMENT_TEAM = Z4BC92P83W;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ChargeWidget/Info.plist;
@@ -850,65 +887,34 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = "$(MARKETING_VERSION)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.dksw.chargeHelper.ChargeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
 			};
-			name = Profile;
-		};
-		CB8FBCCD24374DE8C6C83096 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CLANG_ENABLE_OBJC_WEAK = NO;
-				CODE_SIGN_ENTITLEMENTS = ChargeWidget/ChargeWidget.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = "$(CURRENT_PROJECT_VERSION)";
-				DEVELOPMENT_TEAM = Z4BC92P83W;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = ChargeWidget/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = "$(MARKETING_VERSION)";
-				PRODUCT_BUNDLE_IDENTIFIER = com.dksw.chargeHelper.ChargeWidget;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Release;
+			name = Debug;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		0FC8F8B3AA8F6C5678794E8E /* Build configuration list for PBXNativeTarget "ChargeWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				58982EDE98BD640F2D3A2302 /* Release */,
+				D8D092C564B791000555B74B /* Debug */,
+				00FDB6D5FD96ADE2D9A7A1F2 /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		331C8087294A63A400263BE5 /* Build configuration list for PBXNativeTarget "RunnerTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				331C8088294A63A400263BE5 /* Debug */,
 				331C8089294A63A400263BE5 /* Release */,
 				331C808A294A63A400263BE5 /* Profile */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		8673ABC6EC2A51997B759E0B /* Build configuration list for PBXNativeTarget "ChargeWidget" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				CB8FBCCD24374DE8C6C83096 /* Release */,
-				10139EF3E45E144580E8408A /* Debug */,
-				C2873E4B52D0A3436C81EBA9 /* Profile */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
