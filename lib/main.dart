@@ -156,6 +156,13 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await notificationPlugin.initialize(
     const InitializationSettings(
       android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      // iOS — foreground 알림 표시 권한은 별도 요청(ensureNotifPermission)에서 처리하므로
+      // 여기선 requestPermission false. 미설정 시 "iOS settings must be set" 크래시.
+      iOS: DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      ),
     ),
     onDidReceiveBackgroundNotificationResponse:
         _onBackgroundNotificationResponse,
@@ -325,6 +332,13 @@ Future<void> _initLocalNotifications() async {
   await notificationPlugin.initialize(
     const InitializationSettings(
       android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      // iOS — foreground 알림 표시 권한은 별도 요청(ensureNotifPermission)에서 처리하므로
+      // 여기선 requestPermission false. 미설정 시 "iOS settings must be set" 크래시.
+      iOS: DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      ),
     ),
     onDidReceiveNotificationResponse: (details) {
       final payload = details.payload ?? '';
