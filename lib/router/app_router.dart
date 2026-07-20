@@ -6,6 +6,8 @@ import '../ui/permission/permission_screen.dart';
 import '../ui/onboarding/onboarding_screen.dart';
 import '../ui/home/home_screen.dart';
 import '../ui/splash/splash_screen.dart';
+import '../data/services/notification_service.dart'
+    show navigateToGasStationNotifier, navigateToEvStationNotifier;
 import '../core/navigation/app_route_observer.dart';
 import '../ui/detail/gas_detail_screen.dart';
 import '../ui/detail/ev_detail_screen.dart';
@@ -54,6 +56,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
+      // iOS 홈위젯 탭 딥링크 (chargehelper://widget?type=gas|ev&id=...).
+      // 안드로이드는 pending 키 방식이라 이 경로를 안 탄다. notifier 세팅 후 홈으로.
+      GoRoute(
+        path: '/widget',
+        redirect: (context, state) {
+          final type = state.uri.queryParameters['type'] ?? '';
+          final id = state.uri.queryParameters['id'] ?? '';
+          if (id.isNotEmpty) {
+            if (type == 'ev') {
+              navigateToEvStationNotifier.value = id;
+            } else if (type == 'gas') {
+              navigateToGasStationNotifier.value = id;
+            }
+          }
+          return '/';
+        },
+      ),
       GoRoute(
         path: '/login',
         builder: (_, state) =>

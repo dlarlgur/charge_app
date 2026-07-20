@@ -8,9 +8,12 @@
 
 /* Begin PBXBuildFile section */
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
+		14E2F3386198C8DCBCE70EDA /* brand_etc.png in Resources */ = {isa = PBXBuildFile; fileRef = 38747DF064008D7C24ED096E /* brand_etc.png */; };
+		283D3E6F28A4FC7656DAC9A8 /* oil_nh.png in Resources */ = {isa = PBXBuildFile; fileRef = 15C4E51EEEE3741B62BBF1F8 /* oil_nh.png */; };
 		2AE619F5A422CB03C36A9033 /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25C5748DE79394E6F860C8CD /* Pods_Runner.framework */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
+		575436603ECB6716A3C0B2D7 /* oil_sk.png in Resources */ = {isa = PBXBuildFile; fileRef = AA4DB2B3250EED139594650D /* oil_sk.png */; };
 		60BBA604646B1F96F88B3E22 /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D192079C372C4D2DBB40218D /* Pods_RunnerTests.framework */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
 		7FE2654244B803EB9D76E9C0 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 90901994A3DF9DAE5C2C3D57 /* Foundation.framework */; };
@@ -19,8 +22,14 @@
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		A1B2C3D4E5F60010111213AA /* StationCardNativeAdFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60010111213BB /* StationCardNativeAdFactory.swift */; };
+		A52C7DEE0A594A58045AE2C8 /* oil_hd.png in Resources */ = {isa = PBXBuildFile; fileRef = 1B6AA5234DDED1A45591A779 /* oil_hd.png */; };
 		AA10BEEF0001000000000002 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = AA10BEEF0001000000000001 /* GoogleService-Info.plist */; };
+		C868E43793D2ABA2A3F9FCB4 /* oil_ex.png in Resources */ = {isa = PBXBuildFile; fileRef = 25057436B5E6D85A89214DDB /* oil_ex.png */; };
 		D029119417B4420BFC776954 /* ChargeWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 68D83C7FD577BF1963BD2DA1 /* ChargeWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		D034960F8597E836690CEFFD /* oil_gs.png in Resources */ = {isa = PBXBuildFile; fileRef = 98BD662F074DACBDA1143003 /* oil_gs.png */; };
+		D539E7EE9CC6D523A7F49F6B /* app_pin.png in Resources */ = {isa = PBXBuildFile; fileRef = FF31FECAA9B39B1F1988E521 /* app_pin.png */; };
+		DB10554240A288D57D8B5A5C /* oil_soil.png in Resources */ = {isa = PBXBuildFile; fileRef = 27344C0E07293A02B9B9185A /* oil_soil.png */; };
+		E316BC833C74801157B6D073 /* Pods_ChargeWidget.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1254458EED442AACA9379E0E /* Pods_ChargeWidget.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -65,19 +74,29 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0DEEC6C38D2E515B7DB2F1E4 /* Pods-ChargeWidget.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ChargeWidget.profile.xcconfig"; path = "Target Support Files/Pods-ChargeWidget/Pods-ChargeWidget.profile.xcconfig"; sourceTree = "<group>"; };
 		0E8F08E80CF655FB4839863F /* ChargeWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ChargeWidget.swift; path = ChargeWidget/ChargeWidget.swift; sourceTree = "<group>"; };
 		0F34AA5E9E195BD4DFFD3DA9 /* ChargeWidget.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; name = ChargeWidget.entitlements; path = ChargeWidget/ChargeWidget.entitlements; sourceTree = "<group>"; };
+		1254458EED442AACA9379E0E /* Pods_ChargeWidget.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_ChargeWidget.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
+		15C4E51EEEE3741B62BBF1F8 /* oil_nh.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; name = oil_nh.png; path = ChargeWidget/BrandLogos/oil_nh.png; sourceTree = "<group>"; };
+		1B6AA5234DDED1A45591A779 /* oil_hd.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; name = oil_hd.png; path = ChargeWidget/BrandLogos/oil_hd.png; sourceTree = "<group>"; };
+		25057436B5E6D85A89214DDB /* oil_ex.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; name = oil_ex.png; path = ChargeWidget/BrandLogos/oil_ex.png; sourceTree = "<group>"; };
 		25C5748DE79394E6F860C8CD /* Pods_Runner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		27344C0E07293A02B9B9185A /* oil_soil.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; name = oil_soil.png; path = ChargeWidget/BrandLogos/oil_soil.png; sourceTree = "<group>"; };
 		287115C1CED6280B4B653073 /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
 		331C807B294A618700263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
 		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		344318F5588F98AD3394ACF1 /* Pods-RunnerTests.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.profile.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.profile.xcconfig"; sourceTree = "<group>"; };
+		35392225CBE8715F9A099D37 /* debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ChargeWidget/Config/debug.xcconfig; sourceTree = "<group>"; };
+		38747DF064008D7C24ED096E /* brand_etc.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; name = brand_etc.png; path = ChargeWidget/BrandLogos/brand_etc.png; sourceTree = "<group>"; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
 		4A7F28115AF8AFB025F5A947 /* Pods-Runner.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"; sourceTree = "<group>"; };
 		4CD75E2CC24091F55E506473 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; name = Info.plist; path = ChargeWidget/Info.plist; sourceTree = "<group>"; };
+		5C394E18428D6E172B3A635E /* Pods-ChargeWidget.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ChargeWidget.release.xcconfig"; path = "Target Support Files/Pods-ChargeWidget/Pods-ChargeWidget.release.xcconfig"; sourceTree = "<group>"; };
 		68D83C7FD577BF1963BD2DA1 /* ChargeWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ChargeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		6B32309B1CFE0C67D068084C /* release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = release.xcconfig; path = ChargeWidget/Config/release.xcconfig; sourceTree = "<group>"; };
 		74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
@@ -85,16 +104,21 @@
 		90901994A3DF9DAE5C2C3D57 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Debug.xcconfig; path = Flutter/Debug.xcconfig; sourceTree = "<group>"; };
 		9740EEB31CF90195004384FC /* Generated.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Generated.xcconfig; path = Flutter/Generated.xcconfig; sourceTree = "<group>"; };
+		975A6664F762C4142668B5DE /* profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = profile.xcconfig; path = ChargeWidget/Config/profile.xcconfig; sourceTree = "<group>"; };
 		97C146EE1CF9000F007C117D /* Runner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Runner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		97C146FB1CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		97C146FD1CF9000F007C117D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		98BD662F074DACBDA1143003 /* oil_gs.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; name = oil_gs.png; path = ChargeWidget/BrandLogos/oil_gs.png; sourceTree = "<group>"; };
 		A1B2C3D4E5F60010111213BB /* StationCardNativeAdFactory.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = StationCardNativeAdFactory.swift; sourceTree = "<group>"; };
 		AA10BEEF0001000000000001 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		AA4DB2B3250EED139594650D /* oil_sk.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; name = oil_sk.png; path = ChargeWidget/BrandLogos/oil_sk.png; sourceTree = "<group>"; };
 		C215A66C2FAA1F8013F4679D /* Pods-RunnerTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release.xcconfig"; sourceTree = "<group>"; };
 		D192079C372C4D2DBB40218D /* Pods_RunnerTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_RunnerTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		E120E0AC56E195FB2585A7FB /* Pods-ChargeWidget.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ChargeWidget.debug.xcconfig"; path = "Target Support Files/Pods-ChargeWidget/Pods-ChargeWidget.debug.xcconfig"; sourceTree = "<group>"; };
 		EC83A0FF96EE052AF4DEAF32 /* Pods-RunnerTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.debug.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.debug.xcconfig"; sourceTree = "<group>"; };
+		FF31FECAA9B39B1F1988E521 /* app_pin.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; name = app_pin.png; path = ChargeWidget/BrandLogos/app_pin.png; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -111,6 +135,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7FE2654244B803EB9D76E9C0 /* Foundation.framework in Frameworks */,
+				E316BC833C74801157B6D073 /* Pods_ChargeWidget.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -139,6 +164,8 @@
 				0E8F08E80CF655FB4839863F /* ChargeWidget.swift */,
 				4CD75E2CC24091F55E506473 /* Info.plist */,
 				0F34AA5E9E195BD4DFFD3DA9 /* ChargeWidget.entitlements */,
+				56923110F16BB335AD137ECC /* BrandLogos */,
+				D5372F167D0EBF2B3C033AA5 /* Config */,
 			);
 			name = ChargeWidget;
 			sourceTree = SOURCE_ROOT;
@@ -151,6 +178,21 @@
 			name = iOS;
 			sourceTree = "<group>";
 		};
+		56923110F16BB335AD137ECC /* BrandLogos */ = {
+			isa = PBXGroup;
+			children = (
+				38747DF064008D7C24ED096E /* brand_etc.png */,
+				25057436B5E6D85A89214DDB /* oil_ex.png */,
+				98BD662F074DACBDA1143003 /* oil_gs.png */,
+				1B6AA5234DDED1A45591A779 /* oil_hd.png */,
+				15C4E51EEEE3741B62BBF1F8 /* oil_nh.png */,
+				AA4DB2B3250EED139594650D /* oil_sk.png */,
+				27344C0E07293A02B9B9185A /* oil_soil.png */,
+				FF31FECAA9B39B1F1988E521 /* app_pin.png */,
+			);
+			name = BrandLogos;
+			sourceTree = SOURCE_ROOT;
+		};
 		7D590D1CEE944F37549AE0F3 /* Pods */ = {
 			isa = PBXGroup;
 			children = (
@@ -160,6 +202,9 @@
 				EC83A0FF96EE052AF4DEAF32 /* Pods-RunnerTests.debug.xcconfig */,
 				C215A66C2FAA1F8013F4679D /* Pods-RunnerTests.release.xcconfig */,
 				344318F5588F98AD3394ACF1 /* Pods-RunnerTests.profile.xcconfig */,
+				5C394E18428D6E172B3A635E /* Pods-ChargeWidget.release.xcconfig */,
+				E120E0AC56E195FB2585A7FB /* Pods-ChargeWidget.debug.xcconfig */,
+				0DEEC6C38D2E515B7DB2F1E4 /* Pods-ChargeWidget.profile.xcconfig */,
 			);
 			path = Pods;
 			sourceTree = "<group>";
@@ -215,12 +260,23 @@
 			path = Runner;
 			sourceTree = "<group>";
 		};
+		D5372F167D0EBF2B3C033AA5 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				35392225CBE8715F9A099D37 /* debug.xcconfig */,
+				6B32309B1CFE0C67D068084C /* release.xcconfig */,
+				975A6664F762C4142668B5DE /* profile.xcconfig */,
+			);
+			name = Config;
+			sourceTree = SOURCE_ROOT;
+		};
 		EE883D46FE9D10E2CE264046 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
 				25C5748DE79394E6F860C8CD /* Pods_Runner.framework */,
 				D192079C372C4D2DBB40218D /* Pods_RunnerTests.framework */,
 				563696CF9C061F53CFC15BDF /* iOS */,
+				1254458EED442AACA9379E0E /* Pods_ChargeWidget.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -276,6 +332,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 0FC8F8B3AA8F6C5678794E8E /* Build configuration list for PBXNativeTarget "ChargeWidget" */;
 			buildPhases = (
+				0F61A819EF1321A7F5D3599A /* [CP] Check Pods Manifest.lock */,
 				2FECAA15C4BAB428323227A8 /* Sources */,
 				779C52EE8B25C3F5B09EC4C7 /* Frameworks */,
 				FF30BCF6D441909FB559C993 /* Resources */,
@@ -353,12 +410,42 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				14E2F3386198C8DCBCE70EDA /* brand_etc.png in Resources */,
+				C868E43793D2ABA2A3F9FCB4 /* oil_ex.png in Resources */,
+				D034960F8597E836690CEFFD /* oil_gs.png in Resources */,
+				A52C7DEE0A594A58045AE2C8 /* oil_hd.png in Resources */,
+				283D3E6F28A4FC7656DAC9A8 /* oil_nh.png in Resources */,
+				575436603ECB6716A3C0B2D7 /* oil_sk.png in Resources */,
+				DB10554240A288D57D8B5A5C /* oil_soil.png in Resources */,
+				D539E7EE9CC6D523A7F49F6B /* app_pin.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		0F61A819EF1321A7F5D3599A /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-ChargeWidget-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
 		182E2899D2A712E09B7F263F /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -535,7 +622,7 @@
 /* Begin XCBuildConfiguration section */
 		00FDB6D5FD96ADE2D9A7A1F2 /* Profile */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 9740EEB31CF90195004384FC /* Generated.xcconfig */;
+			baseConfigurationReference = 975A6664F762C4142668B5DE /* profile.xcconfig */;
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_ENTITLEMENTS = ChargeWidget/ChargeWidget.entitlements;
@@ -689,7 +776,7 @@
 		};
 		58982EDE98BD640F2D3A2302 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 9740EEB31CF90195004384FC /* Generated.xcconfig */;
+			baseConfigurationReference = 6B32309B1CFE0C67D068084C /* release.xcconfig */;
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_ENTITLEMENTS = ChargeWidget/ChargeWidget.entitlements;
@@ -873,7 +960,7 @@
 		};
 		D8D092C564B791000555B74B /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 9740EEB31CF90195004384FC /* Generated.xcconfig */;
+			baseConfigurationReference = 35392225CBE8715F9A099D37 /* debug.xcconfig */;
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_ENTITLEMENTS = ChargeWidget/ChargeWidget.entitlements;

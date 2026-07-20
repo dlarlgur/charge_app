@@ -1,0 +1,3 @@
+#include "../../Flutter/Generated.xcconfig"
+#include "../../Pods/Target Support Files/Pods-ChargeWidget/Pods-ChargeWidget.debug.xcconfig"
+FRAMEWORK_SEARCH_PATHS = $(inherited) "$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64_x86_64-simulator" "$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64"
