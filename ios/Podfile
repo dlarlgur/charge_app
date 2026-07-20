@@ -39,5 +39,14 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+    target.build_configurations.each do |config|
+      # permission_handler iOS — 사용하는 권한만 컴파일에 포함시켜야 실제 OS 요청이 나감.
+      # (미설정 시 request() 가 즉시 denied 리턴 → OS 팝업 안 뜨고 설정에도 항목 없음)
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] += [
+        'PERMISSION_LOCATION=1',      # 위치(사용 중 허용)
+        'PERMISSION_NOTIFICATIONS=1', # 알림
+      ]
+    end
   end
 end
