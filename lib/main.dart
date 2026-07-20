@@ -525,6 +525,11 @@ Future<void> _initBackgroundTasks() async {
         if (status == TrackingStatus.notDetermined) {
           await AppTrackingTransparency.requestTrackingAuthorization();
         }
+        // AdMob 테스트 기기 등록용 IDFA 출력 — iOS 는 GAD 로그가 <private> 처리돼
+        // testDeviceIdentifiers 해시를 콘솔에서 못 봄. AdMob 은 IDFA 로도 등록 가능.
+        // (ATT 허용 기기에서만 유효값, 거부 시 0000-… 출력)
+        debugPrint('[ATT] IDFA(테스트기기 등록용): '
+            '${await AppTrackingTransparency.getAdvertisingIdentifier()}');
       } catch (e) {
         debugPrint('[ATT] 요청 실패 (무시됨): $e');
       }

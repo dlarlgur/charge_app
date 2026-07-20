@@ -94,8 +94,14 @@ class _AdMobNativeCardState extends State<AdMobNativeCard> {
       builder: (context, ready, _) {
         final ad = ListAdCache.ad(_key);
         if (!ready || ad == null) {
-          // 로딩 중/실패 — 옆 카드와 동일 높이로 자리만 예약(레이아웃 점프 방지).
-          return SizedBox(height: _height + widget.margin.vertical);
+          // 재시도까지 전부 실패(no-fill) → 자리 접기. 그 전엔 옆 카드와 동일
+          // 높이로 자리만 예약(로드 완료 시 레이아웃 점프 방지).
+          return ValueListenableBuilder<bool>(
+            valueListenable: ListAdCache.failedNotifier(_key),
+            builder: (context, failed, _) => failed
+                ? const SizedBox.shrink()
+                : SizedBox(height: _height + widget.margin.vertical),
+          );
         }
         return Container(
           margin: widget.margin,

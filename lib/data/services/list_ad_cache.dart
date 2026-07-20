@@ -19,6 +19,13 @@ class ListAdCache {
   // 전에 로드가 나가 실패하는 레이스가 있음 → 짧은 지연 후 제한적으로 재시도.
   static final Map<String, int> _retries = {};
   static const int _maxRetries = 3;
+  // 재시도까지 전부 실패(no-fill 등) — 카드가 자리 예약 대신 접히도록 알림.
+  // (신규 광고단위는 fill 붙기까지 며칠 걸릴 수 있어 빈 칸 방치가 더 나쁨)
+  static final Map<String, ValueNotifier<bool>> _failed = {};
+
+  /// 최종 실패 여부 알림 — true 면 카드는 SizedBox.shrink() 로 접는다.
+  static ValueNotifier<bool> failedNotifier(String key) =>
+      _failed.putIfAbsent(key, () => ValueNotifier<bool>(false));
 
   /// 키의 준비 상태 알림. 카드가 ValueListenableBuilder 로 구독 → 로드 완료 시 자동 갱신.
   static ValueNotifier<bool> readyNotifier(String key) =>
@@ -38,18 +45,22 @@ class ListAdCache {
       listener: NativeAdListener(
         onAdLoaded: (_) {
           _retries.remove(key);
+          failedNotifier(key).value = false;
           notifier.value = true;
         },
         onAdFailedToLoad: (a, _) {
           a.dispose();
           _ads.remove(key);
-          notifier.value = false; // 실패 — 카드는 빈 자리(placeholder/shrink) 유지
+          notifier.value = false;
           // SDK init 레이스/일시적 no-fill 대비 제한적 재시도(지수 백오프).
           final n = _retries[key] ?? 0;
           if (n < _maxRetries) {
             _retries[key] = n + 1;
             Future.delayed(Duration(milliseconds: 700 * (n + 1)),
                 () => ensureLoaded(key, unitId, factoryId));
+          } else {
+            // 최종 실패 — 카드 접기 (빈 자리 예약 해제).
+            failedNotifier(key).value = true;
           }
         },
       ),
