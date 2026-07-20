@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -50,8 +51,13 @@ class AuthService {
 
   static const _base = 'https://charge.dksw4.com/api';
   // 구글 서버검증용 Web client ID (serverClientId). idToken 의 aud 가 됨.
-  static const _googleWebClientId =
-      '108426301015-ceas7b2r6e3nmsmi08upbdg58pt8k6nv.apps.googleusercontent.com';
+  // ⚠️ 플랫폼별 GCP 프로젝트가 달라 web client 도 분기해야 함:
+  //   - Android: 108426301015 프로젝트 (SHA-1 방식이라 iOS OAuth 클라와 프로젝트 달라도 동작)
+  //   - iOS: charge-helper(962113686833) 프로젝트 — iOS 는 OAuth 클라와 serverClientId 가
+  //          같은 프로젝트여야 로그인 성공. (서버는 두 aud 모두 허용)
+  static String get _googleWebClientId => Platform.isIOS
+      ? '962113686833-535pg6q5e221dfco4h9296o8si1kfsdu.apps.googleusercontent.com'
+      : '108426301015-ceas7b2r6e3nmsmi08upbdg58pt8k6nv.apps.googleusercontent.com';
 
   static const _kAccess = 'auth.access';
   static const _kRefresh = 'auth.refresh';
