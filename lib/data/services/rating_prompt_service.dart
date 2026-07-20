@@ -25,10 +25,8 @@ class RatingPromptService {
 
   static const int _minEntryCount = 2; // 2번째 진입부터 후보
   static const int _maxPrompts = 3; // 평생 노출 캡
-  // App Store 숫자 ID — App Store Connect 에 앱 등록하면 발급됨(예: '6479xxxxxx').
-  // 비어 있으면 iOS 폴백(스토어 페이지 열기)만 스킵 — requestReview 시트는 동작.
-  // TODO: ASC 앱 등록 후 채울 것.
-  static const String _appStoreId = '';
+  // App Store 숫자 ID (ASC '전기차 기름차' Apple ID).
+  static const String _appStoreId = '6792645861';
 
   static final InAppReview _review = InAppReview.instance;
 
