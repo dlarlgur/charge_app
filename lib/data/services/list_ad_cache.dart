@@ -15,6 +15,10 @@ class ListAdCache {
 
   static final Map<String, NativeAd> _ads = {};
   static final Map<String, ValueNotifier<bool>> _ready = {};
+  // 실패 재시도 횟수(키별). 첫 슬롯은 목록에서 가장 먼저 빌드돼 AdMob SDK init 완료
+  // 전에 로드가 나가 실패하는 레이스가 있음 → 짧은 지연 후 제한적으로 재시도.
+  static final Map<String, int> _retries = {};
+  static const int _maxRetries = 3;
 
   /// 키의 준비 상태 알림. 카드가 ValueListenableBuilder 로 구독 → 로드 완료 시 자동 갱신.
   static ValueNotifier<bool> readyNotifier(String key) =>
@@ -32,11 +36,21 @@ class ListAdCache {
       factoryId: factoryId,
       request: const AdRequest(),
       listener: NativeAdListener(
-        onAdLoaded: (_) => notifier.value = true,
+        onAdLoaded: (_) {
+          _retries.remove(key);
+          notifier.value = true;
+        },
         onAdFailedToLoad: (a, _) {
           a.dispose();
           _ads.remove(key);
           notifier.value = false; // 실패 — 카드는 빈 자리(placeholder/shrink) 유지
+          // SDK init 레이스/일시적 no-fill 대비 제한적 재시도(지수 백오프).
+          final n = _retries[key] ?? 0;
+          if (n < _maxRetries) {
+            _retries[key] = n + 1;
+            Future.delayed(Duration(milliseconds: 700 * (n + 1)),
+                () => ensureLoaded(key, unitId, factoryId));
+          }
         },
       ),
     )..load();
