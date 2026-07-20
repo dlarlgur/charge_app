@@ -76,7 +76,8 @@ class GasStationMapBadge {
   static Color medalColor(int rank) => _medalPill(rank).$1;
 
   // 즐겨찾기 별 배지 — 흰 원 + 금색 별. 지도 어느 배경에서도 확실히 보이게 그림자.
-  static Widget _favStarBadge() => Container(
+  // 즐겨찾기 별 색 — 각 도메인 시그니처색. 주유=파랑, 충전=초록.
+  static Widget _favStarBadge({required bool isEv}) => Container(
         width: 23,
         height: 23,
         decoration: BoxDecoration(
@@ -91,14 +92,16 @@ class GasStationMapBadge {
           ],
         ),
         alignment: Alignment.center,
-        // 목록 카드 즐겨찾기 하트(파랑)와 통일 — 추천 메달(골드)과 색 구분도 됨.
-        child: const Icon(Icons.star_rounded, size: 17, color: Color(0xFF3B82F6)),
+        child: Icon(Icons.star_rounded,
+            size: 17,
+            color: isEv ? const Color(0xFF22C55E) : const Color(0xFF3B82F6)),
       );
 
   // 마커 좌상단에 별 배지를 얹는다. 위쪽에 starRoom 만큼 공간을 확보해 별이 카드/메달
   // 위로 올라오되, 카드·꼬리(핀 앵커=하단 중앙)는 그대로라 지도 핀 위치 안 틀어짐.
   static Widget _wrapFavStar({
     required bool isFavorite,
+    required bool isEv,
     required double canvasW,
     required double contentH,
     required double starRoom,
@@ -112,7 +115,7 @@ class GasStationMapBadge {
         clipBehavior: Clip.none,
         children: [
           Positioned(left: 0, right: 0, bottom: 0, child: child),
-          Positioned(left: 0, top: 0, child: _favStarBadge()),
+          Positioned(left: 0, top: 0, child: _favStarBadge(isEv: isEv)),
         ],
       ),
     );
@@ -191,6 +194,7 @@ class GasStationMapBadge {
     return NOverlayImage.fromWidget(
       widget: _wrapFavStar(
         isFavorite: isFavorite,
+        isEv: isEv,
         canvasW: canvasW,
         contentH: h + tailH + extraTop,
         starRoom: starRoom,
