@@ -1331,6 +1331,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   // 병렬 마커 빌드 중 같은 아이콘 key 의 동시 래스터를 1회로 합침(중복 raster 제거).
   final Map<String, Future<NOverlayImage>> _badgeIconInflight = {};
 
+  // 즐겨찾기 여부 — 목록 카드와 동일 소스(favoritesProvider). 마커 하트 표시용.
+  bool _isFavGas(String id) => ref
+      .read(favoritesProvider)
+      .any((f) => f['type'] == 'gas' && f['id'] == id);
+  bool _isFavEv(String statId) => ref
+      .read(favoritesProvider)
+      .any((f) => f['type'] == 'ev' && f['id'] == statId);
+
   // ─── 마커 배지 아이콘 (로고 + 가격/텍스트 카드 스타일) ───
   Future<NOverlayImage> _stationBadgeIcon({
     required String label,
@@ -1340,10 +1348,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     bool? evFast,
     bool isHighlighted = false,
     int? recommendRank,
+    bool isFavorite = false,
   }) async {
     // 추천(1~3위)은 선택 안 됐을 때 가격 배지 테두리를 메달색(라벨과 동일)으로 — 검정 테두리 대신.
     final bool emphasizeRank = recommendRank != null && !isHighlighted;
-    final key = '$label|$brand|$stationName|$isEv|$isHighlighted|$recommendRank|$evFast';
+    final key = '$label|$brand|$stationName|$isEv|$isHighlighted|$recommendRank|$evFast|$isFavorite';
     final cached = _badgeIconCache[key];
     if (cached != null) {
       _badgeIconLru.remove(key);
@@ -1372,6 +1381,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         textColor: textColor,
         emphasizeBorder: isHighlighted || emphasizeRank,
         recommendRank: recommendRank,
+        isFavorite: isFavorite,
       );
       _badgeIconCache[key] = icon;
       _badgeIconLru.add(key);
@@ -1478,6 +1488,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               icon: await _stationBadgeIcon(
                 label: label, brand: s.brand, stationName: displayName,
                 isHighlighted: isSelected, recommendRank: rank,
+                isFavorite: _isFavGas(s.id),
               ),
             );
             marker.setOnTapListener((_) async {
@@ -1538,6 +1549,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               icon: await _stationBadgeIcon(
                 label: markerLabel, isEv: true, isHighlighted: isSelected,
                 evFast: s.hasFast,
+                isFavorite: _isFavEv(s.statId),
               ),
             );
             marker.setOnTapListener((_) async {
@@ -1590,7 +1602,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   Future<void> _highlightMarker(String markerId, String label, {String? brand, String? stationName, bool isEv = false, bool? evFast}) async {
     final marker = _markerRefs[markerId];
     if (marker == null) return;
-    marker.setIcon(await _stationBadgeIcon(label: label, brand: brand, stationName: stationName, isEv: isEv, evFast: evFast, isHighlighted: true));
+    // markerId(gas_<id>/ev_<statId>)에서 즐겨찾기 판정 — 선택해도 하트 유지.
+    final isFav = isEv
+        ? _isFavEv(markerId.replaceFirst('ev_', ''))
+        : _isFavGas(markerId.replaceFirst('gas_', ''));
+    marker.setIcon(await _stationBadgeIcon(label: label, brand: brand, stationName: stationName, isEv: isEv, evFast: evFast, isHighlighted: true, isFavorite: isFav));
   }
 
   /// 이전에 선택된 스테이션 마커를 원래 아이콘으로 복원 (전체 redraw 없이).
@@ -1605,6 +1621,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       marker.setIcon(await _stationBadgeIcon(
         label: prev.priceText, brand: prev.brand, stationName: displayName,
         recommendRank: _gasRecommendRanks[prev.id],
+        isFavorite: _isFavGas(prev.id),
       ));
     } else if (prev is EvStation) {
       final markerId = 'ev_${prev.statId}';
@@ -1614,6 +1631,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         label: prev.isTesla ? 'Tesla' : '${prev.availableCount}/${prev.totalCount}',
         isEv: true,
         evFast: prev.hasFast,
+        isFavorite: _isFavEv(prev.statId),
       ));
     }
   }

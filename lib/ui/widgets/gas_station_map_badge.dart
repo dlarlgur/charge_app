@@ -75,6 +75,38 @@ class GasStationMapBadge {
   /// 마커 테두리 등 외부에서 쓰도록 메달 배경색만 노출.
   static Color medalColor(int rank) => _medalPill(rank).$1;
 
+  /// 즐겨찾기 하트를 로고/아이콘 좌상단 코너에 겹쳐 표시.
+  /// 목록 카드 하트와 동일 색(가스=파랑, EV=초록) + 흰 링으로 로고와 분리.
+  /// 마커 폭/높이는 그대로 — 하트는 아이콘 영역 안쪽에 얹혀 캔버스를 벗어나지 않음.
+  static Widget _withFavHeart({
+    required bool isFavorite,
+    required bool isEv,
+    required Widget child,
+  }) {
+    if (!isFavorite) return child;
+    final Color heartColor = isEv ? const Color(0xFF10B981) : const Color(0xFF3B82F6);
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        child,
+        Positioned(
+          left: -4,
+          top: -3,
+          child: Container(
+            width: 12,
+            height: 12,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Icon(Icons.favorite_rounded, size: 8, color: heartColor),
+          ),
+        ),
+      ],
+    );
+  }
+
   static Future<NOverlayImage> overlayImage(
     BuildContext context, {
     required String label,
@@ -87,6 +119,7 @@ class GasStationMapBadge {
     bool emphasizeBorder = false,
     bool unreachable = false,
     int? recommendRank,
+    bool isFavorite = false,
   }) async {
     final String? logoAsset = logoFor(brand: brand, stationName: stationName);
     // 로고 보장 로드 — 앱 시작 시 프리캐시만 믿으면 이미지 캐시 evict 후(마커 수백 개·
@@ -204,50 +237,61 @@ class GasStationMapBadge {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     if (showLogo) ...[
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(2),
-                        child: logoAsset.toLowerCase().endsWith('.svg')
-                            ? SvgPicture.asset(
-                                logoAsset,
-                                width: logoSize,
-                                height: logoSize,
-                                fit: BoxFit.contain,
-                              )
-                            : Image.asset(
-                                logoAsset,
-                                width: logoSize,
-                                height: logoSize,
-                                fit: BoxFit.contain,
-                              ),
+                      _withFavHeart(
+                        isFavorite: isFavorite,
+                        isEv: isEv,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(2),
+                          child: logoAsset.toLowerCase().endsWith('.svg')
+                              ? SvgPicture.asset(
+                                  logoAsset,
+                                  width: logoSize,
+                                  height: logoSize,
+                                  fit: BoxFit.contain,
+                                )
+                              : Image.asset(
+                                  logoAsset,
+                                  width: logoSize,
+                                  height: logoSize,
+                                  fit: BoxFit.contain,
+                                ),
+                        ),
                       ),
                       const SizedBox(width: logoGap),
                     ] else if (isEv) ...[
                       // 급속=번개 2개(초록), 완속=번개 1개(파랑)로 구분.
-                      if (evFast == false)
-                        const Icon(Icons.bolt_rounded,
-                            size: 14, color: Color(0xFF3B82F6))
-                      else
-                        const SizedBox(
-                          width: 20,
-                          height: 16,
-                          child: Stack(children: [
-                            Positioned(
-                                left: 0,
-                                top: 1,
-                                child: Icon(Icons.bolt_rounded,
-                                    size: 14, color: Color(0xFF22C55E))),
-                            Positioned(
-                                left: 6,
-                                top: 1,
-                                child: Icon(Icons.bolt_rounded,
-                                    size: 14, color: Color(0xFF22C55E))),
-                          ]),
-                        ),
+                      _withFavHeart(
+                        isFavorite: isFavorite,
+                        isEv: isEv,
+                        child: evFast == false
+                            ? const Icon(Icons.bolt_rounded,
+                                size: 14, color: Color(0xFF3B82F6))
+                            : const SizedBox(
+                                width: 20,
+                                height: 16,
+                                child: Stack(children: [
+                                  Positioned(
+                                      left: 0,
+                                      top: 1,
+                                      child: Icon(Icons.bolt_rounded,
+                                          size: 14, color: Color(0xFF22C55E))),
+                                  Positioned(
+                                      left: 6,
+                                      top: 1,
+                                      child: Icon(Icons.bolt_rounded,
+                                          size: 14, color: Color(0xFF22C55E))),
+                                ]),
+                              ),
+                      ),
                       const SizedBox(width: logoGap),
                     ] else ...[
                       // 브랜드 로고 없는 주유소(자가/무폴) — 빈 칸 대신 기본 주유 아이콘.
-                      Icon(Icons.local_gas_station_rounded,
-                          size: 14, color: effectiveText),
+                      _withFavHeart(
+                        isFavorite: isFavorite,
+                        isEv: isEv,
+                        child: Icon(Icons.local_gas_station_rounded,
+                            size: 14, color: effectiveText),
+                      ),
                       const SizedBox(width: logoGap),
                     ],
                     Text(
