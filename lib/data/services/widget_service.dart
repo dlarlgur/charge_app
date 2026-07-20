@@ -37,9 +37,13 @@ class WidgetService {
   // 위젯 배경 투명도 (0~100). HomeWidgetPreferences 에 String 으로 저장 →
   // Kotlin WidgetOpacity 가 배경 ImageView 알파에 적용. (int/long 타입 모호성 피하려 String)
   static const _keyWidgetOpacity = 'widget_bg_opacity';
-  static const _allWidgetProviders = <String>[
-    'GasWidgetProvider', 'EvWidgetProvider', 'CombinedWidgetProvider',
-    'GasSmallWidgetProvider', 'EvSmallWidgetProvider',
+  // 안드로이드 provider ↔ iOS 위젯 kind 매핑 (투명도 등 전체 갱신용).
+  static const _allWidgets = <(String, String)>[
+    ('GasWidgetProvider', 'GasWidget'),
+    ('EvWidgetProvider', 'EvWidget'),
+    ('CombinedWidgetProvider', 'CombinedWidget'),
+    ('GasSmallWidgetProvider', 'GasWidget'),
+    ('EvSmallWidgetProvider', 'EvWidget'),
   ];
 
   /// 현재 위젯 배경 투명도(0~100). 기본 100(불투명).
@@ -53,9 +57,9 @@ class WidgetService {
   static Future<void> setWidgetOpacity(int pct) async {
     final v = pct.clamp(0, 100);
     await HomeWidget.saveWidgetData<String>(_keyWidgetOpacity, '$v');
-    for (final name in _allWidgetProviders) {
+    for (final (android, ios) in _allWidgets) {
       try {
-        await HomeWidget.updateWidget(androidName: name);
+        await HomeWidget.updateWidget(androidName: android, iOSName: ios);
       } catch (_) {/* 해당 위젯 미배치면 무시 */}
     }
   }
@@ -151,9 +155,9 @@ class WidgetService {
 
       await HomeWidget.saveWidgetData('widget_gas_list', json);
       await HomeWidget.saveWidgetData('widget_gas_updated', updatedAt);
-      await HomeWidget.updateWidget(androidName: 'GasWidgetProvider');
-      await HomeWidget.updateWidget(androidName: 'CombinedWidgetProvider');
-      await HomeWidget.updateWidget(androidName: 'GasSmallWidgetProvider');
+      await HomeWidget.updateWidget(androidName: 'GasWidgetProvider', iOSName: 'GasWidget');
+      await HomeWidget.updateWidget(androidName: 'CombinedWidgetProvider', iOSName: 'CombinedWidget');
+      await HomeWidget.updateWidget(androidName: 'GasSmallWidgetProvider', iOSName: 'GasWidget');
       debugPrint('[Widget][gas] save+update OK');
     } catch (e, st) {
       debugPrint('[Widget][gas] FAIL $e\n$st');
@@ -249,9 +253,9 @@ class WidgetService {
 
       await HomeWidget.saveWidgetData('widget_ev_list', json);
       await HomeWidget.saveWidgetData('widget_ev_updated', updatedAt);
-      await HomeWidget.updateWidget(androidName: 'EvWidgetProvider');
-      await HomeWidget.updateWidget(androidName: 'CombinedWidgetProvider');
-      await HomeWidget.updateWidget(androidName: 'EvSmallWidgetProvider');
+      await HomeWidget.updateWidget(androidName: 'EvWidgetProvider', iOSName: 'EvWidget');
+      await HomeWidget.updateWidget(androidName: 'CombinedWidgetProvider', iOSName: 'CombinedWidget');
+      await HomeWidget.updateWidget(androidName: 'EvSmallWidgetProvider', iOSName: 'EvWidget');
       debugPrint('[Widget][ev] save+update OK');
     } catch (e, st) {
       debugPrint('[Widget][ev] FAIL $e\n$st');
@@ -284,12 +288,12 @@ class WidgetService {
       // 즉시 피드백 — 시간 칸을 "갱신 중…" 으로
       if (touchGas) {
         await HomeWidget.saveWidgetData('widget_gas_updated', '갱신 중…');
-        await HomeWidget.updateWidget(androidName: 'GasWidgetProvider');
-        await HomeWidget.updateWidget(androidName: 'CombinedWidgetProvider');
+        await HomeWidget.updateWidget(androidName: 'GasWidgetProvider', iOSName: 'GasWidget');
+        await HomeWidget.updateWidget(androidName: 'CombinedWidgetProvider', iOSName: 'CombinedWidget');
       }
       if (touchEv) {
         await HomeWidget.saveWidgetData('widget_ev_updated', '갱신 중…');
-        await HomeWidget.updateWidget(androidName: 'EvWidgetProvider');
+        await HomeWidget.updateWidget(androidName: 'EvWidgetProvider', iOSName: 'EvWidget');
       }
 
       // 실제 재요청

@@ -441,6 +441,8 @@ void main() async {
 
   // 홈 위젯 탭 딥링크: MainActivity가 SharedPreferences에 써둔 값 소비.
   // 첫 프레임 라우팅에 영향 가능 → await 유지.
+  // iOS: getWidgetData 전에 App Group 을 먼저 지정해야 함(안 하면 -7 에러). Android 는 no-op.
+  await HomeWidget.setAppGroupId('group.com.dksw.charge');
   await _consumePendingWidgetIntent();
 
   // bootstrap 호출에 _serverUrl 필요 → 첫 프레임 전 필수
