@@ -25,7 +25,10 @@ class RatingPromptService {
 
   static const int _minEntryCount = 2; // 2번째 진입부터 후보
   static const int _maxPrompts = 3; // 평생 노출 캡
-  static const String _androidPackageId = 'com.dksw.charge';
+  // App Store 숫자 ID — App Store Connect 에 앱 등록하면 발급됨(예: '6479xxxxxx').
+  // 비어 있으면 iOS 폴백(스토어 페이지 열기)만 스킵 — requestReview 시트는 동작.
+  // TODO: ASC 앱 등록 후 채울 것.
+  static const String _appStoreId = '';
 
   static final InAppReview _review = InAppReview.instance;
 
@@ -41,7 +44,7 @@ class RatingPromptService {
     } catch (_) {}
   }
 
-  /// 평점 안내 다이얼로그를 띄움. 안드로이드 외에는 no-op.
+  /// 평점 안내 다이얼로그를 띄움. Android/iOS 지원, 웹은 no-op.
   ///
   /// [onNegativeFeedback] : 👎(아쉬워요) 선택 시 호출 — 1:1 문의 화면으로
   /// 이동시키는 콜백(라우팅은 호출부가 담당).
@@ -49,7 +52,7 @@ class RatingPromptService {
     BuildContext context, {
     required VoidCallback onNegativeFeedback,
   }) async {
-    if (kIsWeb || !Platform.isAndroid) return;
+    if (kIsWeb) return;
 
     final prefs = await SharedPreferences.getInstance();
 
@@ -102,15 +105,11 @@ class RatingPromptService {
   }
 
   /// 설정 "리뷰를 남겨주세요" 등에서 직접 호출 — 인앱 리뷰 시트 또는 스토어.
+  /// Android: 인앱 리뷰 시트 → 1.5초 무반응이면 Play Store 페이지.
+  /// iOS: SKStoreReviewController 시트(OS가 연 3회 캡 자체 관리) → 무반응이면
+  ///      App Store 페이지(_appStoreId 설정된 경우에만).
   static Future<void> openReview() async {
-    if (kIsWeb || !Platform.isAndroid) {
-      // iOS/웹 — 스토어 시도만.
-      try {
-        await _review.openStoreListing(appStoreId: _androidPackageId);
-      } catch (_) {}
-      return;
-    }
-    // 인앱 리뷰 시트 우선 → 1.5초 무반응이면 Play Store 페이지.
+    if (kIsWeb) return;
     final shown = Completer<bool>();
     final observer = _SheetShownObserver(() {
       if (!shown.isCompleted) shown.complete(true);
@@ -125,8 +124,11 @@ class RatingPromptService {
         Future<bool>.delayed(const Duration(milliseconds: 1500), () => false),
       ]);
       if (wasShown) return;
+      // 폴백: 스토어 페이지. appStoreId 는 iOS/macOS 전용 파라미터
+      // (Android 는 자동으로 자기 패키지 페이지를 엶).
+      if (Platform.isIOS && _appStoreId.isEmpty) return; // ASC 등록 전 — 스킵
       try {
-        await _review.openStoreListing(appStoreId: _androidPackageId);
+        await _review.openStoreListing(appStoreId: _appStoreId);
       } catch (_) {}
     } finally {
       WidgetsBinding.instance.removeObserver(observer);
