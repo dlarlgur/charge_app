@@ -29,6 +29,22 @@ import '../core/constants/api_constants.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
+    // iOS 위젯 딥링크 안전망 — host형(chargehelper://widget?..)으로 와도 처리.
+    redirect: (context, state) {
+      if (state.uri.host == 'widget') {
+        final type = state.uri.queryParameters['type'] ?? '';
+        final id = state.uri.queryParameters['id'] ?? '';
+        if (id.isNotEmpty) {
+          if (type == 'ev') {
+            navigateToEvStationNotifier.value = id;
+          } else if (type == 'gas') {
+            navigateToGasStationNotifier.value = id;
+          }
+        }
+        return '/home';
+      }
+      return null;
+    },
     observers: [
       appRouteObserver,
       FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance),
@@ -70,7 +86,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               navigateToGasStationNotifier.value = id;
             }
           }
-          return '/';
+          return '/home';
         },
       ),
       GoRoute(

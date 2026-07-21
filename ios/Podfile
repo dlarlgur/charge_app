@@ -36,13 +36,6 @@ target 'Runner' do
   end
 end
 
-# 위젯 인터랙티브 새로고침(iOS 17+) — AppIntent 에서 HomeWidgetBackgroundWorker 로
-# Dart 백그라운드 콜백(refresh_gas/refresh_ev)을 실행하기 위해 home_widget 링크.
-target 'ChargeWidget' do
-  use_frameworks!
-  pod 'home_widget', :path => '.symlinks/plugins/home_widget/ios'
-end
-
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)

@@ -3,9 +3,6 @@ import SwiftUI
 #if canImport(AppIntents)
 import AppIntents
 #endif
-#if canImport(home_widget)
-import home_widget
-#endif
 
 // ============================================================
 // 전기차 기름차 — 홈위젯 (안드로이드 위젯 디자인 미러)
@@ -18,33 +15,118 @@ import home_widget
 
 private let appGroupId = "group.com.dksw.charge"
 
-// ─── 새로고침 인텐트 (iOS 17+) — 앱 안 열고 Dart 백그라운드 콜백 실행 ───
-#if canImport(AppIntents) && canImport(home_widget)
+// ─── 새로고침 인텐트 (iOS 17+) — 순수 Swift 로 서버 조회 후 위젯 데이터 갱신 ───
+// Flutter/home_widget 를 익스텐션에 링크하면 위젯 프로세스 메모리 한도(30MB)·프리뷰
+// 워치독에 걸려 갤러리가 뻗음 → 앱과 동일한 공개 API 를 URLSession 으로 직접 호출.
+#if canImport(AppIntents)
+private let apiBase = "https://charge.dksw4.com/api"
+
 @available(iOS 17.0, *)
 struct RefreshWidgetIntent: AppIntent {
     static var title: LocalizedStringResource = "새로고침"
     static var isDiscoverable = false
 
-    @Parameter(title: "kind") var kind: String
+    @Parameter(title: "kind", default: "all") var kind: String
 
-    init() { self.kind = "all" }
+    init() {}
     init(kind: String) { self.kind = kind }
 
     func perform() async throws -> some IntentResult {
-        // 앱의 backgroundCallback(refresh_gas / refresh_ev) 호출.
-        if kind == "gas" || kind == "all" {
-            await HomeWidgetBackgroundWorker.run(
-                url: URL(string: "chargehelper://refresh_gas"), appGroup: appGroupId)
-        }
-        if kind == "ev" || kind == "all" {
-            await HomeWidgetBackgroundWorker.run(
-                url: URL(string: "chargehelper://refresh_ev"), appGroup: appGroupId)
-        }
+        if kind == "gas" || kind == "all" { await Self.refreshGas() }
+        if kind == "ev" || kind == "all" { await Self.refreshEv() }
+        WidgetCenter.shared.reloadAllTimelines()
         return .result()
+    }
+
+    private static func nowHHmm() -> String {
+        let f = DateFormatter(); f.dateFormat = "HH:mm"; return f.string(from: Date())
+    }
+
+    private static func fetchData(_ path: String) async -> [String: Any]? {
+        guard let url = URL(string: apiBase + path) else { return nil }
+        var req = URLRequest(url: url, timeoutInterval: 10)
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        guard let (data, resp) = try? await URLSession.shared.data(for: req),
+              (resp as? HTTPURLResponse)?.statusCode == 200,
+              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return nil }
+        return root["data"] as? [String: Any]
+    }
+
+    // 유종 라벨 → 오피넷 코드 (widget item 은 라벨만 보유)
+    private static func fuelCode(_ label: String) -> String {
+        switch label {
+        case "고급휘발유": return "B034"
+        case "경유": return "D047"
+        case "LPG": return "K015"
+        default: return "B027" // 휘발유
+        }
+    }
+
+    static func refreshGas() async {
+        guard let ud = UserDefaults(suiteName: appGroupId),
+              let raw = ud.string(forKey: "widget_gas_list"),
+              let d = raw.data(using: .utf8),
+              var items = try? JSONSerialization.jsonObject(with: d) as? [[String: Any]]
+        else { return }
+        for i in items.indices.prefix(4) {
+            guard let id = items[i]["id"] as? String, !id.isEmpty else { continue }
+            guard let data = await fetchData("/stations/gas/\(id)") else { continue }
+            if let price = data["PRICE"] as? NSNumber { items[i]["price"] = price.intValue }
+            let code = fuelCode(items[i]["fuelLabel"] as? String ?? "휘발유")
+            if let delta = (data["price_delta_vs_yesterday"] as? [String: Any])?[code] as? NSNumber {
+                items[i]["change"] = delta.intValue
+            }
+        }
+        // 저렴한 순 (0=미상은 뒤로) — 앱 로직 미러
+        items.sort {
+            let a = ($0["price"] as? NSNumber)?.intValue ?? 0
+            let b = ($1["price"] as? NSNumber)?.intValue ?? 0
+            if a == 0 { return false }
+            if b == 0 { return true }
+            return a < b
+        }
+        if let out = try? JSONSerialization.data(withJSONObject: items),
+           let str = String(data: out, encoding: .utf8) {
+            ud.set(str, forKey: "widget_gas_list")
+            ud.set(nowHHmm(), forKey: "widget_gas_updated")
+        }
+    }
+
+    static func refreshEv() async {
+        guard let ud = UserDefaults(suiteName: appGroupId),
+              let raw = ud.string(forKey: "widget_ev_list"),
+              let d = raw.data(using: .utf8),
+              var items = try? JSONSerialization.jsonObject(with: d) as? [[String: Any]]
+        else { return }
+        for i in items.indices.prefix(4) {
+            guard let id = items[i]["id"] as? String, !id.isEmpty else { continue }
+            guard let data = await fetchData("/stations/ev/\(id)"),
+                  let chargers = data["chargers"] as? [[String: Any]] else { continue }
+            let stats = chargers.map { ($0["stat"] as? NSNumber)?.intValue ?? 9 }
+            let outputs = chargers.map { ($0["output"] as? NSNumber)?.intValue ?? 7 }
+            let total = chargers.count
+            let avail = stats.filter { $0 == 2 }.count
+            let broken = stats.filter { $0 == 1 || $0 == 4 || $0 == 5 || $0 == 9 }.count
+            items[i]["available"] = avail
+            items[i]["total"] = total
+            items[i]["broken"] = broken
+            items[i]["hasFast"] = outputs.contains { $0 >= 50 }
+            items[i]["maxKw"] = outputs.max() ?? 0
+            items[i]["statusCode"] = (broken >= total && total > 0) ? 2 : (avail == 0 ? 1 : 0)
+        }
+        items.sort {
+            (($0["available"] as? NSNumber)?.intValue ?? 0) >
+            (($1["available"] as? NSNumber)?.intValue ?? 0)
+        }
+        if let out = try? JSONSerialization.data(withJSONObject: items),
+           let str = String(data: out, encoding: .utf8) {
+            ud.set(str, forKey: "widget_ev_list")
+            ud.set(nowHHmm(), forKey: "widget_ev_updated")
+        }
     }
 }
 #endif
-
 // ─── 안드로이드 위젯 팔레트 (colors.xml 미러) ───
 private extension Color {
     init(hex: UInt32) {
@@ -171,7 +253,7 @@ private struct WidgetHeader: View {
                 .font(.system(size: 13, weight: .heavy))
                 .foregroundColor(.wInk)
             Spacer(minLength: 0)
-            #if canImport(AppIntents) && canImport(home_widget)
+            #if canImport(AppIntents)
             if #available(iOS 17.0, *) {
                 Button(intent: RefreshWidgetIntent(kind: refreshKind)) {
                     Image(systemName: "arrow.clockwise")
@@ -410,7 +492,7 @@ struct GasWidgetView: View {
                 let items = Array(entry.gas.prefix(rowCount(for: family)))
                 VStack(spacing: 2) {
                     ForEach(Array(items.enumerated()), id: \.element.id) { i, it in
-                        Link(destination: URL(string: "chargehelper://widget?type=gas&id=\(it.id)")!) {
+                        Link(destination: URL(string: "chargehelper:///widget?type=gas&id=\(it.id)")!) {
                             GasRow(item: it, isBest: i == 0)
                         }
                         .frame(maxHeight: .infinity)
@@ -420,7 +502,7 @@ struct GasWidgetView: View {
         }
         .padding(12)
         .modifier(CardBackground(opacity: entry.bgOpacity))
-        .widgetURL(URL(string: "chargehelper://widget?type=gas"))
+        .widgetURL(URL(string: "chargehelper:///widget?type=gas"))
     }
 }
 
@@ -438,7 +520,7 @@ struct EvWidgetView: View {
                 let items = Array(entry.ev.prefix(rowCount(for: family)))
                 VStack(spacing: 2) {
                     ForEach(Array(items.enumerated()), id: \.element.id) { i, it in
-                        Link(destination: URL(string: "chargehelper://widget?type=ev&id=\(it.id)")!) {
+                        Link(destination: URL(string: "chargehelper:///widget?type=ev&id=\(it.id)")!) {
                             EvRow(item: it, isBest: i == 0)
                         }
                         .frame(maxHeight: .infinity)
@@ -448,7 +530,7 @@ struct EvWidgetView: View {
         }
         .padding(12)
         .modifier(CardBackground(opacity: entry.bgOpacity))
-        .widgetURL(URL(string: "chargehelper://widget?type=ev"))
+        .widgetURL(URL(string: "chargehelper:///widget?type=ev"))
     }
 }
 
@@ -468,7 +550,7 @@ struct CombinedWidgetView: View {
                         SectionLabel(dot: .wBlue, text: "주유 · 즐겨찾기")
                     }
                     ForEach(Array(entry.gas.prefix(per).enumerated()), id: \.element.id) { i, it in
-                        Link(destination: URL(string: "chargehelper://widget?type=gas&id=\(it.id)")!) {
+                        Link(destination: URL(string: "chargehelper:///widget?type=gas&id=\(it.id)")!) {
                             GasRow(item: it, isBest: i == 0)
                         }
                         .frame(maxHeight: .infinity)
@@ -477,7 +559,7 @@ struct CombinedWidgetView: View {
                         SectionLabel(dot: .wGreen, text: "충전 · 잔여 자리")
                     }
                     ForEach(Array(entry.ev.prefix(per).enumerated()), id: \.element.id) { i, it in
-                        Link(destination: URL(string: "chargehelper://widget?type=ev&id=\(it.id)")!) {
+                        Link(destination: URL(string: "chargehelper:///widget?type=ev&id=\(it.id)")!) {
                             EvRow(item: it, isBest: i == 0)
                         }
                         .frame(maxHeight: .infinity)
@@ -487,7 +569,7 @@ struct CombinedWidgetView: View {
         }
         .padding(12)
         .modifier(CardBackground(opacity: entry.bgOpacity))
-        .widgetURL(URL(string: "chargehelper://widget?type=combined"))
+        .widgetURL(URL(string: "chargehelper:///widget?type=combined"))
     }
 }
 

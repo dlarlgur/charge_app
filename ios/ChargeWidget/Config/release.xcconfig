@@ -1,4 +1,1 @@
 #include "../../Flutter/Generated.xcconfig"
-#include "../../Pods/Target Support Files/Pods-ChargeWidget/Pods-ChargeWidget.release.xcconfig"
-// home_widget 모듈이 Flutter/Flutter.h 를 찾도록 엔진 프레임워크 경로 추가 (기기 아카이브)
-FRAMEWORK_SEARCH_PATHS = $(inherited) "$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64" "$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64_x86_64-simulator"
