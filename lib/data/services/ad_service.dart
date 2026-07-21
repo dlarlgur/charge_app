@@ -52,7 +52,12 @@ class AdNetworkConfig {
 ///    "detail": "<unit>", "exit": "<unit>"}
 /// 부분 오버라이드 — 명시된 항목만 교체, 나머지는 앱 내장 기본값.
 String? _overrideUnit(String cfgKey, String field, [int? position]) {
-  final raw = DkswCore.config<Map>(cfgKey);
+  // iOS 는 플랫폼 전용 키(예: admob_units_ios) 우선 — 유닛 ID 가 플랫폼 소속이라
+  // 공용 키를 그대로 쓰면 iOS 가 안드 유닛을 받게 됨. _ios 키 없으면 오버라이드 없음
+  // 취급(내장 iOS 기본값 사용) — 공용 키를 iOS 에 적용하는 것보다 안전.
+  final raw = Platform.isIOS
+      ? DkswCore.config<Map>('${cfgKey}_ios')
+      : DkswCore.config<Map>(cfgKey);
   if (raw == null) return null;
   final dynamic v = position != null
       ? (raw[field] is Map ? (raw[field] as Map)[position.toString()] : null)
