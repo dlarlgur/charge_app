@@ -68,7 +68,16 @@ class LoginBannerConfig {
     }
     final v =
         (ios ?? DkswCore.config<String>('login_banner') ?? 'off').trim().toLowerCase();
-    return _valid.contains(v) ? v : 'off';
+    final mode = _valid.contains(v) ? v : 'off';
+    // '테스트 기기에만 적용' 체크(ads_network_test_only)는 이 폼의 로그인 배너
+    // 모드에도 동일 게이팅 — 체크 시 테스트 기기 외에는 off 유지.
+    if (mode != 'off' &&
+        (DkswCore.config<bool>('ads_network_test_only') ?? false)) {
+      final ids = DkswCore.config<List>('ads_network_test_devices') ?? const [];
+      final mine = DkswCore.deviceId;
+      if (!ids.map((e) => e.toString().trim()).contains(mine)) return 'off';
+    }
+    return mode;
   }
 }
 
