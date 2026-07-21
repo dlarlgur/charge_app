@@ -29,7 +29,6 @@
 		D034960F8597E836690CEFFD /* oil_gs.png in Resources */ = {isa = PBXBuildFile; fileRef = 98BD662F074DACBDA1143003 /* oil_gs.png */; };
 		D539E7EE9CC6D523A7F49F6B /* app_pin.png in Resources */ = {isa = PBXBuildFile; fileRef = FF31FECAA9B39B1F1988E521 /* app_pin.png */; };
 		DB10554240A288D57D8B5A5C /* oil_soil.png in Resources */ = {isa = PBXBuildFile; fileRef = 27344C0E07293A02B9B9185A /* oil_soil.png */; };
-		E316BC833C74801157B6D073 /* Pods_ChargeWidget.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1254458EED442AACA9379E0E /* Pods_ChargeWidget.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -77,7 +76,6 @@
 		0DEEC6C38D2E515B7DB2F1E4 /* Pods-ChargeWidget.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ChargeWidget.profile.xcconfig"; path = "Target Support Files/Pods-ChargeWidget/Pods-ChargeWidget.profile.xcconfig"; sourceTree = "<group>"; };
 		0E8F08E80CF655FB4839863F /* ChargeWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ChargeWidget.swift; path = ChargeWidget/ChargeWidget.swift; sourceTree = "<group>"; };
 		0F34AA5E9E195BD4DFFD3DA9 /* ChargeWidget.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; name = ChargeWidget.entitlements; path = ChargeWidget/ChargeWidget.entitlements; sourceTree = "<group>"; };
-		1254458EED442AACA9379E0E /* Pods_ChargeWidget.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_ChargeWidget.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
 		15C4E51EEEE3741B62BBF1F8 /* oil_nh.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; name = oil_nh.png; path = ChargeWidget/BrandLogos/oil_nh.png; sourceTree = "<group>"; };
@@ -135,7 +133,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				7FE2654244B803EB9D76E9C0 /* Foundation.framework in Frameworks */,
-				E316BC833C74801157B6D073 /* Pods_ChargeWidget.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -276,7 +273,6 @@
 				25C5748DE79394E6F860C8CD /* Pods_Runner.framework */,
 				D192079C372C4D2DBB40218D /* Pods_RunnerTests.framework */,
 				563696CF9C061F53CFC15BDF /* iOS */,
-				1254458EED442AACA9379E0E /* Pods_ChargeWidget.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -332,7 +328,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 0FC8F8B3AA8F6C5678794E8E /* Build configuration list for PBXNativeTarget "ChargeWidget" */;
 			buildPhases = (
-				0F61A819EF1321A7F5D3599A /* [CP] Check Pods Manifest.lock */,
 				2FECAA15C4BAB428323227A8 /* Sources */,
 				779C52EE8B25C3F5B09EC4C7 /* Frameworks */,
 				FF30BCF6D441909FB559C993 /* Resources */,
@@ -424,28 +419,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		0F61A819EF1321A7F5D3599A /* [CP] Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
-			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-ChargeWidget-checkManifestLockResult.txt",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
-		};
 		182E2899D2A712E09B7F263F /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
