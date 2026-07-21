@@ -24,8 +24,9 @@ class LoginBottomBanner extends StatefulWidget {
 
 class _LoginBottomBannerState extends State<LoginBottomBanner> {
   static const double _height = 68; // 카드형 — 리스트 카드(stationCardList)와 동일 톤
-  // 풀폭 배너 권장 에셋 1080×200 과 동일 비율. 콘솔 안내와 반드시 같이 움직일 것.
-  static const double _bannerRatio = 1080 / 200;
+  // 풀폭 배너는 원본 비율대로 폭을 꽉 채우고, 세로가 긴 에셋이 로그인 화면을
+  // 밀어내지 않도록 이 높이에서만 잘라냄. (권장 1080×200 → 약 96)
+  static const double _bannerMaxHeight = 132;
 
   late final String _mode = LoginBannerConfig.mode;
   FallbackAd? _house;
@@ -122,8 +123,7 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
           borderRadius: BorderRadius.circular(14),
           onTap: _onHouseTap,
           child: Container(
-            // 카드형은 리스트 카드와 동일 고정 높이, 풀폭 배너는 권장 비율(5.4:1)에
-            // 맞춰 높이 자동 — 세로가 긴 이미지를 넣어도 잘리지 않게 contain 처리.
+            // 카드형은 리스트 카드와 동일 고정 높이, 풀폭 배너는 에셋 원본 비율.
             height: useCard ? _height : null,
             decoration: BoxDecoration(
               color: useCard
@@ -133,47 +133,31 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
               border: Border.all(color: border, width: 0.5),
             ),
             clipBehavior: Clip.antiAlias,
-            child: useCard
-                ? _cardContent(context, ad)
-                : AspectRatio(aspectRatio: _bannerRatio, child: _imageContent(ad)),
+            child: useCard ? _cardContent(context, ad) : _imageContent(ad),
           ),
         ),
       ),
     );
   }
 
-  // 풀폭 이미지 배너 + AD 뱃지
+  // 풀폭 이미지 배너 + AD 뱃지(우상단 모서리)
+  //
+  // 폭은 항상 꽉 채우고 높이는 에셋 원본 비율을 따른다. 고정 비율 + contain 이면
+  // 권장(1080×200)과 다른 크리에이티브에서 좌우가 크게 비어 보이기 때문.
   Widget _imageContent(FallbackAd ad) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        CachedNetworkImage(
-          imageUrl: DkswCore.resolveAssetUrl(ad.imageUrl),
-          // 권장 비율과 다른 에셋(세로가 긴 이미지 등)도 전체가 보이도록 contain.
-          fit: BoxFit.contain,
-          errorWidget: (_, __, ___) => const SizedBox.shrink(),
-        ),
-        Positioned(
-          top: 6,
-          left: 6,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.black54,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: const Text(
-              'AD',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 9,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.4,
-              ),
-            ),
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: _bannerMaxHeight),
+      child: Stack(
+        children: [
+          CachedNetworkImage(
+            imageUrl: DkswCore.resolveAssetUrl(ad.imageUrl),
+            width: double.infinity,
+            fit: BoxFit.fitWidth,
+            errorWidget: (_, __, ___) => const SizedBox.shrink(),
           ),
-        ),
-      ],
+          const Positioned(top: 6, right: 6, child: _AdBadge(onImage: true)),
+        ],
+      ),
     );
   }
 
@@ -184,12 +168,23 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
         isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     final secondary =
         isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-    final labelBg =
-        isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE8ECF0);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      child: Row(
-        children: [
+    final hasCta = (ad.ctaLabel ?? '').isNotEmpty;
+    // AD 표기는 카드 안쪽 텍스트 흐름을 끊지 않도록 우상단 모서리로 뺀다.
+    // CTA 가 없으면 헤드라인이 뱃지 밑으로 파고들 수 있어 오른쪽 여백을 더 준다.
+    return Stack(
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(14, 12, hasCta ? 14 : 40, 12),
+          child: _cardRow(ad, primary, secondary),
+        ),
+        const Positioned(top: 6, right: 8, child: _AdBadge()),
+      ],
+    );
+  }
+
+  Widget _cardRow(FallbackAd ad, Color primary, Color secondary) {
+    return Row(
+      children: [
           Container(
             width: 40,
             height: 40,
@@ -201,7 +196,7 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
             child: CachedNetworkImage(
               imageUrl: DkswCore.resolveAssetUrl(ad.imageUrl),
               fit: BoxFit.cover,
-              errorWidget: (_, __, ___) => Icon(Icons.campaign_rounded,
+              errorWidget: (_, __, ___) => const Icon(Icons.campaign_rounded,
                   size: 20, color: AppColors.gasBlue),
             ),
           ),
@@ -211,36 +206,15 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 5, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: labelBg,
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                      child: Text('AD',
-                          style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
-                              color: secondary,
-                              height: 1)),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        ad.headline ?? '',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: primary,
-                            height: 1.2),
-                      ),
-                    ),
-                  ],
+                Text(
+                  ad.headline ?? '',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: primary,
+                      height: 1.2),
                 ),
                 if ((ad.bodyText ?? '').isNotEmpty) ...[
                   const SizedBox(height: 3),
@@ -274,7 +248,42 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
               ),
             ),
           ],
-        ],
+      ],
+    );
+  }
+}
+
+/// 광고 표기 뱃지 — 카드/이미지 모서리 공용.
+class _AdBadge extends StatelessWidget {
+  final bool onImage;
+  const _AdBadge({this.onImage = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = onImage
+        ? Colors.black.withValues(alpha: 0.45)
+        : (isDark
+            ? Colors.white.withValues(alpha: 0.08)
+            : const Color(0xFFE8ECF0));
+    final fg = onImage
+        ? Colors.white
+        : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: Text(
+        'AD',
+        style: TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.w800,
+          color: fg,
+          height: 1,
+          letterSpacing: 0.3,
+        ),
       ),
     );
   }
