@@ -23,7 +23,9 @@ class LoginBottomBanner extends StatefulWidget {
 }
 
 class _LoginBottomBannerState extends State<LoginBottomBanner> {
-  static const double _height = 68; // 리스트 카드(stationCardList)와 동일 톤
+  static const double _height = 68; // 카드형 — 리스트 카드(stationCardList)와 동일 톤
+  // 풀폭 배너 권장 에셋 1080×200 과 동일 비율. 콘솔 안내와 반드시 같이 움직일 것.
+  static const double _bannerRatio = 1080 / 200;
 
   late final String _mode = LoginBannerConfig.mode;
   FallbackAd? _house;
@@ -120,7 +122,9 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
           borderRadius: BorderRadius.circular(14),
           onTap: _onHouseTap,
           child: Container(
-            height: _height,
+            // 카드형은 리스트 카드와 동일 고정 높이, 풀폭 배너는 권장 비율(5.4:1)에
+            // 맞춰 높이 자동 — 세로가 긴 이미지를 넣어도 잘리지 않게 contain 처리.
+            height: useCard ? _height : null,
             decoration: BoxDecoration(
               color: useCard
                   ? (isDark ? const Color(0xFF12141A) : Colors.white)
@@ -129,7 +133,9 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
               border: Border.all(color: border, width: 0.5),
             ),
             clipBehavior: Clip.antiAlias,
-            child: useCard ? _cardContent(context, ad) : _imageContent(ad),
+            child: useCard
+                ? _cardContent(context, ad)
+                : AspectRatio(aspectRatio: _bannerRatio, child: _imageContent(ad)),
           ),
         ),
       ),
@@ -143,7 +149,8 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
       children: [
         CachedNetworkImage(
           imageUrl: DkswCore.resolveAssetUrl(ad.imageUrl),
-          fit: BoxFit.cover,
+          // 권장 비율과 다른 에셋(세로가 긴 이미지 등)도 전체가 보이도록 contain.
+          fit: BoxFit.contain,
           errorWidget: (_, __, ___) => const SizedBox.shrink(),
         ),
         Positioned(
