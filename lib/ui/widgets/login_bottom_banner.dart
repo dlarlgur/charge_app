@@ -2,9 +2,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:url_launcher/url_launcher.dart';
-
 import '../../core/theme/app_colors.dart';
+import '../../core/util/ad_cta.dart';
 import '../../data/services/ad_fallback_cache.dart';
 import '../../data/services/ad_service.dart';
 
@@ -77,11 +76,7 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
   Future<void> _onHouseTap() async {
     final ad = _house;
     if (ad == null) return;
-    final url = ad.ctaUrl;
-    if (url == null || url.isEmpty || ad.ctaType == 'none') return;
-    try {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-    } catch (_) {}
+    await openAdCta(context, url: ad.ctaUrl, ctaType: ad.ctaType);
   }
 
   @override

@@ -2,8 +2,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/util/ad_cta.dart';
 import '../../data/services/ad_service.dart';
 import '../../data/services/house_ad_service.dart';
 import '../../data/services/list_ad_cache.dart';
@@ -315,11 +315,7 @@ class _HouseAdCardState extends State<HouseAdCard> {
 
   Future<void> _onTap() async {
     HouseAdCache.reportClick(widget.ad.id);
-    final url = widget.ad.ctaUrl;
-    if (url == null || url.isEmpty) return;
-    try {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-    } catch (_) {}
+    await openAdCta(context, url: widget.ad.ctaUrl, ctaType: widget.ad.ctaType);
   }
 
   @override
@@ -537,12 +533,8 @@ class HouseFallbackAd extends StatelessWidget {
     this.padding = const EdgeInsets.fromLTRB(16, 8, 16, 4),
   });
 
-  Future<void> _onTap(FallbackAd ad) async {
-    final url = ad.ctaUrl;
-    if (url == null || url.isEmpty || ad.ctaType == 'none') return;
-    try {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-    } catch (_) {}
+  Future<void> _onTap(BuildContext context, FallbackAd ad) async {
+    await openAdCta(context, url: ad.ctaUrl, ctaType: ad.ctaType);
   }
 
   @override
@@ -563,7 +555,7 @@ class HouseFallbackAd extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
-          onTap: () => _onTap(ad),
+          onTap: () => _onTap(context, ad),
           child: ad.displayStyle == 'banner' || !ad.isStructured
               // 풀폭 배너 — 이미지만
               ? ClipRRect(
