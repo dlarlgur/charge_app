@@ -161,17 +161,10 @@ class _PermissionScreenState extends State<PermissionScreen>
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.white),
                         )
-                      : const Text('위치 권한 허용하기'),
+                      // 앱스토어 심사 5.1.1(iv): 권한 유도 문구 금지 → 중립 문구.
+                      // '나중에' 스킵 버튼도 같은 사유로 제거 (거부는 시스템 팝업에서).
+                      : const Text('계속'),
                 ),
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: _isLoading ? null : () => _goNext(),
-                child: Text('나중에 설정할게요',
-                    style: TextStyle(
-                        color: isDark
-                            ? AppColors.darkTextMuted
-                            : AppColors.lightTextMuted)),
               ),
               const SizedBox(height: 20),
             ],
