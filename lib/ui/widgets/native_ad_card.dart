@@ -111,7 +111,7 @@ class _AdMobNativeCardState extends State<AdMobNativeCard> {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(14),
             // 플랫폼뷰(광고) 리페인트를 격리 → 스크롤 시 리스트 전체 리페인트 방지(잭 완화)
-            child: RepaintBoundary(child: AdWidget(ad: ad)),
+            child: RepaintBoundary(child: AdWidget(key: GlobalObjectKey(ad), ad: ad)),
           ),
         );
       },
@@ -187,7 +187,7 @@ class _TopBannerAdmobCardState extends State<TopBannerAdmobCard> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(14),
         child: SizedBox(
-            height: 116, child: RepaintBoundary(child: AdWidget(ad: _ad!))),
+            height: 116, child: RepaintBoundary(child: AdWidget(key: GlobalObjectKey(_ad!), ad: _ad!))),
       ),
     );
   }
@@ -268,7 +268,7 @@ class _StationDetailNativeAdState extends State<StationDetailNativeAd> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(14),
         child: SizedBox(
-            height: 116, child: RepaintBoundary(child: AdWidget(ad: _ad!))),
+            height: 116, child: RepaintBoundary(child: AdWidget(key: GlobalObjectKey(_ad!), ad: _ad!))),
       ),
     );
   }

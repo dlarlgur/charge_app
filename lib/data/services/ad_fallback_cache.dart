@@ -47,12 +47,21 @@ class AdFallbackCache {
   AdFallbackCache._();
 
   static const _consoleBase = 'https://console.dksw4.com/console';
-  static const _placements = ['home_top', 'station_detail'];
+  static const _placements = ['home_top', 'station_detail', 'login_bottom'];
 
   static final Map<String, FallbackAd?> _cache = {};
 
   /// placement 폴백 광고 (없으면 null). fetch 전이면 null.
   static FallbackAd? at(String placement) => _cache[placement];
+
+  /// fetch 보장 버전 — 캐시에 없으면 그 자리에서 1회 fetch (로그인 화면처럼
+  /// 부팅 프리페치보다 먼저 뜰 수 있는 화면용).
+  static Future<FallbackAd?> ensure(String placement) async {
+    if (_cache.containsKey(placement)) return _cache[placement];
+    final dio = Dio()..transformer = BackgroundTransformer();
+    await _fetchOne(dio, placement);
+    return _cache[placement];
+  }
 
   /// 부팅 시 1회 — 모든 폴백 슬롯 병렬 fetch. 실패는 무시(폴백 없음 취급).
   static Future<void> fetchAll() async {

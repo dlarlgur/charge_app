@@ -185,7 +185,7 @@ Future<void> showExitConfirmDialog(BuildContext context) async {
                     child: SizedBox(
                       height: adHeight,
                       width: double.infinity,
-                      child: AdWidget(ad: ad),
+                      child: AdWidget(key: GlobalObjectKey(ad), ad: ad),
                     ),
                   ),
                 ],

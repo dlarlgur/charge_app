@@ -20,7 +20,15 @@ class AdNetworkConfig {
   AdNetworkConfig._();
 
   static AdNetwork get current {
-    final v = (DkswCore.config<String>('ads_network') ?? 'admob')
+    // iOS 전용 키(ads_network_ios) 우선 — 값이 admob|adfit|off 일 때만 채택,
+    // 미설정/기타 값이면 공용(ads_network)을 따름(= 현 동작 유지, 점진 분리).
+    // 예: iOS 만 off, 안드는 admob 유지 같은 독립 제어용.
+    String? iosRaw;
+    if (Platform.isIOS) {
+      final r = DkswCore.config<String>('ads_network_ios')?.trim().toLowerCase();
+      if (r == 'admob' || r == 'adfit' || r == 'off' || r == 'none') iosRaw = r;
+    }
+    final v = (iosRaw ?? DkswCore.config<String>('ads_network') ?? 'admob')
         .trim()
         .toLowerCase();
     AdNetwork network;
@@ -42,6 +50,25 @@ class AdNetworkConfig {
       }
     }
     return network;
+  }
+}
+
+/// 로그인 하단 배너 모드 — 콘솔 광고 페이지에서 관리.
+/// off(기본)=영역 없음 | house=하우스만 | admob=AdMob만 | auto=하우스 우선→AdMob 폴백.
+/// iOS 는 login_banner_ios 우선(값이 유효할 때만), 아니면 공용 login_banner 따름.
+class LoginBannerConfig {
+  LoginBannerConfig._();
+  static const _valid = ['off', 'house', 'admob', 'auto'];
+
+  static String get mode {
+    String? ios;
+    if (Platform.isIOS) {
+      final r = DkswCore.config<String>('login_banner_ios')?.trim().toLowerCase();
+      if (_valid.contains(r)) ios = r;
+    }
+    final v =
+        (ios ?? DkswCore.config<String>('login_banner') ?? 'off').trim().toLowerCase();
+    return _valid.contains(v) ? v : 'off';
   }
 }
 
@@ -169,6 +196,12 @@ class AdUnitIds {
       'ca-app-pub-8640148276009977/1762304658'; // charge_top_banner (iOS)
   static const String _stationDetailNativeIos =
       'ca-app-pub-8640148276009977/1786355382'; // charge_detail (iOS)
+  // ─── 로그인 하단 네이티브 (2026-07 발급, 광고주 배너 없을 때 AdMob 모드용) ───
+  static const String _loginBottomAndroid =
+      'ca-app-pub-8640148276009977/6775716359'; // charge_login_bottom
+  static const String _loginBottomIos =
+      'ca-app-pub-8640148276009977/7190649327'; // charge_login_bottom (iOS)
+
   static const String _exitNativeAndroid =
       'ca-app-pub-8640148276009977/4895744199'; // charge_exit_native
   static const String _exitNativeIos =
@@ -200,6 +233,12 @@ class AdUnitIds {
       ? _testNative
       : (_overrideUnit('admob_units', 'detail') ??
           (Platform.isIOS ? _stationDetailNativeIos : _stationDetailNativeAndroid));
+
+  /// 로그인 하단 네이티브 광고 단위 ID.
+  static String get loginBottom => kDebugMode
+      ? _testNative
+      : (_overrideUnit('admob_units', 'login') ??
+          (Platform.isIOS ? _loginBottomIos : _loginBottomAndroid));
 
   /// 종료 다이얼로그 네이티브 광고 단위 ID.
   static String get exitNative => kDebugMode

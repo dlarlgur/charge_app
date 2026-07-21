@@ -10,6 +10,7 @@ import '../../core/util/app_toast.dart';
 import '../../data/services/auth_service.dart';
 import '../../data/services/user_data_sync.dart';
 import '../../providers/providers.dart';
+import '../widgets/login_bottom_banner.dart';
 import 'signup_complete_screen.dart';
 
 /// 소셜 로그인 화면. 카카오 / 네이버 / 구글.
@@ -302,6 +303,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                       ),
                     ),
+                    // 로그인 하단 배너 — 콘솔 '로그인 하단 배너' 모드로 제어(off 면 영역 없음).
+                    // 첫 로그인 게이트/설정 진입 둘 다 이 화면이라 한 곳으로 커버.
+                    const LoginBottomBanner(),
                   ],
                 ),
               ),
