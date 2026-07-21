@@ -40,6 +40,7 @@ dependencies:
 
   # Utils
   intl: ^0.20.2
+  webview_flutter: ^4.13.1 # 하우스 광고 CTA 인앱 웹뷰
   url_launcher: ^6.2.0
   permission_handler: ^11.0.0
   in_app_update: ^4.2.3
