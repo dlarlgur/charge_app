@@ -85,28 +85,35 @@ class _PermissionScreenState extends State<PermissionScreen>
     if (status.isGranted || status.isLimited) {
       _goNext();
     } else if (status.isPermanentlyDenied) {
-      _showSettingsDialog();
+      // iOS 는 OS 팝업에서 한 번 거부하면 곧바로 permanentlyDenied.
+      // 여기서 화면에 가두면 "위치 없이는 사용 불가"가 돼 5.1.1 재리젝 사유 →
+      // 설정 안내만 하고, 설정 안 가면 위치 없이 그대로 진행(검색 등은 사용 가능).
+      final wentToSettings = await _showSettingsDialog();
+      if (!wentToSettings && mounted) _goNext();
     } else {
       // denied - 온보딩은 진행할 수 있도록
       _goNext();
     }
   }
 
-  Future<void> _showSettingsDialog() async {
+  /// 설정으로 이동했으면 true (복귀 시 lifecycle 재체크가 자동 진행).
+  Future<bool> _showSettingsDialog() async {
     final go = await showAppDialog<bool>(
       context,
       icon: Icons.location_on_rounded,
-      title: '위치 권한이 필요해요',
-      message: '주변 주유소·충전소를 찾으려면\n설정에서 위치 권한을 허용해주세요.',
+      title: '위치 권한이 꺼져 있어요',
+      message: '주변 주유소·충전소 찾기에 위치가 사용돼요.\n설정에서 켜거나, 위치 없이 계속할 수 있어요.',
       primaryLabel: '설정 열기',
       primaryValue: true,
-      secondaryLabel: '취소',
+      secondaryLabel: '위치 없이 계속',
       secondaryValue: false,
     );
     if (go == true) {
       _awaitingSettingsReturn = true;
       await openAppSettings();
+      return true;
     }
+    return false;
   }
 
   @override
