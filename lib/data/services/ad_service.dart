@@ -60,14 +60,18 @@ class LoginBannerConfig {
   LoginBannerConfig._();
   static const _valid = ['off', 'house', 'admob', 'auto'];
 
-  static String get mode {
+  /// 슬롯별 모드 — 두 지면이 완전 독립 (콘솔에서 각각 관리):
+  ///  · bottom : login_banner[_ios]        (화면 하단, 약관 아래)
+  ///  · social : login_social_banner[_ios] (소셜 로그인 버튼 바로 아래)
+  static String modeFor(String slot) {
+    final key = slot == 'social' ? 'login_social_banner' : 'login_banner';
     String? ios;
     if (Platform.isIOS) {
-      final r = DkswCore.config<String>('login_banner_ios')?.trim().toLowerCase();
+      final r = DkswCore.config<String>('${key}_ios')?.trim().toLowerCase();
       if (_valid.contains(r)) ios = r;
     }
     final v =
-        (ios ?? DkswCore.config<String>('login_banner') ?? 'off').trim().toLowerCase();
+        (ios ?? DkswCore.config<String>(key) ?? 'off').trim().toLowerCase();
     final mode = _valid.contains(v) ? v : 'off';
     // '테스트 기기에만 적용' 체크(ads_network_test_only)는 이 폼의 로그인 배너
     // 모드에도 동일 게이팅 — 체크 시 테스트 기기 외에는 off 유지.
@@ -78,15 +82,6 @@ class LoginBannerConfig {
       if (!ids.map((e) => e.toString().trim()).contains(mine)) return 'off';
     }
     return mode;
-  }
-
-  /// 배너 위치 — 'bottom'(화면 하단, 기본) | 'social'(소셜 로그인 버튼 바로 아래).
-  /// 콘솔 광고 페이지의 위치 라디오(원격설정 login_banner_pos)로 제어. AOS/iOS 공통.
-  static String get position {
-    final v = (DkswCore.config<String>('login_banner_pos') ?? 'bottom')
-        .trim()
-        .toLowerCase();
-    return v == 'social' ? 'social' : 'bottom';
   }
 }
 

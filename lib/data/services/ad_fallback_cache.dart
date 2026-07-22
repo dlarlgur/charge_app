@@ -47,7 +47,9 @@ class AdFallbackCache {
   AdFallbackCache._();
 
   static const _consoleBase = 'https://console.dksw4.com/console';
-  static const _placements = ['home_top', 'station_detail', 'login_bottom'];
+  static const _placements = [
+    'home_top', 'station_detail', 'login_bottom', 'login_social',
+  ];
 
   static final Map<String, FallbackAd?> _cache = {};
 

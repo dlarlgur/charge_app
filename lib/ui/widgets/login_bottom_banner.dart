@@ -9,19 +9,19 @@ import '../../data/services/ad_service.dart';
 
 /// 로그인 화면 배너 — 첫 로그인 게이트 + 설정→로그인 두 진입 모두 이 위젯 하나.
 ///
-/// 콘솔 광고 페이지 '로그인 하단 배너' 모드로 제어 (원격설정 login_banner[_ios]):
+/// 두 지면이 완전 독립 (콘솔 광고 페이지에서 각각 모드 관리, 동시 운영 가능):
+///  · bottom : 약관 문구 아래.  모드 login_banner[_ios] · placement login_bottom
+///  · social : 소셜 버튼 바로 아래(단가 높은 자리, 버튼 폭 맞춤).
+///             모드 login_social_banner[_ios] · placement login_social
+///
+/// 모드 (지면별):
 ///  · off   : 아무것도 그리지 않음 (영역 자체 없음 — 기본)
-///  · house : 하우스 광고만 (placement=login_bottom, 없으면 접힘)
+///  · house : 하우스 광고만 (해당 placement 활성 광고, 없으면 접힘)
 ///  · admob : AdMob 네이티브만
 ///  · auto  : 하우스 우선, 없으면 AdMob 폴백
 /// 하우스 광고의 iOS/AOS 타겟은 광고 등록의 플랫폼 라디오(서버 필터)로 처리됨.
-///
-/// 위치는 원격설정 login_banner_pos 로 제어 — 로그인 화면이 두 슬롯에 이 위젯을
-/// 심어두고, 설정과 일치하는 슬롯만 실제로 그린다:
-///  · bottom : 약관 문구 아래 (기본)
-///  · social : 소셜 로그인 버튼 바로 아래 (단가 높은 자리 — 버튼 폭에 맞춤)
 class LoginBottomBanner extends StatefulWidget {
-  /// 이 인스턴스가 차지한 슬롯 ('bottom' | 'social').
+  /// 이 인스턴스의 지면 ('bottom' | 'social').
   final String slot;
   const LoginBottomBanner({super.key, this.slot = 'bottom'});
 
@@ -35,13 +35,11 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
   // 밀어내지 않도록 이 높이에서만 잘라냄. (권장 1080×200 → 약 96)
   static const double _bannerMaxHeight = 132;
 
-  late final String _mode = LoginBannerConfig.mode;
-  // 설정된 위치와 이 인스턴스의 슬롯이 일치할 때만 활성 — 불일치 슬롯은
-  // 로드도 트래킹도 하지 않는 완전 무동작 (두 슬롯 중 하나만 살아있음 보장).
-  late final bool _active = LoginBannerConfig.position == widget.slot;
+  late final String _mode = LoginBannerConfig.modeFor(widget.slot);
+  late final String _placement =
+      widget.slot == 'social' ? 'login_social' : 'login_bottom';
   FallbackAd? _house;
   bool _houseChecked = false;
-  bool _impressionSent = false;
 
   NativeAd? _admob;
   bool _admobLoaded = false;
@@ -50,23 +48,15 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
   @override
   void initState() {
     super.initState();
-    if (!_active) return;
     if (_mode == 'house' || _mode == 'auto') {
-      AdFallbackCache.ensure('login_bottom').then((ad) {
+      // 노출 카운트는 서버가 서빙 시점에 기록 (ad-fallback → pickActiveAd).
+      AdFallbackCache.ensure(_placement).then((ad) {
         if (!mounted) return;
         setState(() {
           _house = ad;
           _houseChecked = true;
         });
-        if (ad != null) {
-          // 노출 1회 보고 — 콘솔 광고 통계(노출/클릭/CTR)용.
-          if (!_impressionSent) {
-            _impressionSent = true;
-            DkswCore.trackAdImpression(ad.id);
-          }
-        } else if (_mode == 'auto') {
-          _loadAdmob();
-        }
+        if (ad == null && _mode == 'auto') _loadAdmob();
       });
     } else if (_mode == 'admob') {
       _loadAdmob();
@@ -113,7 +103,7 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_active || _mode == 'off') return const SizedBox.shrink();
+    if (_mode == 'off') return const SizedBox.shrink();
 
     // 아이패드/태블릿 대비 — 로그인 화면은 폭 제약이 없어 배너가 화면 전체로
     // 늘어나면 비율상 높이가 컷오프를 넘겨 잘린다. 폰 폭 수준(480)으로 제한하고
