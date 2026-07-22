@@ -294,8 +294,9 @@ final favGasStationsProvider = FutureProvider<List<GasStation>>((ref) async {
       .map((f) => f['id'] as String)
       .toList();
   if (favIds.isEmpty) return [];
-  final filter = ref.watch(gasFilterProvider);
-  final fuelType = filter.fuelTypes.isNotEmpty ? filter.fuelTypes.first : 'B027';
+  // 활성 유종(홈 칩에서 보고 있는 유종) 기준 — 일반 목록과 동일 기준이어야
+  // "경유로 바꿨는데 즐겨찾기만 휘발유 가격" 불일치가 안 생긴다 (사용자 제보).
+  final fuelType = ref.watch(effectiveGasFuelTypeProvider);
   final results = await Future.wait(
     favIds.map((id) => ApiService()
         .getGasStationDetail(id, fuelType: fuelType)
