@@ -452,6 +452,15 @@ void main() async {
   );
   DkswCore.trackSession();
 
+  // iOS 포그라운드 표시 — FCM 플러그인이 알림 델리게이트를 잡아 로컬 알림
+  // 그리기가 포그라운드에서 침묵하므로(Darwin 디테일로도 불가 확인),
+  // APNs alert 가 실린 리모트 푸시를 OS 가 직접 그리게 위임한다.
+  // 중복 방지를 위해 onMessage 쪽 로컬 그리기는 iOS 에서 스킵 (home_screen).
+  if (Platform.isIOS) {
+    unawaited(FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+      alert: true, badge: true, sound: true));
+  }
+
   // 콘솔 공지/이벤트 FCM 토픽 구독 — fire-and-forget (실패해도 부팅 무관).
   // 반드시 DkswCore.init 이후: 토픽명이 events_<package> 로 패키지명에 의존하기 때문.
   unawaited(() async {

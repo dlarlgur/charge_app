@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -89,15 +90,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     navigateToEventNotifier.addListener(_onNavigateToEvent);
     navigateToNoticeNotifier.addListener(_onNavigateToNotice);
 
-    // 포그라운드 FCM 메시지 수신 → 로컬 알림 표시 + 내역 저장
+    // 포그라운드 FCM 메시지 수신 → 로컬 알림 표시 + 내역 저장.
+    // iOS 는 로컬 그리기 스킵 — FCM 플러그인이 알림 델리게이트를 잡아 포그라운드
+    // 로컬 알림이 침묵하므로, main 의 setForegroundNotificationPresentationOptions 로
+    // OS 가 리모트(APNs alert)를 직접 그린다. 여기서 또 그리면 이중 배너.
+    // (알림함 저장·뱃지·상태 갱신은 플랫폼 공통으로 유지)
+    final drawLocal = !Platform.isIOS;
     _fcmOnMessageSub = FirebaseMessaging.onMessage.listen((message) {
       if (message.data['type'] == 'gas_price_alert') {
-        showGasPriceNotification(message.data, soundMode: AlertService().alertSoundMode);
+        if (drawLocal) {
+          showGasPriceNotification(message.data, soundMode: AlertService().alertSoundMode);
+        }
         AlertService().addGasPriceMessage(message.data);
         _messageBadgeKey.currentState?.refreshCount();
       } else if (message.data['type'] == 'ev_alarm') {
         if (AlertService().evAlarmEnabled) {
-          showEvAlarmNotification(message.data, soundMode: AlertService().evAlarmSoundMode);
+          if (drawLocal) {
+            showEvAlarmNotification(message.data, soundMode: AlertService().evAlarmSoundMode);
+          }
           AlertService().addEvAlarmMessage(message.data);
           _messageBadgeKey.currentState?.refreshCount();
         }
@@ -106,38 +116,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         final newAvail = int.tryParse(message.data['newAvail'] as String? ?? '') ?? 0;
         if (stationId.isNotEmpty) WatchService().updateCurrentAvail(stationId, newAvail);
       } else if (message.data['type'] == 'inquiry_reply') {
-        // 1:1 문의 답변 — 포그라운드에선 시스템이 자동 표시 안 하므로 직접 띄움
-        // (v2 data-only 는 title/body 가 data 에 실림 — notification 폴백 겸용)
-        showInquiryReplyNotification(
-          title: message.notification?.title ?? message.data['title']?.toString(),
-          body: message.notification?.body ?? message.data['body']?.toString(),
-          inquiryId: int.tryParse(message.data['inquiryId']?.toString() ?? ''),
-        );
+        // 1:1 문의 답변 — Android 는 직접 띄움 (v2 data-only 는 title/body 가 data 에 실림)
+        if (drawLocal) {
+          showInquiryReplyNotification(
+            title: message.notification?.title ?? message.data['title']?.toString(),
+            body: message.notification?.body ?? message.data['body']?.toString(),
+            inquiryId: int.tryParse(message.data['inquiryId']?.toString() ?? ''),
+          );
+        }
         _saveToInbox(message);
       } else if (message.data['type'] == 'event') {
-        // 이벤트 — 포그라운드 직접 표시 (탭하면 그 이벤트 상세로)
-        showEventNotification(
-          title: message.notification?.title ?? message.data['title']?.toString(),
-          body: message.notification?.body ?? message.data['body']?.toString(),
-          eventId: int.tryParse(message.data['id']?.toString() ?? ''),
-        );
+        if (drawLocal) {
+          showEventNotification(
+            title: message.notification?.title ?? message.data['title']?.toString(),
+            body: message.notification?.body ?? message.data['body']?.toString(),
+            eventId: int.tryParse(message.data['id']?.toString() ?? ''),
+          );
+        }
         _saveToInbox(message);
       } else if (message.data['type'] == 'notice') {
-        showNoticeNotification(
-          title: message.notification?.title ?? message.data['title']?.toString(),
-          body: message.notification?.body ?? message.data['body']?.toString(),
-          noticeId: int.tryParse(message.data['id']?.toString() ?? ''),
-        );
+        if (drawLocal) {
+          showNoticeNotification(
+            title: message.notification?.title ?? message.data['title']?.toString(),
+            body: message.notification?.body ?? message.data['body']?.toString(),
+            noticeId: int.tryParse(message.data['id']?.toString() ?? ''),
+          );
+        }
         _saveToInbox(message);
       } else if (message.notification != null ||
           message.data['title'] != null ||
           message.data['body'] != null) {
-        // 자유 푸시·브리핑 등 그 외 모든 알림 — 포그라운드 직접 표시 + 내역 저장
-        showNoticeNotification(
-          title: message.notification?.title ?? message.data['title']?.toString(),
-          body: message.notification?.body ?? message.data['body']?.toString(),
-          noticeId: null,
-        );
+        // 자유 푸시·브리핑 등 그 외 모든 알림
+        if (drawLocal) {
+          showNoticeNotification(
+            title: message.notification?.title ?? message.data['title']?.toString(),
+            body: message.notification?.body ?? message.data['body']?.toString(),
+            noticeId: null,
+          );
+        }
         _saveToInbox(message);
       }
     });
