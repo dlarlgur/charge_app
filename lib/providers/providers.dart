@@ -507,6 +507,8 @@ final evStationsProvider = Provider<AsyncValue<List<EvStation>>>((ref) {
               (!filter.availableOnly || s.hasAvailable || s.isTesla) &&
               (filter.chargerTypes.isEmpty ||
                   s.chargers.any((c) => _chargerMatchesFilter(c.type, filter.chargerTypes))) &&
+              (filter.speeds.isEmpty ||
+                  s.chargers.any((c) => filter.speeds.contains(c.speedBucket))) &&
               (opSel.isEmpty || opSel.contains(canonicalEvOperator(s.operator))) &&
               (filter.kinds.isEmpty || filter.kinds.contains(s.kind)) &&
               (filter.accessLevels.isEmpty || filter.accessLevels.contains(s.accessLevel));
@@ -617,6 +619,10 @@ final mapEvStationsProvider = FutureProvider<List<EvStation>>((ref) async {
     stations = stations.where((s) =>
       s.chargers.any((c) => _chargerMatchesFilter(c.type, filter.chargerTypes))).toList();
   }
+  if (filter.speeds.isNotEmpty) {
+    stations = stations.where((s) =>
+      s.chargers.any((c) => filter.speeds.contains(c.speedBucket))).toList();
+  }
   if (filter.operators.isNotEmpty) {
     // filter.operators = canonical 사업자명 화이트리스트(빈 리스트=전체).
     final sel = filter.operators.toSet();
@@ -715,6 +721,7 @@ class EvFilterNotifier extends StateNotifier<EvFilterOptions> {
       operators: List<String>.from(_box.get(AppConstants.keyEvFilterOperators, defaultValue: [])),
       kinds: List<String>.from(_box.get(AppConstants.keyEvFilterKinds, defaultValue: [])),
       accessLevels: List<String>.from(_box.get(AppConstants.keyEvFilterAccessLevels, defaultValue: [])),
+      speeds: List<String>.from(_box.get(AppConstants.keyEvFilterSpeeds, defaultValue: [])),
     );
   }
 
@@ -727,5 +734,6 @@ class EvFilterNotifier extends StateNotifier<EvFilterOptions> {
     _box.put(AppConstants.keyEvFilterOperators, options.operators);
     _box.put(AppConstants.keyEvFilterKinds, options.kinds);
     _box.put(AppConstants.keyEvFilterAccessLevels, options.accessLevels);
+    _box.put(AppConstants.keyEvFilterSpeeds, options.speeds);
   }
 }

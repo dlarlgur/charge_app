@@ -131,6 +131,39 @@ class _EvFilterSheetState extends ConsumerState<EvFilterSheet> {
     });
   }
 
+  // 충전 속도 kW 구간 — Charger.speedBucket 과 동일 정의 (빈 리스트=전체)
+  static const _allSpeeds = ['slow', '50', '100', '200', '300'];
+  static const _speedChips = [
+    ('slow', '완속'),
+    ('50', '50kW'),
+    ('100', '100kW'),
+    ('200', '200kW'),
+    ('300', '300kW+'),
+  ];
+
+  void _toggleSpeed(String speed) {
+    setState(() {
+      final speeds = List<String>.from(_options.speeds);
+      if (speeds.isEmpty) {
+        // 전체 선택 상태 → 해당 구간만 해제 (나머지 유지)
+        _options = _options.copyWith(
+            speeds: _allSpeeds.where((s) => s != speed).toList());
+      } else if (speeds.contains(speed)) {
+        // 이미 선택됨 → 해제 (비면 전체로)
+        speeds.remove(speed);
+        _options = _options.copyWith(speeds: speeds);
+      } else {
+        // 미선택 → 추가 (전부 선택되면 전체로)
+        speeds.add(speed);
+        if (_allSpeeds.every((s) => speeds.contains(s))) {
+          _options = _options.copyWith(speeds: []);
+        } else {
+          _options = _options.copyWith(speeds: speeds);
+        }
+      }
+    });
+  }
+
   // 이용 구분: 'open'=완전개방, 'partial'=부분개방, 'restricted'=이용제한 (빈 리스트=전체)
   static const _allAccessLevels = ['open', 'partial', 'restricted'];
 
@@ -288,6 +321,8 @@ class _EvFilterSheetState extends ConsumerState<EvFilterSheet> {
                   const SizedBox(height: 10),
                   _card(isDark, child: _connectorSection(isDark, accent)),
                   const SizedBox(height: 10),
+                  _card(isDark, child: _speedSection(isDark, accent)),
+                  const SizedBox(height: 10),
                   _card(isDark, child: _operatorSection(isDark, accent)),
                   const SizedBox(height: 10),
                   _card(isDark, child: _kindSection(isDark, accent)),
@@ -401,6 +436,77 @@ class _EvFilterSheetState extends ConsumerState<EvFilterSheet> {
                       style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, height: 1.2,
                         color: active ? accent : (isDark ? AppColors.darkTextSecondary : const Color(0xFF6C757D)))),
                   ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  // 충전 속도 — 커넥터와 동일 문법의 다중선택 칩 (빈 선택=전체).
+  // 완속(~7kW)부터 초급속(300kW+)까지 kW 구간 그대로 노출 — 800V 차주가
+  // 200kW+ 만 골라 보는 니즈를 받는다.
+  Widget _speedSection(bool isDark, Color accent) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            _sectionHeader('충전 속도', isDark),
+            const SizedBox(width: 10),
+            GestureDetector(
+              onTap: () => setState(() => _options = _options.copyWith(speeds: [])),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: _options.speeds.isEmpty ? accent.withValues(alpha: 0.12) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text('전체',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
+                    color: _options.speeds.isEmpty ? accent
+                      : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted))),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: _speedChips.map((e) {
+            final active = _options.speeds.isEmpty || _options.speeds.contains(e.$1);
+            final isLast = e.$1 == _speedChips.last.$1;
+            return Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(right: isLast ? 0 : 7),
+                child: GestureDetector(
+                  onTap: () => _toggleSpeed(e.$1),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      color: active ? accent.withValues(alpha: 0.1) : (isDark ? const Color(0x08FFFFFF) : const Color(0xFFF5F6F8)),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: active ? accent : (isDark ? AppColors.darkCardBorder : const Color(0xFFDEE1E6)),
+                        width: active ? 1.5 : 0.8,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          e.$1 == 'slow' ? Icons.electrical_services_rounded : Icons.bolt_rounded,
+                          size: 17,
+                          color: active ? accent : (isDark ? AppColors.darkTextMuted : const Color(0xFFADB5BD))),
+                        const SizedBox(height: 4),
+                        Text(e.$2, textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, height: 1.2,
+                            color: active ? accent : (isDark ? AppColors.darkTextSecondary : const Color(0xFF6C757D)))),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             );

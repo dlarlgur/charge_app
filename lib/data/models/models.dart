@@ -357,6 +357,16 @@ class Charger {
 
   bool get isFast => output >= 50;
   bool get isUltraFast => output >= 100;
+
+  /// kW 속도 구간 — 필터 칩(완속/50/100/200/300+)과 동일 정의.
+  /// 서버가 output 미상을 7 로 기본 처리하므로 미상은 'slow' 로 접힘.
+  String get speedBucket {
+    if (output < 40) return 'slow';
+    if (output < 100) return '50';
+    if (output < 200) return '100';
+    if (output < 300) return '200';
+    return '300';
+  }
 }
 
 // ─── 충전기 상태 ───
@@ -593,6 +603,7 @@ class EvFilterOptions {
   final List<String> operators;
   final List<String> kinds; // 빈 리스트 = 전체 (A0~J0)
   final List<String> accessLevels; // 'open'/'partial'/'restricted', 빈 리스트 = 전체
+  final List<String> speeds; // kW 속도 구간 'slow'/'50'/'100'/'200'/'300', 빈 리스트 = 전체
 
   const EvFilterOptions({
     this.sort = 1,
@@ -602,12 +613,13 @@ class EvFilterOptions {
     this.operators = const [],
     this.kinds = const [],
     this.accessLevels = const [],
+    this.speeds = const [],
   });
 
   EvFilterOptions copyWith({
     int? sort, int? radius, List<String>? chargerTypes,
     bool? availableOnly, List<String>? operators, List<String>? kinds,
-    List<String>? accessLevels,
+    List<String>? accessLevels, List<String>? speeds,
   }) {
     return EvFilterOptions(
       sort: sort ?? this.sort,
@@ -617,6 +629,7 @@ class EvFilterOptions {
       operators: operators ?? this.operators,
       kinds: kinds ?? this.kinds,
       accessLevels: accessLevels ?? this.accessLevels,
+      speeds: speeds ?? this.speeds,
     );
   }
 }

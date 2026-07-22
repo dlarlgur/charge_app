@@ -112,6 +112,7 @@ class AppConstants {
   static const keyEvFilterOperators = 'ev_filter_operators';
   static const keyEvFilterKinds = 'ev_filter_kinds';
   static const keyEvFilterAccessLevels = 'ev_filter_access_levels';
+  static const keyEvFilterSpeeds = 'ev_filter_speeds';
   static const keyEvFilterHighwayDir = 'ev_filter_highway_dir';
 
   // Map Toggle Keys (둘다 모드일 때만 저장)

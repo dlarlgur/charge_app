@@ -35,6 +35,10 @@ class HeroCard extends StatelessWidget {
   final int operatorCount;         // 선택된 사업자 수 (0 = 전체)
   final String operatorSummary;    // 행 오른쪽 요약 텍스트
   final VoidCallback? onTapOperators;
+  // 충전 전용 — 급속 kW 구간('50'/'100'/'200'/'300') 멀티선택. 빈 set = 전체.
+  // 급속 칩이 켜져 있을 때만 하위 칩 행으로 펼쳐진다 (점진 노출).
+  final Set<String> fastOutputs;
+  final ValueChanged<String>? onToggleFastOutput;
   final Widget? topHandle;
 
   // 선호 브랜드 칩 옵션 (키=pollDivCo, 라벨). 알뜰은 RTO 키 하나로 받고 서버 전송 시 RTX 도 확장.
@@ -73,6 +77,8 @@ class HeroCard extends StatelessWidget {
     this.operatorCount = 0,
     this.operatorSummary = '전체',
     this.onTapOperators,
+    this.fastOutputs = const <String>{},
+    this.onToggleFastOutput,
     this.topHandle,
     this.isConnected = false,
     this.isFetching = false,
@@ -297,6 +303,45 @@ class HeroCard extends StatelessWidget {
               ],
             ],
           ),
+          // ── 급속 kW 하위 칩 — 급속 선택 시에만 펼침 (완속은 7kW 단일이라 불필요) ──
+          if (isEv && onToggleFastOutput != null)
+            AnimatedSize(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topCenter,
+              child: chargerMode == 'FAST'
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: 9),
+                      child: Row(
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.only(left: 2, right: 8),
+                            child: Icon(Icons.subdirectory_arrow_right_rounded,
+                                size: 14, color: kMute2),
+                          ),
+                          Expanded(
+                            child: Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: _fastOutputOptions.map((e) {
+                                // 빈 set = 전체 선택으로 표시 (지도 필터와 동일 문법)
+                                final active = fastOutputs.isEmpty ||
+                                    fastOutputs.contains(e.$1);
+                                return _speedSubChip(
+                                  label: e.$2,
+                                  active: active,
+                                  accent: accent,
+                                  accentLight: modeAccentLight(isEv),
+                                  onTap: () => onToggleFastOutput!(e.$1),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : const SizedBox(width: double.infinity),
+            ),
           // ── 충전 사업자 (충전 전용) — 선호 조건과 같은 섹션, 탭하면 바텀시트 ──
           if (isEv) ...[
             const SizedBox(height: 12),
@@ -525,6 +570,46 @@ class HeroCard extends StatelessWidget {
         ),
       );
     });
+  }
+
+  // 급속 kW 구간 옵션 (키, 라벨) — 서버 fastOutputs 파라미터와 동일 키.
+  static const List<(String, String)> _fastOutputOptions = [
+    ('50', '50kW'),
+    ('100', '100kW'),
+    ('200', '200kW'),
+    ('300', '300kW+'),
+  ];
+
+  // kW 하위 칩 — _prefChip 보다 한 단계 작은 톤 (하위 옵션임이 보이게).
+  Widget _speedSubChip({
+    required String label,
+    required bool active,
+    required Color accent,
+    required Color accentLight,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+        decoration: BoxDecoration(
+          color: active ? accentLight : kLineSoft,
+          borderRadius: BorderRadius.circular(99),
+          border: Border.all(
+            color: active ? accent.withValues(alpha: 0.22) : Colors.transparent,
+            width: 1,
+          ),
+        ),
+        child: Text(label,
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              color: active ? accent : kInk2,
+              letterSpacing: -0.1,
+            )),
+      ),
+    );
   }
 
   Widget _prefChip({

@@ -151,6 +151,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   bool _isEvResultMode = false;
   bool _isEvSelectMode = false;
   List<Map<String, dynamic>> _evSelectCandidates = [];
+  // 직접선택 모드에서 kW 속도 필터가 완화됐는지 (선택 구간 충전소 0개 → 전체 급속)
+  bool _evSelectSpeedRelaxed = false;
   // 직접선택 경로 보기 후 백버튼 복원용
   List<Map<String, dynamic>> _prevEvSelectCandidates = [];
   // EV 결과 화면에서 "지도에서 경로 보기" 중인지 (백버튼으로 결과 복원용)
@@ -164,6 +166,28 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
   // EV 충전 사업자 필터 — 선택한 사업자 충전소만 추천. 빈 set = 전체.
   final Set<String> _preferredEvOperators = {};
+
+  // EV 급속 kW 구간 필터('50'/'100'/'200'/'300') — 급속 모드에서만 의미. 빈 set = 전체.
+  // 800V 차주의 "200kW+ 만" 니즈용. 서버가 후보 전멸 시 완화하고 speed_relaxed 로 알림.
+  final Set<String> _evFastOutputs = {};
+  static const _allFastOutputs = ['50', '100', '200', '300'];
+
+  void _toggleEvFastOutput(String key) {
+    setState(() {
+      if (_evFastOutputs.isEmpty) {
+        // 전체 선택 상태 → 해당 구간만 해제 (나머지 유지)
+        _evFastOutputs.addAll(_allFastOutputs.where((k) => k != key));
+      } else if (_evFastOutputs.contains(key)) {
+        _evFastOutputs.remove(key); // 해제 (비면 전체로)
+      } else {
+        _evFastOutputs.add(key);
+        // 전부 선택되면 전체(빈 set)로 정규화
+        if (_allFastOutputs.every(_evFastOutputs.contains)) {
+          _evFastOutputs.clear();
+        }
+      }
+    });
+  }
 
   // EV 결과 시트의 카드 스크롤 제어용 (지도 마커 탭 → 해당 카드로 이동)
   final GlobalKey<EvResultBodyState> _evResultBodyKey =
@@ -3146,6 +3170,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         if (directDurationMs != null) 'directDurationMs': directDurationMs,
         'highwayOnly': _evHighwayOnly,
         if (_preferredEvOperators.isNotEmpty) 'operators': _preferredEvOperators.toList(),
+        if (_evChargerType == 'FAST' && _evFastOutputs.isNotEmpty)
+          'fastOutputs': _evFastOutputs.toList(),
       });
 
       if (!mounted) return;
@@ -3362,6 +3388,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'userSelect': true,
         'highwayOnly': _evHighwayOnly,
         if (_preferredEvOperators.isNotEmpty) 'operators': _preferredEvOperators.toList(),
+        if (_evChargerType == 'FAST' && _evFastOutputs.isNotEmpty)
+          'fastOutputs': _evFastOutputs.toList(),
       });
       if (!mounted) return;
 
@@ -3382,6 +3410,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       setState(() {
         _isEvSelectMode = true;
         _evSelectCandidates = candidates;
+        _evSelectSpeedRelaxed = data['speed_relaxed'] == true;
         _lastRouteSummary = '$originLabel → ${_destName ?? '목적지'}';
       });
 
@@ -5123,6 +5152,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             onChangeChargerMode: isEvVehicle
                                 ? (m) => setState(() => _evChargerType = m)
                                 : null,
+                            fastOutputs: _evFastOutputs,
+                            onToggleFastOutput:
+                                isEvVehicle ? _toggleEvFastOutput : null,
                             preferredBrands: _preferredGasBrands,
                             onToggleBrand: (k) => setState(() {
                               if (!_preferredGasBrands.remove(k)) {
@@ -5443,6 +5475,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                     child: EvSelectList(
                       candidates: _evSelectCandidates,
                       chargerType: _evChargerType,
+                      speedRelaxed: _evSelectSpeedRelaxed,
                       scrollController: sc,
                       onSelect: _openEvStationDetail,
                     ),

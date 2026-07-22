@@ -201,6 +201,50 @@ class EvResultBodyState extends State<EvResultBody> {
                 ),
                 const SizedBox(height: 14),
 
+                // ── 속도 필터 완화 안내 — 선택 kW 구간 충전소가 없어 전체 급속으로 추천됨 ──
+                if (data['speed_relaxed'] == true) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? const Color(0xFF3A2E12)
+                          : const Color(0xFFFFF7E6),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                          color: isDark
+                              ? const Color(0xFF6B5518)
+                              : const Color(0xFFF3DFAE),
+                          width: 0.8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline_rounded,
+                            size: 15,
+                            color: isDark
+                                ? const Color(0xFFE8C35C)
+                                : const Color(0xFFB8860B)),
+                        const SizedBox(width: 7),
+                        Expanded(
+                          child: Text(
+                            '선택한 충전 속도의 충전소가 경로에 없어 전체 급속으로 추천했어요',
+                            style: TextStyle(
+                              fontSize: 12,
+                              height: 1.35,
+                              fontWeight: FontWeight.w500,
+                              color: isDark
+                                  ? const Color(0xFFE8C35C)
+                                  : const Color(0xFF8A6A10),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+
                 // ── AI 추천 메시지 ──
                 if (recommended != null) ...[
                   _EvAiMessageBanner(
@@ -2074,12 +2118,15 @@ class _HandleDelegate extends SliverPersistentHeaderDelegate {
 class EvSelectList extends StatelessWidget {
   final List<Map<String, dynamic>> candidates;
   final String chargerType;
+  // 선택한 kW 속도 구간 충전소가 경로에 없어 전체 급속으로 완화됐는지
+  final bool speedRelaxed;
   final ScrollController scrollController;
   final void Function(Map<String, dynamic>) onSelect;
 
   const EvSelectList({
     required this.candidates,
     required this.chargerType,
+    this.speedRelaxed = false,
     required this.scrollController,
     required this.onSelect,
   });
@@ -2131,6 +2178,21 @@ class EvSelectList extends StatelessWidget {
             ),
           ),
         ),
+        if (speedRelaxed)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(
+                '선택한 충전 속도의 충전소가 경로에 없어 전체 급속을 표시했어요',
+                style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w500,
+                    color: isDark
+                        ? const Color(0xFFE8C35C)
+                        : const Color(0xFF8A6A10)),
+              ),
+            ),
+          ),
         SliverList(
           delegate: SliverChildBuilderDelegate(
             (context, i) {
