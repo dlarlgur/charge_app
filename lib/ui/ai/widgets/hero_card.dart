@@ -560,9 +560,11 @@ class HeroCard extends StatelessWidget {
   // 빈 set = 전체 선택 표시 (지도 필터와 동일 문법).
   Widget _speedTray(BuildContext context, Color accent) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    // 높이 고정 X — 셀 안쪽 여백 + 글자 크기가 높이를 결정.
-    // 시스템 글자 크기(접근성)나 기기 배율이 커지면 트레이도 같이 자란다.
+    // 높이 = 콘텐츠 기반 + 최소 보장 하이브리드.
+    // 글자 크기(접근성 확대)에 따라 자라되, 작게 설정해도 탭 타겟 44pt 밑으로는
+    // 줄지 않는다 (HIG/Material 최소 터치 타겟).
     return Container(
+      constraints: const BoxConstraints(minHeight: 44),
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: isDark
