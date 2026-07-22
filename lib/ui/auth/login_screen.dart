@@ -256,6 +256,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ],
                       ),
                     ),
+                    // 로그인 배너 — 소셜 버튼 바로 아래 슬롯 (콘솔 위치 설정이
+                    // 'social'일 때만 그려짐. 버튼과 같은 폭·라운드로 노출)
+                    const LoginBottomBanner(slot: 'social'),
                     if (widget.gate) ...[
                       Padding(
                         padding: const EdgeInsets.fromLTRB(40, 6, 40, 0),
@@ -303,9 +306,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                       ),
                     ),
-                    // 로그인 하단 배너 — 콘솔 '로그인 하단 배너' 모드로 제어(off 면 영역 없음).
+                    // 로그인 배너 — 화면 하단 슬롯 (콘솔 위치 설정 'bottom'(기본)일 때).
                     // 첫 로그인 게이트/설정 진입 둘 다 이 화면이라 한 곳으로 커버.
-                    const LoginBottomBanner(),
+                    const LoginBottomBanner(slot: 'bottom'),
                   ],
                 ),
               ),

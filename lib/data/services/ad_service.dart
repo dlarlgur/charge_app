@@ -79,6 +79,15 @@ class LoginBannerConfig {
     }
     return mode;
   }
+
+  /// 배너 위치 — 'bottom'(화면 하단, 기본) | 'social'(소셜 로그인 버튼 바로 아래).
+  /// 콘솔 광고 페이지의 위치 라디오(원격설정 login_banner_pos)로 제어. AOS/iOS 공통.
+  static String get position {
+    final v = (DkswCore.config<String>('login_banner_pos') ?? 'bottom')
+        .trim()
+        .toLowerCase();
+    return v == 'social' ? 'social' : 'bottom';
+  }
 }
 
 /// 광고단위 ID 원격 오버라이드 — 앱 이전/단위 재발급 대비 (콘솔 광고 페이지에서 관리).

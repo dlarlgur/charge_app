@@ -7,7 +7,7 @@ import '../../core/util/ad_cta.dart';
 import '../../data/services/ad_fallback_cache.dart';
 import '../../data/services/ad_service.dart';
 
-/// 로그인 화면 하단 배너 — 첫 로그인 게이트 + 설정→로그인 두 진입 모두 이 위젯 하나.
+/// 로그인 화면 배너 — 첫 로그인 게이트 + 설정→로그인 두 진입 모두 이 위젯 하나.
 ///
 /// 콘솔 광고 페이지 '로그인 하단 배너' 모드로 제어 (원격설정 login_banner[_ios]):
 ///  · off   : 아무것도 그리지 않음 (영역 자체 없음 — 기본)
@@ -15,8 +15,15 @@ import '../../data/services/ad_service.dart';
 ///  · admob : AdMob 네이티브만
 ///  · auto  : 하우스 우선, 없으면 AdMob 폴백
 /// 하우스 광고의 iOS/AOS 타겟은 광고 등록의 플랫폼 라디오(서버 필터)로 처리됨.
+///
+/// 위치는 원격설정 login_banner_pos 로 제어 — 로그인 화면이 두 슬롯에 이 위젯을
+/// 심어두고, 설정과 일치하는 슬롯만 실제로 그린다:
+///  · bottom : 약관 문구 아래 (기본)
+///  · social : 소셜 로그인 버튼 바로 아래 (단가 높은 자리 — 버튼 폭에 맞춤)
 class LoginBottomBanner extends StatefulWidget {
-  const LoginBottomBanner({super.key});
+  /// 이 인스턴스가 차지한 슬롯 ('bottom' | 'social').
+  final String slot;
+  const LoginBottomBanner({super.key, this.slot = 'bottom'});
 
   @override
   State<LoginBottomBanner> createState() => _LoginBottomBannerState();
@@ -29,8 +36,12 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
   static const double _bannerMaxHeight = 132;
 
   late final String _mode = LoginBannerConfig.mode;
+  // 설정된 위치와 이 인스턴스의 슬롯이 일치할 때만 활성 — 불일치 슬롯은
+  // 로드도 트래킹도 하지 않는 완전 무동작 (두 슬롯 중 하나만 살아있음 보장).
+  late final bool _active = LoginBannerConfig.position == widget.slot;
   FallbackAd? _house;
   bool _houseChecked = false;
+  bool _impressionSent = false;
 
   NativeAd? _admob;
   bool _admobLoaded = false;
@@ -39,6 +50,7 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
   @override
   void initState() {
     super.initState();
+    if (!_active) return;
     if (_mode == 'house' || _mode == 'auto') {
       AdFallbackCache.ensure('login_bottom').then((ad) {
         if (!mounted) return;
@@ -46,7 +58,15 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
           _house = ad;
           _houseChecked = true;
         });
-        if (ad == null && _mode == 'auto') _loadAdmob();
+        if (ad != null) {
+          // 노출 1회 보고 — 콘솔 광고 통계(노출/클릭/CTR)용.
+          if (!_impressionSent) {
+            _impressionSent = true;
+            DkswCore.trackAdImpression(ad.id);
+          }
+        } else if (_mode == 'auto') {
+          _loadAdmob();
+        }
       });
     } else if (_mode == 'admob') {
       _loadAdmob();
@@ -79,22 +99,34 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
   Future<void> _onHouseTap() async {
     final ad = _house;
     if (ad == null) return;
+    DkswCore.trackAdClick(ad.id); // 클릭 보고 (콘솔 통계)
     await openAdCta(context, url: ad.ctaUrl, ctaType: ad.ctaType);
   }
 
+  // 슬롯별 여백/모서리 — social 은 소셜 로그인 버튼과 같은 폭(좌우 24)·같은
+  // 라운드(12)로 버튼 무리의 일원처럼 보이게. bottom 은 기존 16/14 유지.
+  bool get _isSocialSlot => widget.slot == 'social';
+  EdgeInsets get _margin => _isSocialSlot
+      ? const EdgeInsets.fromLTRB(24, 10, 24, 0)
+      : const EdgeInsets.fromLTRB(16, 6, 16, 4);
+  double get _radius => _isSocialSlot ? 12 : 14;
+
   @override
   Widget build(BuildContext context) {
-    if (_mode == 'off') return const SizedBox.shrink();
+    if (!_active || _mode == 'off') return const SizedBox.shrink();
 
     // 아이패드/태블릿 대비 — 로그인 화면은 폭 제약이 없어 배너가 화면 전체로
     // 늘어나면 비율상 높이가 컷오프를 넘겨 잘린다. 폰 폭 수준(480)으로 제한하고
     // 가운데 정렬 → 어떤 기기에서도 폰과 같은 크기·비율로 노출.
-    Widget constrain(Widget child) => Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480),
-            child: child,
-          ),
-        );
+    // (social 슬롯은 버튼 폭을 그대로 따라가야 하므로 제한 없음 — 버튼과 동일 운명)
+    Widget constrain(Widget child) => _isSocialSlot
+        ? child
+        : Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: child,
+            ),
+          );
 
     // 하우스 배너 (광고주 이미지 — 아웃링크)
     if ((_mode == 'house' || _mode == 'auto') && _house != null) {
@@ -105,10 +137,10 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
         _mode == 'admob' || (_mode == 'auto' && _houseChecked && _house == null);
     if (wantAdmob && _admobLoaded && _admob != null && !_admobFailed) {
       return constrain(Container(
-        margin: const EdgeInsets.fromLTRB(16, 6, 16, 4),
+        margin: _margin,
         height: _height,
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(_radius),
           child: RepaintBoundary(child: AdWidget(key: GlobalObjectKey(_admob!), ad: _admob!)),
         ),
       ));
@@ -126,11 +158,11 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
         isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder;
     final useCard = ad.displayStyle == 'card' && ad.isStructured;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
+      padding: _margin,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(_radius),
           onTap: _onHouseTap,
           child: Container(
             // 카드형은 리스트 카드와 동일 고정 높이, 풀폭 배너는 에셋 원본 비율.
@@ -139,7 +171,7 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
               color: useCard
                   ? (isDark ? const Color(0xFF12141A) : Colors.white)
                   : null,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(_radius),
               border: Border.all(color: border, width: 0.5),
             ),
             clipBehavior: Clip.antiAlias,
