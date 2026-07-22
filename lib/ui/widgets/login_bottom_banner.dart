@@ -86,22 +86,32 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
   Widget build(BuildContext context) {
     if (_mode == 'off') return const SizedBox.shrink();
 
+    // 아이패드/태블릿 대비 — 로그인 화면은 폭 제약이 없어 배너가 화면 전체로
+    // 늘어나면 비율상 높이가 컷오프를 넘겨 잘린다. 폰 폭 수준(480)으로 제한하고
+    // 가운데 정렬 → 어떤 기기에서도 폰과 같은 크기·비율로 노출.
+    Widget constrain(Widget child) => Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: child,
+          ),
+        );
+
     // 하우스 배너 (광고주 이미지 — 아웃링크)
     if ((_mode == 'house' || _mode == 'auto') && _house != null) {
-      return _houseBanner(context, _house!);
+      return constrain(_houseBanner(context, _house!));
     }
     // AdMob (admob 모드, 또는 auto 에서 하우스 없음 확정 후)
     final wantAdmob =
         _mode == 'admob' || (_mode == 'auto' && _houseChecked && _house == null);
     if (wantAdmob && _admobLoaded && _admob != null && !_admobFailed) {
-      return Container(
+      return constrain(Container(
         margin: const EdgeInsets.fromLTRB(16, 6, 16, 4),
         height: _height,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(14),
           child: RepaintBoundary(child: AdWidget(key: GlobalObjectKey(_admob!), ad: _admob!)),
         ),
-      );
+      ));
     }
     // 로딩 중/없음 — 자리 예약 없이 접음 (로그인 화면 레이아웃 유지)
     return const SizedBox.shrink();
