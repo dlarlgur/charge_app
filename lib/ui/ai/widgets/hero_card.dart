@@ -560,8 +560,9 @@ class HeroCard extends StatelessWidget {
   // 빈 set = 전체 선택 표시 (지도 필터와 동일 문법).
   Widget _speedTray(BuildContext context, Color accent) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    // 높이 고정 X — 셀 안쪽 여백 + 글자 크기가 높이를 결정.
+    // 시스템 글자 크기(접근성)나 기기 배율이 커지면 트레이도 같이 자란다.
     return Container(
-      height: 42,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: isDark
@@ -581,6 +582,7 @@ class HeroCard extends StatelessWidget {
                 duration: const Duration(milliseconds: 180),
                 curve: Curves.easeOut,
                 margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
                   color: active
                       ? (isDark ? AppColors.darkSurface2 : Colors.white)
