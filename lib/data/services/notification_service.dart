@@ -5,6 +5,16 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import 'station_alias_service.dart';
 
+/// iOS 포그라운드 표시 옵션 — FCM 플러그인이 알림 델리게이트를 잡는 환경에서
+/// Darwin 디테일을 명시하지 않으면 앱이 떠 있을 때 배너가 표시되지 않는다.
+/// (Android 는 channel 설정이 담당 — 이 상수는 iOS 에만 적용됨)
+const DarwinNotificationDetails _iosForegroundDetails = DarwinNotificationDetails(
+  presentAlert: true,
+  presentBanner: true,
+  presentList: true,
+  presentSound: true,
+);
+
 final notificationPlugin = FlutterLocalNotificationsPlugin();
 
 /// 방해 금지 시간(DND) 구간인지 — 시스템 알림 표시를 막을지 판단.
@@ -193,6 +203,7 @@ void showGasPriceNotification(Map<String, dynamic> data, {int soundMode = 0}) {
     '⛽ 오늘의 주유 가격',
     null,
     NotificationDetails(
+      iOS: _iosForegroundDetails,
       android: AndroidNotificationDetails(
         channel.id,
         channel.name,
@@ -273,6 +284,7 @@ void showEvWatchNotification(Map<String, dynamic> data, {int soundMode = 0}) {
     title,
     body,
     NotificationDetails(
+      iOS: _iosForegroundDetails,
       android: AndroidNotificationDetails(
         channel.id,
         channel.name,
@@ -324,6 +336,7 @@ void showWatchOngoingNotification({
     '⚡ $name 자리 변동 감시 중',
     body,
     NotificationDetails(
+      iOS: _iosForegroundDetails,
       android: AndroidNotificationDetails(
         evWatchOngoingChannel.id,
         evWatchOngoingChannel.name,
@@ -384,6 +397,7 @@ void showEvAlarmNotification(Map<String, dynamic> data, {int soundMode = 0}) {
     title,
     body,
     NotificationDetails(
+      iOS: _iosForegroundDetails,
       android: AndroidNotificationDetails(
         channel.id,
         channel.name,
@@ -428,6 +442,7 @@ void showInquiryReplyNotification({String? title, String? body, int? inquiryId})
     t,
     b,
     NotificationDetails(
+      iOS: _iosForegroundDetails,
       android: AndroidNotificationDetails(
         inquiryReplyChannel.id,
         inquiryReplyChannel.name,
@@ -473,6 +488,7 @@ void _showContentNotification(
     t,
     b,
     NotificationDetails(
+      iOS: _iosForegroundDetails,
       android: AndroidNotificationDetails(
         eventNoticeChannel.id,
         eventNoticeChannel.name,
