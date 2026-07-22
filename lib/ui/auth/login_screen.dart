@@ -153,36 +153,46 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 28),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Image.asset(
-                              'assets/halfNhalf.png',
-                              width: 76,
-                              height: 76,
-                              filterQuality: FilterQuality.medium,
+                        // 배너 2지면 + Apple 포함 4버튼(iOS) 조합에서 히어로 공간이
+                        // 부족하면 overflow 대신 블록 전체를 비율 축소. 공간이
+                        // 충분하면 원본 크기 그대로 (scaleDown 은 확대 안 함).
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Image.asset(
+                                  'assets/halfNhalf.png',
+                                  width: 76,
+                                  height: 76,
+                                  filterQuality: FilterQuality.medium,
+                                ),
+                                const SizedBox(height: 18),
+                                Text(
+                                  '주유부터 충전까지,\n한 번에.',
+                                  style: TextStyle(
+                                    fontSize: 26,
+                                    height: 1.32,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.5,
+                                    color: textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  '로그인하면 차량 정보·설정이\n기기를 바꿔도 그대로 유지돼요.',
+                                  style: TextStyle(
+                                      fontSize: 14.5,
+                                      height: 1.5,
+                                      color: textSecondary),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 18),
-                            Text(
-                              '주유부터 충전까지,\n한 번에.',
-                              style: TextStyle(
-                                fontSize: 26,
-                                height: 1.32,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -0.5,
-                                color: textPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              '로그인하면 차량 정보·설정이\n기기를 바꿔도 그대로 유지돼요.',
-                              style: TextStyle(
-                                  fontSize: 14.5,
-                                  height: 1.5,
-                                  color: textSecondary),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
