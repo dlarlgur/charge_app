@@ -561,8 +561,8 @@ class HeroCard extends StatelessWidget {
   Widget _speedTray(BuildContext context, Color accent) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      height: 34,
-      padding: const EdgeInsets.all(3),
+      height: 42,
+      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: isDark
             ? accent.withValues(alpha: 0.08)
@@ -599,7 +599,7 @@ class HeroCard extends StatelessWidget {
                 alignment: Alignment.center,
                 child: Text(e.$2,
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: active ? FontWeight.w800 : FontWeight.w600,
                       color: active ? accent : kMute2,
                       letterSpacing: -0.2,
