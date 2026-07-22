@@ -303,42 +303,17 @@ class HeroCard extends StatelessWidget {
               ],
             ],
           ),
-          // ── 급속 kW 하위 칩 — 급속 선택 시에만 펼침 (완속은 7kW 단일이라 불필요) ──
+          // ── 급속 kW 세그먼트 트레이 — 급속 선택 시에만 슬라이드 펼침 ──
+          // (완속은 7kW 단일이라 불필요. 선택 구간 = 떠오른 흰 셀, 다중선택)
           if (isEv && onToggleFastOutput != null)
             AnimatedSize(
-              duration: const Duration(milliseconds: 200),
+              duration: const Duration(milliseconds: 220),
               curve: Curves.easeOutCubic,
               alignment: Alignment.topCenter,
               child: chargerMode == 'FAST'
                   ? Padding(
-                      padding: const EdgeInsets.only(top: 9),
-                      child: Row(
-                        children: [
-                          const Padding(
-                            padding: EdgeInsets.only(left: 2, right: 8),
-                            child: Icon(Icons.subdirectory_arrow_right_rounded,
-                                size: 14, color: kMute2),
-                          ),
-                          Expanded(
-                            child: Wrap(
-                              spacing: 6,
-                              runSpacing: 6,
-                              children: _fastOutputOptions.map((e) {
-                                // 빈 set = 전체 선택으로 표시 (지도 필터와 동일 문법)
-                                final active = fastOutputs.isEmpty ||
-                                    fastOutputs.contains(e.$1);
-                                return _speedSubChip(
-                                  label: e.$2,
-                                  active: active,
-                                  accent: accent,
-                                  accentLight: modeAccentLight(isEv),
-                                  onTap: () => onToggleFastOutput!(e.$1),
-                                );
-                              }).toList(),
-                            ),
-                          ),
-                        ],
-                      ),
+                      padding: const EdgeInsets.only(top: 8),
+                      child: _speedTray(context, accent),
                     )
                   : const SizedBox(width: double.infinity),
             ),
@@ -580,34 +555,59 @@ class HeroCard extends StatelessWidget {
     ('300', '300kW+'),
   ];
 
-  // kW 하위 칩 — _prefChip 보다 한 단계 작은 톤 (하위 옵션임이 보이게).
-  Widget _speedSubChip({
-    required String label,
-    required bool active,
-    required Color accent,
-    required Color accentLight,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-        decoration: BoxDecoration(
-          color: active ? accentLight : kLineSoft,
-          borderRadius: BorderRadius.circular(99),
-          border: Border.all(
-            color: active ? accent.withValues(alpha: 0.22) : Colors.transparent,
-            width: 1,
-          ),
-        ),
-        child: Text(label,
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w700,
-              color: active ? accent : kInk2,
-              letterSpacing: -0.1,
-            )),
+  // kW 세그먼트 트레이 — 은은한 액센트 틴트 홈(groove) 안에 4칸 세그먼트.
+  // 선택 = 흰(다크: darkSurface2) 셀이 살짝 떠오름, 미선택 = 홈에 가라앉음.
+  // 빈 set = 전체 선택 표시 (지도 필터와 동일 문법).
+  Widget _speedTray(BuildContext context, Color accent) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      height: 34,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: isDark
+            ? accent.withValues(alpha: 0.08)
+            : accent.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(11),
+        border: Border.all(color: accent.withValues(alpha: 0.14), width: 1),
+      ),
+      child: Row(
+        children: _fastOutputOptions.map((e) {
+          final active = fastOutputs.isEmpty || fastOutputs.contains(e.$1);
+          return Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => onToggleFastOutput!(e.$1),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOut,
+                margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                decoration: BoxDecoration(
+                  color: active
+                      ? (isDark ? AppColors.darkSurface2 : Colors.white)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: active && !isDark
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.07),
+                            blurRadius: 5,
+                            offset: const Offset(0, 1),
+                          ),
+                        ]
+                      : null,
+                ),
+                alignment: Alignment.center,
+                child: Text(e.$2,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+                      color: active ? accent : kMute2,
+                      letterSpacing: -0.2,
+                    )),
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
