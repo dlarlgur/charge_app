@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:flutter/material.dart';
@@ -38,29 +40,61 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
   late final String _mode = LoginBannerConfig.modeFor(widget.slot);
   late final String _placement =
       widget.slot == 'social' ? 'login_social' : 'login_bottom';
-  FallbackAd? _house;
+  // 캐러셀 간격(초) — 콘솔 광고 페이지 지면 그룹에서 설정. 0 = 순환 없음(첫 장 고정).
+  late final double _rotateSec = ((DkswCore.config<num>(
+              'house_rotate_sec_$_placement') ??
+          0))
+      .toDouble();
+
+  List<FallbackAd> _houseAds = const [];
+  int _current = 0;
+  Timer? _rotateTimer;
   bool _houseChecked = false;
+  // 노출 보고 — 장당 1회 (같은 광고가 순환으로 재등장해도 세션당 1번만)
+  final Set<int> _impressed = {};
 
   NativeAd? _admob;
   bool _admobLoaded = false;
   bool _admobFailed = false;
 
+  FallbackAd? get _house =>
+      _houseAds.isEmpty ? null : _houseAds[_current % _houseAds.length];
+
   @override
   void initState() {
     super.initState();
     if (_mode == 'house' || _mode == 'auto') {
-      // 노출 카운트는 서버가 서빙 시점에 기록 (ad-fallback → pickActiveAd).
-      AdFallbackCache.ensure(_placement).then((ad) {
+      AdFallbackCache.ensureList(_placement).then((ads) {
         if (!mounted) return;
         setState(() {
-          _house = ad;
+          _houseAds = ads;
           _houseChecked = true;
         });
-        if (ad == null && _mode == 'auto') _loadAdmob();
+        if (ads.isEmpty) {
+          if (_mode == 'auto') _loadAdmob();
+          return;
+        }
+        _trackImpression(ads.first);
+        // 2장 이상 + 간격 설정 시에만 캐러셀 순환 (오일나우 스타일 슬라이드 업)
+        if (ads.length > 1 && _rotateSec > 0) {
+          _rotateTimer = Timer.periodic(
+            Duration(milliseconds: (_rotateSec * 1000).round()),
+            (_) {
+              if (!mounted) return;
+              setState(() => _current = (_current + 1) % _houseAds.length);
+              final ad = _house;
+              if (ad != null) _trackImpression(ad);
+            },
+          );
+        }
       });
     } else if (_mode == 'admob') {
       _loadAdmob();
     }
+  }
+
+  void _trackImpression(FallbackAd ad) {
+    if (_impressed.add(ad.id)) DkswCore.trackAdImpression(ad.id);
   }
 
   void _loadAdmob() {
@@ -82,6 +116,7 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
 
   @override
   void dispose() {
+    _rotateTimer?.cancel();
     _admob?.dispose();
     super.dispose();
   }
@@ -118,9 +153,34 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
             ),
           );
 
-    // 하우스 배너 (광고주 이미지 — 아웃링크)
+    // 하우스 배너 (광고주 이미지 — 아웃링크). 캐러셀이면 슬라이드 업 전환.
     if ((_mode == 'house' || _mode == 'auto') && _house != null) {
-      return constrain(_houseBanner(context, _house!));
+      return constrain(AnimatedSwitcher(
+        duration: const Duration(milliseconds: 420),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (child, anim) {
+          // 새 장은 아래→제자리, 이전 장은 제자리→위 (오일나우 스타일)
+          final slide = Tween<Offset>(
+            begin: const Offset(0, 0.55),
+            end: Offset.zero,
+          ).animate(anim);
+          return ClipRect(
+            child: FadeTransition(
+              opacity: anim,
+              child: SlideTransition(position: slide, child: child),
+            ),
+          );
+        },
+        layoutBuilder: (current, previous) => Stack(
+          alignment: Alignment.center,
+          children: [...previous, if (current != null) current],
+        ),
+        child: KeyedSubtree(
+          key: ValueKey('house_${_house!.id}'),
+          child: _houseBanner(context, _house!),
+        ),
+      ));
     }
     // AdMob (admob 모드, 또는 auto 에서 하우스 없음 확정 후)
     final wantAdmob =

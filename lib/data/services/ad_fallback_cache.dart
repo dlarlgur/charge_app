@@ -71,6 +71,42 @@ class AdFallbackCache {
     await Future.wait(_placements.map((pl) => _fetchOne(dio, pl)));
   }
 
+  // ── 캐러셀(로그인 지면) — 활성 광고 '목록' 캐시 ──
+  static final Map<String, List<FallbackAd>> _listCache = {};
+
+  /// 로그인 지면 캐러셀용 목록 fetch (carousel=1 — 서버 노출카운트 스킵,
+  /// 노출은 위젯이 장당 1회 보고). 실패/빈 목록 = [].
+  static Future<List<FallbackAd>> ensureList(String placement) async {
+    if (_listCache.containsKey(placement)) return _listCache[placement]!;
+    try {
+      final dio = Dio()..transformer = BackgroundTransformer();
+      final res = await dio.get(
+        '$_consoleBase/api/ad-fallback',
+        queryParameters: {
+          'package': 'com.dksw.charge',
+          'placement': placement,
+          'device_id': DkswCore.deviceId,
+          'carousel': '1',
+        },
+        options: Options(receiveTimeout: const Duration(seconds: 6)),
+      );
+      final raw = res.data is Map ? res.data['ads'] : null;
+      final list = raw is List
+          ? raw
+              .whereType<Map>()
+              .map((m) => FallbackAd.fromJson(Map<String, dynamic>.from(m)))
+              .where((a) => a.imageUrl.isNotEmpty || a.isStructured)
+              .toList()
+          : <FallbackAd>[];
+      _listCache[placement] = list;
+      return list;
+    } catch (e) {
+      if (kDebugMode) debugPrint('[ad-fallback] $placement 목록 실패: $e');
+      _listCache[placement] = const [];
+      return const [];
+    }
+  }
+
   static Future<void> _fetchOne(Dio dio, String placement) async {
     try {
       final res = await dio.get(
