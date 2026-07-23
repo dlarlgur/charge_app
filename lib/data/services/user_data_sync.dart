@@ -47,7 +47,13 @@ class UserDataSync {
       // 서버에 차량설정이 있다 = 이 계정은 온보딩을 완료함 → 재로그인/데이터삭제 후 온보딩 스킵.
       box.put(AppConstants.keyOnboardingDone, true);
     }
-    if (prefs['fuelType'] != null) box.put(AppConstants.keyFuelType, prefs['fuelType']);
+    if (prefs['fuelType'] != null) {
+      box.put(AppConstants.keyFuelType, prefs['fuelType']);
+      // 홈 유종 필터도 복원 유종으로 동기 — setFuelType 의 settings→filter 단방향
+      // 동기와 동일 의미. 이게 빠지면 재설치 후 설정은 고급유인데 홈은 기본값
+      // 휘발유로 보여 "유종 저장이 풀렸다"로 보임 (사용자 제보).
+      box.put(AppConstants.keyGasFilterFuelTypes, [prefs['fuelType']]);
+    }
 
     // 마케팅 동의 — 서버 값을 이 기기(콘솔 device)에 그대로 반영 (true/false 양방향).
     // true 만 재적용하던 단방향 래칫은 '다른 기기/직전 세션에서 끈 상태'가 재로그인 때

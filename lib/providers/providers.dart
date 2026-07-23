@@ -654,6 +654,9 @@ class GasFilterNotifier extends StateNotifier<GasFilterOptions> {
     _load();
   }
 
+  /// 로그인 복원(UserDataSync)이 박스를 바꾼 뒤 재반영용.
+  void reload() => _load();
+
   void _load() {
     final savedRadius = _box.get(AppConstants.keyGasFilterRadius, defaultValue: 5000) as int;
     // 저장된 반경이 유효하지 않으면 기본값(5000)으로 리셋

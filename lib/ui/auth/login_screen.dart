@@ -62,6 +62,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         if (!mounted) return;
         // 박스에 복원된 값을 provider 상태로 반영 (차종/유종·즐겨찾기 즉시 갱신).
         ref.read(settingsProvider.notifier).reload();
+        ref.read(gasFilterProvider.notifier).reload(); // 홈 유종 필터도 복원값 반영
         ref.read(favoritesProvider.notifier).refresh();
         if (widget.gate) {
           context.go('/permission');
