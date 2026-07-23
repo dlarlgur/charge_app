@@ -451,9 +451,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final hasName = name.isNotEmpty;
     // fromWidget 래스터는 앱 테마(Pretendard)를 상속 못 받아 시스템 폰트로 폴백됨 →
     // fontFamily 명시해 앱 글씨와 통일.
+    // ⚠ Pretendard 는 400/500/600/700만 번들됨 — w800 지정 시 가짜 볼드 합성으로
+    // 글자가 뭉툭해지고 다른 폰트처럼 보임. 반드시 등록된 웨이트만 사용.
     const nameStyle = TextStyle(
       fontFamily: 'Pretendard',
-      fontSize: 14.5, fontWeight: FontWeight.w800,
+      fontSize: 14, fontWeight: FontWeight.w700,
       color: Color(0xFF1F2937), height: 1.2, letterSpacing: -0.2,
     );
     double pillW = 0, pillH = 0;
@@ -2426,7 +2428,7 @@ class _SearchPin extends StatelessWidget {
                     color: null,
                     foreground: Paint()
                       ..style = PaintingStyle.stroke
-                      ..strokeWidth = 3.5
+                      ..strokeWidth = 2.8
                       ..strokeJoin = StrokeJoin.round
                       ..color = Colors.white,
                   ),
