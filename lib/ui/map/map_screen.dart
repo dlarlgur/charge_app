@@ -447,14 +447,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
     // 이름 알약을 핀과 한 이미지로 그림 — 네이티브 캡션(투박한 폰트/외곽선) 대신
     // Flutter 폰트로 깔끔하게. 가변 길이라 TextPainter 로 실제 폭을 재서 캔버스 산정.
-    const double pinH = 44, pinW = 44, gap = 3;
+    const double pinH = 44, pinW = 44, gap = 2, tailH = 8;
     final hasName = name.isNotEmpty;
     // fromWidget 래스터는 앱 테마(Pretendard)를 상속 못 받아 시스템 폰트로 폴백됨 →
     // fontFamily 명시해 앱 글씨와 통일.
     const nameStyle = TextStyle(
       fontFamily: 'Pretendard',
-      fontSize: 13, fontWeight: FontWeight.w700,
-      color: Color(0xFF1F2937), height: 1.15,
+      fontSize: 14, fontWeight: FontWeight.w800,
+      color: Color(0xFF0F172A), height: 1.15, letterSpacing: -0.2,
     );
     double pillW = 0, pillH = 0;
     if (hasName) {
@@ -463,12 +463,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         maxLines: 1, textDirection: TextDirection.ltr,
       )..layout();
       // 좌우 패딩 11*2 + 여유 4 — 텍스트폭과 딱 맞아 반올림으로 말줄임 뜨던 것 방지.
-      pillW = (tp.width + 26).clamp(34, 260).toDouble();
-      pillH = tp.height + 10; // 상하 패딩 5*2
+      pillW = (tp.width + 28).clamp(34, 260).toDouble();
+      pillH = tp.height + 12; // 상하 패딩 6*2
     }
     final canvasW = math.max(pinW, hasName ? pillW : pinW);
     // +4: TextPainter 높이와 실제 위젯 렌더 높이의 반올림 차이로 인한 2px 오버플로 방지.
-    final canvasH = (hasName ? pillH + gap + pinH : pinH) + 4;
+    final canvasH = (hasName ? pillH + tailH + gap + pinH : pinH) + 4;
 
     final icon = await NOverlayImage.fromWidget(
       widget: _SearchPin(
@@ -591,13 +591,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   void _onCameraChange(NCameraUpdateReason reason, bool animated) {
     if (reason == NCameraUpdateReason.gesture) _lastGestureAt = DateTime.now();
     if (_suppressCameraChange) return;
-    // 사용자가 직접 지도를 확대/축소·이동하면 검색 핀을 거둠 (이동 직후 1회 표시용).
-    if (_searchMarker != null &&
-        (reason == NCameraUpdateReason.gesture ||
-            reason == NCameraUpdateReason.control)) {
-      _mapController?.deleteOverlay(_searchMarker!.info);
-      _searchMarker = null;
-    }
+    // 검색 핀은 지도 조작에도 유지 — 네이버/카카오 문법. 다음 검색 시 교체되고,
+    // (기존의 '만지면 거둠'은 확대만 해도 핀이 사라져 사용자 혼란 — 제보 반영 제거)
     // 지도를 움직이면 '이 지역 검색' 버튼 노출 (누를 때만 재검색 — 매번 자동조회 대비
     // 서버 부하/깜빡임 없고 사용자 통제 가능. 구글/네이버/카카오맵 방식).
     if (_mapReady && !_isSearchMode && (!_showSearchHere || _isAtMyLocation)) {
@@ -2413,7 +2408,7 @@ class _SearchPin extends StatelessWidget {
         if (name.isNotEmpty) ...[
           Container(
             width: pillWidth,
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(13),
@@ -2435,7 +2430,12 @@ class _SearchPin extends StatelessWidget {
               style: nameStyle,
             ),
           ),
-          const SizedBox(height: 3),
+          // 말풍선 꼬리 — 스테이션 배지와 같은 문법 (알약이 핀을 가리킴)
+          const CustomPaint(
+            size: Size(12, 8),
+            painter: _SearchPillTailPainter(),
+          ),
+          const SizedBox(height: 2),
         ],
         // 앱 로고(halfNhalf)와 같은 반반 핀 — 좌 주유파랑/우 충전초록.
         // '우리 앱의 검색 핀'이 브랜드로 즉시 읽히고 타 지도 앱과도 안 겹침.
@@ -2491,3 +2491,34 @@ class _SearchPin extends StatelessWidget {
 }
 
 
+
+
+/// 검색 핀 이름 알약의 말풍선 꼬리 — 스테이션 배지 꼬리와 동일 문법.
+class _SearchPillTailPainter extends CustomPainter {
+  const _SearchPillTailPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final fill = Path()
+      ..moveTo(cx, size.height)
+      ..lineTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..close();
+    canvas.drawPath(fill, Paint()..color = Colors.white);
+    // 좌·우 사선만 테두리 (상단은 알약 하단 보더와 겹침)
+    final border = Paint()
+      ..color = const Color(0xFFE2E8F0)
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke
+      ..strokeJoin = StrokeJoin.miter;
+    final line = Path()
+      ..moveTo(0, 0)
+      ..lineTo(cx, size.height)
+      ..lineTo(size.width, 0);
+    canvas.drawPath(line, border);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
