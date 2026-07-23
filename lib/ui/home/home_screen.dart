@@ -2115,6 +2115,13 @@ class _AiConsentTile extends StatefulWidget {
 }
 
 class _AiConsentTileState extends State<_AiConsentTile> {
+  void _toggle(bool v) {
+    debugPrint('[AiConsent] toggle 요청: $v (이전 ${AiConsent.value})');
+    AiConsent.set(v);
+    debugPrint('[AiConsent] 저장 후: ${AiConsent.value}');
+    if (mounted) setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     final muted = widget.isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
@@ -2132,10 +2139,10 @@ class _AiConsentTileState extends State<_AiConsentTile> {
           style: Theme.of(context).textTheme.bodySmall?.copyWith(color: muted)),
       trailing: Switch(
         value: on,
-        onChanged: (v) => setState(() => AiConsent.set(v)),
+        onChanged: _toggle,
         activeColor: AppColors.gasBlue,
       ),
-      onTap: () => setState(() => AiConsent.set(!on)),
+      onTap: () => _toggle(!on),
     );
   }
 }

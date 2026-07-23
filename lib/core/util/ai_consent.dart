@@ -22,8 +22,11 @@ class AiConsent {
   static bool? get value =>
       _box.get(AppConstants.keyAiThirdPartyConsent) as bool?;
 
-  static void set(bool granted) =>
-      _box.put(AppConstants.keyAiThirdPartyConsent, granted);
+  static void set(bool granted) {
+    // Hive put 은 Future 반환 — setState 콜백 안에서 arrow 로 반환되면
+    // "setState callback returned a Future" 로 탭이 죽는다. 명시적으로 버림.
+    _box.put(AppConstants.keyAiThirdPartyConsent, granted);
+  }
 
   /// AI 분석 시작 전 호출. 선택이 없으면 고지 다이얼로그를 띄우고 선택을 저장.
   /// 반환값 = 동의 여부 (요청의 ai_text 로 그대로 전달).
