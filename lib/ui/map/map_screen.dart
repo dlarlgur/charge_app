@@ -2397,10 +2397,6 @@ class _SearchPin extends StatelessWidget {
     required this.canvasHeight,
   });
 
-  // 클래식 레드 — '검색한 위치 = 빨간 핀'은 지도 앱 보편 문법이라 즉시 읽히고,
-  // 앱에서 안 쓰는 색이라 주유 파랑/충전 초록 마커와 절대 안 섞임.
-  static const Color _pin = Color(0xFFEF4444);
-
   @override
   Widget build(BuildContext context) {
     // 캔버스 크기를 고정하고 콘텐츠를 하단 정렬 — 여유(+4)는 위쪽 투명으로 가고
@@ -2441,6 +2437,8 @@ class _SearchPin extends StatelessWidget {
           ),
           const SizedBox(height: 3),
         ],
+        // 앱 로고(halfNhalf)와 같은 반반 핀 — 좌 주유파랑/우 충전초록.
+        // '우리 앱의 검색 핀'이 브랜드로 즉시 읽히고 타 지도 앱과도 안 겹침.
         SizedBox(
           width: 44,
           height: 44,
@@ -2448,9 +2446,35 @@ class _SearchPin extends StatelessWidget {
             alignment: Alignment.topCenter,
             children: [
               const Icon(Icons.location_on, size: 44, color: Colors.white),
-              const Padding(
-                padding: EdgeInsets.only(top: 1),
-                child: Icon(Icons.location_on, size: 40, color: _pin),
+              Padding(
+                padding: const EdgeInsets.only(top: 1),
+                child: SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Stack(
+                    children: [
+                      ClipRect(
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          widthFactor: 0.5,
+                          child: Icon(Icons.location_on,
+                              size: 40, color: AppColors.gasBlue),
+                        ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: ClipRect(
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            widthFactor: 0.5,
+                            child: Icon(Icons.location_on,
+                                size: 40, color: AppColors.evGreen),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
               const Positioned(
                 top: 11,
