@@ -2397,8 +2397,9 @@ class _SearchPin extends StatelessWidget {
     required this.canvasHeight,
   });
 
-  // 바이올렛 — 주유 파랑/충전 초록과 안 겹치면서 그 사이에 자연스레 어울리는 톤.
-  static const Color _pin = Color(0xFF7C3AED);
+  // 클래식 레드 — '검색한 위치 = 빨간 핀'은 지도 앱 보편 문법이라 즉시 읽히고,
+  // 앱에서 안 쓰는 색이라 주유 파랑/충전 초록 마커와 절대 안 섞임.
+  static const Color _pin = Color(0xFFEF4444);
 
   @override
   Widget build(BuildContext context) {
@@ -2420,11 +2421,12 @@ class _SearchPin extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(13),
-              border: Border.all(color: _pin.withValues(alpha: 0.55), width: 1),
+              // 색 테두리 대신 앱 카드 톤(중립 보더+그림자) — 핀 색은 핀에만.
+              border: Border.all(color: const Color(0xFFE2E8F0), width: 1),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.18),
-                  blurRadius: 5,
+                  color: Colors.black.withValues(alpha: 0.16),
+                  blurRadius: 6,
                   offset: const Offset(0, 2),
                 ),
               ],
