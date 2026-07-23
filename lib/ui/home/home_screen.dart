@@ -931,6 +931,10 @@ class _GasListViewState extends ConsumerState<_GasListView> {
               pinned: true,
               delegate: _FuelChipsHeaderDelegate(
                 isDark: isDark,
+                // 리빌드 판단용 상태 시그니처 — child(ListView) 인스턴스는 매 빌드
+                // 새로 만들어져 비교가 무의미하므로, 화면에 영향 주는 상태만 비교.
+                signature:
+                    '${filter.fuelTypes.join(',')}|$activeFuel|$isDark',
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
@@ -3279,7 +3283,13 @@ class _DndSettingTileEmbedState extends State<_DndSettingTileEmbed> {
 class _FuelChipsHeaderDelegate extends SliverPersistentHeaderDelegate {
   final bool isDark;
   final Widget child;
-  const _FuelChipsHeaderDelegate({required this.isDark, required this.child});
+  // 유종 목록·활성 유종·테마의 시그니처 — 이것이 달라질 때만 헤더 리빌드.
+  final String signature;
+  const _FuelChipsHeaderDelegate({
+    required this.isDark,
+    required this.child,
+    required this.signature,
+  });
 
   static const double _extent = 46;
 
@@ -3313,5 +3323,5 @@ class _FuelChipsHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(covariant _FuelChipsHeaderDelegate oldDelegate) =>
-      oldDelegate.isDark != isDark || oldDelegate.child != child;
+      oldDelegate.signature != signature;
 }
