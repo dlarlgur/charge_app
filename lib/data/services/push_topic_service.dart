@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:dksw_app_core/dksw_app_core.dart';
@@ -26,6 +27,10 @@ class PushTopicService {
       final vt = (box.get(AppConstants.keyVehicleType) as String?) ?? 'both';
       // DkswCore 토픽 규칙 재사용 — notices_<safePkg> 에서 safePkg 추출.
       final safePkg = DkswCore.noticesTopic().replaceFirst('notices_', '');
+      // 콘솔 차량타입 보고를 FCM 구독보다 먼저 — 첫 설치 부팅은 FCM 토큰
+      // 준비가 늦어 구독이 던지면 보고까지 스킵돼 사용자 목록 '차량'이
+      // 미상(—)으로 남던 문제. 보고는 독립 fire-and-forget.
+      unawaited(_reportVehicleType(vt));
       final fm = FirebaseMessaging.instance;
       final wantGas = vt == 'gas' || vt == 'both';
       final wantEv = vt == 'ev' || vt == 'both';
@@ -43,8 +48,6 @@ class PushTopicService {
         await fm.unsubscribeFromTopic('v2_veh_ev_$safePkg');
       }
       await fm.unsubscribeFromTopic('veh_ev_$safePkg');
-      // 콘솔에 차량타입 보고 — 사용자 목록의 '차량' 컬럼·분포 통계용.
-      await _reportVehicleType(vt);
     } catch (_) {
       // 토픽 동기화 실패는 치명적이지 않음 — 다음 부팅에 재시도.
     }
