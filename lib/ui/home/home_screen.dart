@@ -1071,7 +1071,10 @@ class _GasListViewState extends ConsumerState<_GasListView> {
                     );
                   }
                   if (item is HouseAd) {
-                    return HouseAdCard(ad: item);
+                    return HouseAdCard(
+                      ad: item,
+                      carousel: HouseAdCache.atAll(item.listPosition),
+                    );
                   }
                   final s = item as GasStation;
                   // station index for isTop: 첫 station 인지
@@ -1284,7 +1287,11 @@ class _EvListViewState extends ConsumerState<_EvListView> {
                     );
                   }
                   if (item is HouseAd) {
-                    return HouseAdCard(ad: item, isEv: true);
+                    return HouseAdCard(
+                      ad: item,
+                      carousel: HouseAdCache.atAll(item.listPosition),
+                      isEv: true,
+                    );
                   }
                   final s = item as EvStation;
                   final isTop = identical(s, shown.first) && favIds.isEmpty;

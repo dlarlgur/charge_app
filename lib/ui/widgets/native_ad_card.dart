@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:flutter/material.dart';
@@ -278,6 +280,9 @@ class _StationDetailNativeAdState extends State<StationDetailNativeAd> {
 class HouseAdCard extends StatefulWidget {
   final HouseAd ad;
 
+  /// 같은 위치의 광고 전체 — 2개+ 면 캐러셀 순환. null/1개면 [ad] 단건.
+  final List<HouseAd>? carousel;
+
   /// EV 탭 컨텍스트 — 좌측 4dp 컬러 스트립 노출.
   final bool isEv;
   final EdgeInsets margin;
@@ -285,6 +290,7 @@ class HouseAdCard extends StatefulWidget {
   const HouseAdCard({
     super.key,
     required this.ad,
+    this.carousel,
     this.isEv = false,
     this.margin = const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
   });
@@ -294,28 +300,54 @@ class HouseAdCard extends StatefulWidget {
 }
 
 class _HouseAdCardState extends State<HouseAdCard> {
-  bool _impressionReported = false;
   // native ad card 와 동일 — 옆 스테이션 카드 높이(Gas 68 / EV 96)에 맞춤.
   double get _height => widget.isEv ? 96 : 68;
+
+  // 홈 리스트 캐러셀 간격(초) — 로그인/상단 배너와 동일 원격설정 키 규칙.
+  double get _rotateSec =>
+      (DkswCore.config<num>('house_rotate_sec_home_list') ?? 0).toDouble();
+
+  late List<HouseAd> _ads;
+  int _current = 0;
+  Timer? _timer;
+  final Set<int> _impressed = {};
+
+  HouseAd get _ad => _ads[_current % _ads.length];
 
   @override
   void initState() {
     super.initState();
+    final list = widget.carousel;
+    _ads = (list != null && list.isNotEmpty) ? list : [widget.ad];
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _markImpression();
+      _markImpression(_ad);
     });
+    if (_ads.length > 1 && _rotateSec > 0) {
+      _timer = Timer.periodic(
+        Duration(milliseconds: (_rotateSec * 1000).round()),
+        (_) {
+          if (!mounted) return;
+          setState(() => _current = (_current + 1) % _ads.length);
+          _markImpression(_ad);
+        },
+      );
+    }
   }
 
-  void _markImpression() {
-    if (_impressionReported) return;
-    _impressionReported = true;
-    HouseAdCache.reportImpression(widget.ad.id);
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _markImpression(HouseAd ad) {
+    if (_impressed.add(ad.id)) HouseAdCache.reportImpression(ad.id);
   }
 
   Future<void> _onTap() async {
-    HouseAdCache.reportClick(widget.ad.id);
-    await openAdCta(context, url: widget.ad.ctaUrl, ctaType: widget.ad.ctaType);
+    HouseAdCache.reportClick(_ad.id);
+    await openAdCta(context, url: _ad.ctaUrl, ctaType: _ad.ctaType);
   }
 
   @override
@@ -325,9 +357,50 @@ class _HouseAdCardState extends State<HouseAdCard> {
     final borderColor =
         isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder;
 
-    final inner = widget.ad.isStructured
-        ? _StructuredAdContent(ad: widget.ad, isEv: widget.isEv)
-        : _BannerAdContent(ad: widget.ad);
+    final inner = _ad.isStructured
+        ? _StructuredAdContent(ad: _ad, isEv: widget.isEv)
+        : _BannerAdContent(ad: _ad);
+
+    final content = Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _onTap,
+        child: widget.isEv
+            ? Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(width: 4, color: AppColors.gasBlue),
+                  Expanded(child: inner),
+                ],
+              )
+            : inner,
+      ),
+    );
+
+    // 캐러셀(2개+·간격 설정)이면 가로 슬라이드 전환. 단건이면 그대로.
+    final Widget body = _ads.length > 1
+        ? AnimatedSwitcher(
+            duration: const Duration(milliseconds: 400),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            transitionBuilder: (child, anim) {
+              final incoming =
+                  child.key == ValueKey<int>(_ad.id);
+              final slide = Tween<Offset>(
+                begin: Offset(incoming ? 1.0 : -1.0, 0),
+                end: Offset.zero,
+              ).animate(anim);
+              return ClipRect(
+                child: SlideTransition(position: slide, child: child),
+              );
+            },
+            layoutBuilder: (current, previous) => Stack(
+              alignment: Alignment.center,
+              children: [...previous, if (current != null) current],
+            ),
+            child: KeyedSubtree(key: ValueKey<int>(_ad.id), child: content),
+          )
+        : content;
 
     return Container(
       margin: widget.margin,
@@ -338,21 +411,7 @@ class _HouseAdCardState extends State<HouseAdCard> {
         border: Border.all(color: borderColor, width: 0.5),
       ),
       clipBehavior: Clip.antiAlias,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: _onTap,
-          child: widget.isEv
-              ? Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Container(width: 4, color: AppColors.gasBlue),
-                    Expanded(child: inner),
-                  ],
-                )
-              : inner,
-        ),
-      ),
+      child: body,
     );
   }
 }

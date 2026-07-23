@@ -92,13 +92,17 @@ class HouseAdCache {
   static List<HouseAd> get ads => _ads;
   static bool get fetched => _fetched;
 
-  /// 위치별 house ad lookup. 같은 위치에 여러 개면 서버에서 1건만 픽해서 내려줌.
+  /// 위치별 house ad lookup — 첫 1건 (캐러셀 아닌 곳 하위호환).
   static HouseAd? at(int position) {
     for (final a in _ads) {
       if (a.listPosition == position) return a;
     }
     return null;
   }
+
+  /// 위치별 house ad 전체 — 같은 위치 여러 개면 캐러셀로 순환.
+  static List<HouseAd> atAll(int position) =>
+      _ads.where((a) => a.listPosition == position).toList();
 
   /// 디스크에 저장된 이전 광고 메타 즉시 로드. 광고 슬롯 결정에 사용.
   /// 이미지는 CachedNetworkImage 가 화면 표시 시점에 디스크 캐시에서 즉답.
@@ -133,6 +137,8 @@ class HouseAdCache {
           'package': AppConstants.packageName,
           // 서버 test_device_ids 화이트리스트 매칭용 — 콘솔 기록 device_id 와 동일.
           if (DkswCore.deviceId.isNotEmpty) 'device_id': DkswCore.deviceId,
+          // 위치별 전체 반환 → 앱이 캐러셀 순환 (미지정 시 위치당 1개 추첨).
+          'carousel': '1',
         },
         options: Options(receiveTimeout: const Duration(seconds: 5)),
       );
