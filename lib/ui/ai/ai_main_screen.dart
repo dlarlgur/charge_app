@@ -17,6 +17,7 @@ import '../../core/app_dialog.dart';
 import '../../core/navigation/app_route_observer.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/util/app_toast.dart';
+import '../../core/util/ai_consent.dart';
 import '../../data/models/models.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/connected_service.dart';
@@ -1385,6 +1386,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
   // ── 분석 실행 ──
   Future<void> _runAnalyze() async {
+    // 서드파티 AI 문구 동의 (첫 사용 1회 고지) — 거부해도 추천은 동일, 문구만 규칙 기반
+    final aiOk = await AiConsent.ensure(context);
+    if (!mounted) return;
     final box = Hive.box(AppConstants.settingsBox);
     // 선택 차량 프로필 = 단일 소스. 글로벌 키는 차량 없을 때만 fallback.
     final sv = _readSelectedVehicle(box);
@@ -1518,6 +1522,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         '${DateTime.now().millisecondsSinceEpoch}-${Random().nextInt(999999999)}';
     final body = <String, dynamic>{
       'request_id': requestId,
+      'ai_text': aiOk, // 서드파티 AI 문구 동의 — false 면 서버가 Gemini 스킵
       'vehicle_info': {
         'fuel_type': fuelCode,
         'tank_capacity_l': tankCapacity,
@@ -3068,6 +3073,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       showAppToast(context, '목적지를 선택해 주세요.');
       return;
     }
+    // 서드파티 AI 문구 동의 (첫 사용 1회 고지)
+    final aiOk = await AiConsent.ensure(context);
+    if (!mounted) return;
 
     final box = Hive.box(AppConstants.settingsBox);
     VehicleProfile? selectedVehicle;
@@ -3172,6 +3180,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         if (_preferredEvOperators.isNotEmpty) 'operators': _preferredEvOperators.toList(),
         if (_evChargerType == 'FAST' && _evFastOutputs.isNotEmpty)
           'fastOutputs': _evFastOutputs.toList(),
+        'ai_text': AiConsent.value == true, // 서드파티 AI 문구 동의
       });
 
       if (!mounted) return;
@@ -3390,6 +3399,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         if (_preferredEvOperators.isNotEmpty) 'operators': _preferredEvOperators.toList(),
         if (_evChargerType == 'FAST' && _evFastOutputs.isNotEmpty)
           'fastOutputs': _evFastOutputs.toList(),
+        'ai_text': AiConsent.value == true, // 서드파티 AI 문구 동의
       });
       if (!mounted) return;
 

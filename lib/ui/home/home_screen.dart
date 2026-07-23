@@ -32,6 +32,7 @@ import '../widgets/marketing_reprompt.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../core/notif_permission.dart';
 import '../../core/app_dialog.dart';
+import '../../core/util/ai_consent.dart';
 import '../../data/services/user_sync_service.dart';
 import '../widgets/popup_notice_dialog.dart';
 import '../widgets/shared_widgets.dart';
@@ -2103,6 +2104,42 @@ class _CheckerPainter extends CustomPainter {
   bool shouldRepaint(covariant _CheckerPainter old) => old.isDark != isDark;
 }
 
+/// 서드파티 AI(Gemini) 문구 생성 동의 토글 — 언제든 철회 가능 (App Store 5.1.2).
+/// OFF 여도 AI 추천은 동일 동작, 설명 문구만 규칙 기반으로 제공됨.
+class _AiConsentTile extends StatefulWidget {
+  final bool isDark;
+  const _AiConsentTile({required this.isDark});
+
+  @override
+  State<_AiConsentTile> createState() => _AiConsentTileState();
+}
+
+class _AiConsentTileState extends State<_AiConsentTile> {
+  @override
+  Widget build(BuildContext context) {
+    final muted = widget.isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final on = AiConsent.value == true;
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      leading: SettingsScreenEmbed.settingsIconChip(
+          Icons.auto_awesome_rounded, widget.isDark),
+      title: Text('AI 안내 문구 생성 동의',
+          style: Theme.of(context)
+              .textTheme
+              .titleSmall
+              ?.copyWith(fontWeight: FontWeight.w600)),
+      subtitle: Text('추천 설명 생성을 위해 차량·경로 수치를 Google Gemini로 전송',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: muted)),
+      trailing: Switch(
+        value: on,
+        onChanged: (v) => setState(() => AiConsent.set(v)),
+        activeColor: AppColors.gasBlue,
+      ),
+      onTap: () => setState(() => AiConsent.set(!on)),
+    );
+  }
+}
+
 /// 마케팅(이벤트·혜택) 수신 동의 토글 — 설정 카드 톤(settingsIconChip + Switch)에 맞춤.
 /// DkswCore 동의 기록 사용. 정보통신망법상 상시 철회 가능.
 class _ChargeMarketingTile extends ConsumerStatefulWidget {
@@ -2262,6 +2299,8 @@ class SettingsScreenEmbed extends ConsumerWidget {
             _WidgetOpacityTile(isDark: isDark),
             settingsDivider(isDark),
             _ChargeMarketingTile(isDark: isDark),
+            settingsDivider(isDark),
+            _AiConsentTile(isDark: isDark),
           ]),
           _SupportEmbed(isDark: isDark),
           _sectionHeader(context, '정보'),
