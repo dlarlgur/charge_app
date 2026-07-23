@@ -155,21 +155,21 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
 
     // 하우스 배너 (광고주 이미지 — 아웃링크). 캐러셀이면 슬라이드 업 전환.
     if ((_mode == 'house' || _mode == 'auto') && _house != null) {
+      final currentKey = ValueKey('house_${_house!.id}');
       return constrain(AnimatedSwitcher(
         duration: const Duration(milliseconds: 420),
         switchInCurve: Curves.easeOutCubic,
         switchOutCurve: Curves.easeInCubic,
         transitionBuilder: (child, anim) {
-          // 새 장은 아래→제자리, 이전 장은 제자리→위 (오일나우 스타일)
+          // 가로 캐러셀 — 새 장은 오른쪽→제자리, 이전 장은 제자리→왼쪽.
+          // (outgoing 은 애니메이션이 역재생되므로 begin 을 왼쪽으로 주면 좌측 퇴장)
+          final incoming = child.key == currentKey;
           final slide = Tween<Offset>(
-            begin: const Offset(0, 0.55),
+            begin: Offset(incoming ? 1.0 : -1.0, 0),
             end: Offset.zero,
           ).animate(anim);
           return ClipRect(
-            child: FadeTransition(
-              opacity: anim,
-              child: SlideTransition(position: slide, child: child),
-            ),
+            child: SlideTransition(position: slide, child: child),
           );
         },
         layoutBuilder: (current, previous) => Stack(
@@ -177,7 +177,7 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
           children: [...previous, if (current != null) current],
         ),
         child: KeyedSubtree(
-          key: ValueKey('house_${_house!.id}'),
+          key: currentKey,
           child: _houseBanner(context, _house!),
         ),
       ));
