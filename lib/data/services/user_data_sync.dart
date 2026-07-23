@@ -153,6 +153,9 @@ class UserDataSync {
     final prefs = {
       'vehicleType': box.get(AppConstants.keyVehicleType),
       'fuelType': box.get(AppConstants.keyFuelType),
+      // 홈 유종 필터 멀티선택 — 게스트 시절 골라둔 목록도 회원 이관에 포함
+      'fuelTypes': List<String>.from(
+          box.get(AppConstants.keyGasFilterFuelTypes, defaultValue: const <String>[])),
       'marketingConsent': DkswCore.consentAgreed('marketing') == true,
     };
 
