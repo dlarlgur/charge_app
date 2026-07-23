@@ -923,10 +923,13 @@ class _GasListViewState extends ConsumerState<_GasListView> {
             ),
           ),
           // 유종 퀵 토글 — 필터에서 고른 유종들. 탭하면 활성 전환(리스트/마커/평균 즉시 반영).
+          // pinned: 스크롤을 내려도 상단에 고정 — 아래쪽 주유소를 보다가 유종을
+          // 바꾸려면 맨 위까지 되올라가야 한다는 사용자 제보 반영.
           if (filter.fuelTypes.length > 1)
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: 40,
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _FuelChipsHeaderDelegate(
+                isDark: isDark,
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
@@ -3223,4 +3226,46 @@ class _DndSettingTileEmbedState extends State<_DndSettingTileEmbed> {
       ),
     );
   }
+}
+
+/// 유종 퀵 토글 고정 헤더 — 스크롤 시 상단에 붙는다 (사용자 제보 반영).
+/// 고정 상태에서 리스트가 비쳐 보이지 않게 불투명 배경 + 겹칠 때만 헤어라인.
+class _FuelChipsHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final bool isDark;
+  final Widget child;
+  const _FuelChipsHeaderDelegate({required this.isDark, required this.child});
+
+  static const double _extent = 46;
+
+  @override
+  double get minExtent => _extent;
+  @override
+  double get maxExtent => _extent;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      height: _extent,
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkBg : AppColors.lightBg,
+        border: overlapsContent
+            ? Border(
+                bottom: BorderSide(
+                  color: isDark
+                      ? AppColors.darkCardBorder
+                      : const Color(0xFFE8ECF0),
+                  width: 0.5,
+                ),
+              )
+            : null,
+      ),
+      alignment: Alignment.center,
+      child: SizedBox(height: 40, child: child),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _FuelChipsHeaderDelegate oldDelegate) =>
+      oldDelegate.isDark != isDark || oldDelegate.child != child;
 }
