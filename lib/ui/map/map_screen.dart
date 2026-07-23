@@ -181,7 +181,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _listSortByPrice = !(_showEv && !_showGas);
   }
 
+  // 검색 핀 수명 — 지도 확대/이동엔 유지하고, 다른 스테이션 마커를 눌러
+  // 관심사가 옮겨간 순간 거둔다 (검색 결과의 역할 종료).
+  void _clearSearchMarker() {
+    if (_searchMarker == null) return;
+    _mapController?.deleteOverlay(_searchMarker!.info);
+    _searchMarker = null;
+  }
+
   void _selectStation(dynamic station) {
+    _clearSearchMarker();
     _sheetController?.dispose();
     _sheetController = DraggableScrollableController();
     mapSheetOpen.value = true;
@@ -194,6 +203,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   /// 같은 GPS 에 여러 마커가 있을 때(아파트 단지 등) 클릭 시 호출.
   /// 목록 시트로 전환 — 사용자가 1개 선택하면 _selectStation 으로 단일 상세 전환.
   void _selectCluster(List<dynamic> stations) {
+    _clearSearchMarker();
     _sheetController?.dispose();
     _sheetController = DraggableScrollableController();
     mapSheetOpen.value = true;
