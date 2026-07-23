@@ -453,10 +453,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     // fontFamily 명시해 앱 글씨와 통일.
     // ⚠ Pretendard 는 400/500/600/700만 번들됨 — w800 지정 시 가짜 볼드 합성으로
     // 글자가 뭉툭해지고 다른 폰트처럼 보임. 반드시 등록된 웨이트만 사용.
+    // 카카오/네이버 지명 라벨 톤 — 볼드가 아니라 미디엄~세미볼드의 담백한 굵기.
     const nameStyle = TextStyle(
       fontFamily: 'Pretendard',
-      fontSize: 14, fontWeight: FontWeight.w700,
-      color: Color(0xFF1F2937), height: 1.2, letterSpacing: -0.2,
+      fontSize: 13.5, fontWeight: FontWeight.w600,
+      color: Color(0xFF26282C), height: 1.2, letterSpacing: -0.1,
     );
     double pillW = 0, pillH = 0;
     if (hasName) {
@@ -2428,7 +2429,7 @@ class _SearchPin extends StatelessWidget {
                     color: null,
                     foreground: Paint()
                       ..style = PaintingStyle.stroke
-                      ..strokeWidth = 2.8
+                      ..strokeWidth = 2.5
                       ..strokeJoin = StrokeJoin.round
                       ..color = Colors.white,
                   ),
