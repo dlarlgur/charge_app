@@ -1,5 +1,5 @@
 import 'dart:math' as math;
-import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint, listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -683,12 +683,18 @@ class GasFilterNotifier extends StateNotifier<GasFilterOptions> {
         return (ia < 0 ? 99 : ia).compareTo(ib < 0 ? 99 : ib);
       });
     final opt = options.copyWith(fuelTypes: sortedFuels);
+    final fuelsChanged = !listEquals(state.fuelTypes, opt.fuelTypes);
     state = opt;
     _box.put(AppConstants.keyGasFilterSort, opt.sort);
     _box.put(AppConstants.keyGasFilterRadius, opt.radius);
     _box.put(AppConstants.keyGasFilterFuelTypes, opt.fuelTypes);
     _box.put(AppConstants.keyGasFilterBrands, opt.brands);
     _box.put(AppConstants.keyGasFilterOpen24, opt.open24Only);
+    // 유종 멀티선택은 서버에도 미러 — 재설치/새 기기 로그인 시 복원 (사용자 제보:
+    // 고급+경유+휘발유 선택이 재설치 후 풀림). 로그인 회원만, 목록 변경 시만.
+    if (fuelsChanged) {
+      UserSyncService.instance.putPrefs(fuelTypes: opt.fuelTypes);
+    }
   }
 
   // 설정 화면에서 유종 변경 시 filter 도 동기 (단방향: settings→filter).

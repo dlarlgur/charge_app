@@ -39,12 +39,18 @@ class UserSyncService {
     }
   }
 
-  Future<void> putPrefs({String? vehicleType, String? fuelType, bool? marketingConsent}) async {
+  Future<void> putPrefs({
+    String? vehicleType,
+    String? fuelType,
+    List<String>? fuelTypes, // 홈 유종 필터 멀티선택 — 재설치 복원용
+    bool? marketingConsent,
+  }) async {
     final opt = await _auth();
     if (opt == null) return;
     final body = <String, dynamic>{};
     if (vehicleType != null) body['vehicleType'] = vehicleType;
     if (fuelType != null) body['fuelType'] = fuelType;
+    if (fuelTypes != null) body['fuelTypes'] = fuelTypes;
     if (marketingConsent != null) body['marketingConsent'] = marketingConsent;
     if (body.isEmpty) return;
     try {

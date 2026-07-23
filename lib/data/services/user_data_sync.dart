@@ -49,9 +49,16 @@ class UserDataSync {
     }
     if (prefs['fuelType'] != null) {
       box.put(AppConstants.keyFuelType, prefs['fuelType']);
-      // 홈 유종 필터도 복원 유종으로 동기 — setFuelType 의 settings→filter 단방향
-      // 동기와 동일 의미. 이게 빠지면 재설치 후 설정은 고급유인데 홈은 기본값
-      // 휘발유로 보여 "유종 저장이 풀렸다"로 보임 (사용자 제보).
+    }
+    // 홈 유종 필터 복원 — 멀티선택 목록(fuelTypes)이 있으면 그대로, 없으면
+    // (구 데이터) 설정 유종 단일값으로 폴백. 이게 빠지면 재설치 후 설정은
+    // 고급유인데 홈은 기본값 휘발유로 보여 "저장이 풀렸다"로 보임 (사용자 제보).
+    final remoteFuels = (prefs['fuelTypes'] is List)
+        ? (prefs['fuelTypes'] as List).map((e) => e.toString()).where((s) => s.isNotEmpty).toList()
+        : const <String>[];
+    if (remoteFuels.isNotEmpty) {
+      box.put(AppConstants.keyGasFilterFuelTypes, remoteFuels);
+    } else if (prefs['fuelType'] != null) {
       box.put(AppConstants.keyGasFilterFuelTypes, [prefs['fuelType']]);
     }
 
