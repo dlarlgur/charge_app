@@ -447,14 +447,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
     // 이름 알약을 핀과 한 이미지로 그림 — 네이티브 캡션(투박한 폰트/외곽선) 대신
     // Flutter 폰트로 깔끔하게. 가변 길이라 TextPainter 로 실제 폭을 재서 캔버스 산정.
-    const double pinH = 44, pinW = 44, gap = 2, tailH = 8;
+    const double pinH = 44, pinW = 44, gap = 1;
     final hasName = name.isNotEmpty;
     // fromWidget 래스터는 앱 테마(Pretendard)를 상속 못 받아 시스템 폰트로 폴백됨 →
     // fontFamily 명시해 앱 글씨와 통일.
     const nameStyle = TextStyle(
       fontFamily: 'Pretendard',
-      fontSize: 14, fontWeight: FontWeight.w800,
-      color: Color(0xFF0F172A), height: 1.15, letterSpacing: -0.2,
+      fontSize: 14.5, fontWeight: FontWeight.w800,
+      color: Color(0xFF1F2937), height: 1.2, letterSpacing: -0.2,
     );
     double pillW = 0, pillH = 0;
     if (hasName) {
@@ -462,13 +462,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         text: TextSpan(text: name, style: nameStyle),
         maxLines: 1, textDirection: TextDirection.ltr,
       )..layout();
-      // 좌우 패딩 11*2 + 여유 4 — 텍스트폭과 딱 맞아 반올림으로 말줄임 뜨던 것 방지.
-      pillW = (tp.width + 28).clamp(34, 260).toDouble();
-      pillH = tp.height + 12; // 상하 패딩 6*2
+      // halo(흰 스트로크 3.5) 번짐 여유 좌우 5씩 + 반올림 여유.
+      pillW = (tp.width + 12).clamp(20, 260).toDouble();
+      pillH = tp.height + 8;
     }
     final canvasW = math.max(pinW, hasName ? pillW : pinW);
     // +4: TextPainter 높이와 실제 위젯 렌더 높이의 반올림 차이로 인한 2px 오버플로 방지.
-    final canvasH = (hasName ? pillH + tailH + gap + pinH : pinH) + 4;
+    final canvasH = (hasName ? pillH + gap + pinH : pinH) + 4;
 
     final icon = await NOverlayImage.fromWidget(
       widget: _SearchPin(
@@ -2409,36 +2409,39 @@ class _SearchPin extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         if (name.isNotEmpty) ...[
-          Container(
+          // 지도 네이티브 POI 라벨 문법 — 배경 없이 흰 테두리(halo) 텍스트.
+          // 카카오/네이버 지명 라벨과 같은 방식이라 지도 위에서 가장 자연스럽고
+          // 어떤 배경(물/도로/녹지)에서도 가독성이 유지됨.
+          SizedBox(
             width: pillWidth,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(13),
-              // 색 테두리 대신 앱 카드 톤(중립 보더+그림자) — 핀 색은 핀에만.
-              border: Border.all(color: const Color(0xFFE2E8F0), width: 1),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.16),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: nameStyle.copyWith(
+                    color: null,
+                    foreground: Paint()
+                      ..style = PaintingStyle.stroke
+                      ..strokeWidth = 3.5
+                      ..strokeJoin = StrokeJoin.round
+                      ..color = Colors.white,
+                  ),
+                ),
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: nameStyle,
                 ),
               ],
             ),
-            child: Text(
-              name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: nameStyle,
-            ),
           ),
-          // 말풍선 꼬리 — 스테이션 배지와 같은 문법 (알약이 핀을 가리킴)
-          const CustomPaint(
-            size: Size(12, 8),
-            painter: _SearchPillTailPainter(),
-          ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 1),
         ],
         // 앱 로고(halfNhalf)와 같은 반반 핀 — 좌 주유파랑/우 충전초록.
         // '우리 앱의 검색 핀'이 브랜드로 즉시 읽히고 타 지도 앱과도 안 겹침.
@@ -2496,32 +2499,3 @@ class _SearchPin extends StatelessWidget {
 
 
 
-/// 검색 핀 이름 알약의 말풍선 꼬리 — 스테이션 배지 꼬리와 동일 문법.
-class _SearchPillTailPainter extends CustomPainter {
-  const _SearchPillTailPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final fill = Path()
-      ..moveTo(cx, size.height)
-      ..lineTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..close();
-    canvas.drawPath(fill, Paint()..color = Colors.white);
-    // 좌·우 사선만 테두리 (상단은 알약 하단 보더와 겹침)
-    final border = Paint()
-      ..color = const Color(0xFFE2E8F0)
-      ..strokeWidth = 1
-      ..style = PaintingStyle.stroke
-      ..strokeJoin = StrokeJoin.miter;
-    final line = Path()
-      ..moveTo(0, 0)
-      ..lineTo(cx, size.height)
-      ..lineTo(size.width, 0);
-    canvas.drawPath(line, border);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
