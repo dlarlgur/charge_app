@@ -1596,6 +1596,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               tags: const {'type': 'ev'},
               icon: await _stationBadgeIcon(
                 label: '+${group.length}', isEv: true,
+                // 그룹 집계 — 하나라도 급속이면 번개2, 전부 완속이면 번개1.
+                // (미전달 시 null=기본이 번개2라 완속 그룹이 급속처럼 보이던 제보 수정)
+                evFast: group.any((s) => s.hasFast),
               ),
             );
             marker.setOnTapListener((_) async {
