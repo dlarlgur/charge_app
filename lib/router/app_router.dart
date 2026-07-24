@@ -21,11 +21,22 @@ import '../ui/events/events_screen.dart';
 import '../ui/faq/faq_screen.dart';
 import 'package:dksw_app_core/dksw_app_core.dart'
     show InquiryScreen, DkswTopBanner;
-import 'package:flutter/widgets.dart' show EdgeInsets;
+import 'package:flutter/widgets.dart'
+    show EdgeInsets, Widget, FadeTransition;
 import '../ui/widgets/inquiry_native_ad_banner.dart';
 import '../data/services/auth_service.dart' show authProvider;
 import '../data/services/alert_service.dart';
 import '../core/constants/api_constants.dart';
+
+/// 스플래시에서 진입하는 최상위 화면용 페이드 전환 — 로고→광고→메인이 툭 끊기지
+/// 않고 부드럽게 이어지도록. (일반 push/pop 은 기존 플랫폼 전환 유지)
+CustomTransitionPage<void> _fadePage(Widget child) => CustomTransitionPage<void>(
+      child: child,
+      transitionDuration: const Duration(milliseconds: 320),
+      reverseTransitionDuration: const Duration(milliseconds: 220),
+      transitionsBuilder: (_, anim, __, c) =>
+          FadeTransition(opacity: anim, child: c),
+    );
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -53,10 +64,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
       GoRoute(
-          path: '/permission', builder: (_, __) => const PermissionScreen()),
+          path: '/permission',
+          pageBuilder: (_, __) => _fadePage(const PermissionScreen())),
       GoRoute(
-          path: '/onboarding', builder: (_, __) => const OnboardingScreen()),
-      GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
+          path: '/onboarding',
+          pageBuilder: (_, __) => _fadePage(const OnboardingScreen())),
+      GoRoute(
+          path: '/home', pageBuilder: (_, __) => _fadePage(const HomeScreen())),
       GoRoute(
         path: '/gas/:id',
         builder: (_, state) => GasDetailScreen(
