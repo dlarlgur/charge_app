@@ -213,7 +213,10 @@ class AuthService {
   /// 간편로그인 노출 여부 (콘솔 원격설정). 실패 시 전부 노출(fail-open).
   static Future<Map<String, bool>> fetchEnabledProviders() async {
     try {
-      final res = await _dio.get('/auth/providers');
+      // 플랫폼 전달 → 서버가 login.kakao.ios/.android 로 플랫폼별 노출 제어 가능.
+      final res = await _dio.get('/auth/providers', queryParameters: {
+        'platform': Platform.isIOS ? 'ios' : 'android',
+      });
       final d = res.data;
       if (d is Map) {
         return {
