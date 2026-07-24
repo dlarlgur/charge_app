@@ -45,6 +45,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
       return null;
     },
+    // 카카오 로그인 콜백(kakao{appkey}://oauth?code=...)이 딥링크로 들어오면 매칭되는
+    // 라우트가 없어 "no routes for location" 예외가 난다(= 카카오 로그인 후 page not found).
+    // Kakao SDK 가 이 URL 로 토큰을 자체 처리하므로, go_router 는 라우팅하지 말고 현재
+    // 화면(로그인)을 유지하도록 예외만 삼킨다. navigate 하면 로그인 화면이 재빌드되어
+    // 진행 중인 로그인 future 가 끊기므로 아무 것도 하지 않는다.
+    onException: (context, state, router) {
+      if (state.uri.scheme.startsWith('kakao')) return;
+      router.go('/home'); // 그 외 알 수 없는 경로는 홈으로 안전 이동
+    },
     observers: [
       appRouteObserver,
       FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance),
