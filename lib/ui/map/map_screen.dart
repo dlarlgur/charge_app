@@ -2380,7 +2380,18 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   num? _itemPrice(dynamic s) {
     if (s is GasStation) return s.price;
-    if (s is EvStation) return s.unitPriceFast ?? s.unitPriceSlow;
+    if (s is EvStation) {
+      // 카드가 표시하는 가격과 동일 기준으로 정렬 — evFilterProvider.sort
+      // (2=비회원, 그 외=회원 우선). 이전엔 정렬이 항상 비회원가만 봐서, 회원 기준
+      // 표시일 때(특히 회원가 없어 비회원가로 폴백되는 곳) 순서가 카드와 어긋났음.
+      final evSort = ref.read(evFilterProvider).sort;
+      return evSort == 2
+          ? (s.unitPriceFast ?? s.unitPriceSlow) // 비회원 기준
+          : (s.unitPriceFastMember ??
+              s.unitPriceSlowMember ??
+              s.unitPriceFast ??
+              s.unitPriceSlow); // 회원 우선, 없으면 비회원 폴백
+    }
     return null;
   }
 
