@@ -2182,18 +2182,42 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 ),
               ),
               const Spacer(),
-              _buildSortChip('가격순', _listSortByPrice, isDark, () {
-                if (!_listSortByPrice) setState(() => _listSortByPrice = true);
-              }),
-              const SizedBox(width: 6),
-              _buildSortChip('거리순', !_listSortByPrice, isDark, () {
-                if (_listSortByPrice) setState(() => _listSortByPrice = false);
-              }),
+              // 주유 리스트: 가격순/거리순. EV 리스트: 거리/비회원가/회원가 3-way
+              // (카드 표시가 기준까지 지도에서 바로 선택).
+              if (tabIsGas) ...[
+                _buildSortChip('가격순', _listSortByPrice, isDark, () {
+                  if (!_listSortByPrice) setState(() => _listSortByPrice = true);
+                }),
+                const SizedBox(width: 6),
+                _buildSortChip('거리순', !_listSortByPrice, isDark, () {
+                  if (_listSortByPrice) setState(() => _listSortByPrice = false);
+                }),
+              ] else
+                ..._buildEvSortChips(isDark),
             ],
           ),
         ],
       ),
     );
+  }
+
+  /// EV 리스트 정렬 칩 — 거리 / 비회원가 / 회원가. evFilterProvider.sort(1/2/3)를
+  /// 직접 세팅해 카드 표시 기준과 목록 정렬을 한 번에 바꾼다(서버 재조회 없음).
+  List<Widget> _buildEvSortChips(bool isDark) {
+    final evSort = ref.watch(evFilterProvider).sort; // 1=거리, 2=비회원가, 3=회원가
+    void setEvSort(int s) {
+      if (s == evSort) return;
+      final cur = ref.read(evFilterProvider);
+      ref.read(evFilterProvider.notifier).update(cur.copyWith(sort: s));
+    }
+
+    return [
+      _buildSortChip('거리순', evSort == 1, isDark, () => setEvSort(1)),
+      const SizedBox(width: 6),
+      _buildSortChip('비회원가', evSort == 2, isDark, () => setEvSort(2)),
+      const SizedBox(width: 6),
+      _buildSortChip('회원가', evSort == 3, isDark, () => setEvSort(3)),
+    ];
   }
 
   // ─── 주유/충전 세그먼트 탭 (둘 다 모드 한정) ───
@@ -2358,7 +2382,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   /// 정렬 — 가격순/거리순. EV distance 는 nullable 이라 null 은 뒤로.
+  /// EV 전용 리스트는 가격/거리 여부도 evFilterProvider.sort(1=거리, 2/3=가격)를
+  /// 따라 칩·카드 표시와 완전히 일치. 주유 포함 리스트는 지도 토글(_listSortByPrice).
   void _sortAreaItems(List<dynamic> items) {
+    final allEv = items.isNotEmpty && items.every((e) => e is EvStation);
+    final byPriceMode =
+        allEv ? (ref.read(evFilterProvider).sort != 1) : _listSortByPrice;
     int byPrice(dynamic a, dynamic b) {
       final pa = _itemPrice(a);
       final pb = _itemPrice(b);
@@ -2375,7 +2404,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       if (db == null) return -1;
       return da.compareTo(db);
     }
-    items.sort(_listSortByPrice ? byPrice : byDist);
+    items.sort(byPriceMode ? byPrice : byDist);
   }
 
   num? _itemPrice(dynamic s) {
