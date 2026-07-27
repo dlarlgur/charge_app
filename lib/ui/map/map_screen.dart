@@ -432,8 +432,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         duration: const Duration(milliseconds: 400),
       ));
     ref.read(mapCenterProvider.notifier).state = (lat: lat, lng: lng);
-    // 검색 위치에 빨강 핀 + 장소명 캡션. 주변 주유/충전소는 center 갱신으로 재조회됨.
-    _setSearchMarker(lat, lng, name);
     setState(() {
       _isSearchMode = false;
       _searchResults = [];
@@ -444,6 +442,84 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     Future.delayed(const Duration(milliseconds: 650), () {
       _suppressCameraChange = false;
     });
+
+    // 검색 결과가 주유소/충전소 자체를 가리키면 장소 핀 대신 마커 탭과 동일하게
+    // 상세 시트를 바로 연다 (제보 요청). 매칭 실패/오류 시 기존 빨강 핀 폴백.
+    _openStationIfMatched(name, lat, lng);
+  }
+
+  /// 검색 장소명이 근처 주유소/충전소와 매칭되면 상세 시트 오픈, 아니면 검색 핀.
+  Future<void> _openStationIfMatched(String name, double lat, double lng) async {
+    final matched = await _findStationMatching(name, lat, lng);
+    if (!mounted) return;
+    if (matched != null) {
+      _selectStation(matched);
+    } else {
+      // 검색 위치에 빨강 핀 + 장소명 캡션. 주변 주유/충전소는 center 갱신으로 재조회됨.
+      _setSearchMarker(lat, lng, name);
+    }
+  }
+
+  /// 장소명 ↔ 스테이션명 매칭 — 반경 400m 내 주유소·충전소를 조회해 정규화 이름의
+  /// 포함 관계로 판단. 여러 개면 검색 좌표에서 가장 가까운 것.
+  Future<dynamic> _findStationMatching(String name, double lat, double lng) async {
+    String norm(String s) => s
+        .replaceAll(RegExp(r'\(주\)|㈜|주식회사'), '')
+        .replaceAll('주유소', '')
+        .replaceAll('충전소', '')
+        .replaceAll(RegExp(r'\s+'), '')
+        .toLowerCase();
+    final q = norm(name);
+    if (q.length < 2) return null;
+
+    double distM(double aLat, double aLng, double bLat, double bLng) {
+      const r = 6371000.0;
+      final dLat = (bLat - aLat) * math.pi / 180;
+      final dLng = (bLng - aLng) * math.pi / 180;
+      final h = math.sin(dLat / 2) * math.sin(dLat / 2) +
+          math.cos(aLat * math.pi / 180) *
+              math.cos(bLat * math.pi / 180) *
+              math.sin(dLng / 2) *
+              math.sin(dLng / 2);
+      return 2 * r * math.atan2(math.sqrt(h), math.sqrt(1 - h));
+    }
+
+    try {
+      final api = ApiService();
+      final results = await Future.wait([
+        api
+            .getGasStationsAround(lat: lat, lng: lng, radius: 400)
+            .catchError((_) => <Map<String, dynamic>>[]),
+        api
+            .getEvStationsAround(lat: lat, lng: lng, radius: 400)
+            .catchError((_) => <Map<String, dynamic>>[]),
+      ]);
+
+      dynamic best;
+      var bestDist = double.infinity;
+      void consider(dynamic s, String stName, double sLat, double sLng) {
+        final n = norm(stName);
+        if (n.length < 2) return;
+        if (!n.contains(q) && !q.contains(n)) return;
+        final d = distM(lat, lng, sLat, sLng);
+        if (d < bestDist) {
+          best = s;
+          bestDist = d;
+        }
+      }
+
+      for (final j in results[0]) {
+        final s = GasStation.fromJson(j);
+        consider(s, s.name, s.lat, s.lng);
+      }
+      for (final j in results[1]) {
+        final s = EvStation.fromJson(j);
+        consider(s, s.name, s.lat, s.lng);
+      }
+      return best;
+    } catch (_) {
+      return null; // 조회 실패 시 기존 핀 동작 폴백
+    }
   }
 
   /// 검색한 장소를 가리키는 빨강 핀 마커(+ 이름 캡션)를 찍는다.
