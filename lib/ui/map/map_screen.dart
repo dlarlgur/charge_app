@@ -462,15 +462,19 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   /// 장소명 ↔ 스테이션명 매칭 — 반경 400m 내 주유소·충전소를 조회해 정규화 이름의
   /// 포함 관계로 판단. 여러 개면 검색 좌표에서 가장 가까운 것.
+  ///
+  /// 엄격 규칙 (오매칭 제보 반영 — "매창주유소" 검색이 "매창공원 충전소"에 붙던 문제):
+  ///  · '주유소/충전소' 접미사는 지우지 않고 전체 이름으로 비교
+  ///  · 쿼리에 주유소/충전소가 명시돼 있으면 해당 유형만 후보로
   Future<dynamic> _findStationMatching(String name, double lat, double lng) async {
     String norm(String s) => s
         .replaceAll(RegExp(r'\(주\)|㈜|주식회사'), '')
-        .replaceAll('주유소', '')
-        .replaceAll('충전소', '')
         .replaceAll(RegExp(r'\s+'), '')
         .toLowerCase();
     final q = norm(name);
-    if (q.length < 2) return null;
+    if (q.length < 3) return null;
+    final wantsGas = name.contains('주유소');
+    final wantsEv = name.contains('충전소') || name.contains('충전기');
 
     double distM(double aLat, double aLng, double bLat, double bLng) {
       const r = 6371000.0;
@@ -499,8 +503,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       var bestDist = double.infinity;
       void consider(dynamic s, String stName, double sLat, double sLng) {
         final n = norm(stName);
-        if (n.length < 2) return;
-        if (!n.contains(q) && !q.contains(n)) return;
+        if (n.length < 3) return;
+        // 전체 이름 기준: 동일하거나, 한쪽이 다른 쪽을 통째로 포함할 때만.
+        // (접미사를 안 지우므로 "매창주유소"는 "매창공원…충전소"에 안 붙는다)
+        final hit = n == q || n.contains(q) || q.contains(n);
+        if (!hit) return;
         final d = distM(lat, lng, sLat, sLng);
         if (d < bestDist) {
           best = s;
@@ -508,13 +515,18 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         }
       }
 
-      for (final j in results[0]) {
-        final s = GasStation.fromJson(j);
-        consider(s, s.name, s.lat, s.lng);
+      // 쿼리가 유형을 명시하면 그 유형만 후보 (주유소 검색이 충전소에 붙는 것 차단)
+      if (!wantsEv) {
+        for (final j in results[0]) {
+          final s = GasStation.fromJson(j);
+          consider(s, s.name, s.lat, s.lng);
+        }
       }
-      for (final j in results[1]) {
-        final s = EvStation.fromJson(j);
-        consider(s, s.name, s.lat, s.lng);
+      if (!wantsGas) {
+        for (final j in results[1]) {
+          final s = EvStation.fromJson(j);
+          consider(s, s.name, s.lat, s.lng);
+        }
       }
       return best;
     } catch (_) {
