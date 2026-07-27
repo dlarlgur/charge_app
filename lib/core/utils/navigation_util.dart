@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:kakao_flutter_sdk_navi/kakao_flutter_sdk_navi.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../app_dialog.dart';
 import '../constants/api_constants.dart';
 
 // 네이버 지도 오안내 주의 안내 "다시 보지 않기" 플래그 (일반/휴게소 별도).
@@ -172,39 +173,20 @@ class _NavigationSheet extends StatelessWidget {
 
     if (!skip) {
       final content = restArea
-          ? '네이버 지도에서 "도착지가 고속(화)도로에 위치합니다.\n'
-              '주변 일반도로로 변경하시겠습니까?" 안내가 뜨면\n'
-              '반드시 [도착지 유지]를 선택하세요.\n\n'
-              '[도착지 변경]을 누르면 고속도로 밖 엉뚱한 곳으로\n'
-              '안내될 수 있어요.'
-          : '일부 주유소·충전소는 등록된 좌표가 실제 위치와 달라,\n'
-              '네이버 지도 안내가 다른 곳으로 이어질 수 있어요.\n\n'
+          ? '네이버 지도에서 "도착지가 고속(화)도로에 위치합니다. 주변 일반도로로 변경하시겠습니까?" 안내가 뜨면 반드시 [도착지 유지]를 선택하세요.\n\n'
+              '[도착지 변경]을 누르면 고속도로 밖 엉뚱한 곳으로 안내될 수 있어요.'
+          : '일부 주유소·충전소는 등록된 좌표가 실제 위치와 달라 네이버 지도 안내가 다른 곳으로 이어질 수 있어요.\n\n'
               '안내 시작 전에 목적지 이름과 위치를 꼭 확인해주세요.';
-      final choice = await showDialog<String>(
-        context: context,
-        builder: (dctx) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-          title: const Text('목적지를 확인해주세요',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-          content: Text(
-            content,
-            style: const TextStyle(fontSize: 13.5, height: 1.55),
-          ),
-          actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dctx, 'never'),
-              child: const Text('다시 보지 않기',
-                  style: TextStyle(color: Colors.grey)),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(dctx, 'close'),
-              child: const Text('닫기',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
-            ),
-          ],
-        ),
+      // 공용 앱 다이얼로그(showAppDialog) — 앱 전반과 동일한 톤(아이콘·라운드·버튼).
+      final choice = await showAppDialog<String>(
+        context,
+        icon: Icons.fork_right_rounded,
+        title: '목적지를 확인해주세요',
+        message: content,
+        primaryLabel: '확인했어요',
+        primaryValue: 'close',
+        secondaryLabel: '다시 보지 않기',
+        secondaryValue: 'never',
       );
       if (choice == null) return; // 바깥 탭 등으로 닫음 — 실행 안 함
       if (choice == 'never') await box.put(warnKey, true);
