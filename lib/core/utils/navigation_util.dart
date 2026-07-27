@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:kakao_flutter_sdk_navi/kakao_flutter_sdk_navi.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../constants/api_constants.dart';
+
+// 네이버 지도 오안내 주의 안내 "다시 보지 않기" 플래그 (일반/휴게소 별도).
+// 제보 반영: ① 좌표가 어긋난 곳은 엉뚱한 위치로 안내될 수 있음. ② 휴게소·고속도로
+// 목적지는 네이버가 "도착지가 고속(화)도로에 위치합니다 → 변경?" 팝업을 띄우는데
+// [도착지 변경]을 누르면 고속도로 밖 엉뚱한 일반도로로 안내됨 — [도착지 유지]가 정답.
+const _kNaverNavWarnOff = 'naver_nav_warn_off';
+const _kNaverNavWarnRestOff = 'naver_nav_warn_rest_off';
 
 /// 단순 목적지 길안내 (충전소/주유소 직접 안내)
 Future<void> showNavigationSheet(
@@ -137,10 +145,8 @@ class _NavigationSheet extends StatelessWidget {
               icon: const _NavAssetIcon('assets/nav/naver_logo.png'),
               label: '네이버 지도',
               subtitle: '네이버',
-              onTap: () => _launch(
-                'nmap://navigation?dlat=$lat&dlng=$lng&dname=${Uri.encodeComponent(name)}&appname=${AppConstants.packageName}',
-                fallback: 'https://map.naver.com',
-              ),
+              popBeforeTap: false, // 주의 다이얼로그를 시트 위에 먼저 띄워야 함
+              onTap: () => _tapNaver(context),
             ),
             _navItem(
               context,
@@ -156,6 +162,61 @@ class _NavigationSheet extends StatelessWidget {
     );
   }
 
+  /// 네이버 지도 탭 — 첫 사용 시(또는 "다시 보지 않기" 전) 오안내 주의 안내.
+  /// 휴게소·고속도로 목적지는 네이버의 "도착지 변경" 팝업 함정을 구체적으로 안내.
+  Future<void> _tapNaver(BuildContext context) async {
+    final box = Hive.box('settings');
+    final restArea = _isRestArea(name);
+    final warnKey = restArea ? _kNaverNavWarnRestOff : _kNaverNavWarnOff;
+    final skip = box.get(warnKey, defaultValue: false) == true;
+
+    if (!skip) {
+      final content = restArea
+          ? '네이버 지도에서 "도착지가 고속(화)도로에 위치합니다.\n'
+              '주변 일반도로로 변경하시겠습니까?" 안내가 뜨면\n'
+              '반드시 [도착지 유지]를 선택하세요.\n\n'
+              '[도착지 변경]을 누르면 고속도로 밖 엉뚱한 곳으로\n'
+              '안내될 수 있어요.'
+          : '일부 주유소·충전소는 등록된 좌표가 실제 위치와 달라,\n'
+              '네이버 지도 안내가 다른 곳으로 이어질 수 있어요.\n\n'
+              '안내 시작 전에 목적지 이름과 위치를 꼭 확인해주세요.';
+      final choice = await showDialog<String>(
+        context: context,
+        builder: (dctx) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: const Text('목적지를 확인해주세요',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          content: Text(
+            content,
+            style: const TextStyle(fontSize: 13.5, height: 1.55),
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dctx, 'never'),
+              child: const Text('다시 보지 않기',
+                  style: TextStyle(color: Colors.grey)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dctx, 'close'),
+              child: const Text('닫기',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      );
+      if (choice == null) return; // 바깥 탭 등으로 닫음 — 실행 안 함
+      if (choice == 'never') await box.put(warnKey, true);
+    }
+
+    if (context.mounted) Navigator.pop(context); // 시트 닫기
+    await _launch(
+      'nmap://navigation?dlat=$lat&dlng=$lng&dname=${Uri.encodeComponent(name)}&appname=${AppConstants.packageName}',
+      fallback: 'https://map.naver.com',
+    );
+  }
+
   Widget _navItem(
     BuildContext context, {
     required Widget icon,
@@ -163,6 +224,7 @@ class _NavigationSheet extends StatelessWidget {
     required String subtitle,
     Color subtitleColor = Colors.grey,
     required VoidCallback onTap,
+    bool popBeforeTap = true,
   }) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
@@ -173,7 +235,7 @@ class _NavigationSheet extends StatelessWidget {
           Text(subtitle, style: TextStyle(fontSize: 12, color: subtitleColor)),
       trailing: const Icon(Icons.chevron_right_rounded, color: Colors.grey),
       onTap: () {
-        Navigator.pop(context);
+        if (popBeforeTap) Navigator.pop(context);
         onTap();
       },
     );

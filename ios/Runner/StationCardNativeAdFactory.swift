@@ -107,7 +107,9 @@ class StationCardTopNativeAdFactory: NSObject, FLTNativeAdFactory {
         let c = AdColors.current()
 
         let adView = GADNativeAdView(frame: .zero)
-        adView.translatesAutoresizingMaskIntoConstraints = false
+        // 루트 뷰는 플러그인이 frame 으로 크기를 지정하는 플랫폼 뷰 — TAMIC 을 끄면
+        // frame 이 무시되고 내부 콘텐츠 폭만큼 카드가 넓어져(긴 광고 문구) 우측이
+        // 화면 밖으로 잘림(CTA 반토막 제보). 기본값(true) 유지가 정답.
         adView.backgroundColor = c.cardBg
         adView.layer.cornerRadius = 14
         adView.layer.borderWidth = 0.5
@@ -193,7 +195,9 @@ class StationCardListEvNativeAdFactory: NSObject, FLTNativeAdFactory {
         let c = AdColors.current()
 
         let adView = GADNativeAdView(frame: .zero)
-        adView.translatesAutoresizingMaskIntoConstraints = false
+        // 루트 뷰는 플러그인이 frame 으로 크기를 지정하는 플랫폼 뷰 — TAMIC 을 끄면
+        // frame 이 무시되고 내부 콘텐츠 폭만큼 카드가 넓어져(긴 광고 문구) 우측이
+        // 화면 밖으로 잘림(CTA 반토막 제보). 기본값(true) 유지가 정답.
         adView.backgroundColor = c.cardBg
         adView.layer.cornerRadius = 14
         adView.layer.borderWidth = 0.5
@@ -308,7 +312,9 @@ class StationCardListNativeAdFactory: NSObject, FLTNativeAdFactory {
         let c = AdColors.current()
 
         let adView = GADNativeAdView(frame: .zero)
-        adView.translatesAutoresizingMaskIntoConstraints = false
+        // 루트 뷰는 플러그인이 frame 으로 크기를 지정하는 플랫폼 뷰 — TAMIC 을 끄면
+        // frame 이 무시되고 내부 콘텐츠 폭만큼 카드가 넓어져(긴 광고 문구) 우측이
+        // 화면 밖으로 잘림(CTA 반토막 제보). 기본값(true) 유지가 정답.
         adView.backgroundColor = c.cardBg
         adView.layer.cornerRadius = 14
         adView.layer.borderWidth = 0.5
