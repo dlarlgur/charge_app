@@ -154,6 +154,7 @@ class _NavigationSheet extends StatelessWidget {
               popBeforeTap: false,
               onTap: () => _tapNav(
                 context,
+                naver: true,
                 () => _launch(
                   'nmap://navigation?dlat=$lat&dlng=$lng&dname=${Uri.encodeComponent(name)}&appname=${AppConstants.packageName}',
                   fallback: 'https://map.naver.com',
@@ -179,17 +180,18 @@ class _NavigationSheet extends StatelessWidget {
   }
 
   /// 내비 앱 공통 — 첫 사용 시(또는 "다시 보지 않기" 전) 목적지 확인 안내 후 실행.
-  /// 좌표 오류·휴게소 "도착지 변경" 함정은 티맵·네이버·카카오 모두 해당(제보 반영).
-  Future<void> _tapNav(
-      BuildContext context, Future<void> Function() launchNav) async {
+  /// 모든 주유소·충전소에서 표시. 고속(화)도로 [도착지 유지] 안내는 네이버 한정
+  /// (네이버만 목적지를 일반도로로 바꾸도록 유도하는 팝업을 띄움).
+  Future<void> _tapNav(BuildContext context, Future<void> Function() launchNav,
+      {bool naver = false}) async {
     final box = Hive.box('settings');
-    final restArea = _isRestArea(name);
-    final warnKey = restArea ? _kNavWarnRestOff : _kNavWarnOff;
+    final highwayTip = naver && _isRestArea(name);
+    final warnKey = highwayTip ? _kNavWarnRestOff : _kNavWarnOff;
     final skip = box.get(warnKey, defaultValue: false) == true;
 
     if (!skip) {
-      final content = restArea
-          ? '지도 앱에서 "도착지가 고속(화)도로에 위치합니다. 일반도로로 변경하시겠습니까?" 같은 안내가 뜨면 반드시 [도착지 유지]를 선택하세요.\n\n'
+      final content = highwayTip
+          ? '네이버 지도에서 "도착지가 고속(화)도로에 위치합니다. 주변 일반도로로 변경하시겠습니까?" 안내가 뜨면 반드시 [도착지 유지]를 선택하세요.\n\n'
               '[도착지 변경]을 누르면 고속도로 밖 엉뚱한 곳으로 안내될 수 있어요.'
           : '일부 주유소·충전소는 등록된 좌표가 실제 위치와 달라 길안내가 다른 곳으로 이어질 수 있어요.\n\n'
               '안내 시작 전에 목적지 이름과 위치를 꼭 확인하고, 다르면 주소로 검색해주세요.';
