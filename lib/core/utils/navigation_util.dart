@@ -5,12 +5,13 @@ import 'package:url_launcher/url_launcher.dart';
 import '../app_dialog.dart';
 import '../constants/api_constants.dart';
 
-// 네이버 지도 오안내 주의 안내 "다시 보지 않기" 플래그 (일반/휴게소 별도).
-// 제보 반영: ① 좌표가 어긋난 곳은 엉뚱한 위치로 안내될 수 있음. ② 휴게소·고속도로
-// 목적지는 네이버가 "도착지가 고속(화)도로에 위치합니다 → 변경?" 팝업을 띄우는데
-// [도착지 변경]을 누르면 고속도로 밖 엉뚱한 일반도로로 안내됨 — [도착지 유지]가 정답.
-const _kNaverNavWarnOff = 'naver_nav_warn_off';
-const _kNaverNavWarnRestOff = 'naver_nav_warn_rest_off';
+// 길안내 오안내 주의 안내 "다시 보지 않기" 플래그 (일반/휴게소 별도, 전 내비 공통).
+// 제보 반영: ① 좌표가 어긋난 주유소·충전소는 어느 내비 앱이든 엉뚱한 위치로 안내될
+// 수 있음(티맵·네이버·카카오 공통 — 주소 직접 검색은 정상). ② 휴게소·고속도로
+// 목적지는 지도 앱이 "도착지가 고속(화)도로에 위치 → 변경?" 팝업으로 목적지를
+// 일반도로로 바꾸도록 유도하는데 [도착지 유지]가 정답.
+const _kNavWarnOff = 'nav_warn_off';
+const _kNavWarnRestOff = 'nav_warn_rest_off';
 
 /// 단순 목적지 길안내 (충전소/주유소 직접 안내)
 Future<void> showNavigationSheet(
@@ -128,17 +129,21 @@ class _NavigationSheet extends StatelessWidget {
               label: '티맵',
               subtitle: restArea ? '고속도로 휴게소는 티맵 안내를 권장해요' : 'SK텔레콤',
               subtitleColor: restArea ? const Color(0xFFE07000) : Colors.grey,
-              onTap: () => _launch(
-                Uri(
-                  scheme: 'tmap',
-                  host: 'route',
-                  queryParameters: {
-                    'goalname': name,
-                    'goaly': '$lat',
-                    'goalx': '$lng',
-                  },
-                ).toString(),
-                fallback: 'https://www.tmap.co.kr',
+              popBeforeTap: false,
+              onTap: () => _tapNav(
+                context,
+                () => _launch(
+                  Uri(
+                    scheme: 'tmap',
+                    host: 'route',
+                    queryParameters: {
+                      'goalname': name,
+                      'goaly': '$lat',
+                      'goalx': '$lng',
+                    },
+                  ).toString(),
+                  fallback: 'https://www.tmap.co.kr',
+                ),
               ),
             ),
             _navItem(
@@ -146,15 +151,25 @@ class _NavigationSheet extends StatelessWidget {
               icon: const _NavAssetIcon('assets/nav/naver_logo.png'),
               label: '네이버 지도',
               subtitle: '네이버',
-              popBeforeTap: false, // 주의 다이얼로그를 시트 위에 먼저 띄워야 함
-              onTap: () => _tapNaver(context),
+              popBeforeTap: false,
+              onTap: () => _tapNav(
+                context,
+                () => _launch(
+                  'nmap://navigation?dlat=$lat&dlng=$lng&dname=${Uri.encodeComponent(name)}&appname=${AppConstants.packageName}',
+                  fallback: 'https://map.naver.com',
+                ),
+              ),
             ),
             _navItem(
               context,
               icon: const _NavAssetIcon('assets/nav/kakaomap_logo.png'),
               label: '카카오내비',
               subtitle: '카카오',
-              onTap: () => _launchKakaoNavi(name: name, lat: lat, lng: lng),
+              popBeforeTap: false,
+              onTap: () => _tapNav(
+                context,
+                () => _launchKakaoNavi(name: name, lat: lat, lng: lng),
+              ),
             ),
             const SizedBox(height: 8),
           ],
@@ -163,20 +178,21 @@ class _NavigationSheet extends StatelessWidget {
     );
   }
 
-  /// 네이버 지도 탭 — 첫 사용 시(또는 "다시 보지 않기" 전) 오안내 주의 안내.
-  /// 휴게소·고속도로 목적지는 네이버의 "도착지 변경" 팝업 함정을 구체적으로 안내.
-  Future<void> _tapNaver(BuildContext context) async {
+  /// 내비 앱 공통 — 첫 사용 시(또는 "다시 보지 않기" 전) 목적지 확인 안내 후 실행.
+  /// 좌표 오류·휴게소 "도착지 변경" 함정은 티맵·네이버·카카오 모두 해당(제보 반영).
+  Future<void> _tapNav(
+      BuildContext context, Future<void> Function() launchNav) async {
     final box = Hive.box('settings');
     final restArea = _isRestArea(name);
-    final warnKey = restArea ? _kNaverNavWarnRestOff : _kNaverNavWarnOff;
+    final warnKey = restArea ? _kNavWarnRestOff : _kNavWarnOff;
     final skip = box.get(warnKey, defaultValue: false) == true;
 
     if (!skip) {
       final content = restArea
-          ? '네이버 지도에서 "도착지가 고속(화)도로에 위치합니다. 주변 일반도로로 변경하시겠습니까?" 안내가 뜨면 반드시 [도착지 유지]를 선택하세요.\n\n'
+          ? '지도 앱에서 "도착지가 고속(화)도로에 위치합니다. 일반도로로 변경하시겠습니까?" 같은 안내가 뜨면 반드시 [도착지 유지]를 선택하세요.\n\n'
               '[도착지 변경]을 누르면 고속도로 밖 엉뚱한 곳으로 안내될 수 있어요.'
-          : '일부 주유소·충전소는 등록된 좌표가 실제 위치와 달라 네이버 지도 안내가 다른 곳으로 이어질 수 있어요.\n\n'
-              '안내 시작 전에 목적지 이름과 위치를 꼭 확인해주세요.';
+          : '일부 주유소·충전소는 등록된 좌표가 실제 위치와 달라 길안내가 다른 곳으로 이어질 수 있어요.\n\n'
+              '안내 시작 전에 목적지 이름과 위치를 꼭 확인하고, 다르면 주소로 검색해주세요.';
       // 공용 앱 다이얼로그(showAppDialog) — 앱 전반과 동일한 톤(아이콘·라운드·버튼).
       final choice = await showAppDialog<String>(
         context,
@@ -193,10 +209,7 @@ class _NavigationSheet extends StatelessWidget {
     }
 
     if (context.mounted) Navigator.pop(context); // 시트 닫기
-    await _launch(
-      'nmap://navigation?dlat=$lat&dlng=$lng&dname=${Uri.encodeComponent(name)}&appname=${AppConstants.packageName}',
-      fallback: 'https://map.naver.com',
-    );
+    await launchNav();
   }
 
   Widget _navItem(
