@@ -1305,14 +1305,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       );
     }
     final alts = _routeAlts;
-    if (alts == null) return const SizedBox.shrink();
-    // 엔진 배지는 경로가 있으면 항상 노출 — 사용자가 "어디서 바꾸는지" 보이는 지점.
-    if (!_routesDistinct || alts.length < 2) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 6),
-        child: Row(children: [_engineBadge()]),
-      );
-    }
+    if (alts == null || alts.isEmpty) return const SizedBox.shrink();
+    // 두 경로가 사실상 같으면 첫 경로(추천) 칩 하나만 — 카드가 사라지지 않고
+    // 엔진을 바꿔도 항상 카드가 남아 라벨/시간이 갱신되는 게 보이게.
+    final visible =
+        (_routesDistinct && alts.length >= 2) ? alts : alts.take(1).toList();
     return Padding(
       padding: const EdgeInsets.only(top: 10),
       child: Column(
@@ -1320,9 +1317,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         children: [
           Row(
             children: [
-              for (int i = 0; i < alts.length; i++) ...[
+              for (int i = 0; i < visible.length; i++) ...[
                 if (i > 0) const SizedBox(width: 8),
-                Expanded(child: _routeChip(alts[i], isEv)),
+                Expanded(child: _routeChip(visible[i], isEv)),
               ],
             ],
           ),
@@ -1334,10 +1331,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   }
 
   /// 현재 경로 기준 내비 배지 — 탭하면 변경 시트, 변경 시 새 엔진으로 재조회.
+  /// 지도 위에 뜨는 요소라 흰 알약 배경 + 그림자로 시인성 확보 (지도 오버레이 버튼 톤).
   Widget _engineBadge() {
     final label = RouteEnginePref.label(RouteEnginePref.get());
-    return InkWell(
-      borderRadius: BorderRadius.circular(8),
+    return GestureDetector(
       onTap: () async {
         final prev = RouteEnginePref.get();
         final picked = await showRouteEngineSheet(context);
@@ -1346,21 +1343,33 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           unawaited(_loadRouteAlternatives());
         }
       },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(10, 6, 7, 6),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.10),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.alt_route_rounded,
-                size: 13, color: Color(0xFF94A3B8)),
-            const SizedBox(width: 4),
+                size: 14, color: Color(0xFF3B82F6)),
+            const SizedBox(width: 5),
             Text('$label 기준',
                 style: const TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF64748B))),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF334155))),
             const Icon(Icons.keyboard_arrow_down_rounded,
-                size: 15, color: Color(0xFF94A3B8)),
+                size: 16, color: Color(0xFF64748B)),
           ],
         ),
       ),
