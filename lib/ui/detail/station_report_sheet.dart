@@ -146,11 +146,16 @@ class _StationReportSheetState extends State<_StationReportSheet> {
 
   Future<void> _pickPhoto() async {
     if (_photos.length >= 3) return;
-    final x = await ImagePicker().pickImage(
-        source: ImageSource.gallery, maxWidth: 1600, imageQuality: 85);
-    if (x != null && mounted && _photos.length < 3) {
-      setState(() => _photos.add(x));
-    }
+    // 여러 장 한번에 선택 — 남은 슬롯만큼만 수용
+    final xs = await ImagePicker()
+        .pickMultiImage(maxWidth: 1600, imageQuality: 85);
+    if (xs.isEmpty || !mounted) return;
+    setState(() {
+      for (final x in xs) {
+        if (_photos.length >= 3) break;
+        _photos.add(x);
+      }
+    });
   }
 
   @override

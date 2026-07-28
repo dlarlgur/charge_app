@@ -122,6 +122,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 source: ImageSource.gallery, maxWidth: 1600, imageQuality: 85);
             return x?.path;
           },
+          // 여러 장 한번에 선택 (최대 3장은 코어에서 컷)
+          attachMultiPicker: () async {
+            final xs = await ImagePicker()
+                .pickMultiImage(maxWidth: 1600, imageQuality: 85);
+            return xs.map((x) => x.path).toList();
+          },
 
           // 콘솔 inquiry_top 광고가 bypass 면 그걸, 아니면 AdMob(InquiryNativeAdBanner).
           topBanner: const DkswTopBanner(

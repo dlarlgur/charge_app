@@ -37,6 +37,7 @@ import 'widgets/location_picker_sheet.dart';
 import 'widgets/mode_segment.dart';
 import 'widgets/route_card.dart';
 import 'widgets/route_engine_sheet.dart';
+import 'widgets/savings_reveal_overlay.dart';
 import 'widgets/station_select_inline_sheet.dart';
 import 'ai_result_screen.dart';
 import 'ai_vehicle_list_screen.dart';
@@ -114,6 +115,33 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   // ── 경로 대안 선택 (추천 0 / 고속도로우선 4) ──
   List<Map<String, dynamic>>? _routeAlts; // 서버 /route/alternatives 의 routes
   String _selectedRouteKey = 'recommend'; // 기본 선택: 추천경로(0)
+
+  // ── 절감액 보상풍 오버레이 (결과 도착 순간 1회) ──
+  int _savingsRevealSeq = 0; // 새 결과마다 증가 → 오버레이 재생성 키
+  int? _savingsRevealWon;
+  int? _savingsRevealExtraMin;
+
+  /// 주유 추천 결과에서 실질 절감액/추가시간 추출해 오버레이 트리거.
+  /// (recommendation.decision_trace.cost_analysis — 절감 1,000원 미만이면 생략)
+  void _triggerSavingsReveal(Map<String, dynamic> data) {
+    final rec = data['recommendation'];
+    if (rec is! Map) return;
+    final trace = rec['decision_trace'];
+    final ca = (trace is Map && trace['cost_analysis'] is Map)
+        ? trace['cost_analysis'] as Map
+        : null;
+    if (ca == null) return;
+    int i(dynamic v) => v is num ? v.round() : 0;
+    final savings = ca['net_benefit_won'] is num
+        ? i(ca['net_benefit_won'])
+        : i(ca['savings_won']);
+    if (savings < 1000) return;
+    setState(() {
+      _savingsRevealSeq++;
+      _savingsRevealWon = savings;
+      _savingsRevealExtraMin = i(ca['detour_extra_min']);
+    });
+  }
   bool _routesDistinct = false; // false면 두 경로 동일 → 선택 UI 숨김
   bool _loadingRouteAlts = false; // 경로 대안 불러오는 중 (로딩 표시)
   bool _heroCollapsed = false; // 배터리/차량 카드 접기 (지도 가림 최소화) // 교통 색상용
@@ -1701,6 +1729,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           _lastResultData = data;
           _lastRouteSummary = '$originLabel → ${_destName ?? '목적지'}';
         });
+        _triggerSavingsReveal(data);
 
         // 추천 주유소 경유 경로: 서버에서 미리 받은 전체 길찾기 우선, 없으면 클라이언트 네이버 호출
         var viaPathPoints = _lastPathPoints;
@@ -5764,6 +5793,14 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                     ),
                   ),
                 ),
+              ),
+
+            // ── 절감액 보상풍 오버레이 — 결과 도착 순간 최상단에서 1회 팝 ──
+            if (_savingsRevealWon != null)
+              SavingsRevealOverlay(
+                key: ValueKey('savings_reveal_$_savingsRevealSeq'),
+                savingsWon: _savingsRevealWon!,
+                extraMin: _savingsRevealExtraMin ?? 0,
               ),
           ],
         ),
