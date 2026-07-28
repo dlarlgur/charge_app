@@ -80,6 +80,32 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
     final fadeIn = CurvedAnimation(
         parent: _in, curve: const Interval(0, 0.35, curve: Curves.easeOut));
     final cardW = math.min(MediaQuery.of(context).size.width - 48, 340.0);
+    // 테마별 팔레트 — 라이트는 밝은 화이트 카드, 다크는 딥네이비 글래스.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColors = isDark
+        ? const [Color(0xFF16233C), Color(0xFF0F172A)]
+        : const [Colors.white, Color(0xFFF6FBF8)];
+    final cardBorder = isDark
+        ? Colors.white.withValues(alpha: 0.14)
+        : Colors.black.withValues(alpha: 0.06);
+    final captionColor = isDark
+        ? Colors.white.withValues(alpha: 0.85)
+        : const Color(0xFF334155);
+    final headlineColors = isDark
+        ? const [Color(0xFFFFE082), Color(0xFF6EE7B7)]
+        : const [Color(0xFFF59E0B), Color(0xFF10B981)];
+    final badgeFg = isDark ? const Color(0xFF6EE7B7) : const Color(0xFF059669);
+    final panelBg = isDark
+        ? Colors.white.withValues(alpha: 0.06)
+        : const Color(0xFFF1F5F9);
+    final panelBorder = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.black.withValues(alpha: 0.05);
+    final nameColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final factLabelColor = isDark
+        ? Colors.white.withValues(alpha: 0.55)
+        : const Color(0xFF64748B);
+    final factValueColor = isDark ? Colors.white : const Color(0xFF0F172A);
     return Positioned.fill(
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -156,19 +182,19 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                         width: cardW,
                         padding: const EdgeInsets.fromLTRB(20, 22, 20, 16),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
+                          gradient: LinearGradient(
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
-                            colors: [Color(0xFF16233C), Color(0xFF0F172A)],
+                            colors: cardColors,
                           ),
                           borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.14)),
-                          boxShadow: const [
+                          border: Border.all(color: cardBorder),
+                          boxShadow: [
                             BoxShadow(
-                              color: Color(0x66000000),
+                              color: Colors.black
+                                  .withValues(alpha: isDark ? 0.4 : 0.18),
                               blurRadius: 30,
-                              offset: Offset(0, 10),
+                              offset: const Offset(0, 10),
                             ),
                           ],
                         ),
@@ -187,11 +213,11 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                                     color: const Color(0xFF34D399)
                                         .withValues(alpha: 0.4)),
                               ),
-                              child: const Text('AI 추천',
+                              child: Text('AI 추천',
                                   style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w800,
-                                      color: Color(0xFF6EE7B7),
+                                      color: badgeFg,
                                       letterSpacing: 1)),
                             ),
                             const SizedBox(height: 14),
@@ -200,14 +226,14 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                               style: TextStyle(
                                 fontSize: 15.5,
                                 fontWeight: FontWeight.w700,
-                                color: Colors.white.withValues(alpha: 0.85),
+                                color: captionColor,
                               ),
                             ),
                             const SizedBox(height: 4),
                             // 헤드라인 — 골드→그린 그라데이션
                             ShaderMask(
-                              shaderCallback: (rect) => const LinearGradient(
-                                colors: [Color(0xFFFFE082), Color(0xFF6EE7B7)],
+                              shaderCallback: (rect) => LinearGradient(
+                                colors: headlineColors,
                               ).createShader(rect),
                               child: Text(
                                 widget.headline,
@@ -229,11 +255,9 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                                 padding:
                                     const EdgeInsets.fromLTRB(14, 12, 14, 12),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.06),
+                                  color: panelBg,
                                   borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                      color:
-                                          Colors.white.withValues(alpha: 0.08)),
+                                  border: Border.all(color: panelBorder),
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -249,10 +273,10 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                                             widget.stationName!,
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                                 fontSize: 15,
                                                 fontWeight: FontWeight.w800,
-                                                color: Colors.white),
+                                                color: nameColor),
                                           ),
                                         ),
                                       ],
@@ -268,16 +292,14 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                                               Text(f.label,
                                                   style: TextStyle(
                                                       fontSize: 12.5,
-                                                      color: Colors.white
-                                                          .withValues(
-                                                              alpha: 0.55))),
+                                                      color: factLabelColor)),
                                               const Spacer(),
                                               Text(f.value,
-                                                  style: const TextStyle(
+                                                  style: TextStyle(
                                                       fontSize: 13.5,
                                                       fontWeight:
                                                           FontWeight.w700,
-                                                      color: Colors.white)),
+                                                      color: factValueColor)),
                                             ],
                                           ),
                                         ),
