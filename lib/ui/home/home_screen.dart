@@ -208,6 +208,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     // 백그라운드 알림 탭해서 앱 열린 경우 (앱이 이미 실행 중)
     _fcmOnOpenedSub = FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      _saveTappedPushToInbox(message);
       if (message.data['type'] == 'gas_price_alert') {
         AlertService().addGasPriceMessage(message.data);
         _messageBadgeKey.currentState?.refreshCount();
@@ -252,6 +253,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // 앱이 종료된 상태에서 알림 탭해서 열린 경우 (앱 새로 시작)
     FirebaseMessaging.instance.getInitialMessage().then((message) {
       if (message == null) return;
+      _saveTappedPushToInbox(message);
       if (message.data['type'] == 'gas_price_alert') {
         AlertService().addGasPriceMessage(message.data);
         Future.delayed(const Duration(milliseconds: 600), () {
@@ -353,6 +355,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   void _onNavigateToAlerts() => _openAlertsPage();
+
+  /// 공지·이벤트·문의답변·제보 푸시를 "탭 시점"에 알림함 저장 — iOS 는 백그라운드
+  /// 수신 시 저장 경로가 없어 여기서 보강 (가격/자리 알림은 전용 저장 경로 있어 제외).
+  void _saveTappedPushToInbox(RemoteMessage message) {
+    final type = message.data['type']?.toString() ?? '';
+    if (type == 'gas_price_alert' || type == 'ev_alarm' || type == 'ev_watch') {
+      return;
+    }
+    final title = message.notification?.title ??
+        message.data['title']?.toString() ?? '';
+    final body = message.notification?.body ??
+        message.data['body']?.toString() ?? '';
+    AlertService().saveTappedPush(
+      title: title,
+      body: body,
+      type: type,
+      refId: (message.data['id'] ?? message.data['inquiryId'])?.toString() ?? '',
+    );
+    _messageBadgeKey.currentState?.refreshCount();
+  }
 
   void _onNavigateToMyReports() {
     if (!mounted) return;

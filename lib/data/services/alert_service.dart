@@ -182,6 +182,39 @@ class AlertService {
     messagesChanged.value++;
   }
 
+  /// 알림 탭으로 앱이 열린 경우(iOS 는 백그라운드 데이터 처리가 없어 수신 시 저장이 안 됨)
+  /// 내역함에 저장. 같은 제목/본문이 최근 3시간 내 있으면 중복으로 보고 건너뜀
+  /// (안드로이드는 수신 시 이미 저장돼 탭 시 또 저장되는 것 방지).
+  Future<void> saveTappedPush({
+    required String title,
+    required String body,
+    String type = '',
+    String refId = '',
+  }) async {
+    if (title.isEmpty && body.isEmpty) return;
+    final inbox = _inbox;
+    if (inbox == null) return;
+    final msgs = receivedMessages;
+    final cutoff = DateTime.now().subtract(const Duration(hours: 3));
+    final dup = msgs.any((m) {
+      if (m['title'] != title || m['body'] != body) return false;
+      final ts = DateTime.tryParse(m['timestamp']?.toString() ?? '');
+      return ts != null && ts.isAfter(cutoff);
+    });
+    if (dup) return;
+    msgs.insert(0, {
+      'id': DateTime.now().millisecondsSinceEpoch.toString(),
+      'title': title,
+      'body': body,
+      'timestamp': DateTime.now().toIso8601String(),
+      if (type.isNotEmpty) 'type': type,
+      if (refId.isNotEmpty) 'ref_id': refId,
+    });
+    if (msgs.length > 50) msgs.removeLast();
+    await inbox.put(_messagesKey, msgs);
+    messagesChanged.value++;
+  }
+
   List<Map<String, dynamic>> get receivedMessages {
     final raw = _inbox?.get(_messagesKey, defaultValue: <dynamic>[]) ?? <dynamic>[];
     return List<Map<String, dynamic>>.from(
