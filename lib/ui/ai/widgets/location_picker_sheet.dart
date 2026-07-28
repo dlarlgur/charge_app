@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/services/place_service.dart';
+import '../../favorites/place_picker_screen.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/helpers.dart';
@@ -174,6 +175,23 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
     );
   }
 
+  /// 미등록 집/회사 탭 → 즐겨찾기와 동일한 등록 화면 → 저장 후 바로 그 위치로 적용
+  Future<void> _registerPlace(String kind, String label) async {
+    final picked = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(builder: (_) => PlacePickerScreen(title: '$label 등록')),
+    );
+    if (picked == null || !mounted) return;
+    await PlaceService.set(kind, picked);
+    if (!mounted) return;
+    setState(() {}); // 칩 활성화 반영
+    widget.onSearchResult({
+      'name': (picked['name'] ?? '').toString(),
+      'address': (picked['address'] ?? '').toString(),
+      'lat': picked['lat'],
+      'lng': picked['lng'],
+    });
+  }
+
   /// 집/회사 바로가기 — PlaceService 등록 여부에 따라 활성(컬러)/비활성(회색).
   Widget _placeItem(String kind, String label, IconData icon) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -191,12 +209,7 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
                 'lat': p['lat'],
                 'lng': p['lng'],
               })
-          : () => ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('즐겨찾기 탭에서 $label 위치를 먼저 등록해주세요'),
-                  duration: const Duration(seconds: 2),
-                ),
-              ),
+          : () => _registerPlace(kind, label),
       child: Text(
         registered ? (p['name'] ?? label).toString() : label,
         maxLines: 1,
