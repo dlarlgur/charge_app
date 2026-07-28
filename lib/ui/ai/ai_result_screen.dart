@@ -633,37 +633,49 @@ class _AiResultBodyState extends State<AiResultBody> {
         const SizedBox(height: 10),
       ],
 
-      // ── 도달 가능 범위 안내 (상단 노출) ──
+      // ── 도달 가능 범위 안내 (상단 노출) — 부드러운 앰버 톤 pill 카드 ──
       if (reachable != null && reachable['enabled'] == true) ...[
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.fromLTRB(10, 8, 12, 8),
           decoration: BoxDecoration(
             color: isDark
-                ? AppColors.darkAmberBright.withValues(alpha: 0.14)
-                : const Color(0xFFFFF3CD),
-            borderRadius: BorderRadius.circular(8),
+                ? AppColors.darkAmberBright.withValues(alpha: 0.10)
+                : const Color(0xFFFFF8E9),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
                 color: isDark
-                    ? AppColors.darkAmberBright.withValues(alpha: 0.35)
-                    : const Color(0xFFFFD95A),
-                width: 1),
+                    ? AppColors.darkAmberBright.withValues(alpha: 0.28)
+                    : const Color(0xFFF3E3B8),
+                width: 0.8),
           ),
           child: Row(
             children: [
-              Icon(Icons.local_gas_station,
-                  size: 15,
+              Container(
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
                   color: isDark
-                      ? AppColors.darkAmberBright
-                      : const Color(0xFF856404)),
-              const SizedBox(width: 6),
+                      ? AppColors.darkAmberBright.withValues(alpha: 0.18)
+                      : const Color(0xFFF7ECCB),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.local_gas_station_rounded,
+                    size: 14,
+                    color: isDark
+                        ? AppColors.darkAmberBright
+                        : const Color(0xFFA07A1C)),
+              ),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '현재 연료로 갈 수 있는 거리 안의 주유소만 표시했어요.',
+                  '지금 연료로 도달 가능한 범위 안에서만 추천했어요',
                   style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
                       color: isDark
                           ? AppColors.darkAmberBright
-                          : const Color(0xFF856404)),
+                          : const Color(0xFF8A6A1B)),
                 ),
               ),
             ],

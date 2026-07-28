@@ -121,21 +121,35 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   String? _revealCaption;
   String? _revealHeadline;
 
-  void _showReveal(String caption, String headline) {
+  String? _revealStationName;
+  IconData _revealStationIcon = Icons.local_gas_station_rounded;
+  List<RevealFact> _revealFacts = const [];
+
+  void _showReveal(
+    String caption,
+    String headline, {
+    String? stationName,
+    IconData stationIcon = Icons.local_gas_station_rounded,
+    List<RevealFact> facts = const [],
+  }) {
     setState(() {
       _savingsRevealSeq++;
       _revealCaption = caption;
       _revealHeadline = headline;
+      _revealStationName = stationName;
+      _revealStationIcon = stationIcon;
+      _revealFacts = facts;
     });
   }
 
-  /// 주유 추천 — 절약 포인트 추출:
+  /// 주유 추천 — 절약 포인트 + 추천 상세(주유소명/단가/예상비용/추가시간)를 카드로.
   /// ① 우회 실질 절감(비교 데이터) 있으면 "N분 더 걸리지만 / M원 절감!"
   /// ② 아니면 주변 후보 평균가 대비 이번 주유 절약액 "주변 평균 대비 / M원 절약!"
   /// ③ 계산 불가 시 "우회할 필요 없이 / 가는 길이 최적!"
   void _triggerSavingsReveal(Map<String, dynamic> data) {
     int i(dynamic v) => v is num ? v.round() : 0;
     double? d(dynamic v) => v is num ? v.toDouble() : null;
+    final wonFmt = NumberFormat('#,###');
 
     final rec = data['recommendation'];
     final trace = rec is Map ? rec['decision_trace'] : null;
@@ -147,78 +161,163 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         : (ca['net_benefit_won'] is num
             ? i(ca['net_benefit_won'])
             : i(ca['savings_won']));
+
+    // 추천 아이템 공통 추출 (이름/가격/예상비용/우회시간)
+    final choice = rec is Map ? rec['choice']?.toString() : null;
+    final recItem =
+        choice == 'best_detour' ? data['best_detour'] : data['on_route'];
+    final recSt = recItem is Map ? recItem['station'] : null;
+    String name = '';
+    double? recPrice;
+    if (recSt is Map) {
+      final dn = recSt['display_name']?.toString().trim();
+      final raw = (dn != null && dn.isNotEmpty)
+          ? dn
+          : (recSt['name']?.toString() ?? '');
+      name = StationAliasService.resolveGas(
+          (recSt['id'] ?? '').toString(), raw);
+      recPrice = d(recSt['price_won_per_liter']);
+    }
+    final recCost = recItem is Map ? d(recItem['expected_cost_won']) : null;
+    final detourMin = recItem is Map ? i(recItem['detour_time_min']) : 0;
+
+    // 주변 후보 평균가 (추천 제외)
+    final prices = <double>[];
+    void addPrice(dynamic item) {
+      if (item is! Map) return;
+      final st = item['station'];
+      final p = st is Map ? d(st['price_won_per_liter']) : null;
+      if (p != null) prices.add(p);
+    }
+
+    addPrice(data['on_route']);
+    addPrice(data['best_detour']);
+    if (data['alternatives'] is List) {
+      for (final a in data['alternatives'] as List) {
+        addPrice(a);
+      }
+    }
+    final others = prices.where((p) => p != recPrice).toList();
+    final avgPrice = others.isEmpty
+        ? null
+        : others.reduce((a, b) => a + b) / others.length;
+
+    final facts = <RevealFact>[
+      if (recPrice != null)
+        (label: '리터당', value: '${wonFmt.format(recPrice.round())}원'),
+      if (recPrice != null && avgPrice != null && avgPrice > recPrice)
+        (
+          label: '주변 평균 대비',
+          value: '-${wonFmt.format((avgPrice - recPrice).round())}원/L'
+        ),
+      if (recCost != null && recCost > 0)
+        (label: '예상 주유비', value: '${wonFmt.format(recCost.round())}원'),
+      if (detourMin > 0) (label: '우회 시간', value: '+$detourMin분'),
+    ];
+
     if (caSavings >= 1000) {
       final extraMin = i(ca!['detour_extra_min']);
-      _showReveal(extraMin > 0 ? '$extraMin분 더 걸리지만' : '가는 길 그대로',
-          '${SavingsRevealOverlay.won(caSavings)} 절감!');
+      _showReveal(
+        extraMin > 0 ? '$extraMin분 더 걸리지만' : '가는 길 그대로',
+        '${SavingsRevealOverlay.won(caSavings)} 절감!',
+        stationName: name,
+        stationIcon: Icons.local_gas_station_rounded,
+        facts: facts,
+      );
       return;
     }
 
-    // 주변 후보 평균가 대비 — 추천 주유소가 평균보다 리터당 얼마나 싼지 × 주유량
-    try {
-      final choice = rec is Map ? rec['choice']?.toString() : null;
-      final recItem =
-          choice == 'best_detour' ? data['best_detour'] : data['on_route'];
-      final recSt = recItem is Map ? recItem['station'] : null;
-      final recPrice = recSt is Map ? d(recSt['price_won_per_liter']) : null;
-      if (recPrice != null) {
-        final prices = <double>[];
-        void addPrice(dynamic item) {
-          if (item is! Map) return;
-          final st = item['station'];
-          final p = st is Map ? d(st['price_won_per_liter']) : null;
-          if (p != null) prices.add(p);
-        }
-        addPrice(data['on_route']);
-        addPrice(data['best_detour']);
-        if (data['alternatives'] is List) {
-          for (final a in data['alternatives'] as List) {
-            addPrice(a);
-          }
-        }
-        final others = prices.where((p) => p != recPrice).toList();
-        final computed = data['computed'];
-        final liters = computed is Map ? d(computed['goal_liters']) : null;
-        final cost = recItem is Map ? d(recItem['expected_cost_won']) : null;
-        final effLiters = liters ?? (cost != null ? cost / recPrice : null);
-        if (others.isNotEmpty && effLiters != null && effLiters > 0) {
-          final avg = others.reduce((a, b) => a + b) / others.length;
-          final save = ((avg - recPrice) * effLiters).round();
-          if (save >= 500) {
-            _showReveal(
-                '주변 평균 대비', '${SavingsRevealOverlay.won(save)} 절약!');
-            return;
-          }
-        }
+    final computed = data['computed'];
+    final liters = computed is Map ? d(computed['goal_liters']) : null;
+    final effLiters = liters ??
+        ((recCost != null && recPrice != null && recPrice > 0)
+            ? recCost / recPrice
+            : null);
+    if (recPrice != null &&
+        avgPrice != null &&
+        effLiters != null &&
+        effLiters > 0) {
+      final save = ((avgPrice - recPrice) * effLiters).round();
+      if (save >= 500) {
+        _showReveal(
+          '주변 평균 대비',
+          '${SavingsRevealOverlay.won(save)} 절약!',
+          stationName: name,
+          stationIcon: Icons.local_gas_station_rounded,
+          facts: facts,
+        );
+        return;
       }
-    } catch (_) {}
-    _showReveal('우회할 필요 없이', '가는 길이 최적!');
+    }
+    _showReveal(
+      '우회할 필요 없이',
+      '가는 길이 최적!',
+      stationName: name,
+      stationIcon: Icons.local_gas_station_rounded,
+      facts: facts,
+    );
   }
 
-  /// EV 추천 — 추천 충전소 예상요금 vs 다른 후보 평균 요금.
+  /// EV 추천 — 추천 충전소 예상요금 vs 다른 후보 평균 + 상세(요금/단가/충전량).
   void _triggerEvSavingsReveal(Map<String, dynamic> data) {
+    final wonFmt = NumberFormat('#,###');
     int? cost(Map m) => m['est_cost_member'] is num
         ? (m['est_cost_member'] as num).round()
         : (m['est_cost'] is num ? (m['est_cost'] as num).round() : null);
     final rec = data['recommended'];
     final alts = data['alternatives'];
-    if (rec is Map && alts is List) {
-      final recCost = cost(Map<String, dynamic>.from(rec));
+    String name = '';
+    final facts = <RevealFact>[];
+    int? recCost;
+    if (rec is Map) {
+      name = rec['name']?.toString() ?? '';
+      final m = Map<String, dynamic>.from(rec);
+      recCost = cost(m);
+      final unit = m['unit_price_member'] is num
+          ? (m['unit_price_member'] as num).round()
+          : (m['unit_price'] is num ? (m['unit_price'] as num).round() : null);
+      final kwh = m['est_charge_kwh'] is num
+          ? (m['est_charge_kwh'] as num).toDouble()
+          : null;
+      if (recCost != null) {
+        facts.add(
+            (label: '예상 충전요금', value: '${wonFmt.format(recCost)}원'));
+      }
+      if (unit != null) {
+        facts.add((label: '단가', value: '${wonFmt.format(unit)}원/kWh'));
+      }
+      if (kwh != null && kwh > 0) {
+        facts.add((label: '충전량', value: '${kwh.toStringAsFixed(1)}kWh'));
+      }
+    }
+    if (recCost != null && alts is List) {
       final altCosts = alts
           .whereType<Map>()
           .map((m) => cost(Map<String, dynamic>.from(m)))
           .whereType<int>()
           .toList();
-      if (recCost != null && altCosts.isNotEmpty) {
+      if (altCosts.isNotEmpty) {
         final avg = altCosts.reduce((a, b) => a + b) / altCosts.length;
         final save = (avg - recCost).round();
         if (save >= 500) {
-          _showReveal('다른 후보 평균 대비', '${SavingsRevealOverlay.won(save)} 절약!');
+          _showReveal(
+            '다른 후보 평균 대비',
+            '${SavingsRevealOverlay.won(save)} 절약!',
+            stationName: name,
+            stationIcon: Icons.ev_station_rounded,
+            facts: facts,
+          );
           return;
         }
       }
     }
-    _showReveal('지금 배터리에 딱 맞는', '최적 충전소 추천!');
+    _showReveal(
+      '지금 배터리에 딱 맞는',
+      '최적 충전소 추천!',
+      stationName: name,
+      stationIcon: Icons.ev_station_rounded,
+      facts: facts,
+    );
   }
   bool _routesDistinct = false; // false면 두 경로 동일 → 선택 UI 숨김
   bool _loadingRouteAlts = false; // 경로 대안 불러오는 중 (로딩 표시)
@@ -5889,6 +5988,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 key: ValueKey('savings_reveal_$_savingsRevealSeq'),
                 caption: _revealCaption ?? '',
                 headline: _revealHeadline!,
+                stationName: _revealStationName,
+                stationIcon: _revealStationIcon,
+                facts: _revealFacts,
               ),
           ],
         ),
