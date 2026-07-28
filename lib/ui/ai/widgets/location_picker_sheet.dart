@@ -9,7 +9,6 @@ import '../../../core/utils/helpers.dart';
 import '../../../data/services/api_service.dart';
 import '../../../providers/providers.dart';
 import '../ai_constants.dart';
-import 'thin_chip.dart';
 
 /// 위치 선택 시트 — 출발지/목적지 검색 + 내위치/지도 옵션
 class LocationPickerSheet extends ConsumerStatefulWidget {
@@ -120,16 +119,71 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
     }
   }
 
-  /// 집/회사 바로가기 칩 — PlaceService 등록 여부에 따라 활성/비활성.
-  Widget _placeChip(String kind, String label, IconData icon) {
+  /// 빠른 선택 공통 — 박스 없는 플랫 텍스트 버튼 (아이콘 + 라벨, 중앙 정렬)
+  Widget _quickAction({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+    required Widget child,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 15, color: color),
+            const SizedBox(width: 5),
+            Flexible(child: child),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 행 사이 얇은 세로 구분선
+  Widget _vHairline(bool isDark) => Container(
+        width: 1,
+        height: 14,
+        color: isDark ? AppColors.darkCardBorder : const Color(0xFFE8E8E8),
+      );
+
+  /// '내위치' 라벨 — 주소가 있으면 '내위치 · 주소' (주소는 옅게)
+  Widget _myLocationLabel(bool isDark) {
+    final addr = _addressLoading ? null : _localCurrentAddress;
+    return Text.rich(
+      TextSpan(
+        text: '내위치',
+        style: const TextStyle(
+            fontSize: 13, fontWeight: FontWeight.w600, color: kPrimary),
+        children: [
+          if (addr != null && addr.isNotEmpty)
+            TextSpan(
+              text: ' · $addr',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+                color: isDark ? AppColors.darkTextMuted : const Color(0xFF999999),
+              ),
+            ),
+        ],
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  /// 집/회사 바로가기 — PlaceService 등록 여부에 따라 활성(컬러)/비활성(회색).
+  Widget _placeItem(String kind, String label, IconData icon) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final p = PlaceService.get(kind);
     final registered = p != null;
     final active = isDark ? AppColors.gasBlue : AppColors.gasBlueDark;
-    final mutedBg = isDark ? const Color(0x14FFFFFF) : const Color(0xFFF1F3F6);
     final mutedFg = isDark ? AppColors.darkTextMuted : const Color(0xFFB5BCC6);
-    return InkWell(
-      borderRadius: BorderRadius.circular(10),
+    return _quickAction(
+      icon: icon,
+      color: registered ? active : mutedFg,
       onTap: registered
           ? () => widget.onSearchResult({
                 'name': (p['name'] ?? '').toString(),
@@ -143,36 +197,16 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
                   duration: const Duration(seconds: 2),
                 ),
               ),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-        decoration: BoxDecoration(
-          color: registered ? active.withValues(alpha: 0.10) : mutedBg,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: registered ? active.withValues(alpha: 0.45) : Colors.transparent,
-            width: 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: registered ? active : mutedFg),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                registered ? (p['name'] ?? label).toString() : label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  color: registered
-                      ? (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)
-                      : mutedFg,
-                ),
-              ),
-            ),
-          ],
+      child: Text(
+        registered ? (p['name'] ?? label).toString() : label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: registered
+              ? (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)
+              : mutedFg,
         ),
       ),
     );
@@ -242,43 +276,50 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
                 ),
               ),
             ),
-            // ② 내위치 / 지도에서 선택 (검색창 바로 아래)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            // ② 빠른 선택 — 플랫 텍스트 버튼 2줄 (내위치·지도선택 / 집·회사), 박스 없이 헤어라인 구분
+            SizedBox(
+              height: 42,
               child: Row(
                 children: [
                   Expanded(
-                    child: ThinChip(
+                    child: _quickAction(
                       icon: Icons.my_location_rounded,
-                      label: _addressLoading
-                          ? '내위치 (확인 중...)'
-                          : (_localCurrentAddress != null
-                              ? '내위치 · $_localCurrentAddress'
-                              : '내위치'),
                       color: kPrimary,
                       onTap: _onMyLocationChipTap,
+                      child: _myLocationLabel(isDark),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  _vHairline(isDark),
                   Expanded(
-                    child: ThinChip(
+                    child: _quickAction(
                       icon: Icons.map_outlined,
-                      label: '지도에서 선택',
                       color: const Color(0xFF378ADD),
                       onTap: widget.onMapPick,
+                      child: const Text('지도에서 선택',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF378ADD))),
                     ),
                   ),
                 ],
               ),
             ),
-            // ②-1 집/회사 바로가기 — 등록돼 있으면 컬러+즉시 설정, 미등록은 비활성(회색)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            Divider(
+                height: 1,
+                indent: 16,
+                endIndent: 16,
+                color: isDark ? AppColors.darkCardBorder : const Color(0xFFF0F0F0)),
+            // ②-1 집/회사 바로가기 — 등록=컬러+즉시 설정, 미등록=회색
+            SizedBox(
+              height: 42,
               child: Row(
                 children: [
-                  Expanded(child: _placeChip('home', '집', Icons.home_rounded)),
-                  const SizedBox(width: 8),
-                  Expanded(child: _placeChip('work', '회사', Icons.business_rounded)),
+                  Expanded(child: _placeItem('home', '집', Icons.home_rounded)),
+                  _vHairline(isDark),
+                  Expanded(child: _placeItem('work', '회사', Icons.business_rounded)),
                 ],
               ),
             ),
