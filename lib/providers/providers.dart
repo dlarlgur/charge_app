@@ -438,8 +438,7 @@ final gasStationsProvider = Provider<AsyncValue<List<GasStation>>>((ref) {
           final favStations = favRaw
               .where(passGas)
               .map((s) => s.copyWithDistance(_haversineM(loc.lat, loc.lng, s.lat, s.lng)))
-              .toList()
-            ..sort((a, b) => a.distance.compareTo(b.distance));
+              .toList();
           // dedupe 는 필터 통과 여부와 무관하게 전체 즐겨찾기 id 기준
           final favIds = favRaw.map((s) => s.id).toSet();
           // 위치 기반 결과에서 즐겨찾기 중복 제거 + 동일 필터
@@ -453,6 +452,9 @@ final gasStationsProvider = Provider<AsyncValue<List<GasStation>>>((ref) {
               list.sort((a, b) => a.price.compareTo(b.price));
             }
           }
+          // 즐겨찾기 블록도 선택한 정렬을 동일 적용 — 거리순 고정이라 "가격순인데
+          // 위가 비쌈"으로 보이던 제보. 상단 고정 자체는 유지.
+          sortGas(favStations);
           sortGas(nonFavStations);
           return AsyncValue.data([...favStations, ...nonFavStations]);
         },
@@ -538,6 +540,8 @@ final evStationsProvider = Provider<AsyncValue<List<EvStation>>>((ref) {
               list.sort((a, b) => cmpPrice(a.unitPriceFastMember ?? a.unitPriceSlowMember, b.unitPriceFastMember ?? b.unitPriceSlowMember));
             }
           }
+          // 즐겨찾기 블록도 선택 정렬 동일 적용 (sort=1 거리순은 위 기본 정렬 유지).
+          sortEv(favStations);
           sortEv(nonFavStations);
           return AsyncValue.data([...favStations, ...nonFavStations]);
         },

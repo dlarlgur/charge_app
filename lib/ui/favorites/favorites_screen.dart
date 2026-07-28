@@ -24,6 +24,70 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
+  // 정렬 — 기본 거리순, 칩으로 가격순 전환 (제보: 즐겨찾기도 가격순 보고 싶다).
+  bool _byPrice = false;
+
+  List<GasStation> _sortedGas(List<GasStation> l) {
+    final c = [...l];
+    if (_byPrice) {
+      c.sort((a, b) => a.price.compareTo(b.price));
+    } else {
+      c.sort((a, b) => a.distance.compareTo(b.distance));
+    }
+    return c;
+  }
+
+  List<EvStation> _sortedEv(List<EvStation> l) {
+    final c = [...l];
+    int? priceOf(EvStation s) =>
+        s.unitPriceFast ??
+        s.unitPriceSlow ??
+        s.unitPriceFastMember ??
+        s.unitPriceSlowMember;
+    if (_byPrice) {
+      c.sort((a, b) {
+        final pa = priceOf(a), pb = priceOf(b);
+        if (pa == null && pb == null) return 0;
+        if (pa == null) return 1;
+        if (pb == null) return -1;
+        return pa.compareTo(pb);
+      });
+    } else {
+      c.sort((a, b) => (a.distance ?? double.infinity)
+          .compareTo(b.distance ?? double.infinity));
+    }
+    return c;
+  }
+
+  Widget _sortChip(String label, bool active, bool isDark, VoidCallback onTap) {
+    final fg = active
+        ? Colors.white
+        : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary);
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: active
+              ? AppColors.gasBlue
+              : (isDark ? AppColors.darkCard : const Color(0xFFF1F3F6)),
+          borderRadius: BorderRadius.circular(16),
+          border: active
+              ? null
+              : Border.all(
+                  color: isDark
+                      ? AppColors.darkCardBorder
+                      : const Color(0xFFE0E4EA),
+                  width: 0.8),
+        ),
+        child: Text(label,
+            style: TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w700, color: fg)),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -68,6 +132,20 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
               Tab(text: '전체 (${favorites.length})'),
               Tab(text: '주유소 ($gasCount)'),
               Tab(text: '충전소 ($evCount)'),
+            ],
+          ),
+        ),
+        // 정렬 칩 — 거리순/가격순
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Row(
+            children: [
+              const Spacer(),
+              _sortChip('거리순', !_byPrice, isDark,
+                  () => setState(() => _byPrice = false)),
+              const SizedBox(width: 6),
+              _sortChip('가격순', _byPrice, isDark,
+                  () => setState(() => _byPrice = true)),
             ],
           ),
         ),
@@ -119,13 +197,16 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (_, __) => _error(),
-      data: (list) => list.isEmpty
-          ? _empty()
-          : ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              itemCount: list.length,
-              itemBuilder: (_, i) => _gasCard(list[i]),
-            ),
+      data: (list) {
+        final sorted = _sortedGas(list);
+        return sorted.isEmpty
+            ? _empty()
+            : ListView.builder(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                itemCount: sorted.length,
+                itemBuilder: (_, i) => _gasCard(sorted[i]),
+              );
+      },
     );
   }
 
@@ -134,13 +215,16 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (_, __) => _error(),
-      data: (list) => list.isEmpty
-          ? _empty()
-          : ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              itemCount: list.length,
-              itemBuilder: (_, i) => _evCard(list[i]),
-            ),
+      data: (list) {
+        final sorted = _sortedEv(list);
+        return sorted.isEmpty
+            ? _empty()
+            : ListView.builder(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                itemCount: sorted.length,
+                itemBuilder: (_, i) => _evCard(sorted[i]),
+              );
+      },
     );
   }
 
@@ -159,8 +243,8 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 4),
       children: [
-        for (final s in gas) _gasCard(s),
-        for (final s in ev) _evCard(s),
+        for (final s in _sortedGas(gas)) _gasCard(s),
+        for (final s in _sortedEv(ev)) _evCard(s),
       ],
     );
   }
