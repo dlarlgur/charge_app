@@ -9,6 +9,9 @@ import '../../providers/providers.dart'
         bottomNavIndexProvider,
         favGasStationsSortedProvider,
         favEvStationsSortedProvider;
+import '../../core/utils/navigation_util.dart';
+import '../../data/services/place_service.dart';
+import 'place_picker_screen.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/shared_widgets.dart';
 
@@ -91,7 +94,9 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, initialIndex: 1, vsync: this);
+    // 집/회사 탭에선 정렬 칩 숨김 — 탭 전환 시 리빌드
+    _tabController.addListener(() { if (mounted) setState(() {}); });
   }
 
   @override
@@ -129,13 +134,15 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
                 isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
             labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
             tabs: [
+              const Tab(text: '집/회사'),
               Tab(text: '전체 (${favorites.length})'),
               Tab(text: '주유소 ($gasCount)'),
               Tab(text: '충전소 ($evCount)'),
             ],
           ),
         ),
-        // 정렬 칩 — 거리순/가격순
+        // 정렬 칩 — 거리순/가격순 (집/회사 탭에선 무의미하므로 숨김)
+        if (_tabController.index != 0)
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
           child: Row(
@@ -155,6 +162,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
           child: TabBarView(
             controller: _tabController,
             children: [
+              _buildPlaces(),
               _buildAll(),
               _buildGas(),
               _buildEv(),
@@ -162,6 +170,155 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
           ),
         ),
       ],
+    );
+  }
+
+  // ── 집/회사 (네이버식) — 게스트 로컬, 로그인 서버 동기 ──
+  Widget _buildPlaces() {
+    return ListView(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      children: [
+        _placeRow('home', '집', Icons.home_rounded),
+        _placeRow('work', '회사', Icons.business_rounded),
+      ],
+    );
+  }
+
+  Widget _placeRow(String kind, String label, IconData icon) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final p = PlaceService.get(kind);
+    final registered = p != null;
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final accent = isDark ? AppColors.gasBlue : AppColors.gasBlueDark;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+            color: isDark ? AppColors.darkCardBorder : const Color(0xFFE8ECF0),
+            width: 0.8),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => registered ? _navToPlace(p) : _editPlace(kind, label),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: registered
+                      ? accent.withValues(alpha: 0.12)
+                      : (isDark ? const Color(0x14FFFFFF) : const Color(0xFFF1F3F6)),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 21, color: registered ? accent : muted),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label,
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: muted)),
+                    const SizedBox(height: 2),
+                    Text(
+                      registered ? (p['name'] ?? '').toString() : '아직 등록되지 않았어요',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: registered
+                            ? (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)
+                            : muted,
+                      ),
+                    ),
+                    if (registered && (p['address'] ?? '').toString().isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text((p['address'] ?? '').toString(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 12, color: muted)),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              registered
+                  ? IconButton(
+                      visualDensity: VisualDensity.compact,
+                      icon: Icon(Icons.edit_outlined, size: 18, color: muted),
+                      onPressed: () => _editPlaceSheet(kind, label),
+                    )
+                  : Text('등록',
+                      style: TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w700, color: accent)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _navToPlace(Map<String, dynamic> p) {
+    showNavigationSheet(
+      context,
+      lat: (p['lat'] as num).toDouble(),
+      lng: (p['lng'] as num).toDouble(),
+      name: (p['name'] ?? '').toString(),
+    );
+  }
+
+  Future<void> _editPlace(String kind, String label) async {
+    final picked = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(builder: (_) => PlacePickerScreen(title: '$label 등록')),
+    );
+    if (picked != null) {
+      await PlaceService.set(kind, picked);
+      if (mounted) setState(() {});
+    }
+  }
+
+  void _editPlaceSheet(String kind, String label) {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.edit_location_alt_outlined, size: 22),
+              title: Text('$label 위치 다시 설정'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _editPlace(kind, label);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline_rounded,
+                  size: 22, color: Color(0xFFE53935)),
+              title: const Text('삭제', style: TextStyle(color: Color(0xFFE53935))),
+              onTap: () async {
+                Navigator.pop(ctx);
+                await PlaceService.remove(kind);
+                if (mounted) setState(() {});
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
     );
   }
 

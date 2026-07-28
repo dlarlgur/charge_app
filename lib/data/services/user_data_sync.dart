@@ -7,6 +7,7 @@ import '../../core/constants/api_constants.dart';
 import 'alert_service.dart';
 import 'charger_memo_service.dart';
 import 'favorite_service.dart';
+import 'place_service.dart';
 import 'station_alias_service.dart';
 import 'user_sync_service.dart';
 
@@ -24,7 +25,9 @@ class UserDataSync {
     final aliases = (remote['aliases'] as List?) ?? const [];
     final chargerMemos = (remote['chargerMemos'] as List?) ?? const [];
     final prefs = (remote['prefs'] as Map?) ?? const {};
+    final places = (remote['places'] as List?) ?? const [];
     final hasRemote = vehicles.isNotEmpty ||
+        places.isNotEmpty ||
         favorites.isNotEmpty ||
         alarms.isNotEmpty ||
         aliases.isNotEmpty ||
@@ -33,6 +36,7 @@ class UserDataSync {
         prefs['marketingConsent'] == true;
     if (hasRemote) {
       await _applyRemote(prefs, vehicles, favorites, alarms, aliases, chargerMemos);
+      if (places.isNotEmpty) await PlaceService.applyRemote(places);
     } else {
       await UserSyncService.instance.import(buildLocalSnapshot());
     }
@@ -209,6 +213,7 @@ class UserDataSync {
       'alarms': alarms,
       'aliases': StationAliasService.allEntries(),
       'chargerMemos': ChargerMemoService.allEntries(),
+      'places': PlaceService.toSnapshotList(),
     };
   }
 }

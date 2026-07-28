@@ -133,6 +133,22 @@ class UserSyncService {
   }
 
   /// 게스트→회원 이관: 로컬 스냅샷 일괄 전송.
+  Future<void> putPlace(Map<String, dynamic> place) async {
+    try {
+      final opt = await _auth();
+      if (opt == null) return;
+      await _dio.put('/user/places', data: place, options: opt);
+    } catch (_) {}
+  }
+
+  Future<void> removePlace(String kind) async {
+    try {
+      final opt = await _auth();
+      if (opt == null) return;
+      await _dio.delete('/user/places/$kind', options: opt);
+    } catch (_) {}
+  }
+
   Future<bool> import(Map<String, dynamic> snapshot) async {
     final opt = await _auth();
     if (opt == null) return false;
