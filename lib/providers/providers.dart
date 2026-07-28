@@ -304,6 +304,13 @@ final favGasStationsProvider = FutureProvider<List<GasStation>>((ref) async {
   );
   return results
       .where((json) => json.isNotEmpty)
+      // 활성 유종을 안 파는 즐겨찾기는 제외 — 다른 유종 가격(휘발유)으로 위장 표시돼
+      // "고급유 필터인데 고급유 없는 집이 1,840원" 혼란(이케이에너지 제보) 방지.
+      .where((json) {
+        final av = json['availableFuelTypes'];
+        if (av is List && av.isNotEmpty && !av.contains(fuelType)) return false;
+        return true;
+      })
       .map((json) {
         // detail API 응답에 brand 가 비어있는 경우(상위 Opinet API 필드 누락 등)
         // 즐겨찾기 등록 시 캐시한 brand 로 폴백 → 로고가 '기타'로 떨어지지 않게.

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import '../data/models/models.dart';
@@ -115,6 +116,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           appId: AppConstants.packageName,
           deviceId: AlertService().deviceId,
           userId: ref.read(authProvider)?.id, // 로그인 사용자면 문의자 매칭용 id 전달
+          // 문의 사진 첨부 — 앱이 picker 를 주입(코어는 UI/업로드만, chat_llm 등 미주입 앱 안전)
+          attachPicker: () async {
+            final x = await ImagePicker().pickImage(
+                source: ImageSource.gallery, maxWidth: 1600, imageQuality: 85);
+            return x?.path;
+          },
 
           // 콘솔 inquiry_top 광고가 bypass 면 그걸, 아니면 AdMob(InquiryNativeAdBanner).
           topBanner: const DkswTopBanner(

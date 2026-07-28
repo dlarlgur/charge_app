@@ -236,10 +236,21 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
     'B027': '휘발유', 'B034': '고급휘발유', 'D047': '경유', 'C004': 'LPG', 'K015': '등유',
   };
 
+  // 사용자 유종 미판매 시 실제 표시 기준 유종 (null = 사용자 유종 그대로)
+  String? _fuelBasisFallback;
+
   Future<void> _loadDetail() async {
     try {
       // 사용자 유종을 fuelType 쿼리로 전달 → 서버가 region_rank/price 를 그 유종 기준으로 산출.
-      final data = await ApiService().getGasStationDetail(widget.stationId, fuelType: _userFuelCode);
+      var data = await ApiService().getGasStationDetail(widget.stationId, fuelType: _userFuelCode);
+      // 이 주유소가 사용자 유종을 안 팔면(고급유 미취급 등) 지역대비/순위가 전부 '—'가 됨
+      // → 판매 중인 유종 기준으로 재조회해 유용한 정보로 폴백 + 미판매 안내 배지(제보 반영).
+      final av = (data['availableFuelTypes'] as List?)?.cast<String>();
+      if (av != null && av.isNotEmpty && !av.contains(_userFuelCode)) {
+        final basis = av.contains('B027') ? 'B027' : av.first;
+        data = await ApiService().getGasStationDetail(widget.stationId, fuelType: basis);
+        _fuelBasisFallback = basis;
+      }
       if (mounted) setState(() { _detail = data; _loading = false; });
       // detail 로드 후 차트 미리 fetch (4w 기본)
       _loadChart(_chartPeriod);
@@ -820,7 +831,9 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                     ),
                     const SizedBox(width: 5),
                     Text(
-                      '내 차량 ${_fuelLabelByCode[_userFuelCode] ?? '휘발유'} 기준',
+                      _fuelBasisFallback != null
+                          ? '${_fuelLabelByCode[_userFuelCode] ?? ''} 미판매 · ${_fuelLabelByCode[_fuelBasisFallback!] ?? ''} 기준'
+                          : '내 차량 ${_fuelLabelByCode[_userFuelCode] ?? '휘발유'} 기준',
                       style: TextStyle(
                         fontSize: 11, fontWeight: FontWeight.w800,
                         color: _fuelColor(_userFuelCode), letterSpacing: -0.2,
