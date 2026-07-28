@@ -116,32 +116,109 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   List<Map<String, dynamic>>? _routeAlts; // 서버 /route/alternatives 의 routes
   String _selectedRouteKey = 'recommend'; // 기본 선택: 추천경로(0)
 
-  // ── 절감액 보상풍 오버레이 (결과 도착 순간 1회) ──
+  // ── "AI 추천으로 이만큼 절약" 보상풍 오버레이 (결과 도착 순간 1회) ──
   int _savingsRevealSeq = 0; // 새 결과마다 증가 → 오버레이 재생성 키
-  int? _savingsRevealWon;
-  int? _savingsRevealExtraMin;
+  String? _revealCaption;
+  String? _revealHeadline;
 
-  /// 주유 추천 결과에서 실질 절감액/추가시간 추출해 오버레이 트리거.
-  /// (recommendation.decision_trace.cost_analysis — 절감 1,000원 미만이면 생략)
+  void _showReveal(String caption, String headline) {
+    setState(() {
+      _savingsRevealSeq++;
+      _revealCaption = caption;
+      _revealHeadline = headline;
+    });
+  }
+
+  /// 주유 추천 — 절약 포인트 추출:
+  /// ① 우회 실질 절감(비교 데이터) 있으면 "N분 더 걸리지만 / M원 절감!"
+  /// ② 아니면 주변 후보 평균가 대비 이번 주유 절약액 "주변 평균 대비 / M원 절약!"
+  /// ③ 계산 불가 시 "우회할 필요 없이 / 가는 길이 최적!"
   void _triggerSavingsReveal(Map<String, dynamic> data) {
+    int i(dynamic v) => v is num ? v.round() : 0;
+    double? d(dynamic v) => v is num ? v.toDouble() : null;
+
     final rec = data['recommendation'];
-    if (rec is! Map) return;
-    final trace = rec['decision_trace'];
+    final trace = rec is Map ? rec['decision_trace'] : null;
     final ca = (trace is Map && trace['cost_analysis'] is Map)
         ? trace['cost_analysis'] as Map
         : null;
-    int i(dynamic v) => v is num ? v.round() : 0;
-    final savings = ca == null
+    final caSavings = ca == null
         ? 0
         : (ca['net_benefit_won'] is num
             ? i(ca['net_benefit_won'])
             : i(ca['savings_won']));
-    // 절감액이 없으면(경로상 추천 등) "가는 길이 최적" 변형으로라도 항상 팝.
-    setState(() {
-      _savingsRevealSeq++;
-      _savingsRevealWon = savings;
-      _savingsRevealExtraMin = ca == null ? 0 : i(ca['detour_extra_min']);
-    });
+    if (caSavings >= 1000) {
+      final extraMin = i(ca!['detour_extra_min']);
+      _showReveal(extraMin > 0 ? '$extraMin분 더 걸리지만' : '가는 길 그대로',
+          '${SavingsRevealOverlay.won(caSavings)} 절감!');
+      return;
+    }
+
+    // 주변 후보 평균가 대비 — 추천 주유소가 평균보다 리터당 얼마나 싼지 × 주유량
+    try {
+      final choice = rec is Map ? rec['choice']?.toString() : null;
+      final recItem =
+          choice == 'best_detour' ? data['best_detour'] : data['on_route'];
+      final recSt = recItem is Map ? recItem['station'] : null;
+      final recPrice = recSt is Map ? d(recSt['price_won_per_liter']) : null;
+      if (recPrice != null) {
+        final prices = <double>[];
+        void addPrice(dynamic item) {
+          if (item is! Map) return;
+          final st = item['station'];
+          final p = st is Map ? d(st['price_won_per_liter']) : null;
+          if (p != null) prices.add(p);
+        }
+        addPrice(data['on_route']);
+        addPrice(data['best_detour']);
+        if (data['alternatives'] is List) {
+          for (final a in data['alternatives'] as List) {
+            addPrice(a);
+          }
+        }
+        final others = prices.where((p) => p != recPrice).toList();
+        final computed = data['computed'];
+        final liters = computed is Map ? d(computed['goal_liters']) : null;
+        final cost = recItem is Map ? d(recItem['expected_cost_won']) : null;
+        final effLiters = liters ?? (cost != null ? cost / recPrice : null);
+        if (others.isNotEmpty && effLiters != null && effLiters > 0) {
+          final avg = others.reduce((a, b) => a + b) / others.length;
+          final save = ((avg - recPrice) * effLiters).round();
+          if (save >= 500) {
+            _showReveal(
+                '주변 평균 대비', '${SavingsRevealOverlay.won(save)} 절약!');
+            return;
+          }
+        }
+      }
+    } catch (_) {}
+    _showReveal('우회할 필요 없이', '가는 길이 최적!');
+  }
+
+  /// EV 추천 — 추천 충전소 예상요금 vs 다른 후보 평균 요금.
+  void _triggerEvSavingsReveal(Map<String, dynamic> data) {
+    int? cost(Map m) => m['est_cost_member'] is num
+        ? (m['est_cost_member'] as num).round()
+        : (m['est_cost'] is num ? (m['est_cost'] as num).round() : null);
+    final rec = data['recommended'];
+    final alts = data['alternatives'];
+    if (rec is Map && alts is List) {
+      final recCost = cost(Map<String, dynamic>.from(rec));
+      final altCosts = alts
+          .whereType<Map>()
+          .map((m) => cost(Map<String, dynamic>.from(m)))
+          .whereType<int>()
+          .toList();
+      if (recCost != null && altCosts.isNotEmpty) {
+        final avg = altCosts.reduce((a, b) => a + b) / altCosts.length;
+        final save = (avg - recCost).round();
+        if (save >= 500) {
+          _showReveal('다른 후보 평균 대비', '${SavingsRevealOverlay.won(save)} 절약!');
+          return;
+        }
+      }
+    }
+    _showReveal('지금 배터리에 딱 맞는', '최적 충전소 추천!');
   }
   bool _routesDistinct = false; // false면 두 경로 동일 → 선택 UI 숨김
   bool _loadingRouteAlts = false; // 경로 대안 불러오는 중 (로딩 표시)
@@ -3294,6 +3371,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         _lastResultData = data;
         _lastRouteSummary = '$originLabel → ${_destName ?? '목적지'}';
       });
+      _triggerEvSavingsReveal(data);
 
       // 지도에 경로 + 마커 그리기
       final recommended = data['recommended'] is Map
@@ -5805,12 +5883,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 ),
               ),
 
-            // ── 절감액 보상풍 오버레이 — 결과 도착 순간 최상단에서 1회 팝 ──
-            if (_savingsRevealWon != null)
+            // ── "이만큼 절약" 보상풍 오버레이 — 결과 도착 순간 최상단에서 1회 팝 ──
+            if (_revealHeadline != null)
               SavingsRevealOverlay(
                 key: ValueKey('savings_reveal_$_savingsRevealSeq'),
-                savingsWon: _savingsRevealWon!,
-                extraMin: _savingsRevealExtraMin ?? 0,
+                caption: _revealCaption ?? '',
+                headline: _revealHeadline!,
               ),
           ],
         ),

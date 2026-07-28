@@ -5,18 +5,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
-/// AI 추천 결과 진입 시 절감액을 게임 보상풍으로 1회 강조하는 오버레이.
+/// AI 추천 결과 진입 시 "이만큼 절약"을 게임 보상풍으로 1회 강조하는 오버레이.
 /// - 등장: 스케일 팝(elasticOut) + 뒤 글로우 + 반짝(스파클) 애니메이션
 /// - 종료: 1.9초 후 자동 페이드아웃 (탭하면 즉시 닫힘)
 /// 결과 화면 Stack 최상단에 올려두면 스스로 사라진다.
 class SavingsRevealOverlay extends StatefulWidget {
-  final int savingsWon; // 실질 절감액 (원)
-  final int extraMin; // 추가 소요 시간 (분, 0 이하면 '경로 그대로')
+  final String caption; // 작은 줄 (예: '4분 더 걸리지만' / '주변 평균 대비')
+  final String headline; // 큰 줄 (예: '28,000원 절감!')
   const SavingsRevealOverlay({
     super.key,
-    required this.savingsWon,
-    required this.extraMin,
+    required this.caption,
+    required this.headline,
   });
+
+  /// 절감액 헤드라인 포맷 헬퍼
+  static String won(int v) => '${NumberFormat('#,###').format(v)}원';
 
   @override
   State<SavingsRevealOverlay> createState() => _SavingsRevealOverlayState();
@@ -29,7 +32,6 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
   late final AnimationController _sparkle; // 반짝 루프
   Timer? _autoClose;
   bool _closing = false;
-  static final _fmt = NumberFormat('#,###');
 
   @override
   void initState() {
@@ -152,11 +154,7 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                         ),
                         const SizedBox(height: 14),
                         Text(
-                          widget.savingsWon >= 1000
-                              ? (widget.extraMin > 0
-                                  ? '${widget.extraMin}분 더 걸리지만'
-                                  : '가는 길 그대로')
-                              : '우회할 필요 없이',
+                          widget.caption,
                           style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
@@ -170,14 +168,13 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                             colors: [Color(0xFFFFE082), Color(0xFF6EE7B7)],
                           ).createShader(rect),
                           child: Text(
-                            widget.savingsWon >= 1000
-                                ? '${_fmt.format(widget.savingsWon)}원 절감!'
-                                : '가는 길이 최적!',
+                            widget.headline,
+                            textAlign: TextAlign.center,
                             style: const TextStyle(
-                              fontSize: 40,
+                              fontSize: 38,
                               fontWeight: FontWeight.w900,
                               color: Colors.white,
-                              height: 1.1,
+                              height: 1.15,
                             ),
                           ),
                         ),
