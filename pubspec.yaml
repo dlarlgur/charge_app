@@ -64,6 +64,7 @@ dependencies:
 
   # Splash
   flutter_native_splash: ^2.3.10
+  image_picker: ^1.1.2
   package_info_plus: ^9.0.0
 
   # Firebase & Push

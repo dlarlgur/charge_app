@@ -317,6 +317,20 @@ class ApiService {
     return const {};
   }
 
+  /// 제보 사진 업로드 → 서버 url 반환 (실패 시 null).
+  Future<String?> uploadReportPhoto(String filePath) async {
+    try {
+      final form = FormData.fromMap({
+        'photo': await MultipartFile.fromFile(filePath),
+      });
+      final res = await _dio.post('/uploads/report-photo', data: form);
+      final url = res.data?['url']?.toString();
+      return (url != null && url.startsWith('/api/uploads/')) ? url : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<bool> submitReport({
     required String stationType, // 'gas' | 'ev'
     required String stationId,
@@ -324,6 +338,7 @@ class ApiService {
     required String category,
     Map<String, dynamic>? detail,
     String? memo,
+    String? photoUrl,
   }) async {
     final res = await _dio.post(ApiConstants.reports,
         data: {
@@ -334,6 +349,7 @@ class ApiService {
           'station_name': stationName,
           'category': category,
           if (detail != null) 'detail': detail,
+          if (photoUrl != null) 'photo_url': photoUrl,
           if (memo != null && memo.trim().isNotEmpty) 'memo': memo.trim(),
         },
         options: await _softAuth());
