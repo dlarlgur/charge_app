@@ -15,8 +15,10 @@ import '../../data/services/api_service.dart';
 import '../../data/services/location_service.dart';
 import '../../data/services/map_runtime_config.dart';
 import '../../core/constants/secrets.dart';
+import '../../data/services/place_service.dart';
 import '../../data/services/station_alias_service.dart';
 import '../../providers/providers.dart';
+import '../favorites/place_picker_screen.dart';
 import '../detail/ev_detail_screen.dart';
 import '../detail/gas_detail_screen.dart';
 import '../filter/ev_filter_sheet.dart';
@@ -417,8 +419,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
   }
 
-  void _moveToPlace(Map<String, dynamic> place) {
-    _saveToHistory(place);
+  void _moveToPlace(Map<String, dynamic> place, {bool saveHistory = true}) {
+    if (saveHistory) _saveToHistory(place);
     final lat = (place['lat'] as num).toDouble();
     final lng = (place['lng'] as num).toDouble();
     final name = (place['name'] ?? '').toString();
@@ -1130,7 +1132,88 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 8, offset: const Offset(0, 2))],
       ),
-      child: _isSearchLoading
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 집/회사 바로가기 (네이버식) — 등록=컬러+즉시 이동, 미등록=회색+탭하면 등록
+          _buildPlaceShortcutRow(isDark),
+          Divider(height: 1, color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
+          _buildSearchBody(isDark),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlaceShortcutRow(bool isDark) {
+    return SizedBox(
+      height: 40,
+      child: Row(
+        children: [
+          const SizedBox(width: 6),
+          Flexible(child: _placeShortcut('home', '집', Icons.home_rounded, isDark)),
+          Flexible(child: _placeShortcut('work', '회사', Icons.business_rounded, isDark)),
+          const Spacer(),
+        ],
+      ),
+    );
+  }
+
+  Widget _placeShortcut(String kind, String label, IconData icon, bool isDark) {
+    final p = PlaceService.get(kind);
+    final registered = p != null;
+    final active = isDark ? AppColors.gasBlue : AppColors.gasBlueDark;
+    final mutedFg = isDark ? AppColors.darkTextMuted : const Color(0xFFB5BCC6);
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () async {
+        if (registered) {
+          _moveToPlace({
+            'name': (p['name'] ?? '').toString(),
+            'address': (p['address'] ?? '').toString(),
+            'lat': p['lat'],
+            'lng': p['lng'],
+          }, saveHistory: false);
+          return;
+        }
+        final picked = await Navigator.of(context).push<Map<String, dynamic>>(
+          MaterialPageRoute(builder: (_) => PlacePickerScreen(title: '$label 등록')),
+        );
+        if (picked == null || !mounted) return;
+        await PlaceService.set(kind, picked);
+        if (!mounted) return;
+        setState(() {});
+        _moveToPlace(picked, saveHistory: false);
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 15, color: registered ? active : mutedFg),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                registered ? (p['name'] ?? label).toString() : label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: registered
+                      ? (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)
+                      : mutedFg,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchBody(bool isDark) {
+    return _isSearchLoading
           ? const Padding(
               padding: EdgeInsets.all(20),
               child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
@@ -1296,8 +1379,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       ),
                     );
                   },
-                ),
-    );
+                );
   }
 
   // ─── 이 지역 검색 버튼 ───

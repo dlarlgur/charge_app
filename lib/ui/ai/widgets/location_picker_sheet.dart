@@ -44,9 +44,8 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
   bool _myLocationSelected = false; // "내위치" 클릭 후 상단 옵션 표시
   int _searchRequestSeq = 0;
 
-  // 시트 내부에서 현재 위치 주소를 직접 로드
+  // 시트 내부에서 현재 위치 주소를 직접 로드 (내위치 탭 시 검색창 채움용)
   String? _localCurrentAddress;
-  bool _addressLoading = true;
 
   @override
   void initState() {
@@ -59,17 +58,15 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
     // 칩 subtitle용 주소만 로드 — 검색창은 건드리지 않음
     final preloaded = widget.currentLocationAddress;
     if (preloaded != null && preloaded.isNotEmpty) {
-      if (mounted) setState(() { _localCurrentAddress = preloaded; _addressLoading = false; });
+      if (mounted) setState(() => _localCurrentAddress = preloaded);
       return;
     }
     try {
       final loc = await ref.read(locationProvider.future);
-      if (loc == null || !mounted) { setState(() => _addressLoading = false); return; }
+      if (loc == null || !mounted) return;
       final addr = await ApiService().reverseGeocode(loc.lat, loc.lng);
-      if (mounted) setState(() { _localCurrentAddress = addr; _addressLoading = false; });
-    } catch (_) {
-      if (mounted) setState(() => _addressLoading = false);
-    }
+      if (mounted) setState(() => _localCurrentAddress = addr);
+    } catch (_) {}
   }
 
   @override
@@ -149,31 +146,6 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
         height: 14,
         color: isDark ? AppColors.darkCardBorder : const Color(0xFFE8E8E8),
       );
-
-  /// '내위치' 라벨 — 주소가 있으면 '내위치 · 주소' (주소는 옅게)
-  Widget _myLocationLabel(bool isDark) {
-    final addr = _addressLoading ? null : _localCurrentAddress;
-    return Text.rich(
-      TextSpan(
-        text: '내위치',
-        style: const TextStyle(
-            fontSize: 13, fontWeight: FontWeight.w600, color: kPrimary),
-        children: [
-          if (addr != null && addr.isNotEmpty)
-            TextSpan(
-              text: ' · $addr',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w400,
-                color: isDark ? AppColors.darkTextMuted : const Color(0xFF999999),
-              ),
-            ),
-        ],
-      ),
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-    );
-  }
 
   /// 미등록 집/회사 탭 → 즐겨찾기와 동일한 등록 화면 → 저장 후 바로 그 위치로 적용
   Future<void> _registerPlace(String kind, String label) async {
@@ -299,7 +271,13 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
                       icon: Icons.my_location_rounded,
                       color: kPrimary,
                       onTap: _onMyLocationChipTap,
-                      child: _myLocationLabel(isDark),
+                      child: const Text('내위치',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: kPrimary)),
                     ),
                   ),
                   _vHairline(isDark),
