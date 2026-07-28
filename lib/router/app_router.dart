@@ -122,10 +122,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 source: ImageSource.gallery, maxWidth: 1600, imageQuality: 85);
             return x?.path;
           },
-          // 여러 장 한번에 선택 (최대 3장은 코어에서 컷)
-          attachMultiPicker: () async {
-            final xs = await ImagePicker()
-                .pickMultiImage(maxWidth: 1600, imageQuality: 85);
+          // 여러 장 한번에 선택 — 픽커 자체를 남은 슬롯(최대 3장)으로 제한
+          attachMultiPicker: (remaining) async {
+            if (remaining <= 1) {
+              // pickMultiImage 의 limit 은 2 이상만 허용 — 남은 1장은 단일 픽커로
+              final x = await ImagePicker().pickImage(
+                  source: ImageSource.gallery, maxWidth: 1600, imageQuality: 85);
+              return x == null ? null : [x.path];
+            }
+            final xs = await ImagePicker().pickMultiImage(
+                maxWidth: 1600, imageQuality: 85, limit: remaining.clamp(2, 3));
             return xs.map((x) => x.path).toList();
           },
 

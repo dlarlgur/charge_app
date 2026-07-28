@@ -44,6 +44,7 @@ import '../../data/services/favorite_service.dart';
 import '../../data/services/station_alias_service.dart';
 import '../favorites/favorites_screen.dart';
 import '../detail/ev_detail_screen.dart';
+import '../reports/my_reports_screen.dart';
 import '../detail/gas_detail_screen.dart';
 import '../ai/widgets/route_engine_sheet.dart';
 import 'package:home_widget/home_widget.dart';
@@ -233,6 +234,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       } else if (message.data['type'] == 'inquiry_reply') {
         navigateToInquiryNotifier.value =
             int.tryParse(message.data['inquiryId']?.toString() ?? '') ?? 0;
+      } else if (message.data['type'] == 'report_done') {
+        // 제보 처리완료/사유 안내 푸시 → 내 제보 내역
+        if (mounted) {
+          Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
+            builder: (_) => const MyReportsScreen(),
+          ));
+        }
       } else if (message.data['type'] == 'event') {
         _openEventDetail(int.tryParse(message.data['id']?.toString() ?? '') ?? 0);
       } else if (message.data['type'] == 'notice') {
@@ -275,6 +283,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         final id = int.tryParse(message.data['inquiryId']?.toString() ?? '') ?? 0;
         Future.delayed(const Duration(milliseconds: 600),
             () => navigateToInquiryNotifier.value = id);
+      } else if (message.data['type'] == 'report_done') {
+        Future.delayed(const Duration(milliseconds: 600), () {
+          if (mounted) {
+            Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
+              builder: (_) => const MyReportsScreen(),
+            ));
+          }
+        });
       } else if (message.data['type'] == 'event') {
         final id = int.tryParse(message.data['id']?.toString() ?? '') ?? 0;
         Future.delayed(const Duration(milliseconds: 600), () => _openEventDetail(id));

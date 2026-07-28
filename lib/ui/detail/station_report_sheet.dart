@@ -145,10 +145,19 @@ class _StationReportSheetState extends State<_StationReportSheet> {
   final List<XFile> _photos = []; // 첨부 사진 (최대 3장)
 
   Future<void> _pickPhoto() async {
-    if (_photos.length >= 3) return;
-    // 여러 장 한번에 선택 — 남은 슬롯만큼만 수용
-    final xs = await ImagePicker()
-        .pickMultiImage(maxWidth: 1600, imageQuality: 85);
+    final remaining = 3 - _photos.length;
+    if (remaining <= 0) return;
+    // 픽커 자체를 남은 슬롯으로 제한 (limit 은 2 이상만 허용 — 1장 남으면 단일 픽커)
+    if (remaining == 1) {
+      final x = await ImagePicker().pickImage(
+          source: ImageSource.gallery, maxWidth: 1600, imageQuality: 85);
+      if (x != null && mounted && _photos.length < 3) {
+        setState(() => _photos.add(x));
+      }
+      return;
+    }
+    final xs = await ImagePicker().pickMultiImage(
+        maxWidth: 1600, imageQuality: 85, limit: remaining);
     if (xs.isEmpty || !mounted) return;
     setState(() {
       for (final x in xs) {

@@ -1338,31 +1338,49 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     // 엔진을 바꿔도 항상 카드가 남아 라벨/시간이 갱신되는 게 보이게.
     final visible =
         (_routesDistinct && alts.length >= 2) ? alts : alts.take(1).toList();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // 엔진 헤더 + 경로 칩을 한 카드로 묶음 (배지 따로 떠다니지 않게)
     return Padding(
       padding: const EdgeInsets.only(top: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              for (int i = 0; i < visible.length; i++) ...[
-                if (i > 0) const SizedBox(width: 8),
-                Expanded(child: _routeChip(visible[i], isEv)),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkCard : Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+              color: isDark ? AppColors.darkCardBorder : const Color(0xFFE2E8F0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _engineBadge(),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                for (int i = 0; i < visible.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 8),
+                  Expanded(child: _routeChip(visible[i], isEv)),
+                ],
               ],
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(children: [_engineBadge()]),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  /// 현재 경로 기준 내비 배지 — 탭하면 변경 시트, 변경 시 새 엔진으로 재조회.
-  /// 지도 위에 뜨는 요소라 흰 알약 배경 + 그림자로 시인성 확보 (지도 오버레이 버튼 톤).
+  /// 경로 카드 헤더 — 현재 기준 내비 + 변경(▾). 탭하면 시트, 변경 시 재조회.
   Widget _engineBadge() {
     final label = RouteEnginePref.label(RouteEnginePref.get());
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () async {
         final prev = RouteEnginePref.get();
         final picked = await showRouteEngineSheet(context);
@@ -1371,33 +1389,26 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           unawaited(_loadRouteAlternatives());
         }
       },
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(10, 6, 7, 6),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.10),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.alt_route_rounded,
                 size: 14, color: Color(0xFF3B82F6)),
             const SizedBox(width: 5),
             Text('$label 기준',
                 style: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w700,
                     color: Color(0xFF334155))),
             const Icon(Icons.keyboard_arrow_down_rounded,
                 size: 16, color: Color(0xFF64748B)),
+            const Spacer(),
+            const Text('변경',
+                style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF94A3B8))),
           ],
         ),
       ),
