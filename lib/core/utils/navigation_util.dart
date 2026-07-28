@@ -155,13 +155,8 @@ class _NavigationSheet extends StatelessWidget {
               onTap: () => _tapNav(
                 context,
                 naver: true,
-                // 휴게소·고속도로: 좌표를 넘기면 네이버가 인근 일반도로로 스냅해
-                // 오안내(제보) — 대신 이름 검색 핸드오프로 네이버 자체 POI(방향
-                // 인지·검증된 입구)가 목적지를 잡게 한다. 일반 주유소는 좌표 직행.
                 () => _launch(
-                  _isRestArea(name)
-                      ? 'nmap://search?query=${Uri.encodeComponent(name)}&appname=${AppConstants.packageName}'
-                      : 'nmap://navigation?dlat=$lat&dlng=$lng&dname=${Uri.encodeComponent(name)}&appname=${AppConstants.packageName}',
+                  'nmap://navigation?dlat=$lat&dlng=$lng&dname=${Uri.encodeComponent(name)}&appname=${AppConstants.packageName}',
                   fallback: 'https://map.naver.com',
                 ),
               ),
@@ -196,8 +191,8 @@ class _NavigationSheet extends StatelessWidget {
 
     if (!skip) {
       final content = highwayTip
-          ? '고속도로 주유소는 정확한 안내를 위해 네이버 지도 검색으로 열려요.\n\n'
-              '검색 결과에서 해당 휴게소를 선택한 뒤 안내를 시작해주세요.'
+          ? '네이버 지도에서 "도착지가 고속(화)도로에 위치합니다. 주변 일반도로로 변경하시겠습니까?" 안내가 뜨면 반드시 [도착지 유지]를 선택하세요.\n\n'
+              '[도착지 변경]을 누르면 고속도로 밖 엉뚱한 곳으로 안내될 수 있어요.'
           : '일부 주유소·충전소는 등록된 좌표가 실제 위치와 달라 길안내가 다른 곳으로 이어질 수 있어요.\n\n'
               '안내 시작 전에 목적지 이름과 위치를 꼭 확인하고, 다르면 주소로 검색해주세요.';
       // 공용 앱 다이얼로그(showAppDialog) — 앱 전반과 동일한 톤(아이콘·라운드·버튼).
