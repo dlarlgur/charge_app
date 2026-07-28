@@ -137,6 +137,8 @@ class ApiService {
       'radius': radius,
       'fuelType': fuelType,
       'sort': sort,
+      // 광역 반경(10km+)은 기본 50개에 잘려 최저가가 누락됨 — 거리순 상위 개수 상향
+      if (radius >= 10000) 'maxCount': 120,
     });
     return List<Map<String, dynamic>>.from(res.data['data'] ?? []);
   }
@@ -185,6 +187,8 @@ class ApiService {
       'lat': lat,
       'lng': lng,
       'radius': radius,
+      // 광역 반경은 충전소 수천 곳 — 거리순 상위 500 캡 (payload/렌더 보호)
+      if (radius >= 10000) 'maxCount': 500,
     });
     return List<Map<String, dynamic>>.from(res.data['data'] ?? []);
   }

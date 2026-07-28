@@ -82,7 +82,7 @@ class AppConstants {
   static const defaultSort = 1; // 가격순
 
   // 반경 옵션 (미터) - 오피넷 API는 최대 5km까지만 지원
-  static const radiusOptions = [1000, 3000, 5000];
+  static const radiusOptions = [1000, 3000, 5000, 10000, 20000];
 
   // Hive Box 이름
   static const settingsBox = 'settings';
