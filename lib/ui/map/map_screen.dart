@@ -512,9 +512,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       void consider(dynamic s, String stName, double sLat, double sLng) {
         final n = norm(stName);
         if (n.length < 3) return;
-        // 전체 이름 기준: 동일하거나, 한쪽이 다른 쪽을 통째로 포함할 때만.
-        // (접미사를 안 지우므로 "매창주유소"는 "매창공원…충전소"에 안 붙는다)
-        final hit = n == q || n.contains(q) || q.contains(n);
+        // 상세 자동 오픈은 "스테이션을 찾는 검색"일 때만:
+        //  · 쿼리에 주유소/충전소가 명시돼 있으면 포함 관계 허용 ("매창주유소" → 매창주유소)
+        //  · 아니면 정규화 이름이 완전히 같을 때만 (아파트명("동천자이아파트")이
+        //    그 이름을 딴 충전소("동천자이 B2F…")에 붙어 상세가 뜨던 문제 차단 — 핀만)
+        final hit =
+            n == q || ((wantsGas || wantsEv) && (n.contains(q) || q.contains(n)));
         if (!hit) return;
         final d = distM(lat, lng, sLat, sLng);
         if (d < bestDist) {
