@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../data/services/api_service.dart';
+import 'place_map_pick_screen.dart';
 
 /// 집/회사 장소 선택 — 지도 탭과 동일한 장소 검색(searchPlaces) 재사용.
 /// 선택 시 {name, address, lat, lng} 반환.
@@ -71,6 +72,28 @@ class _PlacePickerScreenState extends State<PlacePickerScreen> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  final picked = await Navigator.of(context).push<Map<String, dynamic>>(
+                    MaterialPageRoute(
+                        builder: (_) => PlaceMapPickScreen(title: widget.title)),
+                  );
+                  if (picked != null && context.mounted) Navigator.pop(context, picked);
+                },
+                icon: const Icon(Icons.map_outlined, size: 16),
+                label: const Text('지도에서 선택', style: TextStyle(fontSize: 13)),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
                 ),
               ),
             ),

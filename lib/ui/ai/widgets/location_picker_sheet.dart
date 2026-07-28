@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../data/services/place_service.dart';
+
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/helpers.dart';
 import '../../../data/services/api_service.dart';
@@ -118,6 +120,64 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
     }
   }
 
+  /// 집/회사 바로가기 칩 — PlaceService 등록 여부에 따라 활성/비활성.
+  Widget _placeChip(String kind, String label, IconData icon) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final p = PlaceService.get(kind);
+    final registered = p != null;
+    final active = isDark ? AppColors.gasBlue : AppColors.gasBlueDark;
+    final mutedBg = isDark ? const Color(0x14FFFFFF) : const Color(0xFFF1F3F6);
+    final mutedFg = isDark ? AppColors.darkTextMuted : const Color(0xFFB5BCC6);
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: registered
+          ? () => widget.onSearchResult({
+                'name': (p['name'] ?? '').toString(),
+                'address': (p['address'] ?? '').toString(),
+                'lat': p['lat'],
+                'lng': p['lng'],
+              })
+          : () => ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('즐겨찾기 탭에서 $label 위치를 먼저 등록해주세요'),
+                  duration: const Duration(seconds: 2),
+                ),
+              ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        decoration: BoxDecoration(
+          color: registered ? active.withValues(alpha: 0.10) : mutedBg,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: registered ? active.withValues(alpha: 0.45) : Colors.transparent,
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: registered ? active : mutedFg),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                registered ? (p['name'] ?? label).toString() : label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: registered
+                      ? (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)
+                      : mutedFg,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -208,6 +268,17 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
                       onTap: widget.onMapPick,
                     ),
                   ),
+                ],
+              ),
+            ),
+            // ②-1 집/회사 바로가기 — 등록돼 있으면 컬러+즉시 설정, 미등록은 비활성(회색)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Row(
+                children: [
+                  Expanded(child: _placeChip('home', '집', Icons.home_rounded)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _placeChip('work', '회사', Icons.business_rounded)),
                 ],
               ),
             ),
