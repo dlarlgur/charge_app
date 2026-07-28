@@ -183,7 +183,7 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
               })
           : () => _registerPlace(kind, label),
       child: Text(
-        registered ? (p['name'] ?? label).toString() : label,
+        label, // 항상 '집'/'회사' 라벨만 (장소명 노출 X)
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(

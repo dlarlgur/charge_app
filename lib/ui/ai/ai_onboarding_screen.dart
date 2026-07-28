@@ -61,6 +61,41 @@ class _AiOnboardingScreenState extends State<AiOnboardingScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            // 상단 뒤로가기 — iOS 는 스와이프백을 모르는 사용자가 많아 명시 버튼 제공.
+            // 첫 페이지면 화면 닫기, 이후엔 이전 페이지로.
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 6, 0, 0),
+                child: GestureDetector(
+                  onTap: () {
+                    if (_page > 0) {
+                      _ctrl.previousPage(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    } else {
+                      Navigator.maybePop(context);
+                    }
+                  },
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? const Color(0x14FFFFFF)
+                          : const Color(0xFFF1F3F6),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.arrow_back_rounded,
+                        size: 21,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : const Color(0xFF475569)),
+                  ),
+                ),
+              ),
+            ),
             Expanded(
               child: PageView(
                 controller: _ctrl,

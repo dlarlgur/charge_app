@@ -419,7 +419,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
   }
 
-  void _moveToPlace(Map<String, dynamic> place, {bool saveHistory = true}) {
+  void _moveToPlace(Map<String, dynamic> place,
+      {bool saveHistory = true, bool matchStation = true}) {
     if (saveHistory) _saveToHistory(place);
     final lat = (place['lat'] as num).toDouble();
     final lng = (place['lng'] as num).toDouble();
@@ -447,7 +448,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
     // 검색 결과가 주유소/충전소 자체를 가리키면 장소 핀 대신 마커 탭과 동일하게
     // 상세 시트를 바로 연다 (제보 요청). 매칭 실패/오류 시 기존 빨강 핀 폴백.
-    _openStationIfMatched(name, lat, lng);
+    // 집/회사 바로가기는 매칭 없이 핀만 (아파트명이 근처 충전소명과 오매칭되는 문제).
+    if (matchStation) {
+      _openStationIfMatched(name, lat, lng);
+    } else {
+      _setSearchMarker(lat, lng, name);
+    }
   }
 
   /// 검색 장소명이 근처 주유소/충전소와 매칭되면 상세 시트 오픈, 아니면 검색 핀.
@@ -1169,11 +1175,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       onTap: () async {
         if (registered) {
           _moveToPlace({
-            'name': (p['name'] ?? '').toString(),
+            'name': label,
             'address': (p['address'] ?? '').toString(),
             'lat': p['lat'],
             'lng': p['lng'],
-          }, saveHistory: false);
+          }, saveHistory: false, matchStation: false);
           return;
         }
         final picked = await Navigator.of(context).push<Map<String, dynamic>>(
@@ -1183,7 +1189,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         await PlaceService.set(kind, picked);
         if (!mounted) return;
         setState(() {});
-        _moveToPlace(picked, saveHistory: false);
+        _moveToPlace({...picked, 'name': label},
+            saveHistory: false, matchStation: false);
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -1194,7 +1201,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             const SizedBox(width: 4),
             Flexible(
               child: Text(
-                registered ? (p['name'] ?? label).toString() : label,
+                label, // 네이버처럼 항상 '집'/'회사' — 장소명은 노출하지 않음
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(

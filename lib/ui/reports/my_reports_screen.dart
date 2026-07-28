@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/constants/api_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/services/api_service.dart';
 
@@ -109,6 +110,8 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
     final reply = (r['adminReply'] as String?)?.trim();
     final detail = (r['detailText'] as String?)?.trim();
     final memo = (r['memo'] as String?)?.trim();
+    final myPhotos = _urls(r['photoUrls']);
+    final replyPhotos = _urls(r['replyImageUrls']);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -198,6 +201,10 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
             Text(memo,
                 style: TextStyle(fontSize: 12.5, color: muted, height: 1.45)),
           ],
+          if (myPhotos.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _photoRow(context, myPhotos),
+          ],
 
           // 관리자 답변 말풍선
           if (reply != null && reply.isNotEmpty) ...[
@@ -230,6 +237,10 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
                   const SizedBox(height: 5),
                   Text(reply,
                       style: TextStyle(fontSize: 13, color: ink, height: 1.5)),
+                  if (replyPhotos.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    _photoRow(context, replyPhotos),
+                  ],
                 ],
               ),
             ),
@@ -242,4 +253,49 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
       ),
     );
   }
+}
+
+/// 서버 photoUrls/replyImageUrls → 절대 URL 목록
+List<String> _urls(dynamic v) {
+  if (v is! List) return const [];
+  final origin = ApiConstants.baseUrl.replaceFirst(RegExp(r'/api\/?$'), '');
+  return v
+      .map((e) => e.toString())
+      .where((u) => u.isNotEmpty)
+      .map((u) => u.startsWith('http') ? u : '$origin$u')
+      .toList();
+}
+
+/// 첨부 썸네일 줄 — 탭하면 전체보기 (문의 상세와 동일 패턴)
+Widget _photoRow(BuildContext context, List<String> urls) {
+  return Wrap(
+    spacing: 8,
+    runSpacing: 8,
+    children: [
+      for (final u in urls)
+        GestureDetector(
+          onTap: () => showDialog<void>(
+            context: context,
+            builder: (_) => Dialog(
+              backgroundColor: Colors.black,
+              insetPadding: const EdgeInsets.all(12),
+              child: InteractiveViewer(
+                maxScale: 4,
+                child: Image.network(u, fit: BoxFit.contain),
+              ),
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.network(
+              u,
+              width: 84,
+              height: 84,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            ),
+          ),
+        ),
+    ],
+  );
 }

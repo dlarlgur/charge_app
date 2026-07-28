@@ -5,6 +5,7 @@ import 'package:flutter_naver_map/flutter_naver_map.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../data/services/api_service.dart';
+import '../../data/services/location_service.dart';
 
 /// 집/회사 등록 — 지도에서 위치 선택. 중앙 크로스헤어 고정, 카메라 멈추면
 /// 역지오코딩으로 주소 표시, [이 위치로 설정] 시 {name, address, lat, lng} 반환.
@@ -21,7 +22,26 @@ class _PlaceMapPickScreenState extends State<PlaceMapPickScreen> {
   NLatLng? _target;
   String? _address;
   bool _resolving = false;
+  bool _locating = false;
   Timer? _debounce;
+
+  /// 현재위치 버튼 — GPS 로 카메라 이동 (지도탭 버튼과 동일 패턴)
+  Future<void> _moveToMyLocation() async {
+    if (_locating) return;
+    setState(() => _locating = true);
+    try {
+      final p = await LocationService().getFreshPosition();
+      if (p != null && _controller != null && mounted) {
+        await _controller!.updateCamera(NCameraUpdate.withParams(
+          target: NLatLng(p.latitude, p.longitude),
+          zoom: 16,
+        )..setAnimation(
+            animation: NCameraAnimation.easing,
+            duration: const Duration(milliseconds: 350)));
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _locating = false);
+  }
 
   @override
   void dispose() {
@@ -68,11 +88,11 @@ class _PlaceMapPickScreenState extends State<PlaceMapPickScreen> {
                 target: NLatLng(37.5665, 126.9780),
                 zoom: 15,
               ),
-              locationButtonEnable: true,
             ),
             onMapReady: (c) {
               _controller = c;
               _onIdle();
+              _moveToMyLocation(); // 진입 시 현재위치에서 시작
             },
             onCameraIdle: _onIdle,
           ),
@@ -83,6 +103,43 @@ class _PlaceMapPickScreenState extends State<PlaceMapPickScreen> {
                 padding: EdgeInsets.only(bottom: 34),
                 child: Icon(Icons.location_on_rounded,
                     size: 40, color: Color(0xFFE0533D)),
+              ),
+            ),
+          ),
+          // 현재위치 버튼 — 하단 카드 위 오른쪽 (지도탭과 동일 톤)
+          Align(
+            alignment: Alignment.bottomRight,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 16, bottom: 148),
+                child: GestureDetector(
+                  onTap: _moveToMyLocation,
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.darkBg : Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2)),
+                      ],
+                    ),
+                    child: _locating
+                        ? const Center(
+                            child: SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2)))
+                        : Icon(Icons.my_location_rounded,
+                            size: 22,
+                            color: isDark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.lightTextSecondary),
+                  ),
+                ),
               ),
             ),
           ),
