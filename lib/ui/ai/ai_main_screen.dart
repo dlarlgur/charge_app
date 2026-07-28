@@ -36,6 +36,7 @@ import 'widgets/level_edit_sheet.dart';
 import 'widgets/location_picker_sheet.dart';
 import 'widgets/mode_segment.dart';
 import 'widgets/route_card.dart';
+import 'widgets/route_engine_sheet.dart';
 import 'widgets/station_select_inline_sheet.dart';
 import 'ai_result_screen.dart';
 import 'ai_vehicle_list_screen.dart';
@@ -1044,6 +1045,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       startLng = loc.lng;
     }
 
+    // 경로 기준 내비 — 최초 1회 선택 시트 (닫으면 이번엔 티맵, 다음 목적지 때 다시 물어봄)
+    String? engine = RouteEnginePref.raw();
+    if (engine == null && mounted) {
+      engine = await showRouteEngineSheet(context) ?? 'tmap';
+    }
+    if (!mounted) return;
     setState(() => _loadingRouteAlts = true);
     try {
       final isEv = _aiAnalysisType == 'ev';
@@ -1053,6 +1060,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         goalLat: _destLat!,
         goalLng: _destLng!,
         mode: isEv ? 'ev' : 'fuel',
+        engine: engine,
       );
       final raw = res['routes'];
       final routes = raw is List
@@ -1297,18 +1305,64 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       );
     }
     final alts = _routeAlts;
-    if (alts == null || !_routesDistinct || alts.length < 2) {
-      return const SizedBox.shrink();
+    if (alts == null) return const SizedBox.shrink();
+    // 엔진 배지는 경로가 있으면 항상 노출 — 사용자가 "어디서 바꾸는지" 보이는 지점.
+    if (!_routesDistinct || alts.length < 2) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Row(children: [_engineBadge()]),
+      );
     }
     return Padding(
       padding: const EdgeInsets.only(top: 10),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (int i = 0; i < alts.length; i++) ...[
-            if (i > 0) const SizedBox(width: 8),
-            Expanded(child: _routeChip(alts[i], isEv)),
-          ],
+          Row(
+            children: [
+              for (int i = 0; i < alts.length; i++) ...[
+                if (i > 0) const SizedBox(width: 8),
+                Expanded(child: _routeChip(alts[i], isEv)),
+              ],
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(children: [_engineBadge()]),
         ],
+      ),
+    );
+  }
+
+  /// 현재 경로 기준 내비 배지 — 탭하면 변경 시트, 변경 시 새 엔진으로 재조회.
+  Widget _engineBadge() {
+    final label = RouteEnginePref.label(RouteEnginePref.get());
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () async {
+        final prev = RouteEnginePref.get();
+        final picked = await showRouteEngineSheet(context);
+        if (picked != null && picked != prev && mounted) {
+          setState(() {});
+          unawaited(_loadRouteAlternatives());
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.alt_route_rounded,
+                size: 13, color: Color(0xFF94A3B8)),
+            const SizedBox(width: 4),
+            Text('$label 기준',
+                style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF64748B))),
+            const Icon(Icons.keyboard_arrow_down_rounded,
+                size: 15, color: Color(0xFF94A3B8)),
+          ],
+        ),
       ),
     );
   }

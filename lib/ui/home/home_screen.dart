@@ -45,6 +45,7 @@ import '../../data/services/station_alias_service.dart';
 import '../favorites/favorites_screen.dart';
 import '../detail/ev_detail_screen.dart';
 import '../detail/gas_detail_screen.dart';
+import '../ai/widgets/route_engine_sheet.dart';
 import 'package:home_widget/home_widget.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -1908,6 +1909,48 @@ class _AccountCard extends ConsumerWidget {
 
 /// 홈 위젯 배경 투명도 조절 타일 — 탭하면 슬라이더 시트(투명도 0~100%).
 /// 값은 WidgetService 가 HomeWidgetPreferences 에 '불투명도'로 저장(투명도 = 100 - 불투명도).
+/// AI 경로 미리보기 기준 내비 (티맵/네이버/카카오) — AI 탭 배지와 같은 시트 재사용.
+class _RouteEngineTileEmbed extends StatefulWidget {
+  final bool isDark;
+  const _RouteEngineTileEmbed({required this.isDark});
+  @override
+  State<_RouteEngineTileEmbed> createState() => _RouteEngineTileEmbedState();
+}
+
+class _RouteEngineTileEmbedState extends State<_RouteEngineTileEmbed> {
+  @override
+  Widget build(BuildContext context) {
+    final muted =
+        widget.isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final label = RouteEnginePref.label(RouteEnginePref.get());
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      leading:
+          SettingsScreenEmbed.settingsIconChip(Icons.alt_route_rounded, widget.isDark),
+      title: Text('AI 경로 기준',
+          style: Theme.of(context)
+              .textTheme
+              .titleSmall
+              ?.copyWith(fontWeight: FontWeight.w600)),
+      subtitle: Text('목적지 경로 미리보기를 계산할 내비',
+          style: TextStyle(fontSize: 11.5, color: muted)),
+      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+        Text(label,
+            style:
+                Theme.of(context).textTheme.bodyMedium?.copyWith(color: muted)),
+        Padding(
+          padding: const EdgeInsets.only(left: 2),
+          child: Icon(Icons.chevron_right_rounded, size: 20, color: muted),
+        ),
+      ]),
+      onTap: () async {
+        await showRouteEngineSheet(context);
+        if (mounted) setState(() {});
+      },
+    );
+  }
+}
+
 class _WidgetOpacityTile extends StatefulWidget {
   const _WidgetOpacityTile({required this.isDark});
   final bool isDark;
@@ -2313,6 +2356,8 @@ class SettingsScreenEmbed extends ConsumerWidget {
                   modes.indexOf(themeMode == ThemeMode.system ? ThemeMode.light : themeMode),
                   (i) => ref.read(themeModeProvider.notifier).setTheme(modes[i]));
             }),
+            settingsDivider(isDark),
+            _RouteEngineTileEmbed(isDark: isDark),
             settingsDivider(isDark),
             _WidgetOpacityTile(isDark: isDark),
             settingsDivider(isDark),
