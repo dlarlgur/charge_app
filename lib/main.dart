@@ -224,8 +224,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     }
     await _saveGenericPushToHive(inbox, message);
   } else if (message.notification != null) {
-    // 레거시(notification payload) — 표시는 시스템이 하고, 여기선 알림 내역에만 저장
-    // (홈 우측 위 알림함에서 모든 푸시를 다시 볼 수 있게)
+    // 레거시(notification payload) — 백그라운드에선 시스템이 표시하지만
+    // 포그라운드(안드)는 아무것도 안 떠서, 제보 처리 푸시는 앱이 직접 그린다.
+    if (message.data['type']?.toString() == 'report_done') {
+      showReportDoneNotification(
+        title: message.notification?.title,
+        body: message.notification?.body,
+      );
+    }
     await _saveGenericPushToHive(inbox, message);
   }
 }
@@ -373,6 +379,9 @@ Future<void> _initLocalNotifications() async {
       } else if (payload.startsWith('ev_watch:')) {
         final stationId = payload.substring('ev_watch:'.length);
         if (stationId.isNotEmpty) navigateToEvStationNotifier.value = stationId;
+      } else if (payload.startsWith('report_done')) {
+        // 제보 처리/사유 안내 알림 탭 → 내 제보 내역
+        navigateToMyReportsNotifier.value++;
       } else if (payload.startsWith('inquiry_reply')) {
         // 1:1 문의 답변 알림 탭 → 그 문의 상세 (payload: inquiry_reply:id)
         final idStr =

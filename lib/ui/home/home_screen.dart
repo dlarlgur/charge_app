@@ -89,6 +89,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     navigateToAlertsNotifier.addListener(_onNavigateToAlerts);
     // 1:1 문의 답변 알림 탭 → 그 문의 상세로 이동
     navigateToInquiryNotifier.addListener(_onNavigateToInquiry);
+    navigateToMyReportsNotifier.addListener(_onNavigateToMyReports);
     // 이벤트/공지 포그라운드 로컬알림 탭 → 그 상세로 이동
     navigateToEventNotifier.addListener(_onNavigateToEvent);
     navigateToNoticeNotifier.addListener(_onNavigateToNotice);
@@ -307,6 +308,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     WidgetsBinding.instance.removeObserver(this);
     navigateToAlertsNotifier.removeListener(_onNavigateToAlerts);
     navigateToInquiryNotifier.removeListener(_onNavigateToInquiry);
+    navigateToMyReportsNotifier.removeListener(_onNavigateToMyReports);
     navigateToEventNotifier.removeListener(_onNavigateToEvent);
     navigateToNoticeNotifier.removeListener(_onNavigateToNotice);
     navigateToEvStationNotifier.removeListener(_onNavigateToEvStation);
@@ -351,6 +353,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   void _onNavigateToAlerts() => _openAlertsPage();
+
+  void _onNavigateToMyReports() {
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
+      builder: (_) => const MyReportsScreen(),
+    ));
+  }
 
   void _onNavigateToInquiry() {
     final id = navigateToInquiryNotifier.value;

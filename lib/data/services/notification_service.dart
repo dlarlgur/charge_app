@@ -49,6 +49,8 @@ final navigateToEvStationNotifier = ValueNotifier<String>('');
 
 /// 문의 답변 알림 탭 시 그 문의 id 전달 → HomeScreen이 1:1 문의 상세로 이동.
 final navigateToInquiryNotifier = ValueNotifier<int>(0);
+// 제보 처리/사유 안내 알림 탭 → 내 제보 내역 (increment 트리거)
+final navigateToMyReportsNotifier = ValueNotifier<int>(0);
 
 /// 이벤트/공지 알림 탭 시 그 id 전달 → HomeScreen이 해당 상세로 이동 (포그라운드 로컬알림 탭 경로).
 final navigateToEventNotifier = ValueNotifier<int>(0);
@@ -454,6 +456,31 @@ void showInquiryReplyNotification({String? title, String? body, int? inquiryId})
       ),
     ),
     payload: 'inquiry_reply:${inquiryId ?? ''}',
+  );
+}
+
+/// 제보 처리완료/사유 안내 — 포그라운드 수신 시 앱이 직접 그림 (문의 답변 채널 재사용).
+void showReportDoneNotification({String? title, String? body}) {
+  if (_isWithinDnd()) return;
+  final t = (title == null || title.isEmpty) ? '제보 처리 안내' : title;
+  final b = body ?? '';
+  notificationPlugin.show(
+    1006,
+    t,
+    b,
+    NotificationDetails(
+      iOS: _iosForegroundDetails,
+      android: AndroidNotificationDetails(
+        inquiryReplyChannel.id,
+        inquiryReplyChannel.name,
+        channelDescription: inquiryReplyChannel.description,
+        importance: inquiryReplyChannel.importance,
+        priority: Priority.high,
+        visibility: NotificationVisibility.public,
+        styleInformation: BigTextStyleInformation(b),
+      ),
+    ),
+    payload: 'report_done',
   );
 }
 

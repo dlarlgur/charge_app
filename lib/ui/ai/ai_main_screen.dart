@@ -130,16 +130,17 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final ca = (trace is Map && trace['cost_analysis'] is Map)
         ? trace['cost_analysis'] as Map
         : null;
-    if (ca == null) return;
     int i(dynamic v) => v is num ? v.round() : 0;
-    final savings = ca['net_benefit_won'] is num
-        ? i(ca['net_benefit_won'])
-        : i(ca['savings_won']);
-    if (savings < 1000) return;
+    final savings = ca == null
+        ? 0
+        : (ca['net_benefit_won'] is num
+            ? i(ca['net_benefit_won'])
+            : i(ca['savings_won']));
+    // 절감액이 없으면(경로상 추천 등) "가는 길이 최적" 변형으로라도 항상 팝.
     setState(() {
       _savingsRevealSeq++;
       _savingsRevealWon = savings;
-      _savingsRevealExtraMin = i(ca['detour_extra_min']);
+      _savingsRevealExtraMin = ca == null ? 0 : i(ca['detour_extra_min']);
     });
   }
   bool _routesDistinct = false; // false면 두 경로 동일 → 선택 UI 숨김
@@ -1334,10 +1335,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     }
     final alts = _routeAlts;
     if (alts == null || alts.isEmpty) return const SizedBox.shrink();
-    // 두 경로가 사실상 같으면 첫 경로(추천) 칩 하나만 — 카드가 사라지지 않고
-    // 엔진을 바꿔도 항상 카드가 남아 라벨/시간이 갱신되는 게 보이게.
-    final visible =
-        (_routesDistinct && alts.length >= 2) ? alts : alts.take(1).toList();
+    // 경로가 사실상 같아도 두 카드 모두 표시 (형 지시 — 하나만 보이면 헷갈림)
+    final visible = alts;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     // 엔진 헤더 + 경로 칩을 한 카드로 묶음 (배지 따로 떠다니지 않게)
     return Padding(

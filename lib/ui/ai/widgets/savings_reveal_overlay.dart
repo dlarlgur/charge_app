@@ -152,9 +152,11 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                         ),
                         const SizedBox(height: 14),
                         Text(
-                          widget.extraMin > 0
-                              ? '${widget.extraMin}분 더 걸리지만'
-                              : '가는 길 그대로',
+                          widget.savingsWon >= 1000
+                              ? (widget.extraMin > 0
+                                  ? '${widget.extraMin}분 더 걸리지만'
+                                  : '가는 길 그대로')
+                              : '우회할 필요 없이',
                           style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
@@ -162,13 +164,15 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                           ),
                         ),
                         const SizedBox(height: 6),
-                        // 절감액 — 골드→그린 그라데이션 대형 텍스트
+                        // 헤드라인 — 골드→그린 그라데이션 대형 텍스트
                         ShaderMask(
                           shaderCallback: (rect) => const LinearGradient(
                             colors: [Color(0xFFFFE082), Color(0xFF6EE7B7)],
                           ).createShader(rect),
                           child: Text(
-                            '${_fmt.format(widget.savingsWon)}원 절감!',
+                            widget.savingsWon >= 1000
+                                ? '${_fmt.format(widget.savingsWon)}원 절감!'
+                                : '가는 길이 최적!',
                             style: const TextStyle(
                               fontSize: 40,
                               fontWeight: FontWeight.w900,
