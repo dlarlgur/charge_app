@@ -339,6 +339,7 @@ class ApiService {
     Map<String, dynamic>? detail,
     String? memo,
     String? photoUrl,
+    List<String>? photoUrls,
   }) async {
     final res = await _dio.post(ApiConstants.reports,
         data: {
@@ -349,7 +350,10 @@ class ApiService {
           'station_name': stationName,
           'category': category,
           if (detail != null) 'detail': detail,
-          if (photoUrl != null) 'photo_url': photoUrl,
+          if (photoUrls != null && photoUrls.isNotEmpty)
+            'photo_urls': photoUrls.take(3).toList()
+          else if (photoUrl != null)
+            'photo_url': photoUrl,
           if (memo != null && memo.trim().isNotEmpty) 'memo': memo.trim(),
         },
         options: await _softAuth());

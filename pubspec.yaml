@@ -85,7 +85,7 @@ dependencies:
   dksw_app_core:
     git:
       url: https://github.com/dlarlgur/dksw_app_core.git
-      ref: v0.5.7
+      ref: v0.5.8
   dio_cache_interceptor: ^4.0.6
 
 # path_provider_foundation 2.6.0 은 FFI(package:objective_c) 구현으로 전환됐는데

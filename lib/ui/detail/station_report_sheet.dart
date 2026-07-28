@@ -142,12 +142,15 @@ class _StationReportSheetState extends State<_StationReportSheet> {
   final _hoursCtrl = TextEditingController();
   final _memoCtrl = TextEditingController();
   bool _submitting = false;
-  XFile? _photo; // 첨부 사진 (1장)
+  final List<XFile> _photos = []; // 첨부 사진 (최대 3장)
 
   Future<void> _pickPhoto() async {
+    if (_photos.length >= 3) return;
     final x = await ImagePicker().pickImage(
         source: ImageSource.gallery, maxWidth: 1600, imageQuality: 85);
-    if (x != null && mounted) setState(() => _photo = x);
+    if (x != null && mounted && _photos.length < 3) {
+      setState(() => _photos.add(x));
+    }
   }
 
   @override
@@ -219,10 +222,11 @@ class _StationReportSheetState extends State<_StationReportSheet> {
     if (!_canSubmit) return;
     setState(() => _submitting = true);
     try {
-      // 사진 먼저 업로드 (실패해도 제보 자체는 진행 — 사진만 빠짐)
-      String? photoUrl;
-      if (_photo != null) {
-        photoUrl = await ApiService().uploadReportPhoto(_photo!.path);
+      // 사진 먼저 업로드 (실패해도 제보 자체는 진행 — 실패한 장만 빠짐)
+      final photoUrls = <String>[];
+      for (final x in _photos.take(3)) {
+        final u = await ApiService().uploadReportPhoto(x.path);
+        if (u != null) photoUrls.add(u);
       }
       final ok = await ApiService().submitReport(
         stationType: widget.stationType,
@@ -231,7 +235,7 @@ class _StationReportSheetState extends State<_StationReportSheet> {
         category: _cat!,
         detail: _buildDetail(),
         memo: _memoCtrl.text,
-        photoUrl: photoUrl,
+        photoUrls: photoUrls,
       );
       if (!mounted) return;
       if (ok) {
@@ -326,23 +330,26 @@ class _StationReportSheetState extends State<_StationReportSheet> {
                 isDark: isDark, ink: ink, muted: muted, line: line, maxLines: 2,
                 onChanged: (_) => setState(() {})),
             const SizedBox(height: 12),
-            // 사진 첨부 (선택, 1장) — 실제 상황 사진이 확인·반영에 큰 도움.
-            Row(
+            // 사진 첨부 (선택, 최대 3장) — 실제 상황 사진이 확인·반영에 큰 도움.
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                if (_photo != null) ...[
+                for (final x in _photos)
                   Stack(
                     clipBehavior: Clip.none,
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(10),
-                        child: Image.file(File(_photo!.path),
+                        child: Image.file(File(x.path),
                             width: 64, height: 64, fit: BoxFit.cover),
                       ),
                       Positioned(
                         top: -7,
                         right: -7,
                         child: GestureDetector(
-                          onTap: () => setState(() => _photo = null),
+                          onTap: () => setState(() => _photos.remove(x)),
                           child: Container(
                             padding: const EdgeInsets.all(3),
                             decoration: const BoxDecoration(
@@ -354,12 +361,11 @@ class _StationReportSheetState extends State<_StationReportSheet> {
                       ),
                     ],
                   ),
-                  const SizedBox(width: 10),
-                ],
+                if (_photos.length < 3)
                 OutlinedButton.icon(
                   onPressed: _submitting ? null : _pickPhoto,
                   icon: const Icon(Icons.photo_camera_outlined, size: 17),
-                  label: Text(_photo == null ? '사진 첨부 (선택)' : '사진 변경',
+                  label: Text(_photos.isEmpty ? '사진 첨부 (선택, 최대 3장)' : '사진 추가',
                       style: const TextStyle(fontSize: 13)),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: muted,

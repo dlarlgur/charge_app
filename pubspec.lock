@@ -221,11 +221,11 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: "v0.5.7"
-      resolved-ref: a17202ef4de172f585101deccc30a18d16b92f2a
+      ref: "v0.5.8"
+      resolved-ref: da3e2515672e3b6934ee767fd45c453a2418883b
       url: "https://github.com/dlarlgur/dksw_app_core.git"
     source: git
-    version: "0.5.7"
+    version: "0.5.8"
   encrypt:
     dependency: transitive
     description:
