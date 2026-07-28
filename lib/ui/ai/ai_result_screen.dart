@@ -7,6 +7,7 @@ import '../../core/utils/helpers.dart';
 import '../../core/utils/navigation_util.dart';
 import '../../data/services/station_alias_service.dart';
 import '../widgets/shared_widgets.dart';
+import 'widgets/savings_reveal_overlay.dart';
 
 const _kPrimary = Color(0xFF1D9E75);
 const _kPrimaryLight = Color(0xFFE1F5EE);
@@ -176,13 +177,38 @@ class AiResultScreen extends StatelessWidget {
           ],
         ),
       ),
-      body: AiResultBody(
-        data: data,
-        destinationName: destinationName,
-        originLat: originLat,
-        originLng: originLng,
+      body: Stack(
+        children: [
+          AiResultBody(
+            data: data,
+            destinationName: destinationName,
+            originLat: originLat,
+            originLng: originLng,
+          ),
+          // 결과 진입 시 절감액 1회 강조 (게임 보상풍) — 유의미한 절감일 때만
+          ..._buildSavingsReveal(),
+        ],
       ),
     );
+  }
+
+  /// recommendation.decision_trace.cost_analysis 에서 실질 절감액/추가시간 추출.
+  /// 절감 1,000원 미만이거나 데이터 없으면 오버레이 생략.
+  List<Widget> _buildSavingsReveal() {
+    final rec = data['recommendation'];
+    if (rec is! Map) return const [];
+    final trace = rec['decision_trace'];
+    final ca = (trace is Map && trace['cost_analysis'] is Map)
+        ? trace['cost_analysis'] as Map
+        : null;
+    if (ca == null) return const [];
+    int i(dynamic v) => v is num ? v.round() : 0;
+    final savings = ca['net_benefit_won'] is num
+        ? i(ca['net_benefit_won'])
+        : i(ca['savings_won']);
+    if (savings < 1000) return const [];
+    final extraMin = i(ca['detour_extra_min']);
+    return [SavingsRevealOverlay(savingsWon: savings, extraMin: extraMin)];
   }
 }
 
