@@ -270,13 +270,14 @@ class FavoritesNotifier extends StateNotifier<List<Map<String, dynamic>>> {
 
 // chgerType 복합 타입을 단일 커넥터 코드로 확장
 // 01=DC차데모, 02=AC완속, 03=DC차데모+AC3상, 04=DC콤보, 05=DC차데모+DC콤보
-// 06=DC차데모+AC3상+DC콤보, 07=AC3상, 08=DC콤보(저속), 09=NACS, 89=H2(수소)
+// 06=DC차데모+AC3상+DC콤보, 07=AC3상, 08=DC콤보(저속), 09=NACS, 10=DC콤보+NACS, 89=H2(수소)
 Set<String> _expandChargerType(String type) {
   switch (type) {
     case '03': return {'01', '07'};  // DC차데모 + AC3상
     case '05': return {'01', '04'};  // DC차데모 + DC콤보
     case '06': return {'01', '07', '04'};  // DC차데모 + AC3상 + DC콤보
     case '08': return {'04'};  // DC콤보(저속) → DC콤보로 매칭
+    case '10': return {'04', '09'};  // DC콤보 + NACS 겸용 (환경부 2025 신설)
     default: return {type};
   }
 }

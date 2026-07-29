@@ -348,6 +348,7 @@ class Charger {
       case '07': return 'AC3상';
       case '08': return 'DC콤보(저속)';
       case '09': return 'NACS';
+      case '10': return 'DC콤보+NACS';
       case '89': return 'H2(수소)';
       case 'SC': return '슈퍼차저';
       case 'DT': return '데스티네이션';
