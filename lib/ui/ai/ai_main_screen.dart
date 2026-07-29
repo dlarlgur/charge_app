@@ -948,6 +948,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
   // ── 카메라 정지 → 피커 모드에서 역지오코딩 ──
   void _onCameraIdle() async {
+    unawaited(_maybeSwapViaMarkerStyle()); // 경유 마커 줌 스타일 전환
     if (!_isPickerMode || _mapController == null || _suppressCameraChange)
       return;
     final NCameraPosition pos;
@@ -1350,6 +1351,13 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   }
 
   /// 출발지 ↔ 목적지 위치 바꾸기 (티맵 스타일). 출발지가 GPS면 현재 좌표로 확정 후 스왑.
+  /// ⊕ — 네이버처럼 빈 '경유지 입력' 행부터 생성. 행을 탭하면 그때 검색 시트.
+  void _addPendingVia() {
+    if (_vias.length >= 3) return;
+    HapticFeedback.selectionClick();
+    setState(() => _vias.add({'lat': null, 'lng': null, 'name': ''}));
+  }
+
   /// 경유지 추가/변경 — index null=추가(최대 3), 지정 시 그 슬롯 교체. 프리뷰/추천 재조회까지.
   void _setVia(double lat, double lng, String name, {int? index}) {
     HapticFeedback.selectionClick();
@@ -1376,13 +1384,17 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     }
   }
 
-  /// 경유지 좌표 리스트 (API 전달용)
+  /// 경유지 좌표 리스트 (API 전달용) — 아직 안 채운(pending) 행은 제외
   List<Map<String, dynamic>> get _viaCoords => [
-        for (final v in _vias) {'lat': v['lat'], 'lng': v['lng']},
+        for (final v in _vias)
+          if (v['lat'] is num && v['lng'] is num)
+            {'lat': v['lat'], 'lng': v['lng']},
       ];
 
-  /// 지도 경유지 마커(번호 배지) 전부 갱신 — 경로 redraw 가 marker 를 clear 하므로
-  /// 각 draw 끝에서도 재호출된다.
+  bool _viaMarkersBubble = false; // 확대 시 '경유 N' 버블 모드
+
+  /// 지도 경유지 마커 전부 갱신 — 경로 redraw 가 marker 를 clear 하므로
+  /// 각 draw 끝에서도 재호출된다. 축소=회색 원 번호, 확대=흰 '경유 N' 버블 (네이버식).
   Future<void> _updateViaMarkers() async {
     final c = _mapController;
     if (c == null || !mounted) return;
@@ -1392,47 +1404,101 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       } catch (_) {}
     }
     _viaMarkers.clear();
+    final bubble = _viaMarkersBubble;
     for (var i = 0; i < _vias.length; i++) {
       final v = _vias[i];
+      if (v['lat'] is! num || v['lng'] is! num) continue; // pending 행
       try {
-        // 네이버식 번호 배지 — 흰 원 + 회색 테두리 + 번호 (카드 도트와 동일 언어)
-        final badge = await NOverlayImage.fromWidget(
+        final icon = await NOverlayImage.fromWidget(
           context: context,
-          size: const Size(26, 26),
-          widget: Container(
-            width: 26,
-            height: 26,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFF475569), width: 2),
-              boxShadow: const [
-                BoxShadow(
-                    color: Color(0x33000000),
-                    blurRadius: 4,
-                    offset: Offset(0, 1)),
-              ],
-            ),
-            child: Text('${i + 1}',
-                style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                    height: 1,
-                    color: Color(0xFF1E293B))),
-          ),
+          size: bubble ? const Size(64, 30) : const Size(22, 22),
+          widget: bubble
+              ? Container(
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: const Color(0xFFD5DAE0)),
+                    boxShadow: const [
+                      BoxShadow(
+                          color: Color(0x2E000000),
+                          blurRadius: 4,
+                          offset: Offset(0, 1)),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 15,
+                        height: 15,
+                        alignment: Alignment.center,
+                        decoration: const BoxDecoration(
+                            shape: BoxShape.circle, color: Color(0xFF8B95A1)),
+                        child: Text('${i + 1}',
+                            style: const TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                height: 1,
+                                color: Colors.white)),
+                      ),
+                      const SizedBox(width: 4),
+                      const Text('경유',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              height: 1,
+                              color: Color(0xFF334155))),
+                    ],
+                  ),
+                )
+              : Container(
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF8B95A1),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: const [
+                      BoxShadow(
+                          color: Color(0x33000000),
+                          blurRadius: 3,
+                          offset: Offset(0, 1)),
+                    ],
+                  ),
+                  child: Text('${i + 1}',
+                      style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          height: 1,
+                          color: Colors.white)),
+                ),
         );
         final m = NMarker(
           id: 'ai_via_point_$i',
-          position: NLatLng(v['lat'] as double, v['lng'] as double),
-          icon: badge,
-          size: const Size(26, 26),
+          position: NLatLng((v['lat'] as num).toDouble(),
+              (v['lng'] as num).toDouble()),
+          icon: icon,
+          size: bubble ? const Size(64, 30) : const Size(22, 22),
           anchor: const NPoint(0.5, 0.5),
         );
         await c.addOverlay(m);
         _viaMarkers.add(m);
       } catch (_) {}
     }
+  }
+
+  /// 줌 레벨에 따라 경유 마커 스타일 전환 (12.5 기준) — 카메라 idle 마다 체크.
+  Future<void> _maybeSwapViaMarkerStyle() async {
+    final c = _mapController;
+    if (c == null || _vias.isEmpty) return;
+    try {
+      final pos = await c.getCameraPosition();
+      final wantBubble = pos.zoom >= 12.5;
+      if (wantBubble != _viaMarkersBubble) {
+        _viaMarkersBubble = wantBubble;
+        await _updateViaMarkers();
+      }
+    } catch (_) {}
   }
 
   /// (2+n)행 드래그 순서 변경 — GPS 출발지는 좌표 확정 후 이동.
@@ -1456,6 +1522,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     if (oldIndex < 0 || oldIndex >= slots.length) return;
     final moved = slots.removeAt(oldIndex);
     slots.insert(newIndex.clamp(0, slots.length), moved);
+    // 출발/목적 자리에 빈 경유지(pending)가 오면 좌표가 없어 경로가 깨짐 — 무시
+    if (slots.first?['lat'] == null || slots.last?['lat'] == null) return;
     HapticFeedback.selectionClick();
     setState(() {
       final first = slots.first!;
@@ -5458,8 +5526,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           onTapDest: () => _showLocationSheet(isOrigin: false),
                           onTapVia: (i) => _showLocationSheet(
                               isOrigin: false, forVia: true, viaIndex: i),
-                          onAddVia: () => _showLocationSheet(
-                              isOrigin: false, forVia: true),
+                          onAddVia: _addPendingVia,
                           onClearVia: _removeVia,
                           onReorder: (o, n) =>
                               unawaited(_reorderRouteSlots(o, n)),

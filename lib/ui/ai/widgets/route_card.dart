@@ -94,26 +94,21 @@ class RouteCard extends StatelessWidget {
       decoration:
           const BoxDecoration(shape: BoxShape.circle, color: kDanger));
 
-  /// 경유지 도트 — 회색 테두리 원 안에 번호 (지도 마커 번호와 일치)
+  /// 경유지 도트 — 회색 채움 원 + 흰 번호 (지도 마커와 동일 디자인, 네이버식)
   Widget _viaDot(bool isDark, int n) => Container(
         width: 15,
         height: 15,
         alignment: Alignment.center,
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           shape: BoxShape.circle,
-          color: isDark ? const Color(0xFF334155) : Colors.white,
-          border: Border.all(
-              color: isDark ? AppColors.darkTextMuted : const Color(0xFF94A3B8),
-              width: 1.4),
+          color: Color(0xFF8B95A1),
         ),
         child: Text('$n',
-            style: TextStyle(
+            style: const TextStyle(
                 fontSize: 9,
                 fontWeight: FontWeight.w800,
                 height: 1,
-                color: isDark
-                    ? AppColors.darkTextSecondary
-                    : const Color(0xFF64748B))),
+                color: Colors.white)),
       );
 
   Widget _originText(bool isDark) {
@@ -283,11 +278,15 @@ class RouteCard extends StatelessWidget {
           isDark: isDark,
           dot: _viaDot(isDark, i + 1),
           text: Text(
-            viaNames[i],
+            viaNames[i].isEmpty ? '경유지 입력' : viaNames[i],
             style: TextStyle(
-                fontSize: 14,
-                color: _primaryText(isDark),
-                fontWeight: FontWeight.w500),
+              fontSize: 14,
+              color: viaNames[i].isEmpty
+                  ? _placeholder(isDark)
+                  : _primaryText(isDark),
+              fontWeight:
+                  viaNames[i].isEmpty ? FontWeight.w400 : FontWeight.w500,
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
