@@ -367,9 +367,30 @@ class HeroCard extends StatelessWidget {
           // ── 주유 선호 브랜드 (가스 전용, 복수 선택) ──
           if (!isEv) ...[
             const SizedBox(height: 12),
-            const Text('선호 브랜드 (복수 선택)',
-                style: TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w700, color: kMute2)),
+            Row(
+              children: [
+                const Text('선호 브랜드 (복수 선택)',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: kMute2)),
+                // 미선택 = 전체 브랜드 대상 — 비활성으로 보여 "꺼진 건가?" 오해 방지 안내
+                if (preferredBrands.isEmpty) ...[
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      '미선택 시 모든 브랜드에서 추천해요',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: kMute2.withValues(alpha: 0.75)),
+                    ),
+                  ),
+                ],
+              ],
+            ),
             const SizedBox(height: 9),
             Wrap(
               spacing: 8,
