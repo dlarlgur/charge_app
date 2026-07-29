@@ -80,6 +80,11 @@ class UserDataSync {
       }
     }
 
+    // AI 문구 생성 동의 — 서버 값 복원 (NULL=미선택이면 로컬 유지)
+    if (prefs['aiTextConsent'] is bool) {
+      box.put(AppConstants.keyAiThirdPartyConsent, prefs['aiTextConsent']);
+    }
+
     // AI 차량 — 서버를 소스로 ai_vehicles 갱신
     if (vehicles.isNotEmpty) {
       final list = vehicles.whereType<Map>().map((v) => {
@@ -161,6 +166,8 @@ class UserDataSync {
       'fuelTypes': List<String>.from(
           box.get(AppConstants.keyGasFilterFuelTypes, defaultValue: const <String>[])),
       'marketingConsent': DkswCore.consentAgreed('marketing') == true,
+      // AI 문구 동의 — 게스트 시절 선택도 회원 이관 (미선택 null 은 서버가 무시)
+      'aiTextConsent': box.get(AppConstants.keyAiThirdPartyConsent),
     };
 
     List vlist;

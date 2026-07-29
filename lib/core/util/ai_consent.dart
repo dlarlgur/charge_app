@@ -3,6 +3,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import '../app_dialog.dart';
 import '../constants/api_constants.dart';
+import '../../data/services/user_sync_service.dart';
 
 /// 서드파티 AI(Google Gemini) 처리 동의 — App Store 5.1.1(i)/5.1.2(i) 대응.
 ///
@@ -26,6 +27,8 @@ class AiConsent {
     // Hive put 은 Future 반환 — setState 콜백 안에서 arrow 로 반환되면
     // "setState callback returned a Future" 로 탭이 죽는다. 명시적으로 버림.
     _box.put(AppConstants.keyAiThirdPartyConsent, granted);
+    // 로그인 사용자는 서버에도 저장 — 재설치/기기변경 시 복원 (게스트는 내부 no-op)
+    UserSyncService.instance.putPrefs(aiTextConsent: granted);
   }
 
   /// AI 분석 시작 전 호출. 선택이 없으면 고지 다이얼로그를 띄우고 선택을 저장.

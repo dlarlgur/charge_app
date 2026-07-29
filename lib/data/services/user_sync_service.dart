@@ -44,6 +44,7 @@ class UserSyncService {
     String? fuelType,
     List<String>? fuelTypes, // 홈 유종 필터 멀티선택 — 재설치 복원용
     bool? marketingConsent,
+    bool? aiTextConsent, // 서드파티 AI 문구 동의 — 재설치 복원용
   }) async {
     final opt = await _auth();
     if (opt == null) return;
@@ -52,6 +53,7 @@ class UserSyncService {
     if (fuelType != null) body['fuelType'] = fuelType;
     if (fuelTypes != null) body['fuelTypes'] = fuelTypes;
     if (marketingConsent != null) body['marketingConsent'] = marketingConsent;
+    if (aiTextConsent != null) body['aiTextConsent'] = aiTextConsent;
     if (body.isEmpty) return;
     try {
       await _dio.put('/user/prefs', data: body, options: opt);
