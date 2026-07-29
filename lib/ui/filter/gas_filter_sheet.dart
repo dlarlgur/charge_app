@@ -154,12 +154,12 @@ class _GasFilterSheetState extends ConsumerState<GasFilterSheet> {
                         _sectionHeader('반경', isDark),
                         const SizedBox(height: 10),
                         Row(
-                          children: [1000, 3000, 5000, 10000, 20000].map((r) {
+                          children: [3000, 5000, 10000, 20000, 30000].map((r) {
                             final label = r >= 1000 ? '${r ~/ 1000}km' : '${r}m';
                             final selected = _options.radius == r;
                             return Expanded(
                               child: Padding(
-                                padding: EdgeInsets.only(right: r == 20000 ? 0 : 6),
+                                padding: EdgeInsets.only(right: r == 30000 ? 0 : 6),
                                 child: GestureDetector(
                                   onTap: () => setState(() => _options = _options.copyWith(radius: r)),
                                   child: AnimatedContainer(

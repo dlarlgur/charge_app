@@ -14,6 +14,7 @@ import '../ai_constants.dart';
 /// 위치 선택 시트 — 출발지/목적지 검색 + 내위치/지도 옵션
 class LocationPickerSheet extends ConsumerStatefulWidget {
   final bool isOrigin;
+  final String? titleText; // 지정 시 타이틀 오버라이드 (예: '경유지 설정')
   final String? currentLocationAddress;
   final List<String> searchHistory;
   final List<Map<String, dynamic>> searchHistoryItems;
@@ -24,6 +25,7 @@ class LocationPickerSheet extends ConsumerStatefulWidget {
   const LocationPickerSheet({
     super.key,
     required this.isOrigin,
+    this.titleText,
     required this.currentLocationAddress,
     required this.searchHistory,
     required this.searchHistoryItems,
@@ -219,7 +221,7 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
               child: Text(
-                widget.isOrigin ? '출발지 설정' : '목적지 설정',
+                widget.titleText ?? (widget.isOrigin ? '출발지 설정' : '목적지 설정'),
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,

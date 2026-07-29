@@ -36,6 +36,7 @@ import 'widgets/level_edit_sheet.dart';
 import 'widgets/location_picker_sheet.dart';
 import 'widgets/mode_segment.dart';
 import 'widgets/route_card.dart';
+import '../favorites/place_map_pick_screen.dart';
 import 'widgets/route_engine_sheet.dart';
 import 'widgets/savings_reveal_overlay.dart';
 import 'widgets/station_select_inline_sheet.dart';
@@ -106,6 +107,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   String? _originName;
   double? _destLat, _destLng;
   String? _destName;
+  // 경유지 (최대 1개) — 경로 프리뷰/추천 모두 경유 반영 경로를 따라간다
+  double? _viaLat, _viaLng;
+  String? _viaName;
+  NMarker? _viaMarkerOverlay; // 지도 '1' 마커
 
   // ── 분석에 사용된 마지막 경로 (결과화면 지도용) ──
   double _lastStartLat = 0, _lastStartLng = 0;
@@ -1018,7 +1023,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   }
 
   // ── 위치 선택 시트 ──
-  void _showLocationSheet({required bool isOrigin}) {
+  void _showLocationSheet({required bool isOrigin, bool forVia = false}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
@@ -1029,11 +1034,20 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       ),
       builder: (ctx) => LocationPickerSheet(
         isOrigin: isOrigin,
+        titleText: forVia ? '경유지 설정' : null,
         currentLocationAddress: _currentLocationAddress,
         searchHistory: _searchHistory,
         searchHistoryItems: _searchHistoryItems,
         onMyLocation: () {
           Navigator.pop(ctx);
+          if (forVia) {
+            // 경유지 = 현재 위치 (드물지만 흐름 통일)
+            ref.read(locationProvider.future).then((loc) {
+              if (loc == null || !mounted) return;
+              _setVia(loc.lat, loc.lng, _currentLocationAddress ?? '현재 위치');
+            });
+            return;
+          }
           if (isOrigin) {
             setState(() {
               _originLat = null;
@@ -1069,6 +1083,20 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         },
         onMapPick: () {
           Navigator.pop(ctx);
+          if (forVia) {
+            // 경유지 지도 선택 — 즐겨찾기 지도선택 화면 재사용 (크로스헤어+현위치 버튼)
+            Navigator.of(context)
+                .push<Map<String, dynamic>>(MaterialPageRoute(
+                    builder: (_) => const PlaceMapPickScreen(title: '경유지 선택')))
+                .then((picked) {
+              if (picked == null || !mounted) return;
+              final lat = _asDouble(picked['lat']);
+              final lng = _asDouble(picked['lng']);
+              if (lat == null || lng == null) return;
+              _setVia(lat, lng, (picked['name'] ?? '선택한 위치').toString());
+            });
+            return;
+          }
           _enterPickerMode(isOrigin: isOrigin);
         },
         onSearchResult: (r) {
@@ -1079,6 +1107,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
           _saveSearchHistory(name, lat: lat, lng: lng);
 
+          if (forVia) {
+            if (lat != null && lng != null) _setVia(lat, lng, name);
+            return;
+          }
           if (isOrigin) {
             setState(() {
               _originLat = lat;
@@ -1151,6 +1183,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         startLng: startLng,
         goalLat: _destLat!,
         goalLng: _destLng!,
+        waypointLat: _viaLat,
+        waypointLng: _viaLng,
       );
       if (dr['success'] == true) {
         final parsed = _pathPointsFromServerJson(dr['path_points']);
@@ -1266,6 +1300,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         goalLng: _destLng!,
         mode: isEv ? 'ev' : 'fuel',
         engine: engine,
+        viaLat: _viaLat,
+        viaLng: _viaLng,
       );
       final raw = res['routes'];
       final routes = raw is List
@@ -1313,6 +1349,94 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   }
 
   /// 출발지 ↔ 목적지 위치 바꾸기 (티맵 스타일). 출발지가 GPS면 현재 좌표로 확정 후 스왑.
+  /// 경유지 설정 — 프리뷰/추천 재조회까지.
+  void _setVia(double lat, double lng, String name) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _viaLat = lat;
+      _viaLng = lng;
+      _viaName = name;
+    });
+    _updateViaMarker();
+    if (_destLat != null && _destLng != null) {
+      unawaited(_loadRouteAlternatives());
+    }
+  }
+
+  void _clearVia() {
+    setState(() {
+      _viaLat = null;
+      _viaLng = null;
+      _viaName = null;
+    });
+    _updateViaMarker();
+    if (_destLat != null && _destLng != null) {
+      unawaited(_loadRouteAlternatives());
+    }
+  }
+
+  /// 지도 경유지 마커('1') 갱신 — 경유지 없으면 제거.
+  Future<void> _updateViaMarker() async {
+    final c = _mapController;
+    if (c == null) return;
+    final old = _viaMarkerOverlay;
+    if (old != null) {
+      try {
+        await c.deleteOverlay(old.info);
+      } catch (_) {}
+      _viaMarkerOverlay = null;
+    }
+    if (_viaLat == null || _viaLng == null) return;
+    final m = NMarker(
+      id: 'ai_via_point',
+      position: NLatLng(_viaLat!, _viaLng!),
+      size: const Size(26, 34),
+      caption: const NOverlayCaption(text: '경유 1', textSize: 11),
+    );
+    try {
+      await c.addOverlay(m);
+      _viaMarkerOverlay = m;
+    } catch (_) {}
+  }
+
+  /// 3행(출발/경유/목적) 드래그 순서 변경 — GPS 출발지는 좌표 확정 후 이동.
+  Future<void> _reorderRouteSlots(int oldIndex, int newIndex) async {
+    double? oLat = _originLat;
+    double? oLng = _originLng;
+    String? oName = _originName;
+    if (oLat == null || oLng == null) {
+      final loc = await _resolveCurrentLocationForStart();
+      if (loc == null || !mounted) return;
+      oLat = loc.lat;
+      oLng = loc.lng;
+      oName = _currentLocationAddress ?? '현재 위치';
+    }
+    final slots = <List<dynamic>>[
+      [oLat, oLng, oName],
+      [_viaLat, _viaLng, _viaName],
+      [_destLat, _destLng, _destName],
+    ];
+    final moved = slots.removeAt(oldIndex);
+    slots.insert(newIndex, moved);
+    HapticFeedback.selectionClick();
+    setState(() {
+      _originLat = slots[0][0] as double?;
+      _originLng = slots[0][1] as double?;
+      _originName = slots[0][2] as String?;
+      _viaLat = slots[1][0] as double?;
+      _viaLng = slots[1][1] as double?;
+      _viaName = slots[1][2] as String?;
+      _destLat = slots[2][0] as double?;
+      _destLng = slots[2][1] as double?;
+      _destName = slots[2][2] as String?;
+      _errorMessage = null;
+    });
+    _updateViaMarker();
+    if (_destLat != null && _destLng != null) {
+      unawaited(_loadRouteAlternatives());
+    }
+  }
+
   Future<void> _swapOriginDest() async {
     if (_destLat == null || _destLng == null) return;
     double? oLat = _originLat;
@@ -3905,6 +4029,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         startLng: startLng,
         goalLat: _destLat!,
         goalLng: _destLng!,
+        waypointLat: _viaLat,
+        waypointLng: _viaLng,
       );
       if (dr['success'] == true) {
         final raw = dr['path_points'];
@@ -5264,10 +5390,18 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                         RouteCard(
                           originName: _originName,
                           destName: _destName,
+                          viaName: _viaName,
                           currentLocationAddress: _currentLocationAddress,
                           onSwap: _swapOriginDest,
                           onTapOrigin: () => _showLocationSheet(isOrigin: true),
                           onTapDest: () => _showLocationSheet(isOrigin: false),
+                          onTapVia: () => _showLocationSheet(
+                              isOrigin: false, forVia: true),
+                          onAddVia: () => _showLocationSheet(
+                              isOrigin: false, forVia: true),
+                          onClearVia: _clearVia,
+                          onReorder: (o, n) =>
+                              unawaited(_reorderRouteSlots(o, n)),
                           onClearOrigin: () => setState(() {
                             _originName = null;
                             _originLat = null;

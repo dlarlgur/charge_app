@@ -275,6 +275,8 @@ class ApiService {
     required double goalLng,
     String mode = 'ev',
     String? engine, // tmap | naver | kakao (미지정 시 서버 기본 tmap)
+    double? viaLat, // 경유지 (옵션, 1개)
+    double? viaLng,
   }) async {
     final res = await _dio.get(
       ApiConstants.routeAlternatives,
@@ -285,6 +287,8 @@ class ApiService {
         'goal_lng': goalLng,
         'mode': mode,
         if (engine != null) 'engine': engine,
+        if (viaLat != null) 'via_lat': viaLat,
+        if (viaLng != null) 'via_lng': viaLng,
       },
     );
     return Map<String, dynamic>.from(res.data ?? {});
