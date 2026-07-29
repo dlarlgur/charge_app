@@ -33,7 +33,11 @@ class UserDataSync {
         aliases.isNotEmpty ||
         chargerMemos.isNotEmpty ||
         prefs['vehicleType'] != null ||
-        prefs['marketingConsent'] == true;
+        prefs['marketingConsent'] == true ||
+        // AI 동의/경로 엔진만 저장된 계정도 '원격 데이터 있음'으로 봐야 한다.
+        // 빠져 있으면 import 분기로 가서 서버 값을 복원하지 않아 "동의가 풀렸다"로 보임.
+        prefs['aiTextConsent'] is bool ||
+        prefs['routeEngine'] != null;
     if (hasRemote) {
       await _applyRemote(prefs, vehicles, favorites, alarms, aliases, chargerMemos);
       if (places.isNotEmpty) await PlaceService.applyRemote(places);
@@ -83,6 +87,11 @@ class UserDataSync {
     // AI 문구 생성 동의 — 서버 값 복원 (NULL=미선택이면 로컬 유지)
     if (prefs['aiTextConsent'] is bool) {
       box.put(AppConstants.keyAiThirdPartyConsent, prefs['aiTextConsent']);
+    }
+    // AI 경로 기준 내비 복원 (tmap|naver|kakao)
+    final re = prefs['routeEngine']?.toString();
+    if (re == 'tmap' || re == 'naver' || re == 'kakao') {
+      box.put('route_engine', re);
     }
 
     // AI 차량 — 서버를 소스로 ai_vehicles 갱신
@@ -168,6 +177,8 @@ class UserDataSync {
       'marketingConsent': DkswCore.consentAgreed('marketing') == true,
       // AI 문구 동의 — 게스트 시절 선택도 회원 이관 (미선택 null 은 서버가 무시)
       'aiTextConsent': box.get(AppConstants.keyAiThirdPartyConsent),
+      // AI 경로 기준 내비 — 게스트 시절 선택도 이관
+      'routeEngine': box.get('route_engine'),
     };
 
     List vlist;

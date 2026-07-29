@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../../core/constants/api_constants.dart';
+import '../../../data/services/user_sync_service.dart';
 
 /// 경로 프리뷰 엔진 사용자 선택 — 목적지 입력 시 그려주는 경로를 어느 내비 기준으로 할지.
 /// 저장: settings box 'route_engine' (tmap | naver | kakao). 미설정 = 아직 안 물어봄.
@@ -17,8 +18,11 @@ class RouteEnginePref {
   /// 실제 사용할 값 (미설정이면 tmap)
   static String get() => raw() ?? 'tmap';
 
-  static Future<void> set(String v) =>
-      Hive.box(AppConstants.settingsBox).put(_key, v);
+  static Future<void> set(String v) async {
+    await Hive.box(AppConstants.settingsBox).put(_key, v);
+    // 로그인 사용자는 서버에도 저장 — 재설치/기기변경 시 복원 (게스트는 내부 no-op)
+    UserSyncService.instance.putPrefs(routeEngine: v);
+  }
 
   static String label(String v) => switch (v) {
         'naver' => '네이버',
@@ -34,7 +38,7 @@ class _EngineOption {
 
 const _options = [
   _EngineOption('tmap', '티맵', '추천경로 · 고속도로우선', 'assets/nav/tmap_logo.webp'),
-  _EngineOption('naver', '네이버지도', '추천경로 · 빠른길', 'assets/nav/naver_logo.png'),
+  _EngineOption('naver', '네이버지도', '실시간 추천 · 큰길우선', 'assets/nav/naver_logo.png'),
   _EngineOption('kakao', '카카오내비', '추천경로 · 큰길우선', 'assets/nav/kakaomap_logo.png'),
 ];
 
