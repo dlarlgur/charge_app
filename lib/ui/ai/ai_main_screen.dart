@@ -107,10 +107,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   String? _originName;
   double? _destLat, _destLng;
   String? _destName;
-  // 경유지 (최대 1개) — 경로 프리뷰/추천 모두 경유 반영 경로를 따라간다
-  double? _viaLat, _viaLng;
-  String? _viaName;
-  NMarker? _viaMarkerOverlay; // 지도 '1' 마커
+  // 경유지 (최대 3개) — 경로 프리뷰/추천 모두 경유 반영 경로를 따라간다
+  final List<Map<String, dynamic>> _vias = []; // {lat,lng,name}
+  final List<NMarker> _viaMarkers = []; // 지도 '경유 N' 마커
 
   // ── 분석에 사용된 마지막 경로 (결과화면 지도용) ──
   double _lastStartLat = 0, _lastStartLng = 0;
@@ -1023,7 +1022,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   }
 
   // ── 위치 선택 시트 ──
-  void _showLocationSheet({required bool isOrigin, bool forVia = false}) {
+  void _showLocationSheet({required bool isOrigin, bool forVia = false, int? viaIndex}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
@@ -1044,7 +1043,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             // 경유지 = 현재 위치 (드물지만 흐름 통일)
             ref.read(locationProvider.future).then((loc) {
               if (loc == null || !mounted) return;
-              _setVia(loc.lat, loc.lng, _currentLocationAddress ?? '현재 위치');
+              _setVia(loc.lat, loc.lng, _currentLocationAddress ?? '현재 위치',
+                  index: viaIndex);
             });
             return;
           }
@@ -1093,7 +1093,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
               final lat = _asDouble(picked['lat']);
               final lng = _asDouble(picked['lng']);
               if (lat == null || lng == null) return;
-              _setVia(lat, lng, (picked['name'] ?? '선택한 위치').toString());
+              _setVia(lat, lng, (picked['name'] ?? '선택한 위치').toString(),
+                  index: viaIndex);
             });
             return;
           }
@@ -1108,7 +1109,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           _saveSearchHistory(name, lat: lat, lng: lng);
 
           if (forVia) {
-            if (lat != null && lng != null) _setVia(lat, lng, name);
+            if (lat != null && lng != null) {
+              _setVia(lat, lng, name, index: viaIndex);
+            }
             return;
           }
           if (isOrigin) {
@@ -1183,8 +1186,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         startLng: startLng,
         goalLat: _destLat!,
         goalLng: _destLng!,
-        waypointLat: _viaLat,
-        waypointLng: _viaLng,
+        vias: _viaCoords,
       );
       if (dr['success'] == true) {
         final parsed = _pathPointsFromServerJson(dr['path_points']);
@@ -1300,8 +1302,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         goalLng: _destLng!,
         mode: isEv ? 'ev' : 'fuel',
         engine: engine,
-        viaLat: _viaLat,
-        viaLng: _viaLng,
+        vias: _viaCoords,
       );
       final raw = res['routes'];
       final routes = raw is List
@@ -1349,57 +1350,64 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   }
 
   /// 출발지 ↔ 목적지 위치 바꾸기 (티맵 스타일). 출발지가 GPS면 현재 좌표로 확정 후 스왑.
-  /// 경유지 설정 — 프리뷰/추천 재조회까지.
-  void _setVia(double lat, double lng, String name) {
+  /// 경유지 추가/변경 — index null=추가(최대 3), 지정 시 그 슬롯 교체. 프리뷰/추천 재조회까지.
+  void _setVia(double lat, double lng, String name, {int? index}) {
     HapticFeedback.selectionClick();
     setState(() {
-      _viaLat = lat;
-      _viaLng = lng;
-      _viaName = name;
+      final entry = {'lat': lat, 'lng': lng, 'name': name};
+      if (index != null && index >= 0 && index < _vias.length) {
+        _vias[index] = entry;
+      } else if (_vias.length < 3) {
+        _vias.add(entry);
+      }
     });
-    _updateViaMarker();
+    _updateViaMarkers();
     if (_destLat != null && _destLng != null) {
       unawaited(_loadRouteAlternatives());
     }
   }
 
-  void _clearVia() {
-    setState(() {
-      _viaLat = null;
-      _viaLng = null;
-      _viaName = null;
-    });
-    _updateViaMarker();
+  void _removeVia(int index) {
+    if (index < 0 || index >= _vias.length) return;
+    setState(() => _vias.removeAt(index));
+    _updateViaMarkers();
     if (_destLat != null && _destLng != null) {
       unawaited(_loadRouteAlternatives());
     }
   }
 
-  /// 지도 경유지 마커('1') 갱신 — 경유지 없으면 제거.
-  Future<void> _updateViaMarker() async {
+  /// 경유지 좌표 리스트 (API 전달용)
+  List<Map<String, dynamic>> get _viaCoords => [
+        for (final v in _vias) {'lat': v['lat'], 'lng': v['lng']},
+      ];
+
+  /// 지도 경유지 마커('경유 N') 전부 갱신.
+  Future<void> _updateViaMarkers() async {
     final c = _mapController;
     if (c == null) return;
-    final old = _viaMarkerOverlay;
-    if (old != null) {
+    for (final m in _viaMarkers) {
       try {
-        await c.deleteOverlay(old.info);
+        await c.deleteOverlay(m.info);
       } catch (_) {}
-      _viaMarkerOverlay = null;
     }
-    if (_viaLat == null || _viaLng == null) return;
-    final m = NMarker(
-      id: 'ai_via_point',
-      position: NLatLng(_viaLat!, _viaLng!),
-      size: const Size(26, 34),
-      caption: const NOverlayCaption(text: '경유 1', textSize: 11),
-    );
-    try {
-      await c.addOverlay(m);
-      _viaMarkerOverlay = m;
-    } catch (_) {}
+    _viaMarkers.clear();
+    for (var i = 0; i < _vias.length; i++) {
+      final v = _vias[i];
+      final m = NMarker(
+        id: 'ai_via_point_$i',
+        position: NLatLng(v['lat'] as double, v['lng'] as double),
+        size: const Size(26, 34),
+        caption: NOverlayCaption(text: '경유 ${i + 1}', textSize: 11),
+      );
+      try {
+        await c.addOverlay(m);
+        _viaMarkers.add(m);
+      } catch (_) {}
+    }
   }
 
-  /// 3행(출발/경유/목적) 드래그 순서 변경 — GPS 출발지는 좌표 확정 후 이동.
+  /// (2+n)행 드래그 순서 변경 — GPS 출발지는 좌표 확정 후 이동.
+  /// 행 인덱스: 0=출발, 1..n=경유, n+1=목적.
   Future<void> _reorderRouteSlots(int oldIndex, int newIndex) async {
     double? oLat = _originLat;
     double? oLng = _originLng;
@@ -1411,27 +1419,30 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       oLng = loc.lng;
       oName = _currentLocationAddress ?? '현재 위치';
     }
-    final slots = <List<dynamic>>[
-      [oLat, oLng, oName],
-      [_viaLat, _viaLng, _viaName],
-      [_destLat, _destLng, _destName],
+    final slots = <Map<String, dynamic>?>[
+      {'lat': oLat, 'lng': oLng, 'name': oName},
+      ..._vias,
+      {'lat': _destLat, 'lng': _destLng, 'name': _destName},
     ];
+    if (oldIndex < 0 || oldIndex >= slots.length) return;
     final moved = slots.removeAt(oldIndex);
-    slots.insert(newIndex, moved);
+    slots.insert(newIndex.clamp(0, slots.length), moved);
     HapticFeedback.selectionClick();
     setState(() {
-      _originLat = slots[0][0] as double?;
-      _originLng = slots[0][1] as double?;
-      _originName = slots[0][2] as String?;
-      _viaLat = slots[1][0] as double?;
-      _viaLng = slots[1][1] as double?;
-      _viaName = slots[1][2] as String?;
-      _destLat = slots[2][0] as double?;
-      _destLng = slots[2][1] as double?;
-      _destName = slots[2][2] as String?;
+      final first = slots.first!;
+      final last = slots.last!;
+      _originLat = first['lat'] as double?;
+      _originLng = first['lng'] as double?;
+      _originName = first['name'] as String?;
+      _destLat = last['lat'] as double?;
+      _destLng = last['lng'] as double?;
+      _destName = last['name'] as String?;
+      _vias
+        ..clear()
+        ..addAll(slots.sublist(1, slots.length - 1).whereType<Map<String, dynamic>>());
       _errorMessage = null;
     });
-    _updateViaMarker();
+    _updateViaMarkers();
     if (_destLat != null && _destLng != null) {
       unawaited(_loadRouteAlternatives());
     }
@@ -4029,8 +4040,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         startLng: startLng,
         goalLat: _destLat!,
         goalLng: _destLng!,
-        waypointLat: _viaLat,
-        waypointLng: _viaLng,
+        vias: _viaCoords,
       );
       if (dr['success'] == true) {
         final raw = dr['path_points'];
@@ -5390,16 +5400,18 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                         RouteCard(
                           originName: _originName,
                           destName: _destName,
-                          viaName: _viaName,
+                          viaNames: [
+                            for (final v in _vias) (v['name'] ?? '').toString()
+                          ],
                           currentLocationAddress: _currentLocationAddress,
                           onSwap: _swapOriginDest,
                           onTapOrigin: () => _showLocationSheet(isOrigin: true),
                           onTapDest: () => _showLocationSheet(isOrigin: false),
-                          onTapVia: () => _showLocationSheet(
-                              isOrigin: false, forVia: true),
+                          onTapVia: (i) => _showLocationSheet(
+                              isOrigin: false, forVia: true, viaIndex: i),
                           onAddVia: () => _showLocationSheet(
                               isOrigin: false, forVia: true),
-                          onClearVia: _clearVia,
+                          onClearVia: _removeVia,
                           onReorder: (o, n) =>
                               unawaited(_reorderRouteSlots(o, n)),
                           onClearOrigin: () => setState(() {

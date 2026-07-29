@@ -3,23 +3,24 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../ai_constants.dart';
 
-/// 경로 카드 — 출발지/경유지(최대 1)/목적지 표시 및 편집.
+/// 경로 카드 — 출발지/경유지(최대 3)/목적지 표시 및 편집.
 /// - 경유지 없음: 출발/목적 2행 + 디바이더 오른쪽 ⊕(경유지 추가) + ↕(출발↔목적 스왑)
-/// - 경유지 있음: 3행 드래그(⇅ 핸들)로 순서 변경 (네이버지도 스타일), 경유 행은 ⊖ 로 제거
+/// - 경유지 있음: (2+n)행 드래그(⇅ 핸들)로 순서 변경 (네이버지도 스타일),
+///   경유 행은 ⊖ 로 제거, 목적지 행 오른쪽 ⊕ 로 추가 (3개까지)
 class RouteCard extends StatelessWidget {
   final String? originName;
   final String? destName;
-  final String? viaName; // 경유지 (null = 미설정)
+  final List<String> viaNames; // 경유지 이름들 (0~3)
   final String? currentLocationAddress;
   final VoidCallback onTapOrigin;
   final VoidCallback onTapDest;
-  final VoidCallback? onTapVia; // 경유 행 탭 → 변경
+  final void Function(int index)? onTapVia; // 경유 행 탭 → 변경
   final VoidCallback onClearOrigin;
   final VoidCallback onClearDest;
-  final VoidCallback? onClearVia;
+  final void Function(int index)? onClearVia;
   final VoidCallback? onAddVia; // ⊕ 경유지 추가
   final VoidCallback? onSwap; // 출발↔목적지 위치 바꾸기 (2행 모드)
-  /// 3행 드래그 순서 변경 — (oldIndex, newIndex) 0=출발 1=경유 2=목적
+  /// 드래그 순서 변경 — 행 인덱스 (0=출발, 1..n=경유, n+1=목적)
   final void Function(int oldIndex, int newIndex)? onReorder;
 
   const RouteCard({
@@ -31,7 +32,7 @@ class RouteCard extends StatelessWidget {
     required this.onTapDest,
     required this.onClearOrigin,
     required this.onClearDest,
-    this.viaName,
+    this.viaNames = const [],
     this.onTapVia,
     this.onClearVia,
     this.onAddVia,
@@ -61,7 +62,7 @@ class RouteCard extends StatelessWidget {
           ),
         ],
       ),
-      child: viaName == null ? _twoRows(isDark) : _threeRows(isDark),
+      child: viaNames.isEmpty ? _twoRows(isDark) : _multiRows(isDark),
     );
   }
 
@@ -93,8 +94,8 @@ class RouteCard extends StatelessWidget {
       decoration:
           const BoxDecoration(shape: BoxShape.circle, color: kDanger));
 
-  /// 경유지 도트 — 회색 테두리 원 안에 '1' (지도 마커 번호와 일치)
-  Widget _viaDot(bool isDark) => Container(
+  /// 경유지 도트 — 회색 테두리 원 안에 번호 (지도 마커 번호와 일치)
+  Widget _viaDot(bool isDark, int n) => Container(
         width: 15,
         height: 15,
         alignment: Alignment.center,
@@ -105,7 +106,7 @@ class RouteCard extends StatelessWidget {
               color: isDark ? AppColors.darkTextMuted : const Color(0xFF94A3B8),
               width: 1.4),
         ),
-        child: Text('1',
+        child: Text('$n',
             style: TextStyle(
                 fontSize: 9,
                 fontWeight: FontWeight.w800,
@@ -133,6 +134,17 @@ class RouteCard extends StatelessWidget {
       overflow: TextOverflow.ellipsis,
     );
   }
+
+  Widget _destText(bool isDark) => Text(
+        destName ?? '목적지를 입력하세요',
+        style: TextStyle(
+          fontSize: 14,
+          color: destName != null ? _primaryText(isDark) : _placeholder(isDark),
+          fontWeight: destName != null ? FontWeight.w500 : FontWeight.w400,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      );
 
   // ── 경유지 없음: 기존 2행 + ⊕ 오버레이 ──
   Widget _twoRows(bool isDark) {
@@ -186,22 +198,7 @@ class RouteCard extends StatelessWidget {
                       height: 44,
                       child: Row(
                         children: [
-                          Expanded(
-                            child: Text(
-                              destName ?? '목적지를 입력하세요',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: destName != null
-                                    ? _primaryText(isDark)
-                                    : _placeholder(isDark),
-                                fontWeight: destName != null
-                                    ? FontWeight.w500
-                                    : FontWeight.w400,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
+                          Expanded(child: _destText(isDark)),
                           if (destName != null)
                             GestureDetector(
                               onTap: onClearDest,
@@ -219,24 +216,7 @@ class RouteCard extends StatelessWidget {
                 Positioned(
                   right: 22,
                   top: 44 - 14,
-                  child: GestureDetector(
-                    onTap: onAddVia,
-                    behavior: HitTestBehavior.opaque,
-                    child: Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.darkMapOverlay : Colors.white,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                            color: isDark
-                                ? AppColors.darkCardBorder
-                                : const Color(0xFFDDE2E8)),
-                      ),
-                      child: Icon(Icons.add_rounded,
-                          size: 17, color: _mutedText(isDark)),
-                    ),
-                  ),
+                  child: _addButton(isDark),
                 ),
             ],
           ),
@@ -257,8 +237,28 @@ class RouteCard extends StatelessWidget {
     );
   }
 
-  // ── 경유지 있음: 3행 드래그 정렬 ──
-  Widget _threeRows(bool isDark) {
+  Widget _addButton(bool isDark) => GestureDetector(
+        onTap: onAddVia,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkMapOverlay : Colors.white,
+            shape: BoxShape.circle,
+            border: Border.all(
+                color: isDark
+                    ? AppColors.darkCardBorder
+                    : const Color(0xFFDDE2E8)),
+          ),
+          child:
+              Icon(Icons.add_rounded, size: 17, color: _mutedText(isDark)),
+        ),
+      );
+
+  // ── 경유지 있음: (2+n)행 드래그 정렬 ──
+  Widget _multiRows(bool isDark) {
+    final lastIndex = viaNames.length + 1;
     final rows = <Widget>[
       _slotRow(
         key: const ValueKey('slot_origin'),
@@ -276,52 +276,52 @@ class RouteCard extends StatelessWidget {
                 size: 14, color: _icon(isDark)),
         showDivider: true,
       ),
-      _slotRow(
-        key: const ValueKey('slot_via'),
-        index: 1,
-        isDark: isDark,
-        dot: _viaDot(isDark),
-        text: Text(
-          viaName!,
-          style: TextStyle(
-              fontSize: 14,
-              color: _primaryText(isDark),
-              fontWeight: FontWeight.w500),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+      for (var i = 0; i < viaNames.length; i++)
+        _slotRow(
+          key: ValueKey('slot_via_$i'),
+          index: i + 1,
+          isDark: isDark,
+          dot: _viaDot(isDark, i + 1),
+          text: Text(
+            viaNames[i],
+            style: TextStyle(
+                fontSize: 14,
+                color: _primaryText(isDark),
+                fontWeight: FontWeight.w500),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          onTap: onTapVia == null ? null : () => onTapVia!(i),
+          trailing: GestureDetector(
+            onTap: onClearVia == null ? null : () => onClearVia!(i),
+            child: Icon(Icons.remove_circle_outline_rounded,
+                size: 17, color: _mutedText(isDark)),
+          ),
+          showDivider: true,
         ),
-        onTap: onTapVia,
-        trailing: GestureDetector(
-          onTap: onClearVia,
-          child: Icon(Icons.remove_circle_outline_rounded,
-              size: 17, color: _mutedText(isDark)),
-        ),
-        showDivider: true,
-      ),
       _slotRow(
         key: const ValueKey('slot_dest'),
-        index: 2,
+        index: lastIndex,
         isDark: isDark,
         dot: _destDot(),
-        text: Text(
-          destName ?? '목적지를 입력하세요',
-          style: TextStyle(
-            fontSize: 14,
-            color:
-                destName != null ? _primaryText(isDark) : _placeholder(isDark),
-            fontWeight:
-                destName != null ? FontWeight.w500 : FontWeight.w400,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
+        text: _destText(isDark),
         onTap: onTapDest,
-        trailing: destName != null
-            ? GestureDetector(
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ⊕ 추가 (3개 미만일 때) — 네이버처럼 목적지 행 오른쪽
+            if (onAddVia != null && viaNames.length < 3) ...[
+              _addButton(isDark),
+              const SizedBox(width: 8),
+            ],
+            if (destName != null)
+              GestureDetector(
                 onTap: onClearDest,
                 child:
-                    Icon(Icons.close_rounded, size: 14, color: _icon(isDark)))
-            : null,
+                    Icon(Icons.close_rounded, size: 14, color: _icon(isDark)),
+              ),
+          ],
+        ),
         showDivider: false,
       ),
     ];

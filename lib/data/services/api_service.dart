@@ -242,6 +242,7 @@ class ApiService {
     required double goalLng,
     double? waypointLat,
     double? waypointLng,
+    List<Map<String, dynamic>> vias = const [], // 다중 경유 (최대 3)
   }) async {
     final res = await _dio.get(
       ApiConstants.routeDriving,
@@ -252,6 +253,8 @@ class ApiService {
         'goal_lng': goalLng,
         if (waypointLat != null) 'waypoint_lat': waypointLat,
         if (waypointLng != null) 'waypoint_lng': waypointLng,
+        if (vias.isNotEmpty)
+          'vias': vias.map((v) => '${v['lat']},${v['lng']}').join('|'),
       },
     );
     final out = Map<String, dynamic>.from(res.data ?? {});
@@ -275,8 +278,7 @@ class ApiService {
     required double goalLng,
     String mode = 'ev',
     String? engine, // tmap | naver | kakao (미지정 시 서버 기본 tmap)
-    double? viaLat, // 경유지 (옵션, 1개)
-    double? viaLng,
+    List<Map<String, dynamic>> vias = const [], // 경유지 (최대 3) [{lat,lng}]
   }) async {
     final res = await _dio.get(
       ApiConstants.routeAlternatives,
@@ -287,8 +289,8 @@ class ApiService {
         'goal_lng': goalLng,
         'mode': mode,
         if (engine != null) 'engine': engine,
-        if (viaLat != null) 'via_lat': viaLat,
-        if (viaLng != null) 'via_lng': viaLng,
+        if (vias.isNotEmpty)
+          'vias': vias.map((v) => '${v['lat']},${v['lng']}').join('|'),
       },
     );
     return Map<String, dynamic>.from(res.data ?? {});
