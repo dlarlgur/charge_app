@@ -40,6 +40,7 @@ class ApiConstants {
   // ─── AI 추천 ───
   static const routeDriving = '/route/driving';
   static const routeAlternatives = '/route/alternatives';
+  static const fuelReports = '/fuel-reports'; // 유가·충전 리포트 (주간/월간)
   static const refuelAnalyze = '/v1/refuel/analyze';
   static const refuelRouteStations = '/v1/refuel/route-stations';
   static const refuelCompare = '/v1/refuel/compare';

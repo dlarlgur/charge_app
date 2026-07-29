@@ -44,9 +44,30 @@ class UserDataSync {
     if (hasRemote) {
       await _applyRemote(prefs, vehicles, favorites, alarms, aliases, chargerMemos);
       if (places.isNotEmpty) await PlaceService.applyRemote(places);
+      // 구버전에서 로컬(Hive)에만 저장돼 있던 값 1회 백필 — 서버가 비어 있을 때만 올려
+      // 서버 우선 원칙을 깨지 않는다. (매번 올리지 않음: 서버에 값이 생기면 조건이 거짓)
+      await _backfillLocalOnlyPrefs(prefs);
     } else {
       await UserSyncService.instance.import(buildLocalSnapshot());
     }
+  }
+
+  /// 서버에 없는 항목만 로컬 값으로 채워 올린다 (AI 문구 동의 / AI 경로 기준).
+  static Future<void> _backfillLocalOnlyPrefs(Map prefs) async {
+    final box = Hive.box(AppConstants.settingsBox);
+    bool? consent;
+    String? engine;
+    if (prefs['aiTextConsent'] is! bool) {
+      final v = box.get(AppConstants.keyAiThirdPartyConsent);
+      if (v is bool) consent = v;
+    }
+    if (prefs['routeEngine'] == null) {
+      final v = box.get('route_engine')?.toString();
+      if (v == 'tmap' || v == 'naver' || v == 'kakao') engine = v;
+    }
+    if (consent == null && engine == null) return;
+    await UserSyncService.instance
+        .putPrefs(aiTextConsent: consent, routeEngine: engine);
   }
 
   static Future<void> _applyRemote(Map prefs, List vehicles, List favorites, List alarms, List aliases, List chargerMemos) async {

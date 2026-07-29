@@ -18,6 +18,7 @@ import '../ui/auth/login_screen.dart';
 import '../ui/auth/account_screen.dart';
 import '../ui/notices/notices_screen.dart';
 import '../ui/reports/my_reports_screen.dart';
+import '../ui/reports/fuel_report_screen.dart';
 import '../ui/events/events_screen.dart';
 import '../ui/faq/faq_screen.dart';
 import 'package:dksw_app_core/dksw_app_core.dart'
@@ -108,6 +109,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/policies', builder: (_, __) => const PoliciesScreen()),
       GoRoute(path: '/notices', builder: (_, __) => const NoticesScreen()),
       GoRoute(path: '/my-reports', builder: (_, __) => const MyReportsScreen()),
+      GoRoute(path: '/fuel-reports', builder: (_, __) => const FuelReportScreen()),
       GoRoute(path: '/events', builder: (_, __) => const EventsScreen()),
       GoRoute(path: '/faq', builder: (_, __) => const FaqScreen()),
       GoRoute(

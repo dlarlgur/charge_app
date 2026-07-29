@@ -45,6 +45,7 @@ import '../../data/services/station_alias_service.dart';
 import '../favorites/favorites_screen.dart';
 import '../detail/ev_detail_screen.dart';
 import '../reports/my_reports_screen.dart';
+import '../reports/fuel_report_screen.dart';
 import '../detail/gas_detail_screen.dart';
 import '../ai/widgets/route_engine_sheet.dart';
 import 'package:home_widget/home_widget.dart';
@@ -2436,6 +2437,11 @@ class SettingsScreenEmbed extends ConsumerWidget {
                 _showPicker(context, '테마', ['라이트 모드', '다크 모드'],
                   modes.indexOf(themeMode == ThemeMode.system ? ThemeMode.light : themeMode),
                   (i) => ref.read(themeModeProvider.notifier).setTheme(modes[i]));
+            }),
+            settingsDivider(isDark),
+            _tile(context, isDark, Icons.insights_rounded, '유가 · 충전 리포트', '', () {
+              Navigator.of(context, rootNavigator: true).push(
+                  MaterialPageRoute(builder: (_) => const FuelReportScreen()));
             }),
             settingsDivider(isDark),
             _RouteEngineTileEmbed(isDark: isDark),

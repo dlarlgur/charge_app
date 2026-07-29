@@ -298,6 +298,22 @@ class ApiService {
     return Map<String, dynamic>.from(res.data ?? {});
   }
 
+  // ─── 유가 · 충전 리포트 ───
+  Future<List<Map<String, dynamic>>> getFuelReports({String? kind, int limit = 20}) async {
+    final res = await _dio.get(ApiConstants.fuelReports, queryParameters: {
+      if (kind != null) 'kind': kind,
+      'limit': limit,
+    });
+    final list = res.data?['reports'];
+    return list is List ? List<Map<String, dynamic>>.from(list) : const [];
+  }
+
+  Future<Map<String, dynamic>?> getFuelReport(int id) async {
+    final res = await _dio.get('${ApiConstants.fuelReports}/$id');
+    final r = res.data?['report'];
+    return r is Map ? Map<String, dynamic>.from(r) : null;
+  }
+
   // ─── 1:1 문의 ───
   Future<bool> createInquiry({
     required String appId,
