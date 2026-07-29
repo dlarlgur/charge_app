@@ -243,6 +243,7 @@ class ApiService {
     double? waypointLat,
     double? waypointLng,
     List<Map<String, dynamic>> vias = const [], // 다중 경유 (최대 3)
+    String? engine, // 사용자 프리뷰 엔진 — 결과/후보 경로 일관성
   }) async {
     final res = await _dio.get(
       ApiConstants.routeDriving,
@@ -251,6 +252,7 @@ class ApiService {
         'start_lng': startLng,
         'goal_lat': goalLat,
         'goal_lng': goalLng,
+        if (engine != null) 'engine': engine,
         if (waypointLat != null) 'waypoint_lat': waypointLat,
         if (waypointLng != null) 'waypoint_lng': waypointLng,
         if (vias.isNotEmpty)

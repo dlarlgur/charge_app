@@ -1188,6 +1188,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         goalLat: _destLat!,
         goalLng: _destLng!,
         vias: _viaCoords,
+        engine: RouteEnginePref.get(),
       );
       if (dr['success'] == true) {
         final parsed = _pathPointsFromServerJson(dr['path_points']);
@@ -2061,6 +2062,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       'route_context': {
         'origin': {'lat': startLat, 'lng': startLng},
         'destination': {'lat': _destLat, 'lng': _destLng},
+        'engine': RouteEnginePref.get(), // 결과 지도 경유 경로를 같은 엔진으로
         'path_points': pathPoints,
         if (directDurationMs != null) 'duration_ms': directDurationMs,
         'highway_only': _gasHighwayOnly,
@@ -2510,6 +2512,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       );
 
   Future<void> _drawResultOnMap({
+    bool fitCamera = true, // 후보 선택처럼 곧바로 자체 카메라 이동이 따라오면 false (이중 점프 방지)
     required List<Map<String, dynamic>> pathPoints,
     List<Map<String, dynamic>>? pathSegments, // 교통 구간 데이터
     required double originLat,
@@ -2806,6 +2809,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final minLng = allLngs.reduce(min);
     final maxLng = allLngs.reduce(max);
 
+    if (!fitCamera) {
+      // fit 은 생략해도 경유지 배지 복원은 필요 (redraw 가 marker 를 지웠으므로)
+      unawaited(_updateViaMarkers());
+      return;
+    }
     _suppressCameraChange = true;
     await _mapController!.updateCamera(
       NCameraUpdate.fitBounds(
@@ -3467,6 +3475,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           goalLng: _destLng!,
           waypointLat: stLat,
           waypointLng: stLng,
+          engine: RouteEnginePref.get(),
         );
         if (vr['success'] == true) {
           final parsed = _pathPointsFromServerJson(vr['path_points']);
@@ -3489,6 +3498,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     //   NaverMap 네이티브에서 충돌해 '지도 가다가 팅김'(크래시) 발생. 그려진 뒤 카메라 이동.
     try {
       await _drawResultOnMap(
+        fitCamera: false, // 아래 scrollAndZoomTo 가 카메라 담당 — fit→이동 이중 점프 방지
         pathPoints: pathPoints,
         pathSegments: pathSegments,
         originLat: _lastStartLat,
@@ -3572,6 +3582,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           goalLng: _destLng!,
           waypointLat: stLat,
           waypointLng: stLng,
+          engine: RouteEnginePref.get(),
         );
         if (vr['success'] == true) {
           final parsed = _pathPointsFromServerJson(vr['path_points']);
@@ -4158,6 +4169,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         goalLat: _destLat!,
         goalLng: _destLng!,
         vias: _viaCoords,
+        engine: RouteEnginePref.get(),
       );
       if (dr['success'] == true) {
         final raw = dr['path_points'];
@@ -4213,6 +4225,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       'route_context': {
         'origin': {'lat': startLat, 'lng': startLng},
         'destination': {'lat': _destLat, 'lng': _destLng},
+        'engine': RouteEnginePref.get(), // 결과 지도 경유 경로를 같은 엔진으로
         'path_points': pathPoints,
         'highway_only': _gasHighwayOnly,
         if (_preferredGasBrands.isNotEmpty)
