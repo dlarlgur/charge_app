@@ -1381,10 +1381,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         for (final v in _vias) {'lat': v['lat'], 'lng': v['lng']},
       ];
 
-  /// 지도 경유지 마커('경유 N') 전부 갱신.
+  /// 지도 경유지 마커(번호 배지) 전부 갱신 — 경로 redraw 가 marker 를 clear 하므로
+  /// 각 draw 끝에서도 재호출된다.
   Future<void> _updateViaMarkers() async {
     final c = _mapController;
-    if (c == null) return;
+    if (c == null || !mounted) return;
     for (final m in _viaMarkers) {
       try {
         await c.deleteOverlay(m.info);
@@ -1393,13 +1394,41 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     _viaMarkers.clear();
     for (var i = 0; i < _vias.length; i++) {
       final v = _vias[i];
-      final m = NMarker(
-        id: 'ai_via_point_$i',
-        position: NLatLng(v['lat'] as double, v['lng'] as double),
-        size: const Size(26, 34),
-        caption: NOverlayCaption(text: '경유 ${i + 1}', textSize: 11),
-      );
       try {
+        // 네이버식 번호 배지 — 흰 원 + 회색 테두리 + 번호 (카드 도트와 동일 언어)
+        final badge = await NOverlayImage.fromWidget(
+          context: context,
+          size: const Size(26, 26),
+          widget: Container(
+            width: 26,
+            height: 26,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFF475569), width: 2),
+              boxShadow: const [
+                BoxShadow(
+                    color: Color(0x33000000),
+                    blurRadius: 4,
+                    offset: Offset(0, 1)),
+              ],
+            ),
+            child: Text('${i + 1}',
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    height: 1,
+                    color: Color(0xFF1E293B))),
+          ),
+        );
+        final m = NMarker(
+          id: 'ai_via_point_$i',
+          position: NLatLng(v['lat'] as double, v['lng'] as double),
+          icon: badge,
+          size: const Size(26, 26),
+          anchor: const NPoint(0.5, 0.5),
+        );
         await c.addOverlay(m);
         _viaMarkers.add(m);
       } catch (_) {}
@@ -2723,6 +2752,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     Future.delayed(const Duration(milliseconds: 1000), () {
       if (mounted) _suppressCameraChange = false;
     });
+    // 경로 redraw 가 marker 오버레이를 지우므로 경유지 배지 복원
+    unawaited(_updateViaMarkers());
   }
 
   /// EV 직접선택 모드 — 후보 충전소 마커를 지도에 표시
@@ -2858,6 +2889,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       }
       await _mapController!.addOverlay(marker);
     }
+    // 경로 redraw 가 marker 오버레이를 지우므로 경유지 배지 복원
+    unawaited(_updateViaMarkers());
   }
 
   /// 결과 시트를 펼치고 해당 충전소 카드로 스크롤 (지도 마커 탭 핸들러)
