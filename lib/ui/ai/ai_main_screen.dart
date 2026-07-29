@@ -1725,7 +1725,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     );
   }
 
-  Widget _routeChip(Map<String, dynamic> r, bool isEv) {
+  Widget _routeChip(Map<String, dynamic> r, bool isEv, {bool sameRoute = false}) {
     final accent = isEv ? const Color(0xFF10B981) : const Color(0xFF3B82F6);
     final accentLight =
         isEv ? const Color(0xFFECFDF5) : const Color(0xFFEFF6FF);
@@ -1773,6 +1773,22 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 if (selected) ...[
                   const SizedBox(width: 3),
                   Icon(Icons.check_circle_rounded, size: 14, color: accent),
+                ],
+                if (sameRoute) ...[
+                  const SizedBox(width: 4),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text('동일 경로',
+                        style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF94A3B8))),
+                  ),
                 ],
               ],
             ),
