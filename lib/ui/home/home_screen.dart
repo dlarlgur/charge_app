@@ -1966,6 +1966,22 @@ class _RouteEngineTileEmbed extends StatefulWidget {
 
 class _RouteEngineTileEmbedState extends State<_RouteEngineTileEmbed> {
   @override
+  void initState() {
+    super.initState();
+    RouteEnginePref.version.addListener(_onChanged);
+  }
+
+  @override
+  void dispose() {
+    RouteEnginePref.version.removeListener(_onChanged);
+    super.dispose();
+  }
+
+  void _onChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
     final muted =
         widget.isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
@@ -2216,6 +2232,24 @@ class _AiConsentTile extends StatefulWidget {
 }
 
 class _AiConsentTileState extends State<_AiConsentTile> {
+  @override
+  void initState() {
+    super.initState();
+    // AI 탭 다이얼로그·로그인 복원 등 외부에서 동의가 바뀌어도 반영
+    // (탭이 IndexedStack 로 상시 mount 라 자동 리빌드 안 됨)
+    AiConsent.version.addListener(_onChanged);
+  }
+
+  @override
+  void dispose() {
+    AiConsent.version.removeListener(_onChanged);
+    super.dispose();
+  }
+
+  void _onChanged() {
+    if (mounted) setState(() {});
+  }
+
   void _toggle(bool v) {
     debugPrint('[AiConsent] toggle 요청: $v (이전 ${AiConsent.value})');
     AiConsent.set(v);

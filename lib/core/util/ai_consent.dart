@@ -17,6 +17,11 @@ import '../../data/services/user_sync_service.dart';
 class AiConsent {
   AiConsent._();
 
+  /// 동의 상태 변경 신호 — 탭이 IndexedStack 으로 상시 mount 라 설정 타일이
+  /// 자동 리빌드되지 않는다. AI 탭 다이얼로그·로그인 복원 등 외부에서 바뀌면
+  /// 이 값을 증가시켜 구독 중인 타일이 갱신되게 한다. (마케팅 동의와 동일 패턴)
+  static final ValueNotifier<int> version = ValueNotifier<int>(0);
+
   static Box get _box => Hive.box(AppConstants.settingsBox);
 
   /// null = 아직 미선택, true = 동의, false = 거부.
@@ -27,9 +32,13 @@ class AiConsent {
     // Hive put 은 Future 반환 — setState 콜백 안에서 arrow 로 반환되면
     // "setState callback returned a Future" 로 탭이 죽는다. 명시적으로 버림.
     _box.put(AppConstants.keyAiThirdPartyConsent, granted);
+    version.value++; // 설정 화면 등 구독처 갱신
     // 로그인 사용자는 서버에도 저장 — 재설치/기기변경 시 복원 (게스트는 내부 no-op)
     UserSyncService.instance.putPrefs(aiTextConsent: granted);
   }
+
+  /// 서버 복원 등 외부에서 Hive 값을 직접 바꾼 경우 호출 — 구독처 갱신용.
+  static void notifyChanged() => version.value++;
 
   /// AI 분석 시작 전 호출. 선택이 없으면 고지 다이얼로그를 띄우고 선택을 저장.
   /// 반환값 = 동의 여부 (요청의 ai_text 로 그대로 전달).

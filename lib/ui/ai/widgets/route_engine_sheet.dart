@@ -9,6 +9,9 @@ import '../../../data/services/user_sync_service.dart';
 class RouteEnginePref {
   static const _key = 'route_engine';
 
+  /// 변경 신호 — 설정 타일/AI 탭 배지가 IndexedStack 로 상시 mount 라 필요.
+  static final ValueNotifier<int> version = ValueNotifier<int>(0);
+
   /// 저장된 값 (미설정이면 null)
   static String? raw() {
     final v = Hive.box(AppConstants.settingsBox).get(_key);
@@ -20,9 +23,13 @@ class RouteEnginePref {
 
   static Future<void> set(String v) async {
     await Hive.box(AppConstants.settingsBox).put(_key, v);
+    version.value++;
     // 로그인 사용자는 서버에도 저장 — 재설치/기기변경 시 복원 (게스트는 내부 no-op)
     UserSyncService.instance.putPrefs(routeEngine: v);
   }
+
+  /// 서버 복원 등 외부 변경 후 구독처 갱신
+  static void notifyChanged() => version.value++;
 
   static String label(String v) => switch (v) {
         'naver' => '네이버',

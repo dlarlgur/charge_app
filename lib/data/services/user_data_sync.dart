@@ -3,6 +3,9 @@ import 'dart:convert';
 import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import '../../core/util/ai_consent.dart';
+import '../../ui/ai/widgets/route_engine_sheet.dart';
+
 import '../../core/constants/api_constants.dart';
 import 'alert_service.dart';
 import 'charger_memo_service.dart';
@@ -87,11 +90,13 @@ class UserDataSync {
     // AI 문구 생성 동의 — 서버 값 복원 (NULL=미선택이면 로컬 유지)
     if (prefs['aiTextConsent'] is bool) {
       box.put(AppConstants.keyAiThirdPartyConsent, prefs['aiTextConsent']);
+      AiConsent.notifyChanged(); // 설정 타일 즉시 반영
     }
     // AI 경로 기준 내비 복원 (tmap|naver|kakao)
     final re = prefs['routeEngine']?.toString();
     if (re == 'tmap' || re == 'naver' || re == 'kakao') {
       box.put('route_engine', re);
+      RouteEnginePref.notifyChanged();
     }
 
     // AI 차량 — 서버를 소스로 ai_vehicles 갱신
