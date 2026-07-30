@@ -497,6 +497,17 @@ void main() async {
   // 반드시 DkswCore.init 이후: 토픽명이 events_<package> 로 패키지명에 의존하기 때문.
   unawaited(() async {
     try {
+      // iOS 는 APNs 토큰이 등록되기 전에 subscribeToTopic 을 부르면 실패한다
+      // ("APNS token has not been set yet"). 이 블록은 catch 로 조용히 삼켜지므로
+      // 실패하면 그 기기는 공지/이벤트 토픽을 아예 구독하지 못한 상태로 남는다.
+      // → 토큰이 준비될 때까지 최대 10초 기다린 뒤 구독한다.
+      if (Platform.isIOS) {
+        for (var i = 0; i < 10; i++) {
+          final apns = await FirebaseMessaging.instance.getAPNSToken();
+          if (apns != null) break;
+          await Future.delayed(const Duration(seconds: 1));
+        }
+      }
       // v2 토픽(data-only) 구독 — 공지/이벤트를 OS 가 아닌 '앱이' 그려서
       // 방해금지 게이트·알림함 저장·탭 라우팅이 백그라운드에서도 동작.
       // 레거시 토픽(notification payload)은 해지 — 이중 수신 방지. 콘솔은 두 토픽에
@@ -511,7 +522,11 @@ void main() async {
           .unsubscribeFromTopic(DkswCore.eventsTopic());
       // 차량타입별 토픽(veh_gas/veh_ev) — 콘솔 '주유/전기' 타겟 푸시용. 매 부팅 재동기화.
       await PushTopicService.syncVehicleTopics();
-    } catch (_) {}
+      debugPrint('[PUSH] 토픽 구독 완료');
+    } catch (e) {
+      // 조용히 삼키면 iOS 미구독을 영원히 모른다 — 로그만 남기고 부팅은 계속
+      debugPrint('[PUSH] 토픽 구독 실패: $e');
+    }
   }());
 
   // 무거운 init들은 fire-and-forget. 첫 프레임/스플래시 시간만 늘리던 주범:
