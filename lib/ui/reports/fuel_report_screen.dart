@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -297,16 +298,20 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
       setState(() {
         _r = r;
         _loading = false;
-        if (r == null) _error = '리포트를 찾을 수 없어요';
+        if (r == null) _error = _kGone;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
+      // 404 = 아직 공개되지 않았거나 내려간 리포트. 통신 실패와 원인이 달라 문구를 나눈다.
+      final code = e is DioException ? e.response?.statusCode : null;
       setState(() {
         _loading = false;
-        _error = '리포트를 불러오지 못했어요';
+        _error = code == 404 ? _kGone : '리포트를 불러오지 못했어요';
       });
     }
   }
+
+  static const _kGone = '지금은 볼 수 없는 리포트예요';
 
   // 섹션 순서·라벨 — 주제별로 쓰는 키만 등장한다
   static const _sections = <String, (String, IconData)>{
@@ -334,13 +339,50 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
               child:
                   CircularProgressIndicator(strokeWidth: 2, color: accent))
           : (r == null
-              ? Center(
-                  child: Text(_error ?? '리포트를 찾을 수 없어요',
-                      style: TextStyle(
-                          fontSize: 13.5,
-                          color: isDark
-                              ? AppColors.darkTextSecondary
-                              : AppColors.lightTextSecondary)))
+              ? Padding(
+                  padding: const EdgeInsets.fromLTRB(32, 60, 32, 32),
+                  child: Column(
+                    children: [
+                      Icon(Icons.insights_rounded,
+                          size: 40,
+                          color: (isDark
+                                  ? AppColors.darkTextMuted
+                                  : AppColors.lightTextMuted)
+                              .withValues(alpha: 0.5)),
+                      const SizedBox(height: 14),
+                      Text(_error ?? _kGone,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w700,
+                              color: isDark
+                                  ? AppColors.darkTextSecondary
+                                  : AppColors.lightTextSecondary)),
+                      const SizedBox(height: 8),
+                      Text(
+                          _error == _kGone
+                              ? '리포트가 내려갔거나 아직 공개 전이에요.\n목록에서 다른 리포트를 확인해 주세요.'
+                              : '잠시 후 다시 시도해 주세요.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              fontSize: 12.5,
+                              height: 1.5,
+                              color: isDark
+                                  ? AppColors.darkTextMuted
+                                  : AppColors.lightTextMuted)),
+                      const SizedBox(height: 14),
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _loading = true;
+                            _error = null;
+                          });
+                          _load();
+                        },
+                        child: const Text('다시 시도'),
+                      ),
+                    ],
+                  ))
               : ListView(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 36),
                   children: [
