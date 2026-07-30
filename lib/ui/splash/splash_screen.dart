@@ -13,6 +13,7 @@ import '../../data/services/exit_ad_service.dart';
 import '../../data/services/splash_ad_cache.dart';
 import '../../providers/providers.dart';
 import '../widgets/update_dialog.dart';
+import '../../core/util/update_policy_cache.dart';
 
 /// 흐름 (stale-while-revalidate):
 /// 1. 시작 시 디스크 캐시된 광고를 즉시 native splash 아래로 push.
@@ -95,7 +96,20 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       _showMaintenance(result!.maintenance!);
       return;
     }
-    if (result != null && await _handleUpdateGate(result)) return; // 강제면 홈 진입 차단
+    if (result != null) {
+      // 다음 실행에서 bootstrap 이 실패해도 판정할 수 있게 정책을 저장
+      unawaited(UpdatePolicyCache.save(result.update));
+      if (await _handleUpdateGate(result)) return; // 강제면 홈 진입 차단
+    } else {
+      // bootstrap 실패/타임아웃 — 예전엔 여기서 게이트 없이 통과해, 최소 지원 버전
+      // 미달 기기가 계속 쓰였다. 마지막으로 받은 정책으로 판정한다.
+      final cachedPolicy = UpdatePolicyCache.evaluate(DkswCore.appVersion);
+      if (cachedPolicy != null) {
+        FlutterNativeSplash.remove();
+        await UpdateDialog.showIfNeeded(context, cachedPolicy);
+        return;
+      }
+    }
     if (!mounted) return;
 
     // 캐시 없을 때(첫 실행 등): 광고 스킵, 바로 다음 화면.
@@ -132,7 +146,20 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       return;
     }
     // 강제업뎃 게이트 — 캐시 스플래시 광고 경로에서도 반드시 거쳐야 함(놓치던 버그).
-    if (result != null && await _handleUpdateGate(result)) return; // 강제면 홈 진입 차단
+    if (result != null) {
+      // 다음 실행에서 bootstrap 이 실패해도 판정할 수 있게 정책을 저장
+      unawaited(UpdatePolicyCache.save(result.update));
+      if (await _handleUpdateGate(result)) return; // 강제면 홈 진입 차단
+    } else {
+      // bootstrap 실패/타임아웃 — 예전엔 여기서 게이트 없이 통과해, 최소 지원 버전
+      // 미달 기기가 계속 쓰였다. 마지막으로 받은 정책으로 판정한다.
+      final cachedPolicy = UpdatePolicyCache.evaluate(DkswCore.appVersion);
+      if (cachedPolicy != null) {
+        FlutterNativeSplash.remove();
+        await UpdateDialog.showIfNeeded(context, cachedPolicy);
+        return;
+      }
+    }
     if (!mounted) return;
     _navigateNext();
   }
