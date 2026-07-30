@@ -460,29 +460,43 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
     final sido = f['sido'] is Map ? f['sido'] as Map : null;
     final out = <Widget>[];
 
-    if (g != null || d != null) {
-      out.add(_panel(
-        isDark: isDark,
-        child: Row(
+    // 유종 4종 — 한 줄에 4개면 작은 화면에서 넘치므로 2×2 로 (휘발유·경유 / 고급·LPG)
+    final prem = f['premium'] is Map ? f['premium'] as Map : null;
+    final lpg = f['lpg'] is Map ? f['lpg'] as Map : null;
+    final cells = <(String, Map, Color)>[
+      if (g != null) ('휘발유', g, AppColors.gasBlue),
+      if (d != null) ('경유', d, const Color(0xFF8B5CF6)),
+      if (prem != null) ('고급휘발유', prem, const Color(0xFFEF4444)),
+      if (lpg != null) ('LPG', lpg, const Color(0xFF0EA5E9)),
+    ];
+    if (cells.isNotEmpty) {
+      final divider =
+          isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder;
+      final rows = <Widget>[];
+      for (var i = 0; i < cells.length; i += 2) {
+        final pair = cells.skip(i).take(2).toList();
+        if (i > 0) {
+          rows.add(Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Container(height: 1, color: divider),
+          ));
+        }
+        rows.add(Row(
           children: [
-            if (g != null)
+            Expanded(
+                child: _priceCell(pair[0].$1, pair[0].$2['price'],
+                    pair[0].$2['diff'], pair[0].$3, isDark)),
+            if (pair.length > 1)
+              Container(width: 1, height: 46, color: divider),
+            if (pair.length > 1)
               Expanded(
-                  child: _priceCell(
-                      '휘발유', g['price'], g['diff'], AppColors.gasBlue, isDark)),
-            if (g != null && d != null)
-              Container(
-                  width: 1,
-                  height: 46,
-                  color: isDark
-                      ? AppColors.darkCardBorder
-                      : AppColors.lightCardBorder),
-            if (d != null)
-              Expanded(
-                  child: _priceCell('경유', d['price'], d['diff'],
-                      const Color(0xFF8B5CF6), isDark)),
+                  child: _priceCell(pair[1].$1, pair[1].$2['price'],
+                      pair[1].$2['diff'], pair[1].$3, isDark)),
+            if (pair.length == 1) const Expanded(child: SizedBox()),
           ],
-        ),
-      ));
+        ));
+      }
+      out.add(_panel(isDark: isDark, child: Column(children: rows)));
     }
 
     final gPts = _series(week?['gasoline']);
