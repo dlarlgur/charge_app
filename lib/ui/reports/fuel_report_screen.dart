@@ -1060,17 +1060,115 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
             ],
           ),
           const SizedBox(height: 10),
-          Text(body,
-              style: TextStyle(
-                  fontSize: 13.5,
-                  height: 1.72,
-                  color: isDark
-                      ? AppColors.darkTextSecondary
-                      : AppColors.lightTextSecondary)),
+          // 서버가 2~3문장씩 문단을 나눠 보내므로 빈 줄 기준으로 간격을 준다
+          for (final para in body
+              .split(RegExp(r'\n\s*\n'))
+              .map((e) => e.trim())
+              .where((e) => e.isNotEmpty)) ...[
+            Text(para,
+                style: TextStyle(
+                    fontSize: 13.5,
+                    height: 1.75,
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.lightTextSecondary)),
+            const SizedBox(height: 11),
+          ],
         ],
       ),
     );
   }
+
+  /// 참고자료 한 줄 — 매체 파비콘 + 제목 2줄 + 매체·날짜.
+  /// (밑줄 텍스트만 나열하면 빈약해 보여서 카드로)
+  Widget _refCard(Map s, bool isDark, Color accent) {
+    final url = (s['link'] ?? '').toString();
+    final host = Uri.tryParse((s['source_url'] ?? '').toString())?.host ?? '';
+    final favicon = host.isEmpty
+        ? null
+        : 'https://www.google.com/s2/favicons?sz=64&domain=$host';
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: isDark ? AppColors.darkSurface1 : AppColors.lightCard,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            if (url.startsWith('http')) {
+              launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(12, 11, 10, 11),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: isDark
+                      ? AppColors.darkCardBorder
+                      : AppColors.lightCardBorder),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(7),
+                  child: SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: favicon == null
+                        ? _refFallback(accent, isDark)
+                        : Image.network(favicon,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                                _refFallback(accent, isDark)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text((s['title'] ?? '').toString(),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 12.5,
+                              height: 1.4,
+                              fontWeight: FontWeight.w600,
+                              color: isDark
+                                  ? AppColors.darkTextPrimary
+                                  : AppColors.lightTextPrimary)),
+                      const SizedBox(height: 3),
+                      Text(
+                          [
+                            (s['source'] ?? '').toString(),
+                            if ((s['date'] ?? '').toString().length >= 10)
+                              (s['date'] as String)
+                                  .substring(5)
+                                  .replaceAll('-', '.'),
+                          ].where((e) => e.isNotEmpty).join(' · '),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 11, color: muted)),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(Icons.open_in_new_rounded, size: 14, color: muted),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _refFallback(Color accent, bool isDark) => Container(
+        color: accent.withValues(alpha: isDark ? 0.18 : 0.10),
+        child: Icon(Icons.article_rounded, size: 15, color: accent),
+      );
 
   Widget _sources(dynamic raw, bool isDark, Color accent) {
     final list = raw is List ? raw : const [];
@@ -1089,35 +1187,7 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                       : AppColors.lightTextSecondary)),
           const SizedBox(height: 8),
           for (final s in list)
-            if (s is Map)
-              InkWell(
-                onTap: () {
-                  final u = (s['link'] ?? '').toString();
-                  if (u.startsWith('http')) {
-                    launchUrl(Uri.parse(u),
-                        mode: LaunchMode.externalApplication);
-                  }
-                },
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 5),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.link_rounded, size: 14, color: accent),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text((s['title'] ?? '').toString(),
-                            style: TextStyle(
-                                fontSize: 12.5,
-                                height: 1.45,
-                                decoration: TextDecoration.underline,
-                                decorationColor: accent.withValues(alpha: 0.4),
-                                color: accent)),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            if (s is Map) _refCard(s, isDark, accent),
           const SizedBox(height: 10),
         ],
         Text('국내 유가는 한국석유공사 오피넷 공식 데이터, 충전 요금은 앱에 등록된 운영사 요금 기준입니다.',
