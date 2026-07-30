@@ -59,7 +59,9 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
       topic == 'ev' ? AppColors.evGreen : AppColors.gasBlue;
 
   Future<void> _load(String topic, {bool force = false}) async {
-    if (!force && (_cache.containsKey(topic) || _loading[topic] == true)) return;
+    if (!force && (_cache.containsKey(topic) || _loading[topic] == true)) {
+      return;
+    }
     setState(() {
       _loading[topic] = true;
       _error[topic] = null;
@@ -114,7 +116,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
   Widget _list(String topic, bool isDark) {
     if (_loading[topic] == true && !_cache.containsKey(topic)) {
       return Center(
-          child: CircularProgressIndicator(strokeWidth: 2, color: _accent(topic)));
+          child:
+              CircularProgressIndicator(strokeWidth: 2, color: _accent(topic)));
     }
     final err = _error[topic];
     final items = _cache[topic] ?? const <Map<String, dynamic>>[];
@@ -147,7 +150,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
     return ListView(
       padding: const EdgeInsets.fromLTRB(28, 80, 28, 28),
       children: [
-        Icon(Icons.insights_rounded, size: 44, color: muted.withValues(alpha: 0.5)),
+        Icon(Icons.insights_rounded,
+            size: 44, color: muted.withValues(alpha: 0.5)),
         const SizedBox(height: 14),
         Text(title,
             textAlign: TextAlign.center,
@@ -336,8 +340,7 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
       ),
       body: _loading
           ? Center(
-              child:
-                  CircularProgressIndicator(strokeWidth: 2, color: accent))
+              child: CircularProgressIndicator(strokeWidth: 2, color: accent))
           : (r == null
               ? Padding(
                   padding: const EdgeInsets.fromLTRB(32, 60, 32, 32),
@@ -464,8 +467,8 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
           children: [
             if (g != null)
               Expanded(
-                  child: _priceCell('휘발유', g['price'], g['diff'],
-                      AppColors.gasBlue, isDark)),
+                  child: _priceCell(
+                      '휘발유', g['price'], g['diff'], AppColors.gasBlue, isDark)),
             if (g != null && d != null)
               Container(
                   width: 1,
@@ -493,7 +496,43 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
           if (dPts.length >= 2) ('경유', const Color(0xFF8B5CF6)),
         ],
         child: SizedBox(
-            height: 168, child: _weekChart(gPts, dPts, isDark)),
+          height: 168,
+          child: _lineChart(
+              gPts, AppColors.gasBlue, dPts, const Color(0xFF8B5CF6), isDark),
+        ),
+      ));
+    }
+
+    // 국제유가 (EIA Brent/WTI) — 국내 가격과 별도 축(USD/배럴)이라 패널을 분리한다
+    final intl = f['intl'] is Map ? f['intl'] as Map : null;
+    final brent = _series(intl?['brent'], key: 'usd');
+    final wti = _series(intl?['wti'], key: 'usd');
+    if (brent.length >= 2 || wti.length >= 2) {
+      final last =
+          brent.isNotEmpty ? brent.last : (wti.isNotEmpty ? wti.last : null);
+      out.add(_panel(
+        isDark: isDark,
+        title: '국제유가 (달러/배럴)',
+        legend: [
+          if (brent.length >= 2) ('브렌트', const Color(0xFFF59E0B)),
+          if (wti.length >= 2) ('WTI', const Color(0xFF06B6D4)),
+        ],
+        child: Column(
+          children: [
+            SizedBox(
+              height: 168,
+              child: _lineChart(brent, const Color(0xFFF59E0B), wti,
+                  const Color(0xFF06B6D4), isDark,
+                  usd: true),
+            ),
+            const SizedBox(height: 6),
+            _caption(
+                last == null
+                    ? '미국 에너지정보청(EIA) 일별 현물가'
+                    : '미국 에너지정보청(EIA) 일별 현물가 · 국내 가격에는 통상 2~3주 시차로 반영돼요',
+                isDark),
+          ],
+        ),
       ));
     }
 
@@ -535,7 +574,8 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
     final max = _num(ev['max']);
     final prev = _num(f['prev_ev_avg']);
     final ops = <(String, double, int?)>[];
-    for (final o in (ev['operators'] is List ? ev['operators'] as List : const [])) {
+    for (final o
+        in (ev['operators'] is List ? ev['operators'] as List : const [])) {
       if (o is! Map) continue;
       final v = _num(o['fast']);
       if (v == null) continue;
@@ -557,8 +597,7 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                 color: isDark
                     ? AppColors.darkCardBorder
                     : AppColors.lightCardBorder),
-            Expanded(
-                child: _statCell('최저', min, AppColors.evGreen, isDark)),
+            Expanded(child: _statCell('최저', min, AppColors.evGreen, isDark)),
             Container(
                 width: 1,
                 height: 46,
@@ -566,8 +605,7 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                     ? AppColors.darkCardBorder
                     : AppColors.lightCardBorder),
             Expanded(
-                child:
-                    _statCell('최고', max, const Color(0xFFEF4444), isDark)),
+                child: _statCell('최고', max, const Color(0xFFEF4444), isDark)),
           ],
         ),
       ));
@@ -635,8 +673,8 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                     Container(
                         width: 7,
                         height: 7,
-                        decoration: BoxDecoration(
-                            color: l.$2, shape: BoxShape.circle)),
+                        decoration:
+                            BoxDecoration(color: l.$2, shape: BoxShape.circle)),
                     const SizedBox(width: 4),
                     Text(l.$1,
                         style: TextStyle(
@@ -757,8 +795,7 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
     return Text(txt,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style:
-            TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: c));
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: c));
   }
 
   /// 가로 바 — 값 차이가 작아도 보이게 최소/최대 사이를 0.35~1.0 폭으로 매핑.
@@ -841,23 +878,29 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
     );
   }
 
-  Widget _weekChart(
-      List<(String, double)> gas, List<(String, double)> diesel, bool isDark) {
+  /// 두 시리즈 라인차트 — 국내(원/L)와 국제유가(달러/배럴)를 같은 스타일로 그린다.
+  Widget _lineChart(List<(String, double)> gas, Color colorA,
+      List<(String, double)> diesel, Color colorB, bool isDark,
+      {bool usd = false}) {
     final all = [...gas.map((e) => e.$2), ...diesel.map((e) => e.$2)];
     if (all.isEmpty) return const SizedBox.shrink();
     final maxY = all.reduce((a, b) => a > b ? a : b);
     final minY = all.reduce((a, b) => a < b ? a : b);
     final span = (maxY - minY).abs();
-    final pad = span < 1 ? 8.0 : span * 0.35;
+    final pad = span < 1 ? (usd ? 1.0 : 8.0) : span * 0.35;
     final base = gas.isNotEmpty ? gas : diesel;
+    // 달러는 소수 1자리까지 (배럴당 91.8 처럼), 원은 정수
+    String fmtY(double v) => usd ? v.toStringAsFixed(1) : _comma(v.round());
+    final yStep = usd
+        ? (span < 4 ? 1.0 : (span / 3).ceilToDouble())
+        : (span < 4 ? 2.0 : (span / 2).ceilToDouble());
     final dotFill = isDark ? AppColors.darkSurface1 : AppColors.lightCard;
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
 
     LineChartBarData bar(List<(String, double)> pts, Color c, double w) =>
         LineChartBarData(
           spots: [
-            for (var i = 0; i < pts.length; i++)
-              FlSpot(i.toDouble(), pts[i].$2)
+            for (var i = 0; i < pts.length; i++) FlSpot(i.toDouble(), pts[i].$2)
           ],
           isCurved: true,
           curveSmoothness: 0.25,
@@ -892,30 +935,31 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          horizontalInterval: span < 4 ? 2 : (span / 2).ceilToDouble(),
+          horizontalInterval: yStep,
           getDrawingHorizontalLine: (_) => FlLine(
-            color: (isDark ? Colors.white : Colors.black)
-                .withValues(alpha: 0.07),
+            color:
+                (isDark ? Colors.white : Colors.black).withValues(alpha: 0.07),
             strokeWidth: 1,
             dashArray: const [2, 4],
           ),
         ),
         titlesData: FlTitlesData(
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           rightTitles:
               const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 46,
-              interval: span < 4 ? 2 : (span / 2).ceilToDouble(),
+              reservedSize: usd ? 38 : 46,
+              interval: yStep,
               getTitlesWidget: (v, meta) {
                 if (v <= minY - pad + 0.5 || v >= maxY + pad - 0.5) {
                   return const SizedBox.shrink();
                 }
                 return Padding(
                   padding: const EdgeInsets.only(right: 6),
-                  child: Text(_comma(v.round()),
+                  child: Text(fmtY(v),
                       textAlign: TextAlign.right,
                       style: TextStyle(
                           fontSize: 10,
@@ -951,8 +995,8 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
         borderData: FlBorderData(show: false),
         lineTouchData: const LineTouchData(enabled: false),
         lineBarsData: [
-          if (diesel.length >= 2) bar(diesel, const Color(0xFF8B5CF6), 2.0),
-          if (gas.length >= 2) bar(gas, AppColors.gasBlue, 2.4),
+          if (diesel.length >= 2) bar(diesel, colorB, 2.0),
+          if (gas.length >= 2) bar(gas, colorA, 2.4),
         ],
       ),
     );
@@ -1091,16 +1135,18 @@ double? _num(dynamic v) {
   return double.tryParse(v.toString());
 }
 
-String _comma(int v) =>
-    v.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},');
+String _comma(int v) => v
+    .toString()
+    .replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},');
 
 /// [{date:'20260730', price:1868.1}, ...] → [('20260730', 1868.1)]
-List<(String, double)> _series(dynamic raw) {
+/// 국제유가는 값 키가 'usd' 라 key 로 지정한다.
+List<(String, double)> _series(dynamic raw, {String key = 'price'}) {
   if (raw is! List) return const [];
   final out = <(String, double)>[];
   for (final e in raw) {
     if (e is! Map) continue;
-    final p = _num(e['price']);
+    final p = _num(e[key]);
     if (p == null) continue;
     out.add(((e['date'] ?? '').toString(), p));
   }
