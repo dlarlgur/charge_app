@@ -94,6 +94,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // 이벤트/공지 포그라운드 로컬알림 탭 → 그 상세로 이동
     navigateToEventNotifier.addListener(_onNavigateToEvent);
     navigateToNoticeNotifier.addListener(_onNavigateToNotice);
+    navigateToFuelReportNotifier.addListener(_onNavigateToFuelReport);
 
     // 포그라운드 FCM 메시지 수신 → 로컬 알림 표시 + 내역 저장.
     // iOS 는 로컬 그리기 스킵 — FCM 플러그인이 알림 델리게이트를 잡아 포그라운드
@@ -145,6 +146,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             title: message.notification?.title ?? message.data['title']?.toString(),
             body: message.notification?.body ?? message.data['body']?.toString(),
             noticeId: int.tryParse(message.data['id']?.toString() ?? ''),
+          );
+        }
+        _saveToInbox(message);
+      } else if (message.data['type'] == 'fuel_report') {
+        if (drawLocal) {
+          showFuelReportNotification(
+            title: message.notification?.title ?? message.data['title']?.toString(),
+            body: message.notification?.body ?? message.data['body']?.toString(),
+            reportId: int.tryParse(message.data['id']?.toString() ?? ''),
           );
         }
         _saveToInbox(message);
@@ -248,6 +258,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         _openEventDetail(int.tryParse(message.data['id']?.toString() ?? '') ?? 0);
       } else if (message.data['type'] == 'notice') {
         _openNoticeDetail(int.tryParse(message.data['id']?.toString() ?? '') ?? 0);
+      } else if (message.data['type'] == 'fuel_report') {
+        _openFuelReport(int.tryParse(message.data['id']?.toString() ?? '') ?? 0);
       }
     });
 
@@ -301,6 +313,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       } else if (message.data['type'] == 'notice') {
         final id = int.tryParse(message.data['id']?.toString() ?? '') ?? 0;
         Future.delayed(const Duration(milliseconds: 600), () => _openNoticeDetail(id));
+      } else if (message.data['type'] == 'fuel_report') {
+        final id = int.tryParse(message.data['id']?.toString() ?? '') ?? 0;
+        Future.delayed(const Duration(milliseconds: 600), () => _openFuelReport(id));
       }
     });
 
@@ -314,6 +329,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     navigateToMyReportsNotifier.removeListener(_onNavigateToMyReports);
     navigateToEventNotifier.removeListener(_onNavigateToEvent);
     navigateToNoticeNotifier.removeListener(_onNavigateToNotice);
+    navigateToFuelReportNotifier.removeListener(_onNavigateToFuelReport);
     navigateToEvStationNotifier.removeListener(_onNavigateToEvStation);
     navigateToGasStationNotifier.removeListener(_onNavigateToGasStation);
     requestEvReplanNotifier.removeListener(_onEvReplanRequested);
@@ -397,6 +413,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (id <= 0) return;
     navigateToEventNotifier.value = 0; // 소비
     _openEventDetail(id);
+  }
+
+  void _onNavigateToFuelReport() {
+    final id = navigateToFuelReportNotifier.value;
+    if (id <= 0) return;
+    navigateToFuelReportNotifier.value = 0; // 소비
+    _openFuelReport(id);
+  }
+
+  // 유가·충전 리포트 푸시 탭 → 그 리포트 상세 (id 가 없으면 목록)
+  void _openFuelReport(int id) {
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
+      builder: (_) => id > 0
+          ? FuelReportDetailScreen(reportId: id)
+          : const FuelReportScreen(),
+    ));
   }
 
   void _onNavigateToNotice() {
@@ -1568,6 +1601,9 @@ class _AlertPageState extends State<_AlertPage> {
       case 'inquiry_reply':
         if (refInt > 0) navigateToInquiryNotifier.value = refInt;
         break;
+      case 'fuel_report':
+        if (refInt > 0) navigateToFuelReportNotifier.value = refInt;
+        break;
       case 'ev':
       case 'ev_alarm':
       case 'ev_watch':
@@ -1586,6 +1622,7 @@ class _AlertPageState extends State<_AlertPage> {
     if (refId.isEmpty) return false;
     return const {
       'notice', 'event', 'inquiry_reply', 'ev', 'ev_alarm', 'ev_watch', 'gas_price',
+      'fuel_report',
     }.contains(type);
   }
 
@@ -1597,6 +1634,8 @@ class _AlertPageState extends State<_AlertPage> {
         return (icon: Icons.card_giftcard_rounded, color: const Color(0xFF7C3AED));
       case 'inquiry_reply':
         return (icon: Icons.mark_chat_read_rounded, color: const Color(0xFF16A34A));
+      case 'fuel_report':
+        return (icon: Icons.insights_rounded, color: AppColors.gasBlue);
       case 'ev':
       case 'ev_alarm':
       case 'ev_watch':
@@ -2439,7 +2478,17 @@ class SettingsScreenEmbed extends ConsumerWidget {
                   (i) => ref.read(themeModeProvider.notifier).setTheme(modes[i]));
             }),
             settingsDivider(isDark),
-            _tile(context, isDark, Icons.insights_rounded, '유가 · 충전 리포트', '', () {
+            // 리포트는 주제별로 발행되고 내 차종에 맞는 것만 보이므로 타이틀도 맞춘다
+            _tile(
+                context,
+                isDark,
+                Icons.insights_rounded,
+                switch (settings.vehicleType) {
+                  VehicleType.gas => '유가 리포트',
+                  VehicleType.ev => '충전 리포트',
+                  VehicleType.both => '유가 · 충전 리포트',
+                },
+                '매주 흐름 분석', () {
               Navigator.of(context, rootNavigator: true).push(
                   MaterialPageRoute(builder: (_) => const FuelReportScreen()));
             }),

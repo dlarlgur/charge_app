@@ -52,6 +52,9 @@ final navigateToInquiryNotifier = ValueNotifier<int>(0);
 // 제보 처리/사유 안내 알림 탭 → 내 제보 내역 (increment 트리거)
 final navigateToMyReportsNotifier = ValueNotifier<int>(0);
 
+/// 유가·충전 리포트 알림 탭 시 그 리포트 id 전달 → HomeScreen이 리포트 상세로 이동.
+final navigateToFuelReportNotifier = ValueNotifier<int>(0);
+
 /// 이벤트/공지 알림 탭 시 그 id 전달 → HomeScreen이 해당 상세로 이동 (포그라운드 로컬알림 탭 경로).
 final navigateToEventNotifier = ValueNotifier<int>(0);
 final navigateToNoticeNotifier = ValueNotifier<int>(0);
@@ -496,6 +499,12 @@ const eventNoticeChannel = AndroidNotificationChannel(
 /// 백그라운드/종료 상태에선 시스템이 자동 표시하므로 이 함수는 포그라운드 전용.
 void showEventNotification({String? title, String? body, int? eventId}) {
   _showContentNotification(1005, '🎉 새 이벤트', title, body, 'event:${eventId ?? ''}');
+}
+
+/// 포그라운드 유가·충전 리포트 FCM 수신 시 로컬 알림 표시.
+void showFuelReportNotification({String? title, String? body, int? reportId}) {
+  _showContentNotification(
+      1007, '주간 리포트', title, body, 'fuel_report:${reportId ?? ''}');
 }
 
 /// 포그라운드 공지 FCM 수신 시 로컬 알림 표시.

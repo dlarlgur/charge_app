@@ -219,6 +219,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       case 'inquiry_reply':
         showInquiryReplyNotification(title: t, body: b, inquiryId: id);
         break;
+      case 'fuel_report':
+        showFuelReportNotification(title: t, body: b, reportId: id);
+        break;
       default: // notice·free_push 등
         showNoticeNotification(title: t, body: b, noticeId: id);
     }
@@ -379,6 +382,10 @@ Future<void> _initLocalNotifications() async {
       } else if (payload.startsWith('ev_watch:')) {
         final stationId = payload.substring('ev_watch:'.length);
         if (stationId.isNotEmpty) navigateToEvStationNotifier.value = stationId;
+      } else if (payload.startsWith('fuel_report:')) {
+        // 유가·충전 리포트 알림 탭 → 그 리포트 상세
+        navigateToFuelReportNotifier.value =
+            int.tryParse(payload.substring('fuel_report:'.length)) ?? 0;
       } else if (payload.startsWith('report_done')) {
         // 제보 처리/사유 안내 알림 탭 → 내 제보 내역
         navigateToMyReportsNotifier.value++;

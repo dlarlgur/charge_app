@@ -299,9 +299,15 @@ class ApiService {
   }
 
   // ─── 유가 · 충전 리포트 ───
-  Future<List<Map<String, dynamic>>> getFuelReports({String? kind, int limit = 20}) async {
+  /// topic: 'fuel'(유가) | 'ev'(충전) — 내 차종에 맞는 것만 조회한다.
+  Future<List<Map<String, dynamic>>> getFuelReports({
+    String? kind,
+    String? topic,
+    int limit = 20,
+  }) async {
     final res = await _dio.get(ApiConstants.fuelReports, queryParameters: {
       if (kind != null) 'kind': kind,
+      if (topic != null) 'topic': topic,
       'limit': limit,
     });
     final list = res.data?['reports'];
