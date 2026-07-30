@@ -9,6 +9,8 @@ import 'package:flutter/foundation.dart';
 /// placement 별 1건을 부팅 시 미리 받아 캐시. (네트워크 실패 시점에 즉시 그려야 하므로)
 class FallbackAd {
   final int id;
+  /// 카피 A/B 변형 id — 노출·클릭 로깅 시 되돌려준다 (없으면 서버가 추정)
+  final int? variantId;
   final String displayStyle; // 'card' | 'banner'
   final String imageUrl;
   final String? headline;
@@ -19,6 +21,7 @@ class FallbackAd {
 
   const FallbackAd({
     required this.id,
+    this.variantId,
     required this.displayStyle,
     required this.imageUrl,
     this.headline,
@@ -32,6 +35,7 @@ class FallbackAd {
 
   factory FallbackAd.fromJson(Map<String, dynamic> j) => FallbackAd(
         id: (j['id'] as num).toInt(),
+        variantId: (j['variantId'] as num?)?.toInt(),
         displayStyle:
             j['displayStyle']?.toString() == 'banner' ? 'banner' : 'card',
         imageUrl: j['imageUrl']?.toString() ?? '',

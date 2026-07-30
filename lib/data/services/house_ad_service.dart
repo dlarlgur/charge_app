@@ -13,6 +13,9 @@ import '../../core/constants/api_constants.dart';
 class HouseAd {
   final int id;
   final int listPosition;
+  /// 카피 A/B 변형 id — 서버가 고른 [헤드라인+본문+CTA] 세트.
+  /// 노출·클릭 로깅 때 그대로 되돌려줘야 어느 문구가 눌렸는지 집계된다.
+  final int? variantId;
   final bool bypassAdmob;
   final String imageUrl;
   final String? headline;
@@ -25,6 +28,7 @@ class HouseAd {
   const HouseAd({
     required this.id,
     required this.listPosition,
+    this.variantId,
     required this.bypassAdmob,
     required this.imageUrl,
     this.headline,
@@ -41,6 +45,7 @@ class HouseAd {
   factory HouseAd.fromJson(Map<String, dynamic> j) => HouseAd(
         id: (j['id'] as num).toInt(),
         listPosition: (j['listPosition'] as num?)?.toInt() ?? 0,
+        variantId: (j['variantId'] as num?)?.toInt(),
         bypassAdmob: j['bypassAdmob'] == true,
         imageUrl: j['imageUrl']?.toString() ?? '',
         headline: j['headline']?.toString(),
@@ -54,6 +59,7 @@ class HouseAd {
   Map<String, dynamic> toJson() => {
         'id': id,
         'listPosition': listPosition,
+        if (variantId != null) 'variantId': variantId,
         'bypassAdmob': bypassAdmob,
         'imageUrl': imageUrl,
         'headline': headline,
@@ -173,8 +179,10 @@ class HouseAdCache {
       {String? serverBaseUrl}) async {
     try {
       final base = serverBaseUrl ?? 'https://dksw4.com/console';
+      // device_id 전달 — 서버가 테스트 기기 노출을 통계에서 제외한다.
       await Dio()
-          .post('$base/api/ads/$adId/impression')
+          .post('$base/api/ads/$adId/impression',
+              data: {'device_id': DkswCore.deviceId})
           .timeout(const Duration(seconds: 3));
     } catch (_) {}
   }
@@ -183,7 +191,8 @@ class HouseAdCache {
     try {
       final base = serverBaseUrl ?? 'https://dksw4.com/console';
       await Dio()
-          .post('$base/api/ads/$adId/click')
+          .post('$base/api/ads/$adId/click',
+              data: {'device_id': DkswCore.deviceId})
           .timeout(const Duration(seconds: 3));
     } catch (_) {}
   }

@@ -594,12 +594,14 @@ class HouseFallbackAd extends StatelessWidget {
 
   // 폴백 광고도 콘솔 통계에 잡히도록 노출 1회/클릭 보고 (세션당 광고별 1회).
   static final Set<int> _impressed = {};
-  static void _trackImpressionOnce(int adId) {
-    if (_impressed.add(adId)) DkswCore.trackAdImpression(adId);
+  static void _trackImpressionOnce(int adId, {int? variantId}) {
+    if (_impressed.add(adId)) {
+      DkswCore.trackAdImpression(adId, variantId: variantId);
+    }
   }
 
   Future<void> _onTap(BuildContext context, FallbackAd ad) async {
-    DkswCore.trackAdClick(ad.id);
+    DkswCore.trackAdClick(ad.id, variantId: ad.variantId);
     await openAdCta(context, url: ad.ctaUrl, ctaType: ad.ctaType);
   }
 
@@ -607,7 +609,7 @@ class HouseFallbackAd extends StatelessWidget {
   Widget build(BuildContext context) {
     final ad = AdFallbackCache.at(placement);
     if (ad == null || ad.imageUrl.isEmpty) return const SizedBox.shrink();
-    _trackImpressionOnce(ad.id);
+    _trackImpressionOnce(ad.id, variantId: ad.variantId);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDark ? AppColors.darkSurface1 : Colors.white;
     final border =

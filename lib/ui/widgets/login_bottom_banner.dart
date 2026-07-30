@@ -94,7 +94,9 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
   }
 
   void _trackImpression(FallbackAd ad) {
-    if (_impressed.add(ad.id)) DkswCore.trackAdImpression(ad.id);
+    if (_impressed.add(ad.id)) {
+      DkswCore.trackAdImpression(ad.id, variantId: ad.variantId);
+    }
   }
 
   void _loadAdmob() {
@@ -124,7 +126,7 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
   Future<void> _onHouseTap() async {
     final ad = _house;
     if (ad == null) return;
-    DkswCore.trackAdClick(ad.id); // 클릭 보고 (콘솔 통계)
+    DkswCore.trackAdClick(ad.id, variantId: ad.variantId); // 클릭 보고 (콘솔 통계)
     await openAdCta(context, url: ad.ctaUrl, ctaType: ad.ctaType);
   }
 
