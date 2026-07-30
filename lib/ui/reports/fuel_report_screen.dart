@@ -26,6 +26,7 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
   List<String> _topics = const ['fuel'];
 
   final _cache = <String, List<Map<String, dynamic>>>{};
+  Map<String, dynamic>? _today; // 일간 유가(수치만) 최신 1건 — 목록 최상단 카드
   final _loading = <String, bool>{};
   final _error = <String, String?>{};
 
@@ -68,9 +69,17 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
     });
     try {
       final list = await ApiService().getFuelReports(topic: topic, limit: 30);
+      // 일간(수치만)은 목록에서 제외돼 오므로 따로 1건 — 유가 탭에서만 쓴다
+      Map<String, dynamic>? daily;
+      if (topic == 'fuel') {
+        final d = await ApiService()
+            .getFuelReports(topic: topic, kind: 'daily', limit: 1);
+        if (d.isNotEmpty) daily = d.first;
+      }
       if (!mounted) return;
       setState(() {
         _cache[topic] = list;
+        if (topic == 'fuel' && daily != null) _today = daily;
         _loading[topic] = false;
       });
     } catch (_) {
@@ -124,7 +133,11 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
     if (err != null && items.isEmpty) {
       return _empty(isDark, err, retry: () => _load(topic, force: true));
     }
-    if (items.isEmpty) {
+    final todayCard = (topic == 'fuel' && _today != null)
+        ? _todayCard(_today!, isDark)
+        : null;
+    // 주간·월간이 아직 없어도 일간 카드는 보여준다 (출시 직후 케이스)
+    if (items.isEmpty && todayCard == null) {
       return _empty(
         isDark,
         topic == 'ev' ? '아직 발행된 충전 리포트가 없어요' : '아직 발행된 유가 리포트가 없어요',
@@ -138,9 +151,26 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
       color: _accent(topic),
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
-        itemCount: items.length,
+        itemCount: items.length +
+            (todayCard == null ? 0 : 1) +
+            (items.isEmpty && todayCard != null ? 1 : 0),
         separatorBuilder: (_, __) => const SizedBox(height: 10),
-        itemBuilder: (_, i) => _card(items[i], isDark),
+        itemBuilder: (_, i) {
+          if (todayCard != null) {
+            if (i == 0) return todayCard;
+            if (items.isEmpty) {
+              final muted =
+                  isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(4, 14, 4, 0),
+                child: Text('주간 · 월간 분석 리포트는 매주 월요일에 올라와요',
+                    style: TextStyle(fontSize: 12.5, color: muted)),
+              );
+            }
+            return _card(items[i - 1], isDark);
+          }
+          return _card(items[i], isDark);
+        },
       ),
     );
   }
@@ -174,6 +204,82 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
           ),
         ],
       ],
+    );
+  }
+
+  /// 오늘의 유가 — 일간 리포트(수치만). 목록 최상단에서 한눈에 보이게 강조.
+  Widget _todayCard(Map<String, dynamic> r, bool isDark) {
+    const accent = AppColors.gasBlue;
+    final id = int.tryParse(r['id']?.toString() ?? '');
+    return Material(
+      color:
+          isDark ? AppColors.darkGasActiveCard : AppColors.lightGasActiveCard,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: id == null
+            ? null
+            : () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => FuelReportDetailScreen(reportId: id))),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 13, 14, 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+                color: isDark
+                    ? AppColors.darkGasActiveBorder
+                    : AppColors.lightGasActiveBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  _pill('오늘', accent, isDark),
+                  const SizedBox(width: 6),
+                  Text(_fmtDate(r['date']),
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isDark
+                              ? AppColors.darkTextMuted
+                              : AppColors.lightTextMuted)),
+                  const Spacer(),
+                  Icon(Icons.chevron_right_rounded,
+                      size: 20,
+                      color: isDark
+                          ? AppColors.darkTextMuted
+                          : AppColors.lightTextMuted),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text((r['title'] ?? '').toString(),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w800,
+                      height: 1.35,
+                      letterSpacing: -0.3,
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.lightTextPrimary)),
+              if ((r['summary'] ?? '').toString().trim().isNotEmpty) ...[
+                const SizedBox(height: 5),
+                Text(r['summary'].toString(),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        height: 1.55,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary)),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -332,7 +438,13 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
     final r = _r;
     final topic = (r?['topic'] ?? 'fuel').toString();
     final accent = topic == 'ev' ? AppColors.evGreen : AppColors.gasBlue;
-    final monthly = r?['kind'] == 'monthly';
+    final kind = (r?['kind'] ?? 'weekly').toString();
+    final monthly = kind == 'monthly';
+    final kindLabel = switch (kind) {
+      'monthly' => '월간 종합',
+      'daily' => '오늘',
+      _ => '주간',
+    };
 
     return Scaffold(
       appBar: AppBar(
@@ -391,7 +503,7 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                   children: [
                     Row(
                       children: [
-                        _pill(monthly ? '월간 종합' : '주간', accent, isDark),
+                        _pill(kindLabel, accent, isDark),
                         const SizedBox(width: 6),
                         Text(_fmtDate(r['date'], monthly: monthly),
                             style: TextStyle(
