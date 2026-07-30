@@ -40,7 +40,10 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
     };
     _tab = TabController(length: _topics.length, vsync: this);
     _tab!.addListener(() {
-      if (!_tab!.indexIsChanging) _load(_topics[_tab!.index]);
+      if (_tab!.indexIsChanging) return;
+      // 스와이프로 넘겨도 탭 강조색(유가=파랑/충전=초록)이 따라오게 리빌드
+      if (mounted) setState(() {});
+      _load(_topics[_tab!.index]);
     });
     _load(_topics.first);
   }
@@ -98,7 +101,6 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
                 labelStyle:
                     const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
                 tabs: const [Tab(text: '유가'), Tab(text: '충전')],
-                onTap: (_) => setState(() {}),
               ),
       ),
       body: TabBarView(
