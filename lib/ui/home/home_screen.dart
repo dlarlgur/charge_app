@@ -96,6 +96,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     navigateToNoticeNotifier.addListener(_onNavigateToNotice);
     navigateToFuelReportNotifier.addListener(_onNavigateToFuelReport);
 
+    // 앱이 완전히 꺼진 상태에서 알림 탭으로 실행된 경우 — main 의 payload 라우팅이
+    // 이 initState 보다 먼저 끝나 리스너가 값을 못 받는다(그래서 홈에 머물렀음).
+    // 마운트 직후 한 번 훑어 대기 중인 이동 요청을 소비한다. 각 핸들러가 값을
+    // 0 으로 소비하므로 리스너와 중복 실행돼도 두 번 이동하지 않는다.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (navigateToFuelReportNotifier.value > 0) _onNavigateToFuelReport();
+      if (navigateToNoticeNotifier.value > 0) _onNavigateToNotice();
+      if (navigateToEventNotifier.value > 0) _onNavigateToEvent();
+      if (navigateToInquiryNotifier.value > 0) _onNavigateToInquiry();
+    });
+
     // 포그라운드 FCM 메시지 수신 → 로컬 알림 표시 + 내역 저장.
     // iOS 는 로컬 그리기 스킵 — FCM 플러그인이 알림 델리게이트를 잡아 포그라운드
     // 로컬 알림이 침묵하므로, main 의 setForegroundNotificationPresentationOptions 로

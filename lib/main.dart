@@ -349,67 +349,82 @@ Future<void> _initLocalNotifications() async {
         requestSoundPermission: false,
       ),
     ),
-    onDidReceiveNotificationResponse: (details) {
-      final payload = details.payload ?? '';
-      if (details.actionId == 'mark_read') {
-        AlertService().markAllRead();
-      } else if (details.actionId == 'find_alt' &&
-          payload.startsWith('ev_watch:')) {
-        // "다른 충전소" 액션 — 만석 도달 시 AI 재추천 트리거
-        final stationId = payload.substring('ev_watch:'.length);
-        excludeStationOnReplanNotifier.value = stationId;
-        requestEvReplanNotifier.value++;
-      } else if (payload.startsWith('ev_watch_ongoing:')) {
-        // 자리변동 감시 상시 알림 탭 → 충전소 상세로 이동
-        final stationId = payload.substring('ev_watch_ongoing:'.length);
-        if (stationId.isNotEmpty) navigateToEvStationNotifier.value = stationId;
-      } else if (payload.startsWith('ev_alarm:')) {
-        // payload 형식: ev_alarm:stationId:encodedTitle:encodedBody
-        final rest = payload.substring('ev_alarm:'.length);
-        final parts = rest.split(':');
-        final stationId = parts.isNotEmpty ? parts[0] : '';
-        if (stationId.isNotEmpty) {
-          navigateToEvStationNotifier.value = stationId;
-        }
-        // main isolate에서 히스토리 저장 (백그라운드 isolate Hive 캐시 불일치 방지)
-        if (parts.length >= 3) {
-          try {
-            final title = Uri.decodeComponent(parts[1]);
-            final body = Uri.decodeComponent(parts.sublist(2).join(':'));
-            AlertService().addEvAlarmMessage({'title': title, 'body': body});
-          } catch (_) {}
-        }
-      } else if (payload.startsWith('ev_watch:')) {
-        final stationId = payload.substring('ev_watch:'.length);
-        if (stationId.isNotEmpty) navigateToEvStationNotifier.value = stationId;
-      } else if (payload.startsWith('fuel_report:')) {
-        // 유가·충전 리포트 알림 탭 → 그 리포트 상세
-        navigateToFuelReportNotifier.value =
-            int.tryParse(payload.substring('fuel_report:'.length)) ?? 0;
-      } else if (payload.startsWith('report_done')) {
-        // 제보 처리/사유 안내 알림 탭 → 내 제보 내역
-        navigateToMyReportsNotifier.value++;
-      } else if (payload.startsWith('inquiry_reply')) {
-        // 1:1 문의 답변 알림 탭 → 그 문의 상세 (payload: inquiry_reply:id)
-        final idStr =
-            payload.substring('inquiry_reply'.length).replaceFirst(':', '');
-        navigateToInquiryNotifier.value = int.tryParse(idStr) ?? 0;
-      } else if (payload.startsWith('event:')) {
-        // 이벤트 알림 탭 → 그 이벤트 상세 (payload: event:id)
-        navigateToEventNotifier.value =
-            int.tryParse(payload.substring('event:'.length)) ?? 0;
-      } else if (payload.startsWith('notice:')) {
-        // 공지 알림 탭 → 그 공지 상세 (payload: notice:id)
-        navigateToNoticeNotifier.value =
-            int.tryParse(payload.substring('notice:'.length)) ?? 0;
-      } else {
-        // 알림 본문 탭 또는 "상세보기" 버튼 → 알림 페이지로 이동
-        navigateToAlertsNotifier.value++;
-      }
-    },
+    onDidReceiveNotificationResponse: (details) =>
+        routeNotificationPayload(details.payload ?? '', details.actionId),
     onDidReceiveBackgroundNotificationResponse:
         _onBackgroundNotificationResponse,
   );
+
+  // 앱이 꺼진 상태에서 알림 탭으로 실행된 경우 — 플랫폼/버전에 따라 위 콜백이
+  // 호출되지 않을 수 있어 실행 payload 를 직접 읽어 같은 라우팅을 태운다.
+  // 콜백과 중복돼도 notifier '소비' 방식이라 두 번 이동하지 않는다.
+  try {
+    final launch = await notificationPlugin.getNotificationAppLaunchDetails();
+    final p = launch?.notificationResponse?.payload ?? '';
+    if ((launch?.didNotificationLaunchApp ?? false) && p.isNotEmpty) {
+      routeNotificationPayload(p, launch?.notificationResponse?.actionId);
+    }
+  } catch (_) {}
+}
+
+/// 로컬 알림 탭 payload → 이동 notifier 세팅.
+/// 앱이 완전 종료 상태에서 탭으로 실행되면 이 라우팅이 HomeScreen 마운트보다 먼저
+/// 끝나 리스너가 값을 못 받는다 → HomeScreen 이 마운트 직후 pending 값을 한 번 훑는다.
+void routeNotificationPayload(String payload, String? actionId) {
+  if (actionId == 'mark_read') {
+    AlertService().markAllRead();
+  } else if (actionId == 'find_alt' && payload.startsWith('ev_watch:')) {
+    // "다른 충전소" 액션 — 만석 도달 시 AI 재추천 트리거
+    final stationId = payload.substring('ev_watch:'.length);
+    excludeStationOnReplanNotifier.value = stationId;
+    requestEvReplanNotifier.value++;
+  } else if (payload.startsWith('ev_watch_ongoing:')) {
+    // 자리변동 감시 상시 알림 탭 → 충전소 상세로 이동
+    final stationId = payload.substring('ev_watch_ongoing:'.length);
+    if (stationId.isNotEmpty) navigateToEvStationNotifier.value = stationId;
+  } else if (payload.startsWith('ev_alarm:')) {
+    // payload 형식: ev_alarm:stationId:encodedTitle:encodedBody
+    final rest = payload.substring('ev_alarm:'.length);
+    final parts = rest.split(':');
+    final stationId = parts.isNotEmpty ? parts[0] : '';
+    if (stationId.isNotEmpty) {
+      navigateToEvStationNotifier.value = stationId;
+    }
+    // main isolate에서 히스토리 저장 (백그라운드 isolate Hive 캐시 불일치 방지)
+    if (parts.length >= 3) {
+      try {
+        final title = Uri.decodeComponent(parts[1]);
+        final body = Uri.decodeComponent(parts.sublist(2).join(':'));
+        AlertService().addEvAlarmMessage({'title': title, 'body': body});
+      } catch (_) {}
+    }
+  } else if (payload.startsWith('ev_watch:')) {
+    final stationId = payload.substring('ev_watch:'.length);
+    if (stationId.isNotEmpty) navigateToEvStationNotifier.value = stationId;
+  } else if (payload.startsWith('fuel_report:')) {
+    // 유가·충전 리포트 알림 탭 → 그 리포트 상세
+    navigateToFuelReportNotifier.value =
+        int.tryParse(payload.substring('fuel_report:'.length)) ?? 0;
+  } else if (payload.startsWith('report_done')) {
+    // 제보 처리/사유 안내 알림 탭 → 내 제보 내역
+    navigateToMyReportsNotifier.value++;
+  } else if (payload.startsWith('inquiry_reply')) {
+    // 1:1 문의 답변 알림 탭 → 그 문의 상세 (payload: inquiry_reply:id)
+    final idStr =
+        payload.substring('inquiry_reply'.length).replaceFirst(':', '');
+    navigateToInquiryNotifier.value = int.tryParse(idStr) ?? 0;
+  } else if (payload.startsWith('event:')) {
+    // 이벤트 알림 탭 → 그 이벤트 상세 (payload: event:id)
+    navigateToEventNotifier.value =
+        int.tryParse(payload.substring('event:'.length)) ?? 0;
+  } else if (payload.startsWith('notice:')) {
+    // 공지 알림 탭 → 그 공지 상세 (payload: notice:id)
+    navigateToNoticeNotifier.value =
+        int.tryParse(payload.substring('notice:'.length)) ?? 0;
+  } else {
+    // 알림 본문 탭 또는 "상세보기" 버튼 → 알림 페이지로 이동
+    navigateToAlertsNotifier.value++;
+  }
 }
 
 void main() async {
@@ -473,8 +488,9 @@ void main() async {
   // APNs alert 가 실린 리모트 푸시를 OS 가 직접 그리게 위임한다.
   // 중복 방지를 위해 onMessage 쪽 로컬 그리기는 iOS 에서 스킵 (home_screen).
   if (Platform.isIOS) {
-    unawaited(FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
-      alert: true, badge: true, sound: true));
+    unawaited(FirebaseMessaging.instance
+        .setForegroundNotificationPresentationOptions(
+            alert: true, badge: true, sound: true));
   }
 
   // 콘솔 공지/이벤트 FCM 토픽 구독 — fire-and-forget (실패해도 부팅 무관).
