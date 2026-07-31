@@ -408,7 +408,10 @@ class SavingsShareCard extends StatelessWidget {
         ),
         SizedBox(height: story ? 28 : 18),
         if (f.isNotEmpty)
-          Row(
+          // ⚠ Column 은 자식에게 세로 무한 제약을 준다 → stretch 만 쓰면 빌드가 터진다.
+          //   (추천 카드 미리보기가 통째로 안 뜨던 원인) IntrinsicHeight 로 높이를 확정한다.
+          IntrinsicHeight(
+              child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               for (var i = 0; i < f.length; i++) ...[
@@ -442,7 +445,7 @@ class SavingsShareCard extends StatelessWidget {
                 ),
               ],
             ],
-          ),
+          )),
         if ((stationName ?? '').trim().isNotEmpty) ...[
           const SizedBox(height: 9),
           _stationBar(),
@@ -526,69 +529,76 @@ class SavingsShareCard extends StatelessWidget {
   Widget _receiptBody() {
     // 마지막 항목은 보통 '예상 비용' 성격이라 합계 줄로 따로 뺀다.
     final rows = facts.toList();
-    return Container(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Text(isEv ? '충전 절약 영수증' : '주유 절약 영수증',
-                style: const TextStyle(
-                    fontSize: 14, fontWeight: FontWeight.w800, color: _ink)),
-            const Spacer(),
-            Text(_today(),
-                style: const TextStyle(
-                    fontSize: 10, fontWeight: FontWeight.w600, color: _muted)),
-          ]),
-          SizedBox(height: story ? 20 : 14),
-          if ((stationName ?? '').trim().isNotEmpty)
-            _receiptRow(isEv ? '충전소' : '주유소', stationName!),
-          for (final f in rows) _receiptRow(f.label, f.value),
-          SizedBox(height: story ? 14 : 8),
-          const _Dashed(),
-          SizedBox(height: story ? 14 : 10),
-          Container(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-            decoration: BoxDecoration(
-              color: _tint,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Text('절약 합계',
-                    style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w800,
-                        color: _accentDeep)),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerRight,
-                      child: Text(
-                        _savingsAmount(),
-                        style: TextStyle(
-                          fontSize: 25,
+    // 남은 공간을 흰 카드가 다 먹으면 아래가 휑하다 → 내용만큼만 차지하고 위로 붙인다.
+    return Align(
+      alignment: Alignment.center,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(children: [
+              Text(isEv ? '충전 절약 영수증' : '주유 절약 영수증',
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w800, color: _ink)),
+              const Spacer(),
+              Text(_today(),
+                  style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: _muted)),
+            ]),
+            SizedBox(height: story ? 20 : 14),
+            if ((stationName ?? '').trim().isNotEmpty)
+              _receiptRow(isEv ? '충전소' : '주유소', stationName!),
+            for (final f in rows) _receiptRow(f.label, f.value),
+            SizedBox(height: story ? 14 : 8),
+            const _Dashed(),
+            SizedBox(height: story ? 14 : 10),
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+              decoration: BoxDecoration(
+                color: _tint,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text('절약 합계',
+                      style: TextStyle(
+                          fontSize: 12.5,
                           fontWeight: FontWeight.w800,
-                          color: _accentInk,
-                          letterSpacing: -1,
-                          fontFeatures: const [FontFeature.tabularFigures()],
+                          color: _accentDeep)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          _savingsAmount(),
+                          style: TextStyle(
+                            fontSize: 25,
+                            fontWeight: FontWeight.w800,
+                            color: _accentInk,
+                            letterSpacing: -1,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -208,7 +208,11 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
           Widget tile(ShareCardStyle st, String title, String sub) => Expanded(
                 child: InkWell(
                   borderRadius: BorderRadius.circular(14),
-                  onTap: () => Navigator.pop(ctx, st),
+                  onTap: () async {
+                    // 썸네일은 구성만 보여준다 — 실물을 보고 결정하게 한 번 띄운다.
+                    final ok = await _previewStyle(ctx, st, story);
+                    if (ok && ctx.mounted) Navigator.pop(ctx, st);
+                  },
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Column(
@@ -273,6 +277,99 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
           );
         },
       );
+
+  /// 고른 스타일을 실제 카드로 그려 보여준다. 공유 이미지와 같은 위젯이라
+  /// 여기서 보이는 그대로 저장된다(캡처만 1080px 로 확대).
+  Future<bool> _previewStyle(
+      BuildContext ctx, ShareCardStyle st, bool story) async {
+    final ok = await showDialog<bool>(
+      context: ctx,
+      barrierColor: Colors.black.withValues(alpha: 0.72),
+      builder: (dctx) {
+        final maxW = MediaQuery.of(dctx).size.width - 56;
+        final maxH = MediaQuery.of(dctx).size.height * 0.62;
+        final scale = math.min(maxW / SavingsShareCard.side,
+            maxH / SavingsShareCard.heightFor(story));
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Spacer(),
+              // 실제 카드 그대로 축소 — 미리보기와 결과가 다르면 안 본 것만 못하다.
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: SizedBox(
+                  width: SavingsShareCard.side * scale,
+                  height: SavingsShareCard.heightFor(story) * scale,
+                  child: FittedBox(
+                    fit: BoxFit.contain,
+                    child: SizedBox(
+                      width: SavingsShareCard.side,
+                      height: SavingsShareCard.heightFor(story),
+                      child: SavingsShareCard(
+                        caption: widget.caption,
+                        headline: widget.headline,
+                        isEv: widget.isEv,
+                        stationName: widget.stationName,
+                        stationSub: widget.stationSub,
+                        facts: widget.facts,
+                        story: story,
+                        style: st,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(dctx, false),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.45)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(13)),
+                      ),
+                      child: const Text('다시 고르기',
+                          style: TextStyle(
+                              fontSize: 14.5, fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  flex: 2,
+                  child: SizedBox(
+                    height: 48,
+                    child: FilledButton.icon(
+                      onPressed: () => Navigator.pop(dctx, true),
+                      icon: const Icon(Icons.ios_share_rounded, size: 18),
+                      label: const Text('이걸로 공유',
+                          style: TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.w800)),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _accent,
+                        foregroundColor: _accentFg,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(13)),
+                      ),
+                    ),
+                  ),
+                ),
+              ]),
+              const Spacer(),
+            ],
+          ),
+        );
+      },
+    );
+    return ok == true;
+  }
 
   @override
   Widget build(BuildContext context) {

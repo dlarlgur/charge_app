@@ -1566,21 +1566,19 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     if (oldIndex < 0 || oldIndex >= slots.length) return;
     final moved = slots.removeAt(oldIndex);
     slots.insert(newIndex.clamp(0, slots.length), moved);
-    // 출발/목적 자리에는 좌표가 있어야 경로를 그릴 수 있다. 빈 경유지(입력 전)가 그 자리로
-    // 가면 되돌린다 — 예전엔 이 검사가 전체 이동을 막아서, 가운데에서 빈 경유지 순서를
-    // 바꾸는 것까지 무시됐다(형 제보). 이제 '양 끝으로 간 경우'만 되돌린다.
+    // 빈 경유지(입력 전)는 자리표시일 뿐이라 출발·목적 칸에 앉을 수 없다.
+    // 그렇다고 팝업으로 막으면 사용자는 '왜 안 되지' 하고 멈춘다 — 빈 칸만 가운데로
+    // 밀어서 실제 장소끼리 자리가 바뀌게 한다. 되돌리지도, 알리지도 않는다.
     if (slots.first?['lat'] == null || slots.last?['lat'] == null) {
-      slots.removeAt(newIndex.clamp(0, slots.length - 1));
-      slots.insert(oldIndex, moved);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('출발지·목적지에는 장소를 먼저 입력해 주세요'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-      return;
+      final filled = slots.where((e) => e?['lat'] != null).toList();
+      final empty = slots.where((e) => e?['lat'] == null).toList();
+      if (filled.length < 2) return; // 채워진 곳이 하나뿐이면 바꿀 게 없다
+      slots
+        ..clear()
+        ..add(filled.first)
+        ..addAll(filled.sublist(1, filled.length - 1))
+        ..addAll(empty)
+        ..add(filled.last);
     }
     HapticFeedback.selectionClick();
     setState(() {
@@ -2129,6 +2127,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         // 우회시간을 '경유지 포함 경로' 기준으로 재게 한다. 안 보내면 서버가
         // 경유지 없는 길을 기준으로 삼아 우회 10분을 0분으로 계산한다.
         if (_viaCoords.isNotEmpty) 'vias': _viaCoords,
+        // 서버가 우회시간을 '내가 화면에서 본 경로'와 같은 엔진·같은 옵션으로 재게 한다.
+        'route_key': _selectedRouteKey,
         'highway_only': _gasHighwayOnly,
         if (_preferredGasBrands.isNotEmpty)
           'preferred_brands': _preferredGasBrands
@@ -3783,6 +3783,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         if (directDurationMs != null) 'directDurationMs': directDurationMs,
         // 우회시간 기준 경로에 포함 — 안 보내면 경유지 없는 길과 비교하게 된다.
         if (_viaCoords.isNotEmpty) 'vias': _viaCoords,
+        // 서버가 우회시간을 '내가 화면에서 본 경로'와 같은 엔진·같은 옵션으로 재게 한다.
+        'engine': RouteEnginePref.get(),
+        'route_key': _selectedRouteKey,
         'highwayOnly': _evHighwayOnly,
         if (_preferredEvOperators.isNotEmpty)
           'operators': _preferredEvOperators.toList(),
@@ -4005,6 +4008,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'pathPoints': pathPoints,
         'userSelect': true,
         if (_viaCoords.isNotEmpty) 'vias': _viaCoords,
+        // 서버가 우회시간을 '내가 화면에서 본 경로'와 같은 엔진·같은 옵션으로 재게 한다.
+        'engine': RouteEnginePref.get(),
+        'route_key': _selectedRouteKey,
         'highwayOnly': _evHighwayOnly,
         if (_preferredEvOperators.isNotEmpty)
           'operators': _preferredEvOperators.toList(),
@@ -4297,6 +4303,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'engine': RouteEnginePref.get(), // 결과 지도 경유 경로를 같은 엔진으로
         'path_points': pathPoints,
         if (_viaCoords.isNotEmpty) 'vias': _viaCoords,
+        // 서버가 우회시간을 '내가 화면에서 본 경로'와 같은 엔진·같은 옵션으로 재게 한다.
+        'route_key': _selectedRouteKey,
         'highway_only': _gasHighwayOnly,
         if (_preferredGasBrands.isNotEmpty)
           'preferred_brands': _preferredGasBrands
@@ -4697,6 +4705,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'destination': {'lat': _destLat!, 'lng': _destLng!},
         'path_points': _lastPathPoints,
         if (_viaCoords.isNotEmpty) 'vias': _viaCoords,
+        // 서버가 우회시간을 '내가 화면에서 본 경로'와 같은 엔진·같은 옵션으로 재게 한다.
+        'route_key': _selectedRouteKey,
       },
       // 서버 validateComparePayload는 `stations`(길이 2)만 받음
       'stations': [stA, stB],
