@@ -82,6 +82,61 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
   }
 
   Future<void> _share() async {
+    // 인스타는 피드 4:5, 스토리 9:16 이 서로 달라 어디에 올릴지 먼저 고른다.
+    final story = await showModalBottomSheet<bool>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        final dark = Theme.of(ctx).brightness == Brightness.dark;
+        final muted = dark ? Colors.white60 : const Color(0xFF64748B);
+        Widget item(
+                bool isStory, String title, String sub, double w, double h) =>
+            ListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              leading: Container(
+                width: 34,
+                height: 34,
+                alignment: Alignment.center,
+                child: Container(
+                  width: w,
+                  height: h,
+                  decoration: BoxDecoration(
+                    color: _accent.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              ),
+              title: Text(title,
+                  style: const TextStyle(
+                      fontSize: 14.5, fontWeight: FontWeight.w700)),
+              subtitle: Text(sub, style: TextStyle(fontSize: 12, color: muted)),
+              trailing:
+                  Icon(Icons.chevron_right_rounded, size: 20, color: muted),
+              onTap: () => Navigator.pop(ctx, isStory),
+            );
+        return SafeArea(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const SizedBox(height: 14),
+            Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: dark ? Colors.white24 : Colors.black12,
+                    borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 14),
+            const Text('어디에 올릴까요?',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            item(false, '피드', '인스타 피드 (4:5)', 22, 27.5),
+            item(true, '스토리 · 릴스', '인스타 스토리 (9:16)', 18, 32),
+            const SizedBox(height: 12),
+          ]),
+        );
+      },
+    );
+    if (story == null || !mounted) return;
     await SavingsShare.shareCard(
       context,
       caption: widget.caption,
@@ -89,6 +144,7 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
       isEv: widget.isEv,
       stationName: widget.stationName,
       facts: widget.facts,
+      story: story,
     );
   }
 
@@ -99,31 +155,21 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
     final fadeIn = CurvedAnimation(
         parent: _in, curve: const Interval(0, 0.35, curve: Curves.easeOut));
     final cardW = math.min(MediaQuery.of(context).size.width - 48, 340.0);
-    // 테마별 팔레트 — 라이트는 밝은 화이트 카드, 다크는 딥네이비 글래스.
+    // 유종 색으로 꽉 채운 카드 — 라이트에서 흰 배경이면 밋밋해서 테마와 무관하게
+    // 주유=딥블루 / 충전=딥그린 그라데이션 위에 흰 글씨로 간다(공유 이미지와 같은 톤).
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColors = isDark
-        ? const [Color(0xFF16233C), Color(0xFF0F172A)]
-        : const [Colors.white, Color(0xFFF6FBF8)];
-    final cardBorder = isDark
-        ? Colors.white.withValues(alpha: 0.14)
-        : Colors.black.withValues(alpha: 0.06);
-    final captionColor =
-        isDark ? Colors.white.withValues(alpha: 0.85) : const Color(0xFF334155);
-    final headlineColors = isDark
-        ? [const Color(0xFFFFE082), _accent]
-        : [const Color(0xFFF59E0B), _accent];
-    final badgeFg = isDark
-        ? _accent
-        : (widget.isEv ? const Color(0xFF059669) : const Color(0xFF2563EB));
-    final panelBg =
-        isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFF1F5F9);
-    final panelBorder = isDark
-        ? Colors.white.withValues(alpha: 0.08)
-        : Colors.black.withValues(alpha: 0.05);
-    final nameColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final factLabelColor =
-        isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF64748B);
-    final factValueColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final cardColors = widget.isEv
+        ? const [Color(0xFF063E30), Color(0xFF0B7A5B), Color(0xFF0E9E74)]
+        : const [Color(0xFF10243F), Color(0xFF14487F), Color(0xFF1D6FE0)];
+    final cardBorder = Colors.white.withValues(alpha: 0.18);
+    final captionColor = Colors.white.withValues(alpha: 0.82);
+    final headlineColors = [Colors.white, _accent];
+    const badgeFg = Colors.white;
+    final panelBg = Colors.black.withValues(alpha: 0.24);
+    final panelBorder = Colors.white.withValues(alpha: 0.12);
+    const nameColor = Colors.white;
+    final factLabelColor = Colors.white.withValues(alpha: 0.62);
+    const factValueColor = Colors.white;
     return Positioned.fill(
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,

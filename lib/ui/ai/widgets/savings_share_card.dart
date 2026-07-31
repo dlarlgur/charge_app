@@ -24,6 +24,7 @@ class SavingsShareCard extends StatelessWidget {
     required this.isEv,
     this.stationName,
     this.facts = const [],
+    this.story = false,
   });
 
   final String caption;
@@ -31,11 +32,15 @@ class SavingsShareCard extends StatelessWidget {
   final bool isEv;
   final String? stationName;
   final List<RevealFact> facts;
+  final bool story; // true=9:16 스토리 / false=4:5 피드
 
-  /// 인스타 피드 4:5 (1080×1350) — 피드에서 화면을 가장 크게 차지하는 비율.
-  /// 실제 캡처는 pixelRatio 로 1080px 까지 올린다.
+  /// 공유 규격 — 피드는 4:5(1080×1350)가 화면을 가장 크게 차지하고,
+  /// 스토리·릴스는 9:16(1080×1920). 캡처 시 가로 1080px 로 올린다.
   static const double side = 360; // width
-  static const double height = 450; // 4:5
+  static const double feedHeight = 450; // 4:5
+  static const double storyHeight = 640; // 9:16
+
+  static double heightFor(bool story) => story ? storyHeight : feedHeight;
 
   Color get _accent => isEv ? AppColors.evGreen : AppColors.gasBlue;
 
@@ -55,7 +60,7 @@ class SavingsShareCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: side,
-      height: height,
+      height: heightFor(story),
       child: DecoratedBox(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -83,7 +88,8 @@ class SavingsShareCard extends StatelessWidget {
               child: _orb(150, Colors.white.withValues(alpha: 0.05)),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(30, 30, 30, 26),
+              padding:
+                  EdgeInsets.fromLTRB(30, story ? 64 : 30, 30, story ? 56 : 26),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -395,6 +401,7 @@ class SavingsShare {
     required bool isEv,
     String? stationName,
     List<RevealFact> facts = const [],
+    bool story = false,
   }) async {
     try {
       final bytes = await _render(
@@ -404,8 +411,10 @@ class SavingsShare {
           isEv: isEv,
           stationName: stationName,
           facts: facts,
+          story: story,
         ),
         context,
+        story: story,
       );
       if (bytes == null) return;
       final dir = await getTemporaryDirectory();
@@ -425,7 +434,8 @@ class SavingsShare {
   }
 
   /// 위젯을 오프스크린으로 레이아웃·페인트해 PNG 바이트로.
-  static Future<Uint8List?> _render(Widget child, BuildContext context) async {
+  static Future<Uint8List?> _render(Widget child, BuildContext context,
+      {bool story = false}) async {
     final repaint = RenderRepaintBoundary();
     final view = View.of(context);
     // 가로 1080px 기준 — 4:5 이므로 결과는 1080×1350
@@ -436,10 +446,10 @@ class SavingsShare {
       view: view,
       configuration: ViewConfiguration(
         physicalConstraints: BoxConstraints.tight(
-            const Size(SavingsShareCard.side, SavingsShareCard.height) *
+            Size(SavingsShareCard.side, SavingsShareCard.heightFor(story)) *
                 pixelRatio),
         logicalConstraints: BoxConstraints.tight(
-            const Size(SavingsShareCard.side, SavingsShareCard.height)),
+            Size(SavingsShareCard.side, SavingsShareCard.heightFor(story))),
         devicePixelRatio: pixelRatio,
       ),
       child: RenderPositionedBox(
