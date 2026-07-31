@@ -2099,6 +2099,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'engine': RouteEnginePref.get(), // 결과 지도 경유 경로를 같은 엔진으로
         'path_points': pathPoints,
         if (directDurationMs != null) 'duration_ms': directDurationMs,
+        // 우회시간을 '경유지 포함 경로' 기준으로 재게 한다. 안 보내면 서버가
+        // 경유지 없는 길을 기준으로 삼아 우회 10분을 0분으로 계산한다.
+        if (_viaCoords.isNotEmpty) 'vias': _viaCoords,
         'highway_only': _gasHighwayOnly,
         if (_preferredGasBrands.isNotEmpty)
           'preferred_brands': _preferredGasBrands
@@ -4263,6 +4266,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'destination': {'lat': _destLat, 'lng': _destLng},
         'engine': RouteEnginePref.get(), // 결과 지도 경유 경로를 같은 엔진으로
         'path_points': pathPoints,
+        if (_viaCoords.isNotEmpty) 'vias': _viaCoords,
         'highway_only': _gasHighwayOnly,
         if (_preferredGasBrands.isNotEmpty)
           'preferred_brands': _preferredGasBrands
@@ -4662,6 +4666,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'origin': {'lat': _lastStartLat, 'lng': _lastStartLng},
         'destination': {'lat': _destLat!, 'lng': _destLng!},
         'path_points': _lastPathPoints,
+        if (_viaCoords.isNotEmpty) 'vias': _viaCoords,
       },
       // 서버 validateComparePayload는 `stations`(길이 2)만 받음
       'stations': [stA, stB],

@@ -101,11 +101,11 @@ final class TmapAuth: NSObject, TMapTapiDelegate {
     pending.forEach { $0(ok, err) }
   }
 
-  func SKTMapApikeySucceed() {
+  @objc func SKTMapApikeySucceed() {
     DispatchQueue.main.async { self.settle(true, nil) }
   }
 
-  func SKTMapApikeyFailed(error: NSError?) {
+  @objc func SKTMapApikeyFailed(error: NSError?) {
     DispatchQueue.main.async {
       self.settle(false, error?.localizedDescription ?? "auth failed")
     }
