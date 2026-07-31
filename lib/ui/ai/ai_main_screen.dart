@@ -1539,8 +1539,22 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     if (oldIndex < 0 || oldIndex >= slots.length) return;
     final moved = slots.removeAt(oldIndex);
     slots.insert(newIndex.clamp(0, slots.length), moved);
-    // 출발/목적 자리에 빈 경유지(pending)가 오면 좌표가 없어 경로가 깨짐 — 무시
-    if (slots.first?['lat'] == null || slots.last?['lat'] == null) return;
+    // 출발/목적 자리에는 좌표가 있어야 경로를 그릴 수 있다. 빈 경유지(입력 전)가 그 자리로
+    // 가면 되돌린다 — 예전엔 이 검사가 전체 이동을 막아서, 가운데에서 빈 경유지 순서를
+    // 바꾸는 것까지 무시됐다(형 제보). 이제 '양 끝으로 간 경우'만 되돌린다.
+    if (slots.first?['lat'] == null || slots.last?['lat'] == null) {
+      slots.removeAt(newIndex.clamp(0, slots.length - 1));
+      slots.insert(oldIndex, moved);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('출발지·목적지에는 장소를 먼저 입력해 주세요'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
     HapticFeedback.selectionClick();
     setState(() {
       final first = slots.first!;

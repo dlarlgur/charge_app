@@ -49,6 +49,7 @@ Future<void> showNavigationSheet(
   required String name,
   NavStop? destination,
   List<NavStop> waypoints = const [],
+  NavStop? origin,
 }) async {
   await showModalBottomSheet(
     context: context,
@@ -62,6 +63,7 @@ Future<void> showNavigationSheet(
       name: name,
       destination: destination,
       waypoints: waypoints,
+      origin: origin,
     ),
   );
 }
@@ -96,6 +98,7 @@ Future<void> showViaWaypointNavigationSheet(
     ),
     // 명시 전달이 없으면 AI 탭에서 넣은 경유지를 그대로 쓴다
     waypoints: extraWaypoints.isNotEmpty ? extraWaypoints : AiRouteSession.vias,
+    origin: NavStop(name: originName, lat: originLat, lng: originLng),
   );
 }
 
@@ -157,12 +160,14 @@ class _NavigationSheet extends StatefulWidget {
   final String name;
   final NavStop? destination;
   final List<NavStop> waypoints;
+  final NavStop? origin; // 경유지 순서 정렬 기준
   const _NavigationSheet({
     required this.lat,
     required this.lng,
     required this.name,
     this.destination,
     this.waypoints = const [],
+    this.origin,
   });
 
   @override
@@ -177,10 +182,27 @@ class _NavigationSheetState extends State<_NavigationSheet> {
   String get name => widget.name;
 
   /// 목적지까지 안내할 때 넘길 경유지 — [추천 지점, 사용자 경유지…] 순서.
-  List<NavStop> get _stops => [
-        NavStop(name: name, lat: lat, lng: lng),
-        ...widget.waypoints,
-      ];
+  /// 경유지 목록 — 추천 지점과 사용자 경유지를 **출발지에서 가까운 순**으로 정렬한다.
+  /// 예전엔 추천 주유소를 무조건 맨 앞에 넣어서, 실제로는 경유지를 지나서 있는 주유소가
+  /// '경유지 1' 로 들어가 경로가 엉켰다(형 제보).
+  List<NavStop> get _stops {
+    final list = <NavStop>[
+      NavStop(name: name, lat: lat, lng: lng),
+      ...widget.waypoints,
+    ];
+    final o = widget.origin;
+    if (o == null || list.length < 2) return list;
+    final sorted = [...list]
+      ..sort((a, b) => _distSq(o, a).compareTo(_distSq(o, b)));
+    return sorted;
+  }
+
+  /// 정렬용 상대 거리 — 순서만 필요해 제곱 비교로 충분(경도 보정 포함).
+  static double _distSq(NavStop from, NavStop to) {
+    final dLat = to.lat - from.lat;
+    final dLng = (to.lng - from.lng) * 0.79; // 위도 37도 부근 경도 축소율
+    return dLat * dLat + dLng * dLng;
+  }
 
   /// 실제 목적지 (목적지까지 모드면 최종 목적지, 아니면 추천 지점)
   NavStop get _goal => _toDestination && widget.destination != null
@@ -222,7 +244,7 @@ class _NavigationSheetState extends State<_NavigationSheet> {
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             if (widget.destination != null) ...[
-              _scopeSegment(isDark),
+              _scopeChooser(isDark),
               const SizedBox(height: 4),
             ],
             _navItem(
@@ -291,12 +313,22 @@ class _NavigationSheetState extends State<_NavigationSheet> {
   /// (공식 문서 'TMAPApp 길안내(옵션설정)' 기준, 경유지 최대 5개)
   Map<String, String> _tmapParams() {
     final g = _goal;
-    final p = <String, String>{
-      'goalname': g.name,
-      'goaly': '${g.lat}',
-      'goalx': '${g.lng}',
-    };
     final vias = _viasFor(_kTmapViaMax);
+    if (vias.isEmpty) {
+      // 경유지 없음 — 기존에 검증된 단순 실행 파라미터 그대로
+      return {
+        'goalname': g.name,
+        'goaly': '${g.lat}',
+        'goalx': '${g.lng}',
+      };
+    }
+    // 경유지 있음 — 공식 문서 'TMAPApp 길안내(옵션설정)' 계열(rGo*/rV*).
+    // goalname 계열에 rV* 만 붙이면 티맵이 경유지를 무시한다(계열을 섞으면 안 됨).
+    final p = <String, String>{
+      'rGoName': g.name,
+      'rGoX': '${g.lng}',
+      'rGoY': '${g.lat}',
+    };
     for (var i = 0; i < vias.length; i++) {
       p['rV${i + 1}Name'] = vias[i].name;
       p['rV${i + 1}X'] = '${vias[i].lng}';
@@ -320,84 +352,123 @@ class _NavigationSheetState extends State<_NavigationSheet> {
   }
 
   /// 안내 범위 선택 — 매번 묻지 않고, 시트에서 바로 바꿀 수 있게.
-  Widget _scopeSegment(bool isDark) {
+  /// 안내 범위 선택 — "무엇을 고르는 건지" 가 바로 읽히게 질문 + 결과로 보여준다.
+  /// (세그먼트만 있으면 뭘 선택하는지 몰라 헷갈린다는 피드백 반영)
+  Widget _scopeChooser(bool isDark) {
     final border =
         isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder;
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    Widget seg(String value, String label) {
+    final textPrimary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final viaCount = _stops.length;
+    final destName = widget.destination?.name ?? '목적지';
+
+    Widget option({
+      required String value,
+      required String title,
+      required Widget detail,
+      required IconData icon,
+    }) {
       final on =
           (_toDestination ? NavScopePref.destination : NavScopePref.station) ==
               value;
-      return Expanded(
-        child: GestureDetector(
-          onTap: () {
-            final next = value == NavScopePref.destination;
-            if (next == _toDestination) return;
-            setState(() => _toDestination = next);
-            NavScopePref.set(value);
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            padding: const EdgeInsets.symmetric(vertical: 9),
-            decoration: BoxDecoration(
-              color: on
-                  ? AppColors.gasBlue.withValues(alpha: isDark ? 0.22 : 0.10)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(9),
-              border: Border.all(
-                  color: on
-                      ? AppColors.gasBlue.withValues(alpha: 0.55)
-                      : Colors.transparent),
+      return GestureDetector(
+        onTap: () {
+          final next = value == NavScopePref.destination;
+          if (next == _toDestination) return;
+          setState(() => _toDestination = next);
+          NavScopePref.set(value);
+        },
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+          decoration: BoxDecoration(
+            color: on
+                ? AppColors.gasBlue.withValues(alpha: isDark ? 0.16 : 0.07)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: on ? AppColors.gasBlue.withValues(alpha: 0.55) : border,
+              width: on ? 1.4 : 1,
             ),
-            child: Text(
-              label,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: on ? FontWeight.w800 : FontWeight.w600,
-                color: on
-                    ? AppColors.gasBlue
-                    : (isDark
-                        ? AppColors.darkTextSecondary
-                        : AppColors.lightTextSecondary),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                on
+                    ? Icons.radio_button_checked_rounded
+                    : Icons.radio_button_unchecked_rounded,
+                size: 18,
+                color: on ? AppColors.gasBlue : muted,
               ),
-            ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: on ? FontWeight.w800 : FontWeight.w600,
+                        letterSpacing: -0.2,
+                        color: on ? AppColors.gasBlue : textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    DefaultTextStyle(
+                      style:
+                          TextStyle(fontSize: 11.5, height: 1.35, color: muted),
+                      child: detail,
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 6, top: 1),
+                child: Icon(icon, size: 15, color: muted),
+              ),
+            ],
           ),
         ),
       );
     }
 
-    final n = _stops.length;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 2, 20, 0),
+      padding: const EdgeInsets.fromLTRB(20, 2, 20, 2),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              color: (isDark ? Colors.white : Colors.black)
-                  .withValues(alpha: 0.04),
-              borderRadius: BorderRadius.circular(11),
-              border: Border.all(color: border),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8, left: 2),
+            child: Text(
+              '어디까지 안내할까요?',
+              style: TextStyle(
+                  fontSize: 12.5, fontWeight: FontWeight.w700, color: muted),
             ),
-            child: Row(children: [
-              seg(NavScopePref.station, '주유소까지'),
-              seg(NavScopePref.destination, '목적지까지'),
-            ]),
           ),
-          const SizedBox(height: 6),
-          Text(
-            _toDestination
-                ? (n > 1
-                    ? '$name 외 ${n - 1}곳 경유 → ${_goal.name}'
-                    : '$name 경유 → ${_goal.name}')
-                : '$name 까지만 안내해요',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 11.5, height: 1.4, color: muted),
+          option(
+            value: NavScopePref.destination,
+            title: '목적지까지',
+            icon: Icons.flag_rounded,
+            detail: Text(
+              viaCount > 1
+                  ? '$name 외 ${viaCount - 1}곳 들렀다가 → $destName'
+                  : '$name 들렀다가 → $destName',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(height: 7),
+          option(
+            value: NavScopePref.station,
+            title: '$name 까지만',
+            icon: Icons.local_gas_station_rounded,
+            detail: const Text('도착하면 안내가 끝나요'),
           ),
         ],
       ),

@@ -32,20 +32,30 @@ class SavingsShareCard extends StatelessWidget {
   final String? stationName;
   final List<RevealFact> facts;
 
-  /// 인스타 피드 권장 해상도. 실제 캡처는 pixelRatio 로 배율을 준다.
-  static const double side = 360;
+  /// 인스타 피드 4:5 (1080×1350) — 피드에서 화면을 가장 크게 차지하는 비율.
+  /// 실제 캡처는 pixelRatio 로 1080px 까지 올린다.
+  static const double side = 360; // width
+  static const double height = 450; // 4:5
 
   Color get _accent => isEv ? AppColors.evGreen : AppColors.gasBlue;
 
   List<Color> get _bg => isEv
-      ? [const Color(0xFF063E30), const Color(0xFF0B7A5B), const Color(0xFF0E9E74)]
-      : [const Color(0xFF10243F), const Color(0xFF14487F), const Color(0xFF1D6FE0)];
+      ? [
+          const Color(0xFF063E30),
+          const Color(0xFF0B7A5B),
+          const Color(0xFF0E9E74)
+        ]
+      : [
+          const Color(0xFF10243F),
+          const Color(0xFF14487F),
+          const Color(0xFF1D6FE0)
+        ];
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: side,
-      height: side,
+      height: height,
       child: DecoratedBox(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -56,50 +66,56 @@ class SavingsShareCard extends StatelessWidget {
         ),
         child: Stack(
           children: [
-            // 은은한 광원 — 단색 배경이 밋밋해 보이지 않게
+            // 배경 광원 — 평평한 그라데이션에 깊이를 준다
             Positioned(
-              top: -70,
-              right: -50,
-              child: Container(
-                width: 220,
-                height: 220,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.07),
-                ),
-              ),
+              top: -110,
+              right: -80,
+              child: _orb(300, Colors.white.withValues(alpha: 0.10)),
             ),
             Positioned(
-              bottom: -90,
+              bottom: -140,
+              left: -100,
+              child: _orb(330, _accent.withValues(alpha: 0.22)),
+            ),
+            Positioned(
+              top: 190,
               left: -60,
-              child: Container(
-                width: 230,
-                height: 230,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _accent.withValues(alpha: 0.16),
-                ),
-              ),
+              child: _orb(150, Colors.white.withValues(alpha: 0.05)),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(28, 26, 28, 22),
+              padding: const EdgeInsets.fromLTRB(30, 30, 30, 26),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _badge(),
-                  const Spacer(),
+                  Row(
+                    children: [
+                      _badge(),
+                      const Spacer(),
+                      Text(
+                        _today(),
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white.withValues(alpha: 0.55),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(flex: 3),
+
+                  // ── 히어로 — 절감액이 주인공 ──
                   Text(
                     caption,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                       letterSpacing: -0.2,
-                      color: Colors.white.withValues(alpha: 0.78),
+                      color: Colors.white.withValues(alpha: 0.80),
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   FittedBox(
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
@@ -107,21 +123,31 @@ class SavingsShareCard extends StatelessWidget {
                       headline,
                       maxLines: 1,
                       style: const TextStyle(
-                        fontSize: 40,
+                        fontSize: 52,
                         fontWeight: FontWeight.w900,
-                        letterSpacing: -1.4,
-                        height: 1.05,
+                        letterSpacing: -2.2,
+                        height: 1.0,
                         color: Colors.white,
+                        shadows: [
+                          Shadow(
+                            color: Color(0x40000000),
+                            offset: Offset(0, 3),
+                            blurRadius: 12,
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  if ((stationName ?? '').trim().isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    _stationChip(),
-                  ],
-                  const Spacer(),
+
+                  const Spacer(flex: 2),
+
+                  // ── 경로 — 이 앱이 무엇을 해줬는지 한 줄로 ──
+                  _routeStrip(),
+
+                  const Spacer(flex: 3),
+
                   if (facts.isNotEmpty) _factRow(),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 18),
                   _footer(),
                 ],
               ),
@@ -132,6 +158,114 @@ class SavingsShareCard extends StatelessWidget {
     );
   }
 
+  Widget _orb(double size, Color color) => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+      );
+
+  static String _today() {
+    final n = DateTime.now();
+    return '${n.year}.${n.month.toString().padLeft(2, '0')}.'
+        '${n.day.toString().padLeft(2, '0')}';
+  }
+
+  /// 출발 —— 추천 지점 —— 목적지. 추천이 경로 위에서 일어났다는 걸 보여준다.
+  Widget _routeStrip() {
+    final name = (stationName ?? '').trim();
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 15),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _dot(Colors.white.withValues(alpha: 0.75), 8),
+              Expanded(child: _dash()),
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: _accent,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: _accent.withValues(alpha: 0.55),
+                      blurRadius: 12,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  isEv
+                      ? Icons.ev_station_rounded
+                      : Icons.local_gas_station_rounded,
+                  size: 13,
+                  color: Colors.white,
+                ),
+              ),
+              Expanded(child: _dash()),
+              _dot(Colors.white.withValues(alpha: 0.75), 8),
+            ],
+          ),
+          const SizedBox(height: 9),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _routeLabel('출발', TextAlign.left),
+              Expanded(
+                child: Text(
+                  name.isEmpty ? (isEv ? '추천 충전소' : '추천 주유소') : name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              _routeLabel('도착', TextAlign.right),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _routeLabel(String t, TextAlign align) => SizedBox(
+        width: 32,
+        child: Text(
+          t,
+          textAlign: align,
+          style: TextStyle(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w600,
+            color: Colors.white.withValues(alpha: 0.55),
+          ),
+        ),
+      );
+
+  Widget _dot(Color c, double size) => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: c),
+      );
+
+  Widget _dash() => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 7),
+        child: SizedBox(
+          height: 2,
+          child: CustomPaint(painter: _DashPainter()),
+        ),
+      );
+
   Widget _badge() => Container(
         padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
         decoration: BoxDecoration(
@@ -141,7 +275,8 @@ class SavingsShareCard extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.auto_awesome_rounded, size: 13, color: Colors.white),
+            const Icon(Icons.auto_awesome_rounded,
+                size: 13, color: Colors.white),
             const SizedBox(width: 5),
             Text(
               isEv ? 'AI 충전 추천' : 'AI 주유 추천',
@@ -150,38 +285,6 @@ class SavingsShareCard extends StatelessWidget {
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.1,
                 color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-      );
-
-  Widget _stationChip() => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.22),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isEv ? Icons.ev_station_rounded : Icons.local_gas_station_rounded,
-              size: 14,
-              color: Colors.white.withValues(alpha: 0.9),
-            ),
-            const SizedBox(width: 6),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 230),
-              child: Text(
-                stationName!,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
               ),
             ),
           ],
@@ -325,18 +428,18 @@ class SavingsShare {
   static Future<Uint8List?> _render(Widget child, BuildContext context) async {
     final repaint = RenderRepaintBoundary();
     final view = View.of(context);
-    // 1080px 목표 — 인스타 피드 권장 해상도
-    const target = 1080.0; // 인스타 피드 권장 해상도
-    final pixelRatio = target / SavingsShareCard.side;
+    // 가로 1080px 기준 — 4:5 이므로 결과는 1080×1350
+    const double target = 1080;
+    const pixelRatio = target / SavingsShareCard.side;
 
     final renderView = RenderView(
       view: view,
       configuration: ViewConfiguration(
         physicalConstraints: BoxConstraints.tight(
-            const Size(SavingsShareCard.side, SavingsShareCard.side) *
+            const Size(SavingsShareCard.side, SavingsShareCard.height) *
                 pixelRatio),
         logicalConstraints: BoxConstraints.tight(
-            const Size(SavingsShareCard.side, SavingsShareCard.side)),
+            const Size(SavingsShareCard.side, SavingsShareCard.height)),
         devicePixelRatio: pixelRatio,
       ),
       child: RenderPositionedBox(
@@ -373,4 +476,26 @@ class SavingsShare {
     final data = await image.toByteData(format: ui.ImageByteFormat.png);
     return data?.buffer.asUint8List();
   }
+}
+
+/// 경로선 — 점선. Flutter 기본 Divider 로는 점선이 안 나와 직접 그린다.
+class _DashPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0x66FFFFFF)
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    const dash = 4.0;
+    const gap = 4.0;
+    double x = 0;
+    while (x < size.width) {
+      canvas.drawLine(
+          Offset(x, 1), Offset((x + dash).clamp(0, size.width), 1), paint);
+      x += dash + gap;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
