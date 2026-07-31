@@ -46,6 +46,7 @@ dependencies:
   in_app_update: ^4.2.3
   in_app_review: ^2.0.10
   share_plus: ^10.0.0
+  path_provider: ^2.1.4
   shared_preferences: ^2.2.2
 
   # Map

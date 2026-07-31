@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'savings_share_card.dart';
 
 /// 보상 카드 상세 행 (라벨 — 값)
 typedef RevealFact = ({String label, String value});
@@ -17,6 +18,7 @@ class SavingsRevealOverlay extends StatefulWidget {
   final String? stationName; // 추천 주유소/충전소명
   final IconData stationIcon; // local_gas_station / ev_station
   final List<RevealFact> facts; // 상세 수치 행
+  final bool isEv; // 충전=초록 / 주유=파랑 (앱 전체 색 규칙)
 
   const SavingsRevealOverlay({
     super.key,
@@ -25,6 +27,7 @@ class SavingsRevealOverlay extends StatefulWidget {
     this.stationName,
     this.stationIcon = Icons.local_gas_station_rounded,
     this.facts = const [],
+    this.isEv = false,
   });
 
   /// 절감액 헤드라인 포맷 헬퍼
@@ -36,6 +39,11 @@ class SavingsRevealOverlay extends StatefulWidget {
 
 class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
     with TickerProviderStateMixin {
+  // 충전은 초록, 주유는 파랑 — 결과 화면·마커와 같은 규칙
+  Color get _accent =>
+      widget.isEv ? const Color(0xFF34D399) : const Color(0xFF5B9DF9);
+  Color get _accentFg =>
+      widget.isEv ? const Color(0xFF06281C) : const Color(0xFF0A2647);
   late final AnimationController _in; // 등장 팝
   late final AnimationController _out; // 페이드아웃
   late final AnimationController _sparkle; // 반짝 루프
@@ -73,6 +81,17 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
     super.dispose();
   }
 
+  Future<void> _share() async {
+    await SavingsShare.shareCard(
+      context,
+      caption: widget.caption,
+      headline: widget.headline,
+      isEv: widget.isEv,
+      stationName: widget.stationName,
+      facts: widget.facts,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_out.isCompleted) return const SizedBox.shrink();
@@ -88,23 +107,22 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
     final cardBorder = isDark
         ? Colors.white.withValues(alpha: 0.14)
         : Colors.black.withValues(alpha: 0.06);
-    final captionColor = isDark
-        ? Colors.white.withValues(alpha: 0.85)
-        : const Color(0xFF334155);
+    final captionColor =
+        isDark ? Colors.white.withValues(alpha: 0.85) : const Color(0xFF334155);
     final headlineColors = isDark
-        ? const [Color(0xFFFFE082), Color(0xFF6EE7B7)]
-        : const [Color(0xFFF59E0B), Color(0xFF10B981)];
-    final badgeFg = isDark ? const Color(0xFF6EE7B7) : const Color(0xFF059669);
-    final panelBg = isDark
-        ? Colors.white.withValues(alpha: 0.06)
-        : const Color(0xFFF1F5F9);
+        ? [const Color(0xFFFFE082), _accent]
+        : [const Color(0xFFF59E0B), _accent];
+    final badgeFg = isDark
+        ? _accent
+        : (widget.isEv ? const Color(0xFF059669) : const Color(0xFF2563EB));
+    final panelBg =
+        isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFF1F5F9);
     final panelBorder = isDark
         ? Colors.white.withValues(alpha: 0.08)
         : Colors.black.withValues(alpha: 0.05);
     final nameColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final factLabelColor = isDark
-        ? Colors.white.withValues(alpha: 0.55)
-        : const Color(0xFF64748B);
+    final factLabelColor =
+        isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF64748B);
     final factValueColor = isDark ? Colors.white : const Color(0xFF0F172A);
     return Positioned.fill(
       child: GestureDetector(
@@ -132,7 +150,7 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                           shape: BoxShape.circle,
                           gradient: RadialGradient(
                             colors: [
-                              const Color(0xFF34D399).withValues(alpha: 0.28),
+                              _accent.withValues(alpha: 0.28),
                               Colors.transparent,
                             ],
                           ),
@@ -156,8 +174,8 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                                   8 * math.sin(t * 2 * math.pi + i);
                               final op = 0.35 +
                                   0.65 *
-                                      ((math.sin(
-                                                  t * 2 * math.pi * 2 + i * 1.3) +
+                                      ((math.sin(t * 2 * math.pi * 2 +
+                                                  i * 1.3) +
                                               1) /
                                           2);
                               return Transform.translate(
@@ -309,22 +327,53 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                               ),
                             ],
                             const SizedBox(height: 16),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 46,
-                              child: FilledButton(
-                                onPressed: _dismiss,
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: const Color(0xFF34D399),
-                                  foregroundColor: const Color(0xFF06281C),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(13)),
+                            Row(
+                              children: [
+                                // 인스타 피드 규격(1:1) 이미지로 만들어 공유
+                                SizedBox(
+                                  height: 46,
+                                  child: OutlinedButton.icon(
+                                    onPressed: _share,
+                                    icon: const Icon(Icons.ios_share_rounded,
+                                        size: 17),
+                                    label: const Text('공유',
+                                        style: TextStyle(
+                                            fontSize: 14.5,
+                                            fontWeight: FontWeight.w700)),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: _accent,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16),
+                                      side: BorderSide(
+                                          color:
+                                              _accent.withValues(alpha: 0.55)),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(13)),
+                                    ),
+                                  ),
                                 ),
-                                child: const Text('확인',
-                                    style: TextStyle(
-                                        fontSize: 15.5,
-                                        fontWeight: FontWeight.w800)),
-                              ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: SizedBox(
+                                    height: 46,
+                                    child: FilledButton(
+                                      onPressed: _dismiss,
+                                      style: FilledButton.styleFrom(
+                                        backgroundColor: _accent,
+                                        foregroundColor: _accentFg,
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(13)),
+                                      ),
+                                      child: const Text('확인',
+                                          style: TextStyle(
+                                              fontSize: 15.5,
+                                              fontWeight: FontWeight.w800)),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),

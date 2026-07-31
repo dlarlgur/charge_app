@@ -6288,6 +6288,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 stationName: _revealStationName,
                 stationIcon: _revealStationIcon,
                 facts: _revealFacts,
+                // 충전 추천이면 초록, 주유면 파랑 (아이콘으로 판정 — 호출부 공통)
+                isEv: _revealStationIcon == Icons.ev_station_rounded,
               ),
           ],
         ),
