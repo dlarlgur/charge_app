@@ -14,6 +14,7 @@ import 'place_service.dart';
 import 'station_alias_service.dart';
 import 'user_sync_service.dart';
 import '../../core/utils/nav_scope_pref.dart';
+import '../../ui/home/report_fab.dart';
 
 /// 로그인/회원가입 시점의 회원 데이터 동기화 글루.
 /// - 서버에 데이터가 있으면 로컬에 적용(union, 무손실) + 알람 재구독 + 마케팅 동의 재적용
@@ -42,7 +43,8 @@ class UserDataSync {
         // 빠져 있으면 import 분기로 가서 서버 값을 복원하지 않아 "동의가 풀렸다"로 보임.
         prefs['aiTextConsent'] is bool ||
         prefs['routeEngine'] != null ||
-        prefs['navScope'] != null;
+        prefs['navScope'] != null ||
+        prefs['reportShortcut'] is bool;
     if (hasRemote) {
       await _applyRemote(
           prefs, vehicles, favorites, alarms, aliases, chargerMemos);
@@ -138,6 +140,11 @@ class UserDataSync {
     if (re == 'tmap' || re == 'naver' || re == 'kakao') {
       box.put('route_engine', re);
       RouteEnginePref.notifyChanged();
+    }
+    // 홈 리포트 바로가기 버튼 복원
+    if (prefs['reportShortcut'] is bool) {
+      box.put('report_fab_on', prefs['reportShortcut']);
+      ReportFabPref.notifyChanged();
     }
     // 길찾기 범위 복원 (주유소까지 | 목적지까지)
     final ns = prefs['navScope']?.toString();
@@ -248,6 +255,7 @@ class UserDataSync {
       // AI 경로 기준 내비 — 게스트 시절 선택도 이관
       'routeEngine': box.get('route_engine'),
       'navScope': box.get('nav_scope'),
+      'reportShortcut': box.get('report_fab_on'),
     };
 
     List vlist;

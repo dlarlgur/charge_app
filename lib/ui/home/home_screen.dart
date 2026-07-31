@@ -50,6 +50,7 @@ import '../detail/gas_detail_screen.dart';
 import '../ai/widgets/route_engine_sheet.dart';
 import 'package:home_widget/home_widget.dart';
 import '../../core/utils/nav_scope_pref.dart';
+import 'report_fab.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -2243,6 +2244,56 @@ class _RouteEngineTileEmbedState extends State<_RouteEngineTileEmbed> {
   }
 }
 
+/// 홈 리포트 바로가기 버튼 on/off
+class _ReportFabTile extends StatefulWidget {
+  final bool isDark;
+  const _ReportFabTile({required this.isDark});
+  @override
+  State<_ReportFabTile> createState() => _ReportFabTileState();
+}
+
+class _ReportFabTileState extends State<_ReportFabTile> {
+  @override
+  void initState() {
+    super.initState();
+    ReportFabPref.version.addListener(_onChanged);
+  }
+
+  @override
+  void dispose() {
+    ReportFabPref.version.removeListener(_onChanged);
+    super.dispose();
+  }
+
+  void _onChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final muted =
+        widget.isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    return SwitchListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+      secondary: SettingsScreenEmbed.settingsIconChip(
+          Icons.insights_rounded, widget.isDark),
+      title: Text('홈에 리포트 바로가기',
+          style: Theme.of(context)
+              .textTheme
+              .titleSmall
+              ?.copyWith(fontWeight: FontWeight.w600)),
+      subtitle: Text('홈 화면 왼쪽 아래 버튼으로 유가·충전 리포트를 바로 열어요',
+          style: TextStyle(fontSize: 11.5, color: muted)),
+      value: ReportFabPref.get(),
+      activeThumbColor: AppColors.gasBlue,
+      onChanged: (v) async {
+        await ReportFabPref.set(v);
+        if (mounted) setState(() {});
+      },
+    );
+  }
+}
+
 /// 길찾기 범위 — 추천 주유소까지만 / 목적지까지 한 번에.
 /// 길찾기 시트에서도 매번 바꿀 수 있고, 여기선 기본값을 정한다(같은 값을 공유).
 class _NavScopeTileEmbed extends StatefulWidget {
@@ -2813,6 +2864,8 @@ class SettingsScreenEmbed extends ConsumerWidget {
               Navigator.of(context, rootNavigator: true).push(
                   MaterialPageRoute(builder: (_) => const FuelReportScreen()));
             }),
+            settingsDivider(isDark),
+            _ReportFabTile(isDark: isDark),
             settingsDivider(isDark),
             _NavScopeTileEmbed(isDark: isDark),
             settingsDivider(isDark),

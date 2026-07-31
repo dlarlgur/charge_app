@@ -17,7 +17,8 @@ class UserSyncService {
     baseUrl: ApiConstants.baseUrl,
     connectTimeout: const Duration(seconds: 10),
     receiveTimeout: const Duration(seconds: 10),
-  ))..transformer = BackgroundTransformer();
+  ))
+    ..transformer = BackgroundTransformer();
 
   Future<Options?> _auth() async {
     final token = await AuthService.accessToken();
@@ -32,7 +33,8 @@ class UserSyncService {
     try {
       final res = await _dio.get('/user/sync', options: opt);
       final data = res.data;
-      if (data is Map && data['ok'] == true) return Map<String, dynamic>.from(data);
+      if (data is Map && data['ok'] == true)
+        return Map<String, dynamic>.from(data);
       return null;
     } catch (_) {
       return null;
@@ -47,6 +49,7 @@ class UserSyncService {
     bool? aiTextConsent, // 서드파티 AI 문구 동의 — 재설치 복원용
     String? routeEngine, // AI 경로 기준 내비 (tmap|naver|kakao) — 재설치 복원용
     String? navScope, // 길찾기 범위 (station|destination) — 재설치 복원용
+    bool? reportShortcut, // 홈 리포트 바로가기 버튼 표시 — 재설치 복원용
   }) async {
     final opt = await _auth();
     if (opt == null) return;
@@ -58,6 +61,7 @@ class UserSyncService {
     if (aiTextConsent != null) body['aiTextConsent'] = aiTextConsent;
     if (routeEngine != null) body['routeEngine'] = routeEngine;
     if (navScope != null) body['navScope'] = navScope;
+    if (reportShortcut != null) body['reportShortcut'] = reportShortcut;
     if (body.isEmpty) return;
     try {
       await _dio.put('/user/prefs', data: body, options: opt);
@@ -69,7 +73,8 @@ class UserSyncService {
     final opt = await _auth();
     if (opt == null) return;
     try {
-      await _dio.put('/user/vehicles', data: {'vehicles': vehicles}, options: opt);
+      await _dio.put('/user/vehicles',
+          data: {'vehicles': vehicles}, options: opt);
     } catch (_) {}
   }
 
@@ -93,7 +98,9 @@ class UserSyncService {
     final opt = await _auth();
     if (opt == null) return;
     try {
-      await _dio.post('/user/aliases', data: {'type': type, 'stationId': stationId, 'alias': alias}, options: opt);
+      await _dio.post('/user/aliases',
+          data: {'type': type, 'stationId': stationId, 'alias': alias},
+          options: opt);
     } catch (_) {}
   }
 
@@ -105,12 +112,14 @@ class UserSyncService {
     } catch (_) {}
   }
 
-  Future<void> addChargerMemo(String stationId, String chgerId, String memo) async {
+  Future<void> addChargerMemo(
+      String stationId, String chgerId, String memo) async {
     final opt = await _auth();
     if (opt == null) return;
     try {
       await _dio.post('/user/charger-memos',
-          data: {'stationId': stationId, 'chgerId': chgerId, 'memo': memo}, options: opt);
+          data: {'stationId': stationId, 'chgerId': chgerId, 'memo': memo},
+          options: opt);
     } catch (_) {}
   }
 
@@ -118,7 +127,8 @@ class UserSyncService {
     final opt = await _auth();
     if (opt == null) return;
     try {
-      await _dio.delete('/user/charger-memos/$stationId/$chgerId', options: opt);
+      await _dio.delete('/user/charger-memos/$stationId/$chgerId',
+          options: opt);
     } catch (_) {}
   }
 
@@ -175,24 +185,29 @@ Future<void> mirrorAiVehiclesToServer() async {
   final selectedId = box.get(AppConstants.keyAiSelectedVehicleId) as String?;
   List list;
   try {
-    list = (raw is String && raw.isNotEmpty) ? (jsonDecode(raw) as List) : const [];
+    list = (raw is String && raw.isNotEmpty)
+        ? (jsonDecode(raw) as List)
+        : const [];
   } catch (_) {
     return;
   }
-  final vehicles = list.whereType<Map>().map<Map<String, dynamic>>((m) => {
-        'clientId': m['id'],
-        'name': m['name'],
-        'kind': m['vehicleType'],
-        'fuelType': m['fuelType'],
-        'tankCapacity': m['tankCapacity'],
-        'efficiency': m['efficiency'],
-        'targetMode': m['targetMode'],
-        'targetValue': m['targetValue'],
-        'batteryCapacity': m['batteryCapacity'],
-        'evEfficiency': m['evEfficiency'],
-        'targetChargePercent': m['targetChargePercent'],
-        'currentLevelPercent': m['currentLevelPercent'],
-        'isSelected': m['id'] == selectedId,
-      }).toList();
+  final vehicles = list
+      .whereType<Map>()
+      .map<Map<String, dynamic>>((m) => {
+            'clientId': m['id'],
+            'name': m['name'],
+            'kind': m['vehicleType'],
+            'fuelType': m['fuelType'],
+            'tankCapacity': m['tankCapacity'],
+            'efficiency': m['efficiency'],
+            'targetMode': m['targetMode'],
+            'targetValue': m['targetValue'],
+            'batteryCapacity': m['batteryCapacity'],
+            'evEfficiency': m['evEfficiency'],
+            'targetChargePercent': m['targetChargePercent'],
+            'currentLevelPercent': m['currentLevelPercent'],
+            'isSelected': m['id'] == selectedId,
+          })
+      .toList();
   await UserSyncService.instance.putVehicles(vehicles);
 }
