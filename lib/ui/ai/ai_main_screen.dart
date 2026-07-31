@@ -3754,6 +3754,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'destLng': _destLng,
         'pathPoints': pathPoints,
         if (directDurationMs != null) 'directDurationMs': directDurationMs,
+        // 우회시간 기준 경로에 포함 — 안 보내면 경유지 없는 길과 비교하게 된다.
+        if (_viaCoords.isNotEmpty) 'vias': _viaCoords,
         'highwayOnly': _evHighwayOnly,
         if (_preferredEvOperators.isNotEmpty)
           'operators': _preferredEvOperators.toList(),
@@ -3975,6 +3977,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'destLng': _destLng,
         'pathPoints': pathPoints,
         'userSelect': true,
+        if (_viaCoords.isNotEmpty) 'vias': _viaCoords,
         'highwayOnly': _evHighwayOnly,
         if (_preferredEvOperators.isNotEmpty)
           'operators': _preferredEvOperators.toList(),
