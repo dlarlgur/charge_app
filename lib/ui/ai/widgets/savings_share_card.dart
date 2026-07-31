@@ -71,7 +71,7 @@ class SavingsShareCard extends StatelessWidget {
 
   /// 스토리(9:16)는 세로가 1.4배다. 같은 크기로 그리면 가운데만 차고 위아래가 휑하니
   /// 글자·여백을 함께 키워 화면을 채운다.
-  double sc(double v) => story ? v * 1.34 : v;
+  double sc(double v) => story ? v * 1.18 : v;
 
   static const _ink = Color(0xFF0F172A);
   static const _muted = Color(0xFF64748B);
@@ -236,9 +236,11 @@ class SavingsShareCard extends StatelessWidget {
     final m = RegExp(r'^(.*?)\s*(절약|아낌)(!?)$').firstMatch(headline.trim());
     final amount = m?.group(1) ?? headline;
     final tail = m == null ? null : '${m.group(2)}${m.group(3)}';
+    // 고정 간격을 쓰면 남는 세로가 한쪽에 몰려 위아래로 갈라진다.
+    // 덩어리(문구·스테이션·수치)로 묶고 사이 여백을 균등 분배한다.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         if (caption.trim().isNotEmpty) ...[
           Text(caption,
@@ -274,12 +276,8 @@ class SavingsShareCard extends StatelessWidget {
                   letterSpacing: -2,
                 )),
           ),
-        SizedBox(height: story ? 30 : 20),
         if ((stationName ?? '').trim().isNotEmpty) _stationCard(),
-        if (facts.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          _factStrip(),
-        ],
+        if (facts.isNotEmpty) _factStrip(),
       ],
     );
   }
@@ -396,34 +394,35 @@ class SavingsShareCard extends StatelessWidget {
     final f = facts.where((e) => e != d).take(3).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        if (caption.trim().isNotEmpty)
-          Text(caption,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w700, color: _muted)),
-        const SizedBox(height: 6),
-        Text(
-          isEv ? '최적 충전소\n추천!' : '최저가 주유소\n추천!',
-          style: TextStyle(
-            fontSize: 31,
-            fontWeight: FontWeight.w800,
-            color: _accentInk,
-            height: 1.18,
-            letterSpacing: -1.4,
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (caption.trim().isNotEmpty)
+            Text(caption,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w700, color: _muted)),
+          const SizedBox(height: 6),
+          Text(
+            isEv ? '최적 충전소\n추천!' : '최저가 주유소\n추천!',
+            style: TextStyle(
+              fontSize: 31,
+              fontWeight: FontWeight.w800,
+              color: _accentInk,
+              height: 1.18,
+              letterSpacing: -1.4,
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          _recommendSub(),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-              fontSize: 12, fontWeight: FontWeight.w600, color: _muted),
-        ),
-        SizedBox(height: story ? 28 : 18),
+          const SizedBox(height: 8),
+          Text(
+            _recommendSub(),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w600, color: _muted),
+          ),
+        ]),
         if (f.isNotEmpty)
           // ⚠ Column 은 자식에게 세로 무한 제약을 준다 → stretch 만 쓰면 빌드가 터진다.
           //   (추천 카드 미리보기가 통째로 안 뜨던 원인) IntrinsicHeight 로 높이를 확정한다.
@@ -463,29 +462,30 @@ class SavingsShareCard extends StatelessWidget {
               ],
             ],
           )),
-        if ((stationName ?? '').trim().isNotEmpty) ...[
-          const SizedBox(height: 9),
-          _stationBar(),
-        ],
-        const SizedBox(height: 9),
-        Row(children: [
-          Text('★',
-              style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  color: _accentDeep)),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Text(
-              isEv ? '주변 충전소 중 단가 최저' : '주변 주유소 중 리터당 최저가',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w700,
-                  color: _accentDeep),
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if ((stationName ?? '').trim().isNotEmpty) ...[
+            _stationBar(),
+            const SizedBox(height: 9),
+          ],
+          Row(children: [
+            Text('★',
+                style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: _accentDeep)),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                isEv ? '주변 충전소 중 단가 최저' : '주변 주유소 중 리터당 최저가',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: _accentDeep),
+              ),
             ),
-          ),
+          ]),
         ]),
       ],
     );
@@ -560,7 +560,10 @@ class SavingsShareCard extends StatelessWidget {
     // 시안 그대로: 제목/날짜 → 절취선 → 항목들 → 절취선 → 결제 예상액 → 절약 합계 → 로고.
     // 로고·출처는 카드 '안'에 들어간다(바깥 푸터는 이 스타일에서 숨긴다).
     final total = facts.where((f) => _isTotalLabel(f.label)).toList();
-    final rows = facts.where((f) => !_isTotalLabel(f.label)).toList();
+    // 피드(4:5)는 세로가 짧아 항목을 다 넣으면 넘친다. 스토리는 전부 들어간다.
+    // 넘쳐서 잘리는 것보다 앞쪽 핵심 항목만 보이는 게 낫다.
+    final all = facts.where((f) => !_isTotalLabel(f.label)).toList();
+    final rows = story ? all : all.take(5).toList();
     return Container(
       padding: EdgeInsets.fromLTRB(sc(18), sc(18), sc(18), sc(14)),
       decoration: BoxDecoration(
@@ -589,9 +592,9 @@ class SavingsShareCard extends StatelessWidget {
           if ((stationName ?? '').trim().isNotEmpty)
             _receiptRow(isEv ? '충전소' : '주유소', stationName!),
           for (final f in rows) _receiptRow(f.label, f.value),
-          // 남는 세로는 여기서 먹는다 — 스토리(9:16)에서 항목이 위로 몰리지 않게.
-          const Spacer(),
-          SizedBox(height: sc(8)),
+          // 남는 세로는 여기서 먹는다 — 스토리에서 항목이 위로 몰리지 않게.
+          if (story) const Spacer() else SizedBox(height: sc(6)),
+          SizedBox(height: sc(6)),
           const _Dashed(),
           SizedBox(height: sc(12)),
           if (total.isNotEmpty)
