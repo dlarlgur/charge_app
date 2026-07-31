@@ -44,16 +44,22 @@ class SavingsShareCard extends StatelessWidget {
 
   Color get _accent => isEv ? AppColors.evGreen : AppColors.gasBlue;
 
+  /// 밝은 보조 액센트 — 숫자 그라데이션과 두 번째 광원에 쓴다.
+  Color get _accentSoft =>
+      isEv ? const Color(0xFF5EEAD4) : const Color(0xFF7DD3FC);
+
+  /// 색으로 화면을 다 칠하면 촌스럽다. 거의 검정 캔버스에 두고,
+  /// 색은 광원과 숫자에만 넣어 대비로 살린다.
   List<Color> get _bg => isEv
       ? [
-          const Color(0xFF063E30),
-          const Color(0xFF0B7A5B),
-          const Color(0xFF0E9E74)
+          const Color(0xFF071510),
+          const Color(0xFF0A1A14),
+          const Color(0xFF06120E)
         ]
       : [
-          const Color(0xFF10243F),
-          const Color(0xFF14487F),
-          const Color(0xFF1D6FE0)
+          const Color(0xFF080C14),
+          const Color(0xFF0B1220),
+          const Color(0xFF060A11)
         ];
 
   @override
@@ -72,20 +78,21 @@ class SavingsShareCard extends StatelessWidget {
         child: Stack(
           children: [
             // 배경 광원 — 평평한 그라데이션에 깊이를 준다
+            // 액센트 광원 — 색은 배경 전체가 아니라 이 빛으로만 들어간다
             Positioned(
-              top: -110,
-              right: -80,
-              child: _orb(300, Colors.white.withValues(alpha: 0.10)),
+              top: -130,
+              right: -110,
+              child: _glow(340, _accent, 0.42),
             ),
             Positioned(
-              bottom: -140,
-              left: -100,
-              child: _orb(330, _accent.withValues(alpha: 0.22)),
+              bottom: -160,
+              left: -120,
+              child: _glow(320, _accentSoft, 0.20),
             ),
             Positioned(
-              top: 190,
-              left: -60,
-              child: _orb(150, Colors.white.withValues(alpha: 0.05)),
+              top: 150,
+              right: -40,
+              child: _glow(150, Colors.white, 0.05),
             ),
             Padding(
               padding:
@@ -122,25 +129,27 @@ class SavingsShareCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      headline,
-                      maxLines: 1,
-                      style: const TextStyle(
-                        fontSize: 52,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -2.2,
-                        height: 1.0,
-                        color: Colors.white,
-                        shadows: [
-                          Shadow(
-                            color: Color(0x40000000),
-                            offset: Offset(0, 3),
-                            blurRadius: 12,
-                          ),
-                        ],
+                  // 숫자가 주인공 — 흰색→액센트 그라데이션을 글자에 직접 입힌다
+                  ShaderMask(
+                    shaderCallback: (rect) => LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Colors.white, _accentSoft, _accent],
+                      stops: const [0.0, 0.55, 1.0],
+                    ).createShader(rect),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        headline,
+                        maxLines: 1,
+                        style: const TextStyle(
+                          fontSize: 54,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -2.4,
+                          height: 1.0,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
@@ -164,10 +173,21 @@ class SavingsShareCard extends StatelessWidget {
     );
   }
 
-  Widget _orb(double size, Color color) => Container(
+  /// 가장자리로 갈수록 사라지는 빛. 단색 원을 깔면 경계가 보여 촌스럽다.
+  Widget _glow(double size, Color color, double opacity) => Container(
         width: size,
         height: size,
-        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            colors: [
+              color.withValues(alpha: opacity),
+              color.withValues(alpha: opacity * 0.35),
+              color.withValues(alpha: 0),
+            ],
+            stops: const [0.0, 0.55, 1.0],
+          ),
+        ),
       );
 
   static String _today() {

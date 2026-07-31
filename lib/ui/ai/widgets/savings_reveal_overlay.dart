@@ -158,12 +158,15 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
     // 유종 색으로 꽉 채운 카드 — 라이트에서 흰 배경이면 밋밋해서 테마와 무관하게
     // 주유=딥블루 / 충전=딥그린 그라데이션 위에 흰 글씨로 간다(공유 이미지와 같은 톤).
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    // 색으로 전체를 칠하지 않는다 — 거의 검정 캔버스 + 액센트는 글로우와 숫자에만.
     final cardColors = widget.isEv
-        ? const [Color(0xFF063E30), Color(0xFF0B7A5B), Color(0xFF0E9E74)]
-        : const [Color(0xFF10243F), Color(0xFF14487F), Color(0xFF1D6FE0)];
+        ? const [Color(0xFF0A1A14), Color(0xFF06120E)]
+        : const [Color(0xFF0B1220), Color(0xFF060A11)];
     final cardBorder = Colors.white.withValues(alpha: 0.18);
     final captionColor = Colors.white.withValues(alpha: 0.82);
-    final headlineColors = [Colors.white, _accent];
+    final accentSoft =
+        widget.isEv ? const Color(0xFF5EEAD4) : const Color(0xFF7DD3FC);
+    final headlineColors = [Colors.white, accentSoft, _accent];
     const badgeFg = Colors.white;
     final panelBg = Colors.black.withValues(alpha: 0.24);
     final panelBorder = Colors.white.withValues(alpha: 0.12);
