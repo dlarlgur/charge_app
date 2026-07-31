@@ -1,7 +1,5 @@
-import 'dart:io' show Platform;
-
-import 'package:android_intent_plus/android_intent.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:kakao_flutter_sdk_navi/kakao_flutter_sdk_navi.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -307,58 +305,49 @@ class _NavigationSheetState extends State<_NavigationSheet> {
 
   /// 티맵 실행.
   ///
-  /// 경유지는 **URL 스킴으로 못 넘긴다.** 공식 문서의 rGoName/rV1Name 은
-  /// 쿼리 파라미터가 아니라 **Intent extra 키**다(안드로이드 샘플 코드였음).
-  /// 실제로 다른 앱이 티맵을 부르는 걸 logcat 으로 확인:
-  ///   act=android.intent.action.MAIN cmp=com.skt.tmap.ku/.IntroActivity (has extras)
-  ///
-  /// 그래서 안드로이드에서 경유지가 있으면 Intent 로 보내고,
-  /// iOS·실패 시에는 검증된 URL 스킴(목적지만)으로 떨어진다.
+  /// 경유지는 URL 스킴으로 못 넘긴다 — 앱키 인증이 필요해서 공식 SDK(Tapi)를 쓴다.
+  /// SDK 는 HashMap 을 받아 rGo*/rSt*/rV1~5 키로 티맵 앱을 띄운다(안드로이드·iOS 동일).
+  /// SDK 호출이 실패하면(미설치·인증 실패) 검증된 URL 스킴(목적지만)으로 떨어진다.
+  static const _tmapChannel = MethodChannel('com.dksw.charge/tmap');
+
   Future<void> _launchTmap() async {
     final vias = _viasFor(_kTmapViaMax);
     final o = widget.origin;
-    if (Platform.isAndroid && vias.isNotEmpty && o != null) {
+    if (vias.isNotEmpty) {
       final g = _goal;
-      final args = <String, dynamic>{
-        'rStName': o.name.trim().isEmpty ? '출발지' : o.name,
-        'rStX': '${o.lng}',
-        'rStY': '${o.lat}',
+      final info = <String, String>{
         'rGoName': g.name,
         'rGoX': '${g.lng}',
         'rGoY': '${g.lat}',
       };
+      if (o != null) {
+        info['rStName'] = o.name.trim().isEmpty ? '출발지' : o.name;
+        info['rStX'] = '${o.lng}';
+        info['rStY'] = '${o.lat}';
+      }
       for (var i = 0; i < vias.length; i++) {
-        args['rV${i + 1}Name'] = vias[i].name;
-        args['rV${i + 1}X'] = '${vias[i].lng}';
-        args['rV${i + 1}Y'] = '${vias[i].lat}';
+        info['rV${i + 1}Name'] = vias[i].name;
+        info['rV${i + 1}X'] = '${vias[i].lng}';
+        info['rV${i + 1}Y'] = '${vias[i].lat}';
       }
       try {
-        await AndroidIntent(
-          action: 'android.intent.action.MAIN',
-          package: 'com.skt.tmap.ku',
-          componentName: 'com.skt.tmap.ku.IntroActivity',
-          arguments: args,
-        ).launch();
-        return;
+        final ok = await _tmapChannel.invokeMethod<bool>('invokeRoute', {
+          'appKey': ApiConstants.tmapAppKey,
+          'routeInfo': info,
+        });
+        if (ok == true) return;
       } catch (e) {
-        debugPrint('[TMAP] Intent 실패 → URL 스킴 폴백: $e');
+        debugPrint('[TMAP] SDK 호출 실패 → URL 폴백: $e');
       }
     }
     await _launch(
-      Uri(scheme: 'tmap', host: 'route', queryParameters: _tmapParams())
-          .toString(),
+      Uri(scheme: 'tmap', host: 'route', queryParameters: {
+        'goalname': _goal.name,
+        'goaly': '${_goal.lat}',
+        'goalx': '${_goal.lng}',
+      }).toString(),
       fallback: 'https://www.tmap.co.kr',
     );
-  }
-
-  /// 티맵 URL 파라미터 (목적지만 — 경유지는 Intent 로 간다).
-  Map<String, String> _tmapParams() {
-    final g = _goal;
-    return {
-      'goalname': g.name,
-      'goaly': '${g.lat}',
-      'goalx': '${g.lng}',
-    };
   }
 
   /// 네이버 URL — 목적지 dlat/dlng/dname + 경유지 v1~v3

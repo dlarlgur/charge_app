@@ -82,4 +82,7 @@ dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
     // Kakao AdFit — 3.22.2: Android 15 지원중단 API(setStatusBarColor 등) 경고 대응 버전업
     implementation("com.kakao.adfit:ads-base:3.22.2")
+    // TMAP 앱 연동(Tapi) — 티맵 앱에 출발·경유·목적지를 넘겨 길안내를 띄운다.
+    // URL 스킴으로는 경유지를 못 넘겨서(앱키 인증이 필요) 공식 SDK 를 쓴다.
+    implementation(files("libs/com.skt.Tmap_1.77.jar"))
 }

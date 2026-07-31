@@ -11,6 +11,8 @@ class MainActivity : FlutterFragmentActivity() {
         const val ADFIT_NATIVE_TOP_VIEW_TYPE  = "com.dksw.charge/adfit_native_top"
         const val ADFIT_NATIVE_LIST_VIEW_TYPE = "com.dksw.charge/adfit_native_list"
         const val ADFIT_EXIT_CHANNEL          = "com.dksw.charge/adfit_exit"
+        // TMAP 앱 연동(Tapi) — 경유지 포함 길안내
+        const val TMAP_CHANNEL                = "com.dksw.charge/tmap"
     }
 
     // AdFit 앱 종료 팝업 광고 (전용 상품 — SDK 다이얼로그) MethodChannel 연동.
@@ -96,6 +98,39 @@ class MainActivity : FlutterFragmentActivity() {
             when (call.method) {
                 "load" -> adFitExitAd.load(call.argument<String>("clientId") ?: "", result)
                 "show" -> adFitExitAd.show(result)
+                else -> result.notImplemented()
+            }
+        }
+
+        // TMAP 앱 연동 — 경유지를 포함한 길안내를 티맵 앱에 넘긴다.
+        // URL 스킴(tmap://route)으로는 목적지 하나만 가능하고 경유지는 무시된다.
+        // 공식 SDK 는 앱키 인증 후 HashMap(rGoName/rStName/rV1Name…)을 받아 처리한다.
+        io.flutter.plugin.common.MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            TMAP_CHANNEL,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "invokeRoute" -> {
+                    try {
+                        val appKey = call.argument<String>("appKey") ?: ""
+                        @Suppress("UNCHECKED_CAST")
+                        val info = (call.argument<Map<String, Any?>>("routeInfo") ?: emptyMap())
+                            .mapValues { it.value?.toString() ?: "" }
+                        val tapi = com.skt.Tmap.TMapTapi(this)
+                        tapi.setSKTMapAuthentication(appKey)
+                        result.success(tapi.invokeRoute(HashMap(info)))
+                    } catch (e: Throwable) {
+                        result.success(false) // 실패 시 Dart 가 URL 스킴으로 폴백
+                    }
+                }
+                "isInstalled" -> {
+                    val ok = try {
+                        packageManager.getPackageInfo("com.skt.tmap.ku", 0) != null
+                    } catch (_: Throwable) {
+                        false
+                    }
+                    result.success(ok)
+                }
                 else -> result.notImplemented()
             }
         }

@@ -40,7 +40,12 @@ class ApiConstants {
   // ─── AI 추천 ───
   static const routeDriving = '/route/driving';
   static const routeAlternatives = '/route/alternatives';
-  static const fuelReports = '/fuel-reports'; // 유가·충전 리포트 (주간/월간)
+  static const fuelReports = '/fuel-reports';
+
+  /// TMAP 앱 연동(Tapi) 앱키 — 티맵 앱에 경유지 포함 길안내를 넘길 때 인증에 쓴다.
+  /// 서버 경로 API 와 같은 키. 앱 호출은 무료라 사용량 걱정 없음.
+  static const tmapAppKey =
+      'YYAz38oFJZ7CCrnHbRxtKa1pakmsFa1d3trXi4so'; // 유가·충전 리포트 (주간/월간)
   static const refuelAnalyze = '/v1/refuel/analyze';
   static const refuelRouteStations = '/v1/refuel/route-stations';
   static const refuelCompare = '/v1/refuel/compare';
@@ -75,7 +80,7 @@ class AppConstants {
   AppConstants._();
 
   static const appName = '전기차 기름차';
-  static const packageName = 'com.dksw.charge';  // Android: com.dksw.charge
+  static const packageName = 'com.dksw.charge'; // Android: com.dksw.charge
 
   // 기본값
   static const defaultRadius = 5000; // 5km in meters
@@ -136,13 +141,15 @@ class AppConstants {
   static const keyAiLiterTarget = 'ai_liter_target';
 
   // 멀티 차량 프로필
-  static const keyAiVehicles = 'ai_vehicles';           // JSON List<VehicleProfile>
+  static const keyAiVehicles = 'ai_vehicles'; // JSON List<VehicleProfile>
   static const keyAiSelectedVehicleId = 'ai_selected_vehicle_id'; // String
 
   static const keyHomeTabOrder = 'home_tab_order'; // 0=주유 먼저, 1=충전 먼저
 
   // ── 진입 플로우 (Phase A) ──
   static const keyGuestStarted = 'guest_started'; // 게스트 "그래도 시작" 선택 완료
-  static const keyPendingEventOptin = 'pending_event_optin'; // 온보딩 끝낸 게스트 홈 이벤트 팝업 대기
-  static const keyOnboardingStep = 'onboarding_step'; // 온보딩 진행 스텝(중간 종료 후 재진입 복원용)
+  static const keyPendingEventOptin =
+      'pending_event_optin'; // 온보딩 끝낸 게스트 홈 이벤트 팝업 대기
+  static const keyOnboardingStep =
+      'onboarding_step'; // 온보딩 진행 스텝(중간 종료 후 재진입 복원용)
 }

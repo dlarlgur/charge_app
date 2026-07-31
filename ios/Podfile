@@ -31,6 +31,9 @@ target 'Runner' do
   use_frameworks!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+
+  # TMAP 앱 연동(Tapi) — 경유지 포함 길안내. URL 스킴으로는 경유지를 못 넘긴다.
+  pod 'TMapSDK', :path => 'Frameworks'
   target 'RunnerTests' do
     inherit! :search_paths
   end
