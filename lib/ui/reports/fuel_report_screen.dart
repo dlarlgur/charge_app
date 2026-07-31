@@ -14,7 +14,11 @@ import '../../providers/providers.dart';
 /// 리포트는 주제별로 따로 발행된다(유가 / 충전). 내 차종에 없는 주제는 탭 자체를
 /// 만들지 않는다 — 주유만 쓰는 사용자에게 충전 요금을 보여줄 이유가 없다.
 class FuelReportScreen extends ConsumerStatefulWidget {
-  const FuelReportScreen({super.key});
+  const FuelReportScreen({super.key, this.initialTopic});
+
+  /// 진입 시 열어둘 탭 — 홈에서 '충전 리포트' 로 들어오면 충전 탭이 바로 보이게.
+  /// 내 차종에 없는 주제면 무시된다.
+  final String? initialTopic;
 
   @override
   ConsumerState<FuelReportScreen> createState() => _FuelReportScreenState();
@@ -40,14 +44,18 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
       VehicleType.ev => const ['ev'],
       VehicleType.both => const ['fuel', 'ev'],
     };
-    _tab = TabController(length: _topics.length, vsync: this);
+    final want = widget.initialTopic;
+    final initial =
+        (want != null && _topics.contains(want)) ? _topics.indexOf(want) : 0;
+    _tab = TabController(
+        length: _topics.length, initialIndex: initial, vsync: this);
     _tab!.addListener(() {
       if (_tab!.indexIsChanging) return;
       // 스와이프로 넘겨도 탭 강조색(유가=파랑/충전=초록)이 따라오게 리빌드
       if (mounted) setState(() {});
       _load(_topics[_tab!.index]);
     });
-    _load(_topics.first);
+    _load(_topics[initial]);
   }
 
   @override

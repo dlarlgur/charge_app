@@ -654,18 +654,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 bottom: _watchDragDy + 4,
                 child: SafeArea(
                   top: false,
-                  child: ReportFab(
-                    // 홈에서 보고 있는 탭(주유/충전)에 맞춰 라벨·색이 바뀐다.
-                    // 전기차만 등록한 사용자는 항상 충전 탭이라 초록 고정.
-                    isEv: ref.watch(settingsProvider).vehicleType ==
-                            VehicleType.ev ||
-                        (ref.watch(settingsProvider).vehicleType ==
-                                VehicleType.both &&
-                            ref.watch(activeTabProvider) == 1),
-                    onTap: () => Navigator.of(context, rootNavigator: true)
-                        .push(MaterialPageRoute(
-                            builder: (_) => const FuelReportScreen())),
-                  ),
+                  child: Builder(builder: (_) {
+                    // 홈에서 보고 있는 탭(주유/충전)에 맞춰 라벨·색이 바뀌고,
+                    // 눌렀을 때 리포트도 그 주제 탭으로 바로 열린다.
+                    final vt = ref.watch(settingsProvider).vehicleType;
+                    final isEv = vt == VehicleType.ev ||
+                        (vt == VehicleType.both &&
+                            ref.watch(activeTabProvider) == 1);
+                    return ReportFab(
+                      isEv: isEv,
+                      onTap: () => Navigator.of(context, rootNavigator: true)
+                          .push(MaterialPageRoute(
+                              builder: (_) => FuelReportScreen(
+                                  initialTopic: isEv ? 'ev' : 'fuel'))),
+                    );
+                  }),
                 ),
               ),
             // 자리변동알림 — 홈 탭에서 하단 플로팅 (스크롤해도 항상 보임, content 안 밀림)
@@ -2884,8 +2887,11 @@ class SettingsScreenEmbed extends ConsumerWidget {
                   VehicleType.both => '유가 · 충전 리포트',
                 },
                 '매주 흐름 분석', () {
-              Navigator.of(context, rootNavigator: true).push(
-                  MaterialPageRoute(builder: (_) => const FuelReportScreen()));
+              Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
+                  builder: (_) => FuelReportScreen(
+                      initialTopic: settings.vehicleType == VehicleType.ev
+                          ? 'ev'
+                          : 'fuel')));
             }),
             settingsDivider(isDark),
             _tile(context, isDark, Icons.campaign_rounded, '광고 문의',
