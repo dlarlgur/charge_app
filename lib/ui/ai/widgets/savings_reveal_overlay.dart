@@ -44,6 +44,9 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
       widget.isEv ? const Color(0xFF34D399) : const Color(0xFF5B9DF9);
   Color get _accentFg =>
       widget.isEv ? const Color(0xFF06281C) : const Color(0xFF0A2647);
+  // 흰 배경에서 텍스트로 쓸 진한 유종 색 (연한 액센트는 대비가 모자란다)
+  Color get _accentDeep =>
+      widget.isEv ? const Color(0xFF0F9D6E) : const Color(0xFF2563EB);
   late final AnimationController _in; // 등장 팝
   late final AnimationController _out; // 페이드아웃
   late final AnimationController _sparkle; // 반짝 루프
@@ -90,49 +93,88 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
       builder: (ctx) {
         final dark = Theme.of(ctx).brightness == Brightness.dark;
         final muted = dark ? Colors.white60 : const Color(0xFF64748B);
-        Widget item(
-                bool isStory, String title, String sub, double w, double h) =>
-            ListTile(
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-              leading: Container(
-                width: 34,
-                height: 34,
-                alignment: Alignment.center,
-                child: Container(
-                  width: w,
-                  height: h,
-                  decoration: BoxDecoration(
-                    color: _accent.withValues(alpha: 0.9),
-                    borderRadius: BorderRadius.circular(3),
+        // 비율은 글로 설명해봐야 안 와닿는다 — 실제 카드 축소판을 나란히 놓고 고르게.
+        Widget option({
+          required bool isStory,
+          required String title,
+          required String size,
+          required double ratio,
+        }) =>
+            Expanded(
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () => Navigator.pop(ctx, isStory),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        height: 152,
+                        child: AspectRatio(
+                          aspectRatio: ratio,
+                          child: _MiniCardPreview(accent: _accent),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(title,
+                          style: const TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.2)),
+                      const SizedBox(height: 2),
+                      Text(size,
+                          style: TextStyle(
+                              fontSize: 11.5,
+                              color: muted,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures()
+                              ])),
+                    ],
                   ),
                 ),
               ),
-              title: Text(title,
-                  style: const TextStyle(
-                      fontSize: 14.5, fontWeight: FontWeight.w700)),
-              subtitle: Text(sub, style: TextStyle(fontSize: 12, color: muted)),
-              trailing:
-                  Icon(Icons.chevron_right_rounded, size: 20, color: muted),
-              onTap: () => Navigator.pop(ctx, isStory),
             );
         return SafeArea(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const SizedBox(height: 14),
-            Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                    color: dark ? Colors.white24 : Colors.black12,
-                    borderRadius: BorderRadius.circular(2))),
-            const SizedBox(height: 14),
-            const Text('어디에 올릴까요?',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 6),
-            item(false, '피드', '인스타 피드 (4:5)', 22, 27.5),
-            item(true, '스토리 · 릴스', '인스타 스토리 (9:16)', 18, 32),
-            const SizedBox(height: 12),
-          ]),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const SizedBox(height: 12),
+              Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: dark ? Colors.white24 : Colors.black12,
+                      borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 18),
+              const Text('카드 크기 고르기',
+                  style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3)),
+              const SizedBox(height: 5),
+              Text('올릴 곳에 맞는 비율로 만들어 드려요',
+                  style: TextStyle(fontSize: 12.5, color: muted)),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  option(
+                      isStory: false,
+                      title: '피드',
+                      size: '1080 × 1350 · 4:5',
+                      ratio: 4 / 5),
+                  const SizedBox(width: 10),
+                  option(
+                      isStory: true,
+                      title: '스토리 · 릴스',
+                      size: '1080 × 1920 · 9:16',
+                      ratio: 9 / 16),
+                ],
+              ),
+              const SizedBox(height: 10),
+            ]),
+          ),
         );
       },
     );
@@ -155,24 +197,38 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
     final fadeIn = CurvedAnimation(
         parent: _in, curve: const Interval(0, 0.35, curve: Curves.easeOut));
     final cardW = math.min(MediaQuery.of(context).size.width - 48, 340.0);
-    // 유종 색으로 꽉 채운 카드 — 라이트에서 흰 배경이면 밋밋해서 테마와 무관하게
-    // 주유=딥블루 / 충전=딥그린 그라데이션 위에 흰 글씨로 간다(공유 이미지와 같은 톤).
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    // 색으로 전체를 칠하지 않는다 — 거의 검정 캔버스 + 액센트는 글로우와 숫자에만.
-    final cardColors = widget.isEv
-        ? const [Color(0xFF0A1A14), Color(0xFF06120E)]
-        : const [Color(0xFF0B1220), Color(0xFF060A11)];
-    final cardBorder = Colors.white.withValues(alpha: 0.18);
-    final captionColor = Colors.white.withValues(alpha: 0.82);
-    final accentSoft =
-        widget.isEv ? const Color(0xFF5EEAD4) : const Color(0xFF7DD3FC);
-    final headlineColors = [Colors.white, accentSoft, _accent];
-    const badgeFg = Colors.white;
-    final panelBg = Colors.black.withValues(alpha: 0.24);
-    final panelBorder = Colors.white.withValues(alpha: 0.12);
-    const nameColor = Colors.white;
-    final factLabelColor = Colors.white.withValues(alpha: 0.62);
-    const factValueColor = Colors.white;
+    // 카드는 흰 종이. 유종 색은 '칠하는' 게 아니라 뱃지·숫자·상단 라인 같은
+    // 포인트로만 쓴다 — 면적을 줄일수록 색이 비싸 보인다.
+    final cardColors = isDark
+        ? [
+            Color.alphaBlend(
+                _accent.withValues(alpha: 0.10), const Color(0xFF141821)),
+            const Color(0xFF0E1116),
+          ]
+        : [
+            // 위쪽만 유종 색을 아주 옅게 머금게 — 흰 카드가 밋밋해지지 않는다
+            Color.alphaBlend(_accent.withValues(alpha: 0.10), Colors.white),
+            Colors.white,
+          ];
+    final cardBorder = isDark
+        ? Colors.white.withValues(alpha: 0.10)
+        : Colors.black.withValues(alpha: 0.06);
+    final captionColor =
+        isDark ? Colors.white70 : const Color(0xFF64748B); // slate-500
+    // 숫자는 유종 색 딥→라이트로 아주 살짝만 흘린다(무지개 금지).
+    final headlineColors =
+        isDark ? [Colors.white, _accent] : [_accentDeep, _accent];
+    final badgeFg = isDark ? _accent : _accentDeep;
+    final panelBg = isDark
+        ? Colors.white.withValues(alpha: 0.05)
+        : const Color(0xFFF1F5F9); // slate-100
+    final panelBorder = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.black.withValues(alpha: 0.05);
+    final nameColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final factLabelColor = isDark ? Colors.white54 : const Color(0xFF64748B);
+    final factValueColor = isDark ? Colors.white : const Color(0xFF0F172A);
     return Positioned.fill(
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -233,8 +289,7 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                                 child: Opacity(
                                   opacity: op,
                                   child: Icon(Icons.auto_awesome_rounded,
-                                      size: i.isEven ? 16 : 11,
-                                      color: const Color(0xFFFFD54F)),
+                                      size: i.isEven ? 16 : 11, color: _accent),
                                 ),
                               );
                             }),
@@ -258,10 +313,11 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                           border: Border.all(color: cardBorder),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black
-                                  .withValues(alpha: isDark ? 0.4 : 0.18),
-                              blurRadius: 30,
-                              offset: const Offset(0, 10),
+                              color: isDark
+                                  ? Colors.black.withValues(alpha: 0.45)
+                                  : _accentDeep.withValues(alpha: 0.16),
+                              blurRadius: 34,
+                              offset: const Offset(0, 14),
                             ),
                           ],
                         ),
@@ -273,12 +329,10 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 12, vertical: 5),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF34D399)
-                                    .withValues(alpha: 0.16),
+                                color: _accent.withValues(alpha: 0.14),
                                 borderRadius: BorderRadius.circular(999),
                                 border: Border.all(
-                                    color: const Color(0xFF34D399)
-                                        .withValues(alpha: 0.4)),
+                                    color: _accent.withValues(alpha: 0.32)),
                               ),
                               child: Text('AI 추천',
                                   style: TextStyle(
@@ -333,7 +387,8 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                                       children: [
                                         Icon(widget.stationIcon,
                                             size: 16,
-                                            color: const Color(0xFF6EE7B7)),
+                                            color:
+                                                isDark ? _accent : _accentDeep),
                                         const SizedBox(width: 6),
                                         Expanded(
                                           child: Text(
@@ -390,12 +445,14 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                                             fontSize: 14.5,
                                             fontWeight: FontWeight.w700)),
                                     style: OutlinedButton.styleFrom(
-                                      foregroundColor: _accent,
+                                      foregroundColor:
+                                          isDark ? _accent : _accentDeep,
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 16),
                                       side: BorderSide(
                                           color:
-                                              _accent.withValues(alpha: 0.55)),
+                                              (isDark ? _accent : _accentDeep)
+                                                  .withValues(alpha: 0.42)),
                                       shape: RoundedRectangleBorder(
                                           borderRadius:
                                               BorderRadius.circular(13)),
@@ -409,8 +466,10 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                                     child: FilledButton(
                                       onPressed: _dismiss,
                                       style: FilledButton.styleFrom(
-                                        backgroundColor: _accent,
-                                        foregroundColor: _accentFg,
+                                        backgroundColor:
+                                            isDark ? _accent : _accentDeep,
+                                        foregroundColor:
+                                            isDark ? _accentFg : Colors.white,
                                         shape: RoundedRectangleBorder(
                                             borderRadius:
                                                 BorderRadius.circular(13)),
@@ -433,6 +492,81 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 공유 카드 축소판 — 실제 결과물의 톤(어두운 캔버스 + 액센트 글로우 + 큰 숫자)을
+/// 그대로 줄여 보여준다. 비율 차이가 한눈에 보이는 게 목적이라 글자는 넣지 않는다.
+class _MiniCardPreview extends StatelessWidget {
+  const _MiniCardPreview({required this.accent});
+
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget bar(double widthFactor, double h, Color c, {double r = 3}) =>
+        FractionallySizedBox(
+          widthFactor: widthFactor,
+          alignment: Alignment.centerLeft,
+          child: Container(
+            height: h,
+            decoration:
+                BoxDecoration(color: c, borderRadius: BorderRadius.circular(r)),
+          ),
+        );
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(13),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF111827), Color(0xFF05070C)],
+          ),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+          borderRadius: BorderRadius.circular(13),
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              top: -30,
+              right: -30,
+              child: Container(
+                width: 110,
+                height: 110,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(colors: [
+                    accent.withValues(alpha: 0.42),
+                    Colors.transparent,
+                  ]),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(11),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  bar(0.34, 7, accent.withValues(alpha: 0.55), r: 4),
+                  const SizedBox(height: 9),
+                  bar(0.52, 5, Colors.white.withValues(alpha: 0.3)),
+                  const SizedBox(height: 6),
+                  bar(0.86, 13, accent),
+                  const SizedBox(height: 6),
+                  bar(0.62, 13, accent.withValues(alpha: 0.75)),
+                  const SizedBox(height: 11),
+                  bar(0.7, 4, Colors.white.withValues(alpha: 0.16)),
+                  const SizedBox(height: 5),
+                  bar(0.45, 4, Colors.white.withValues(alpha: 0.16)),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -18,6 +18,46 @@ class MainActivity : FlutterFragmentActivity() {
     // AdFit 앱 종료 팝업 광고 (전용 상품 — SDK 다이얼로그) MethodChannel 연동.
     private val adFitExitAd by lazy { AdFitExitAdHandler(this) }
 
+    // ── TMAP Tapi ──
+    // invokeRoute() 는 내부 첫 줄에서 apiKey 검증 여부를 보고 통과 못하면 곧장 false 를
+    // 뱉는다. setSKTMapAuthentication() 은 서버 인증이라 비동기 — 바로 이어서 호출하면
+    // 항상 실패한다. 그래서 인증 콜백을 기다렸다가 실행한다(성공하면 캐시).
+    private var tmapTapi: com.skt.Tmap.TMapTapi? = null
+    private var tmapAuthed = false
+
+    private fun withTmapAuth(appKey: String, done: (Boolean, String?) -> Unit) {
+        val main = android.os.Handler(android.os.Looper.getMainLooper())
+        val tapi = tmapTapi ?: com.skt.Tmap.TMapTapi(this).also { tmapTapi = it }
+        if (tmapAuthed) {
+            done(true, null)
+            return
+        }
+        var settled = false
+        val timeout = Runnable {
+            if (!settled) { settled = true; done(false, "auth timeout") }
+        }
+        tapi.setOnAuthenticationListener(
+            object : com.skt.Tmap.TMapTapi.OnAuthenticationListenerCallback {
+                override fun SKTMapApikeySucceed() {
+                    if (settled) return
+                    settled = true
+                    tmapAuthed = true
+                    main.removeCallbacks(timeout)
+                    main.post { done(true, null) }
+                }
+
+                override fun SKTMapApikeyFailed(msg: String?) {
+                    if (settled) return
+                    settled = true
+                    main.removeCallbacks(timeout)
+                    main.post { done(false, msg ?: "auth failed") }
+                }
+            }
+        )
+        tapi.setSKTMapAuthentication(appKey)
+        main.postDelayed(timeout, 5000)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         handleWidgetIntent(intent)
@@ -111,16 +151,29 @@ class MainActivity : FlutterFragmentActivity() {
         ).setMethodCallHandler { call, result ->
             when (call.method) {
                 "invokeRoute" -> {
-                    try {
-                        val appKey = call.argument<String>("appKey") ?: ""
-                        @Suppress("UNCHECKED_CAST")
-                        val info = (call.argument<Map<String, Any?>>("routeInfo") ?: emptyMap())
-                            .mapValues { it.value?.toString() ?: "" }
-                        val tapi = com.skt.Tmap.TMapTapi(this)
-                        tapi.setSKTMapAuthentication(appKey)
-                        result.success(tapi.invokeRoute(HashMap(info)))
-                    } catch (e: Throwable) {
-                        result.success(false) // 실패 시 Dart 가 URL 스킴으로 폴백
+                    val appKey = call.argument<String>("appKey") ?: ""
+                    val info = (call.argument<Map<String, Any?>>("routeInfo") ?: emptyMap())
+                        .mapValues { it.value?.toString() ?: "" }
+                    // 왜 실패했는지(인증/미설치/거부) Dart 로그에 남긴다 — 폴백이 조용하면
+                    // "경유지가 안 들어온다"는 증상만 남고 원인을 못 잡는다.
+                    withTmapAuth(appKey) { ok, err ->
+                        if (!ok) {
+                            result.success(mapOf("ok" to false, "reason" to "auth:$err"))
+                        } else {
+                            try {
+                                val tapi = tmapTapi!!
+                                if (!tapi.isTmapApplicationInstalled) {
+                                    result.success(mapOf("ok" to false, "reason" to "not_installed"))
+                                } else {
+                                    val done = tapi.invokeRoute(HashMap(info))
+                                    result.success(
+                                        mapOf("ok" to done, "reason" to if (done) null else "invoke_false")
+                                    )
+                                }
+                            } catch (e: Throwable) {
+                                result.success(mapOf("ok" to false, "reason" to "throw:${e.message}"))
+                            }
+                        }
                     }
                 }
                 "isInstalled" -> {

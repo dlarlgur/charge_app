@@ -331,11 +331,12 @@ class _NavigationSheetState extends State<_NavigationSheet> {
         info['rV${i + 1}Y'] = '${vias[i].lat}';
       }
       try {
-        final ok = await _tmapChannel.invokeMethod<bool>('invokeRoute', {
-          'appKey': ApiConstants.tmapAppKey,
-          'routeInfo': info,
-        });
-        if (ok == true) return;
+        final res = await _tmapChannel.invokeMapMethod<String, dynamic>(
+          'invokeRoute',
+          {'appKey': ApiConstants.tmapAppKey, 'routeInfo': info},
+        );
+        if (res?['ok'] == true) return;
+        debugPrint('[TMAP] SDK 실패(${res?['reason']}) → URL 폴백(목적지만)');
       } catch (e) {
         debugPrint('[TMAP] SDK 호출 실패 → URL 폴백: $e');
       }
