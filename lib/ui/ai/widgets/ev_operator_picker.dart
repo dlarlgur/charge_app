@@ -83,8 +83,28 @@ class _EvOperatorPickerSheetState extends State<_EvOperatorPickerSheet> {
     if (name.isEmpty) return '#';
     final c = name.codeUnitAt(0);
     if (c >= 0xAC00 && c <= 0xD7A3) {
-      const leads = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
-      const merge = {'ㄲ':'ㄱ','ㄸ':'ㄷ','ㅃ':'ㅂ','ㅆ':'ㅅ','ㅉ':'ㅈ'};
+      const leads = [
+        'ㄱ',
+        'ㄲ',
+        'ㄴ',
+        'ㄷ',
+        'ㄸ',
+        'ㄹ',
+        'ㅁ',
+        'ㅂ',
+        'ㅃ',
+        'ㅅ',
+        'ㅆ',
+        'ㅇ',
+        'ㅈ',
+        'ㅉ',
+        'ㅊ',
+        'ㅋ',
+        'ㅌ',
+        'ㅍ',
+        'ㅎ'
+      ];
+      const merge = {'ㄲ': 'ㄱ', 'ㄸ': 'ㄷ', 'ㅃ': 'ㅂ', 'ㅆ': 'ㅅ', 'ㅉ': 'ㅈ'};
       final l = leads[(c - 0xAC00) ~/ 588];
       return merge[l] ?? l;
     }
@@ -92,7 +112,24 @@ class _EvOperatorPickerSheetState extends State<_EvOperatorPickerSheet> {
     return '#';
   }
 
-  static const _initialOrder = ['ㄱ','ㄴ','ㄷ','ㄹ','ㅁ','ㅂ','ㅅ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ','A-Z','#'];
+  static const _initialOrder = [
+    'ㄱ',
+    'ㄴ',
+    'ㄷ',
+    'ㄹ',
+    'ㅁ',
+    'ㅂ',
+    'ㅅ',
+    'ㅇ',
+    'ㅈ',
+    'ㅊ',
+    'ㅋ',
+    'ㅌ',
+    'ㅍ',
+    'ㅎ',
+    'A-Z',
+    '#'
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -133,7 +170,8 @@ class _EvOperatorPickerSheetState extends State<_EvOperatorPickerSheet> {
                 ? accent.withValues(alpha: 0.12)
                 : (isDark ? AppColors.darkBg : const Color(0xFFF4F5F7)),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: on ? accent : Colors.transparent, width: 1.3),
+            border:
+                Border.all(color: on ? accent : Colors.transparent, width: 1.3),
           ),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             if (on)
@@ -194,15 +232,16 @@ class _EvOperatorPickerSheetState extends State<_EvOperatorPickerSheet> {
                         : const Color(0xFF111827))),
             const SizedBox(width: 8),
             Container(
-              padding:
-                  EdgeInsets.only(left: isAll ? 7 : 8, right: 8, top: 3, bottom: 3),
+              padding: EdgeInsets.only(
+                  left: isAll ? 7 : 8, right: 8, top: 3, bottom: 3),
               decoration: BoxDecoration(
                 color: isAll ? accent : accent.withValues(alpha: 0.14),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 if (isAll) ...[
-                  const Icon(Icons.check_rounded, size: 13, color: Colors.white),
+                  const Icon(Icons.check_rounded,
+                      size: 13, color: Colors.white),
                   const SizedBox(width: 2),
                 ],
                 Text(isAll ? '전체' : '${_sel.length}개 선택',
@@ -215,7 +254,9 @@ class _EvOperatorPickerSheetState extends State<_EvOperatorPickerSheet> {
             const Spacer(),
             if (!isAll)
               GestureDetector(
-                onTap: () => setState(() => _sel..clear()..addAll(_allNames)),
+                onTap: () => setState(() => _sel
+                  ..clear()
+                  ..addAll(_allNames)),
                 child: Text('전체로',
                     style: TextStyle(
                         fontSize: 13,
@@ -273,7 +314,9 @@ class _EvOperatorPickerSheetState extends State<_EvOperatorPickerSheet> {
                         GestureDetector(
                           onTap: () => setState(() => isAll
                               ? _sel.clear()
-                              : (_sel..clear()..addAll(_allNames))),
+                              : (_sel
+                                ..clear()
+                                ..addAll(_allNames))),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 9, vertical: 4),
@@ -281,7 +324,8 @@ class _EvOperatorPickerSheetState extends State<_EvOperatorPickerSheet> {
                               color: accent.withValues(alpha: 0.10),
                               borderRadius: BorderRadius.circular(9),
                             ),
-                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            child:
+                                Row(mainAxisSize: MainAxisSize.min, children: [
                               Icon(
                                   isAll
                                       ? Icons.clear_rounded
@@ -356,9 +400,11 @@ class _EvOperatorPickerSheetState extends State<_EvOperatorPickerSheet> {
                     borderRadius: BorderRadius.circular(12)),
               ),
               child: Text(
-                  (isAll || _sel.isEmpty) ? '전체 사업자 적용' : '${_sel.length}개 사업자 적용',
-                  style:
-                      const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                  (isAll || _sel.isEmpty)
+                      ? '전체 사업자 적용'
+                      : '${_sel.length}개 사업자 적용',
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w700)),
             ),
           ),
         ],

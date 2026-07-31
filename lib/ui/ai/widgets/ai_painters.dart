@@ -7,7 +7,11 @@ class GaugeRingPainter extends CustomPainter {
   final Color color;
   final Color colorDeep;
   final Color bgColor;
-  GaugeRingPainter({required this.percent, required this.color, required this.colorDeep, required this.bgColor});
+  GaugeRingPainter(
+      {required this.percent,
+      required this.color,
+      required this.colorDeep,
+      required this.bgColor});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -16,15 +20,20 @@ class GaugeRingPainter extends CustomPainter {
     final radius = (size.width - stroke) / 2;
     // 배경 원
     canvas.drawCircle(
-      center, radius,
-      Paint()..color = bgColor..style = PaintingStyle.stroke..strokeWidth = stroke,
+      center,
+      radius,
+      Paint()
+        ..color = bgColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke,
     );
     // 진행 호 (12시부터 시계방향)
     if (percent > 0) {
       final rect = Rect.fromCircle(center: center, radius: radius);
       final paint = Paint()
         ..shader = LinearGradient(
-          begin: Alignment.topLeft, end: Alignment.bottomRight,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
           colors: [color, colorDeep],
         ).createShader(rect)
         ..style = PaintingStyle.stroke

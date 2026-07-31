@@ -322,8 +322,8 @@ class _AiResultBodyState extends State<AiResultBody> {
     } else {
       final isRanked = d['recommendation'] is Map &&
           (d['recommendation'] as Map)['card_mode'] == 'ranked';
-      final onR = toCard(
-          d['on_route'], isRanked ? '추천' : '경로상', choice == 'on_route');
+      final onR =
+          toCard(d['on_route'], isRanked ? '추천' : '경로상', choice == 'on_route');
       if (onR != null) cards.add(onR);
       final det = toCard(
           d['best_detour'], isRanked ? '차선' : '우회', choice == 'best_detour');
@@ -422,9 +422,8 @@ class _AiResultBodyState extends State<AiResultBody> {
     // 서버가 경로상 후보 없을 때 최소 우회시간 후보를 가상 baseline 으로 승격
     // → "경로상 최저가" 라벨을 "근거리 우회"로 분기
     final isOnRouteVirtual = onRoute?['is_on_route_virtual'] == true;
-    final onRouteLabel = isRankedMode
-        ? '추천'
-        : (isOnRouteVirtual ? '근거리 우회' : '경로상 최저가');
+    final onRouteLabel =
+        isRankedMode ? '추천' : (isOnRouteVirtual ? '근거리 우회' : '경로상 최저가');
     final uiMessage = _altAiMessage ?? rec?['ui_message']?.toString() ?? '';
 
     final onRouteSt = onRoute?['station'] is Map
@@ -2773,10 +2772,8 @@ Widget _costVerdictBox(Map<String, dynamic> ca, NumberFormat wonFmt, Color ink,
     return const SizedBox.shrink();
   }
   // 다크에선 밝은 변형 — 라이트 원색은 어두운 배경에서 대비 미달.
-  final green =
-      isDark ? AppColors.darkGreenBright : const Color(0xFF1D9E75);
-  final orange =
-      isDark ? AppColors.darkOrangeBright : const Color(0xFFE8700A);
+  final green = isDark ? AppColors.darkGreenBright : const Color(0xFF1D9E75);
+  final orange = isDark ? AppColors.darkOrangeBright : const Color(0xFFE8700A);
   final red = isDark ? AppColors.darkRedBright : const Color(0xFFE24B4A);
   final c = worth ? green : orange; // 헤더/판정 색
   final bC = fuelBenefit >= 0 ? green : red; // 이득/손해 색
@@ -2942,9 +2939,8 @@ class _AltSection extends StatelessWidget {
             color: isDark ? AppColors.darkSurface1 : _kAltBg,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-                color: isDark
-                    ? _kSelected.withValues(alpha: 0.25)
-                    : _kAltBorder),
+                color:
+                    isDark ? _kSelected.withValues(alpha: 0.25) : _kAltBorder),
           ),
           clipBehavior: Clip.antiAlias,
           child: Column(

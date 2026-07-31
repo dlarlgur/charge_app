@@ -36,17 +36,20 @@ class StationSelectInlineSheet extends StatefulWidget {
   });
 
   @override
-  State<StationSelectInlineSheet> createState() => _StationSelectInlineSheetState();
+  State<StationSelectInlineSheet> createState() =>
+      _StationSelectInlineSheetState();
 }
 
 class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
   final ScrollController _listCtrl = ScrollController();
   String _sortMode = 'price'; // 'price' 가격순(기본) | 'distance' 거리순(덜 우회)
 
-  int? _priceOf(Map<String, dynamic> s) =>
-      s['price_won_per_liter'] is num ? (s['price_won_per_liter'] as num).round() : null;
-  int? _distOf(Map<String, dynamic> s) =>
-      s['detour_distance_m'] is num ? (s['detour_distance_m'] as num).round() : null;
+  int? _priceOf(Map<String, dynamic> s) => s['price_won_per_liter'] is num
+      ? (s['price_won_per_liter'] as num).round()
+      : null;
+  int? _distOf(Map<String, dynamic> s) => s['detour_distance_m'] is num
+      ? (s['detour_distance_m'] as num).round()
+      : null;
 
   /// 주소에서 '용인시 처인구' 같은 지역 두 토큰만 추출. 실패 시 원본 주소.
   String _regionOf(String addr) {
@@ -76,9 +79,11 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final stations = [...widget.stations];
     if (_sortMode == 'distance') {
-      stations.sort((a, b) => (_distOf(a) ?? 1 << 30).compareTo(_distOf(b) ?? 1 << 30));
+      stations.sort(
+          (a, b) => (_distOf(a) ?? 1 << 30).compareTo(_distOf(b) ?? 1 << 30));
     } else {
-      stations.sort((a, b) => (_priceOf(a) ?? 1 << 30).compareTo(_priceOf(b) ?? 1 << 30));
+      stations.sort(
+          (a, b) => (_priceOf(a) ?? 1 << 30).compareTo(_priceOf(b) ?? 1 << 30));
     }
     final selectedAId = widget.selectedAId;
     final selectedBId = widget.selectedBId;
@@ -120,7 +125,10 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
           color: isDark ? AppColors.darkBg : Colors.white,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.18), blurRadius: 20, offset: const Offset(0, -2)),
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.18),
+                blurRadius: 20,
+                offset: const Offset(0, -2)),
           ],
         ),
         child: LayoutBuilder(
@@ -158,7 +166,10 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
                                 )),
                             const SizedBox(width: 7),
                             Text('${stations.length}곳',
-                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: muted)),
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: muted)),
                             const Spacer(),
                             _sortDropdown(isDark, muted, ink),
                             const SizedBox(width: 8),
@@ -168,12 +179,16 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
                                 width: 32,
                                 height: 32,
                                 decoration: BoxDecoration(
-                                  color: isDark ? const Color(0x14FFFFFF) : const Color(0xFFF5F5F5),
+                                  color: isDark
+                                      ? const Color(0x14FFFFFF)
+                                      : const Color(0xFFF5F5F5),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(Icons.close_rounded,
                                     size: 17,
-                                    color: isDark ? AppColors.darkTextSecondary : const Color(0xFF666666)),
+                                    color: isDark
+                                        ? AppColors.darkTextSecondary
+                                        : const Color(0xFF666666)),
                               ),
                             ),
                           ],
@@ -185,14 +200,17 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                           child: Container(
                             width: double.infinity,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 9),
                             decoration: BoxDecoration(
-                              color: kCompareBlue.withValues(alpha: isDark ? 0.16 : 0.08),
+                              color: kCompareBlue.withValues(
+                                  alpha: isDark ? 0.16 : 0.08),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.auto_awesome_rounded, size: 14, color: kCompareBlue),
+                                const Icon(Icons.auto_awesome_rounded,
+                                    size: 14, color: kCompareBlue),
                                 const SizedBox(width: 7),
                                 Expanded(
                                   child: Text('두 곳을 선택하면 주유비 차이를 계산해드려요',
@@ -200,7 +218,9 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
                                           fontSize: 12,
                                           height: 1.2,
                                           fontWeight: FontWeight.w600,
-                                          color: isDark ? AppColors.darkTextSecondary : const Color(0xFF3D5A99))),
+                                          color: isDark
+                                              ? AppColors.darkTextSecondary
+                                              : const Color(0xFF3D5A99))),
                                 ),
                               ],
                             ),
@@ -217,7 +237,8 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
                           child: Text(
                             '경로상 주유소가 없습니다.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 13, color: muted, height: 1.4),
+                            style: TextStyle(
+                                fontSize: 13, color: muted, height: 1.4),
                           ),
                         )
                       : ListView.builder(
@@ -247,23 +268,29 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: bothSelected && !widget.isComparing ? widget.onCompare : null,
+                          onPressed: bothSelected && !widget.isComparing
+                              ? widget.onCompare
+                              : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: kCompareBlue,
                             foregroundColor: Colors.white,
-                            disabledBackgroundColor: kCompareBlue.withValues(alpha: 0.4),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            disabledBackgroundColor:
+                                kCompareBlue.withValues(alpha: 0.4),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14)),
                             elevation: 0,
                           ),
                           child: widget.isComparing
                               ? const SizedBox(
                                   height: 22,
                                   width: 22,
-                                  child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2.5, color: Colors.white))
                               : Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(Icons.compare_arrows_rounded, size: 19),
+                                    const Icon(Icons.compare_arrows_rounded,
+                                        size: 19),
                                     const SizedBox(width: 7),
                                     Text(
                                       bothSelected
@@ -271,7 +298,9 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
                                               ? 'A·B 비교하기 · 리터당 ${abDiff == 0 ? '가격 동일' : '${widget.wonFmt.format(abDiff)}원 차이'}'
                                               : 'A·B 비교하기')
                                           : '주유소 2곳을 선택하세요 (${(selectedAId != null ? 1 : 0) + (selectedBId != null ? 1 : 0)}/2)',
-                                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                                      style: const TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w700),
                                     ),
                                   ],
                                 ),
@@ -308,11 +337,16 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(_sortMode == 'price' ? Icons.payments_rounded : Icons.near_me_rounded,
-                size: 14, color: kCompareBlue),
+            Icon(
+                _sortMode == 'price'
+                    ? Icons.payments_rounded
+                    : Icons.near_me_rounded,
+                size: 14,
+                color: kCompareBlue),
             const SizedBox(width: 5),
             Text(label,
-                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: ink)),
+                style: TextStyle(
+                    fontSize: 12.5, fontWeight: FontWeight.w700, color: ink)),
             Icon(Icons.arrow_drop_down_rounded, size: 20, color: muted),
           ],
         ),
@@ -320,14 +354,16 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
     );
   }
 
-  PopupMenuItem<String> _sortItem(String value, String label, bool isDark, Color ink) {
+  PopupMenuItem<String> _sortItem(
+      String value, String label, bool isDark, Color ink) {
     final active = _sortMode == value;
     return PopupMenuItem<String>(
       value: value,
       height: 42,
       child: Row(
         children: [
-          Icon(active ? Icons.check_rounded : null, size: 16, color: kCompareBlue),
+          Icon(active ? Icons.check_rounded : null,
+              size: 16, color: kCompareBlue),
           const SizedBox(width: 6),
           Text(label,
               style: TextStyle(
@@ -368,8 +404,12 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
 
     // 게이지: 리스트 내 min~max 상대 위치 (min이어도 살짝 보이게)
     double gauge = 0.08;
-    if (price != null && minPrice != null && maxPrice != null && maxPrice > minPrice) {
-      gauge = (0.08 + 0.92 * (price - minPrice) / (maxPrice - minPrice)).clamp(0.08, 1.0);
+    if (price != null &&
+        minPrice != null &&
+        maxPrice != null &&
+        maxPrice > minPrice) {
+      gauge = (0.08 + 0.92 * (price - minPrice) / (maxPrice - minPrice))
+          .clamp(0.08, 1.0);
     }
 
     final cardBg = isDark ? AppColors.darkCard : Colors.white;
@@ -392,7 +432,8 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
                 ? null
                 : [
                     BoxShadow(
-                        color: Colors.black.withValues(alpha: selected ? 0.07 : 0.04),
+                        color: Colors.black
+                            .withValues(alpha: selected ? 0.07 : 0.04),
                         blurRadius: 8,
                         offset: const Offset(0, 2)),
                   ],
@@ -424,7 +465,8 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
                             if (isCheapest) ...[
                               const SizedBox(width: 5),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: kCompareBlue,
                                   borderRadius: BorderRadius.circular(5),
@@ -445,7 +487,8 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
                             if (addr.isNotEmpty) _regionOf(addr),
                             if (dist != null) _distText(dist),
                           ].join(' · '),
-                          style: TextStyle(fontSize: 11.5, height: 1.2, color: muted),
+                          style: TextStyle(
+                              fontSize: 11.5, height: 1.2, color: muted),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -459,7 +502,9 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
                           fontSize: 17,
                           fontWeight: FontWeight.w900,
                           height: 1.1,
-                          color: selected ? selColor : (isCheapest ? kCompareBlue : ink),
+                          color: selected
+                              ? selColor
+                              : (isCheapest ? kCompareBlue : ink),
                         )),
                   const SizedBox(width: 10),
                   // A/B 선택 칩 — 선택 전엔 빈 체크박스 느낌.
@@ -472,14 +517,18 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
                       border: selected
                           ? null
                           : Border.all(
-                              color: isDark ? const Color(0x33FFFFFF) : const Color(0xFFD5D9E0),
+                              color: isDark
+                                  ? const Color(0x33FFFFFF)
+                                  : const Color(0xFFD5D9E0),
                               width: 1.4),
                     ),
                     child: selected
                         ? Center(
                             child: Text(isA ? 'A' : 'B',
                                 style: const TextStyle(
-                                    fontSize: 13, fontWeight: FontWeight.w900, color: Colors.white)))
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white)))
                         : null,
                   ),
                 ],
@@ -502,7 +551,9 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
                                   ? selColor
                                   : (isCheapest
                                       ? kCompareBlue.withValues(alpha: 0.75)
-                                      : (isDark ? const Color(0x30FFFFFF) : const Color(0xFFD8DDE5))),
+                                      : (isDark
+                                          ? const Color(0x30FFFFFF)
+                                          : const Color(0xFFD8DDE5))),
                               borderRadius: BorderRadius.circular(99),
                             ),
                           ),
@@ -512,7 +563,11 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    delta == null ? '' : (delta == 0 ? '기준가' : '+${widget.wonFmt.format(delta)}원'),
+                    delta == null
+                        ? ''
+                        : (delta == 0
+                            ? '기준가'
+                            : '+${widget.wonFmt.format(delta)}원'),
                     style: TextStyle(
                         fontSize: 11,
                         height: 1.1,

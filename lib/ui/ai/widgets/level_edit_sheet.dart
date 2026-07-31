@@ -154,9 +154,7 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                           width: 32,
                           height: 32,
                           decoration: BoxDecoration(
-                            color: isDark
-                                ? const Color(0x1FFFFFFF)
-                                : kLineSoft,
+                            color: isDark ? const Color(0x1FFFFFFF) : kLineSoft,
                             shape: BoxShape.circle,
                           ),
                           child: Icon(Icons.close_rounded,
@@ -180,10 +178,19 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                         // 다크: 파스텔 대신 accent 힌트 프리블렌드 (라이트 블록 방지)
                         colors: widget.isEv
                             ? (isDark
-                                ? [const Color(0xFF14261E), const Color(0xFF173028)]
-                                : [const Color(0xFFECFDF5), const Color(0xFFD1FAE5)])
+                                ? [
+                                    const Color(0xFF14261E),
+                                    const Color(0xFF173028)
+                                  ]
+                                : [
+                                    const Color(0xFFECFDF5),
+                                    const Color(0xFFD1FAE5)
+                                  ])
                             : (isDark
-                                ? [const Color(0xFF2A2416), const Color(0xFF2E2A18)]
+                                ? [
+                                    const Color(0xFF2A2416),
+                                    const Color(0xFF2E2A18)
+                                  ]
                                 : [
                                     const Color(0xFFFFFBEB),
                                     const Color(0xFFFEF3C7)

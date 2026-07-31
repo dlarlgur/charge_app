@@ -153,7 +153,8 @@ class _AiVehicleListScreenState extends State<AiVehicleListScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? AppColors.darkBg : AppColors.lightBg;
-    final titleColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final titleColor =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
 
     return Scaffold(
       backgroundColor: bg,
@@ -243,9 +244,12 @@ class _AiVehicleListScreenState extends State<AiVehicleListScreen> {
 
   Widget _buildEmpty(bool isDark) {
     final iconBg = isDark ? AppColors.darkIconBg : AppColors.lightIconBg;
-    final iconColor = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    final primaryText = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-    final mutedText = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final iconColor =
+        isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final primaryText =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final mutedText =
+        isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
 
     return Center(
       child: Column(
@@ -258,8 +262,8 @@ class _AiVehicleListScreenState extends State<AiVehicleListScreen> {
               color: iconBg,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Icon(Icons.directions_car_rounded,
-                size: 40, color: iconColor),
+            child:
+                Icon(Icons.directions_car_rounded, size: 40, color: iconColor),
           ),
           const SizedBox(height: 16),
           Text(
@@ -304,7 +308,9 @@ class _VehicleCard extends StatelessWidget {
     // gas = green accent → ev-active-card token
     // (Local _kPrimary/_kEvBlue 매핑 그대로 유지)
     if (vehicle.isEV) {
-      return isDark ? AppColors.darkGasActiveCard : AppColors.lightGasActiveCard;
+      return isDark
+          ? AppColors.darkGasActiveCard
+          : AppColors.lightGasActiveCard;
     }
     return isDark ? AppColors.darkEvActiveCard : AppColors.lightEvActiveCard;
   }
@@ -313,11 +319,16 @@ class _VehicleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = isDark ? AppColors.darkCard : AppColors.lightCard;
-    final cardBorder = isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder;
-    final primaryText = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final secondaryText = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-    final iconBgInactive = isDark ? AppColors.darkIconBg : AppColors.lightIconBg;
-    final iconColorInactive = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final cardBorder =
+        isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder;
+    final primaryText =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final secondaryText =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final iconBgInactive =
+        isDark ? AppColors.darkIconBg : AppColors.lightIconBg;
+    final iconColorInactive =
+        isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
 
     return GestureDetector(
       onTap: onTap,

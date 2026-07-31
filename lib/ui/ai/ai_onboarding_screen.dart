@@ -107,7 +107,8 @@ class _AiOnboardingScreenState extends State<AiOnboardingScreen> {
                     icon: Icons.alt_route_rounded,
                     iconColor: _kPrimary,
                     title: '그냥 싼 주유소 말고,\n진짜 이득인 주유소',
-                    desc: '경로에서 조금 벗어나도 훨씬 싼 주유소가 있다면?\n우회 비용까지 계산해서 진짜 절약을 알려드려요.',
+                    desc:
+                        '경로에서 조금 벗어나도 훨씬 싼 주유소가 있다면?\n우회 비용까지 계산해서 진짜 절약을 알려드려요.',
                   ),
                   // 2. 충전소도 똑똑하게 — SOC 기반 추천
                   _HeroPage(

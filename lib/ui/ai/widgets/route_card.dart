@@ -76,8 +76,7 @@ class RouteCard extends StatelessWidget {
   Color _placeholder(bool d) =>
       d ? AppColors.darkTextMuted : const Color(0xFFBBBBBB);
   Color _icon(bool d) => d ? AppColors.darkTextMuted : const Color(0xFFCCCCCC);
-  Color _line(bool d) =>
-      d ? AppColors.darkCardBorder : const Color(0xFFF0F0F0);
+  Color _line(bool d) => d ? AppColors.darkCardBorder : const Color(0xFFF0F0F0);
 
   Widget _originDot() => Container(
         width: 10,
@@ -91,8 +90,7 @@ class RouteCard extends StatelessWidget {
   Widget _destDot() => Container(
       width: 10,
       height: 10,
-      decoration:
-          const BoxDecoration(shape: BoxShape.circle, color: kDanger));
+      decoration: const BoxDecoration(shape: BoxShape.circle, color: kDanger));
 
   /// 경유지 도트 — 회색 채움 원 + 흰 번호 (지도 마커와 동일 디자인, 네이버식)
   Widget _viaDot(bool isDark, int n) => Container(
@@ -246,8 +244,7 @@ class RouteCard extends StatelessWidget {
                     ? AppColors.darkCardBorder
                     : const Color(0xFFDDE2E8)),
           ),
-          child:
-              Icon(Icons.add_rounded, size: 17, color: _mutedText(isDark)),
+          child: Icon(Icons.add_rounded, size: 17, color: _mutedText(isDark)),
         ),
       );
 

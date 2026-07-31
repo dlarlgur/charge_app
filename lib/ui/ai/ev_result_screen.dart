@@ -612,7 +612,8 @@ class _StationCardState extends State<_StationCard> {
                           color: trackBg,
                           borderRadius: BorderRadius.circular(99))),
                   Container(
-                      width: w * ((hasCharge ? after : arrival) / 100).clamp(0.0, 1.0),
+                      width: w *
+                          ((hasCharge ? after : arrival) / 100).clamp(0.0, 1.0),
                       height: 7,
                       decoration: BoxDecoration(
                           gradient: const LinearGradient(
@@ -634,9 +635,16 @@ class _StationCardState extends State<_StationCard> {
           // 충전 후 목적지 도착 예상 잔량 — 4단계(여유/목표상향/빠듯/부족) 색·아이콘 안내
           if (destSoc != null && destStatus != null) ...[
             const SizedBox(height: 10),
-            _destAfterChargeLine(destSoc, destStatus, destTargetNow,
-                destComfortTarget, destMaxSoc, betterAltName, accent,
-                labelColor, isDark,
+            _destAfterChargeLine(
+                destSoc,
+                destStatus,
+                destTargetNow,
+                destComfortTarget,
+                destMaxSoc,
+                betterAltName,
+                accent,
+                labelColor,
+                isDark,
                 canRaise: canRaise,
                 isRaised: isRaised,
                 onToggleRaise: onToggleRaise),
@@ -648,9 +656,14 @@ class _StationCardState extends State<_StationCard> {
 
   // 예상 충전 금액 — 도착 시 배터리에서 목표까지 채울 때.
   // 단일 운영사: 초록 히어로 박스(큰 금액 + 단가) / 통합: 운영사별 요금 테이블(최저 뱃지).
-  Widget _estCostLine(double? kwh, int? member, int? nonMember,
-      int? unitPriceWon, List<Map<String, dynamic>>? operators,
-      Color labelColor, bool isDark) {
+  Widget _estCostLine(
+      double? kwh,
+      int? member,
+      int? nonMember,
+      int? unitPriceWon,
+      List<Map<String, dynamic>>? operators,
+      Color labelColor,
+      bool isDark) {
     String won(int v) {
       final s = v.toString();
       final b = StringBuffer();
@@ -678,13 +691,15 @@ class _StationCardState extends State<_StationCard> {
       int rowKey(Map o) =>
           (o['member'] as int?) ?? (o['nonmember'] as int?) ?? 1 << 30;
       final minVal = rowKey(rows.first);
-      final divider = isDark ? const Color(0x1FFFFFFF) : const Color(0xFFEDF0F4);
+      final divider =
+          isDark ? const Color(0x1FFFFFFF) : const Color(0xFFEDF0F4);
       return Container(
         decoration: BoxDecoration(
           color: isDark ? const Color(0x12FFFFFF) : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-              color: isDark ? const Color(0x24FFFFFF) : const Color(0xFFE6EAF0)),
+              color:
+                  isDark ? const Color(0x24FFFFFF) : const Color(0xFFE6EAF0)),
         ),
         child: Column(
           children: [
@@ -700,8 +715,7 @@ class _StationCardState extends State<_StationCard> {
                           fontWeight: FontWeight.w800,
                           color: labelColor)),
                   const Spacer(),
-                  Text(
-                      kwhLabel != null ? '회원가 기준 · $kwhLabel' : '회원가 기준',
+                  Text(kwhLabel != null ? '회원가 기준 · $kwhLabel' : '회원가 기준',
                       style: TextStyle(
                           fontSize: 10.5,
                           fontWeight: FontWeight.w500,
@@ -718,7 +732,8 @@ class _StationCardState extends State<_StationCard> {
               return Container(
                 decoration: BoxDecoration(
                     border: Border(top: BorderSide(color: divider))),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                 child: Row(
                   children: [
                     Container(
@@ -856,9 +871,7 @@ class _StationCardState extends State<_StationCard> {
                 TextSpan(
                     text: '원',
                     style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: ink)),
+                        fontSize: 15, fontWeight: FontWeight.w800, color: ink)),
               ])),
               if (same)
                 Container(
@@ -890,15 +903,21 @@ class _StationCardState extends State<_StationCard> {
   // 충전 후 목적지 도착 예상 잔량 — 서버 판정(safe/raise/tight/over)을 색·아이콘·문구로.
   // 핵심: '부족'을 raw 잔량이 아니라 "여기서 목표를 올려 해결 가능한지"로 판단해 실행 가능한 조언을 준다.
   // 폰 폭에 관계없이 자연스럽게 줄바꿈되도록 Expanded+RichText.
-  Widget _destAfterChargeLine(int destSoc, String status, int? targetNow,
-      int? comfortTarget, int? maxSoc, String? betterAltName, Color accent,
-      Color labelColor, bool isDark,
+  Widget _destAfterChargeLine(
+      int destSoc,
+      String status,
+      int? targetNow,
+      int? comfortTarget,
+      int? maxSoc,
+      String? betterAltName,
+      Color accent,
+      Color labelColor,
+      bool isDark,
       {bool canRaise = false,
       bool isRaised = false,
       VoidCallback? onToggleRaise}) {
     // 다크: 밝은 변형 (라이트 원색은 다크 카드 위 대비 미달)
-    final green =
-        isDark ? AppColors.darkGreenBright : const Color(0xFF16A34A);
+    final green = isDark ? AppColors.darkGreenBright : const Color(0xFF16A34A);
     final orange =
         isDark ? AppColors.darkOrangeBright : const Color(0xFFEA580C);
     final red = isDark ? AppColors.darkRedBright : const Color(0xFFDC2626);
@@ -917,15 +936,13 @@ class _StationCardState extends State<_StationCard> {
         icon = Icons.check_circle_rounded;
         tag = '여유';
         // 크게 남으면(=목표를 낮춰도 여유) 시간 절약 팁을 덧붙임.
-        final canLower =
-            targetNow != null && comfortTarget != null && comfortTarget <= targetNow - 5;
+        final canLower = targetNow != null &&
+            comfortTarget != null &&
+            comfortTarget <= targetNow - 5;
         spans = [
           const TextSpan(text: '충전 후 목적지 도착 시 '),
           TextSpan(text: '약 $destSoc%', style: pct.copyWith(color: c)),
-          TextSpan(
-              text: canLower
-                  ? ' 남아요. 급하면 '
-                  : ' 남아 여유 있게 도착해요'),
+          TextSpan(text: canLower ? ' 남아요. 급하면 ' : ' 남아 여유 있게 도착해요'),
           if (canLower) ...[
             TextSpan(text: '$ct%', style: pct.copyWith(color: c)),
             const TextSpan(text: '만 충전해도 충분해서 시간 아껴요'),
@@ -956,10 +973,7 @@ class _StationCardState extends State<_StationCard> {
         spans = [
           const TextSpan(text: '여기선 '),
           TextSpan(text: '100% 충전', style: pct.copyWith(color: c)),
-          TextSpan(
-              text: maxSoc != null
-                  ? '해도 도착 약 '
-                  : '해도 목적지까지 빠듯해요'),
+          TextSpan(text: maxSoc != null ? '해도 도착 약 ' : '해도 목적지까지 빠듯해요'),
           if (maxSoc != null) ...[
             TextSpan(text: '$maxSoc%', style: pct.copyWith(color: c)),
             const TextSpan(text: '로 빠듯 — 중간이나 목적지 근처에서 한 번 더 충전 권장'),
@@ -1017,8 +1031,7 @@ class _StationCardState extends State<_StationCard> {
           Padding(
             padding: const EdgeInsets.only(top: 0.5, right: 7),
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
               decoration: BoxDecoration(
                 color: c.withValues(alpha: isDark ? 0.22 : 0.14),
                 borderRadius: BorderRadius.circular(5),
@@ -1057,8 +1070,8 @@ class _StationCardState extends State<_StationCard> {
                       ? c.withValues(alpha: isDark ? 0.20 : 0.12)
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                      color: c.withValues(alpha: 0.6), width: 1.2),
+                  border:
+                      Border.all(color: c.withValues(alpha: 0.6), width: 1.2),
                 ),
                 child: Text(isRaised ? '되돌리기' : '올리기',
                     style: TextStyle(
@@ -1327,7 +1340,8 @@ class _StationCardState extends State<_StationCard> {
     final originEtaMin = (station['origin_eta_min'] as num?)?.toInt();
     final arrivalSoc = (station['arrival_soc'] as num?)?.toInt();
     final afterChargeSoc = (station['after_charge_soc'] as num?)?.toInt();
-    final destSocAfterCharge = (station['dest_soc_after_charge'] as num?)?.toInt();
+    final destSocAfterCharge =
+        (station['dest_soc_after_charge'] as num?)?.toInt();
     final destStatus = station['dest_status']?.toString();
     final destTargetNow = (station['dest_target_now'] as num?)?.toInt();
     final destComfortTarget = (station['dest_comfort_target'] as num?)?.toInt();
@@ -1346,13 +1360,13 @@ class _StationCardState extends State<_StationCard> {
     final groupedCount = (station['grouped_count'] as num?)?.toInt();
     final isGrouped = groupedStations != null && groupedStations.length > 1;
     // '올리기' 미리보기 — 서버가 권장목표 시나리오를 미리 계산해 내려줌. 탭하면 값만 스왑(재호출 X).
-    final raisePreview =
-        station['raise_preview'] is Map ? station['raise_preview'] as Map : null;
+    final raisePreview = station['raise_preview'] is Map
+        ? station['raise_preview'] as Map
+        : null;
     final canRaise = raisePreview != null;
     final showRaised = _raised && canRaise;
-    final effAfterCharge = showRaised
-        ? (raisePreview['target'] as num?)?.toInt()
-        : afterChargeSoc;
+    final effAfterCharge =
+        showRaised ? (raisePreview['target'] as num?)?.toInt() : afterChargeSoc;
     final effDestSoc = showRaised
         ? (raisePreview['dest_soc'] as num?)?.toInt()
         : destSocAfterCharge;
@@ -2363,8 +2377,7 @@ class _EvAiMessageBanner extends StatelessWidget {
         _normalizeMarkdownForKoreanEv(message.replaceAll(r'\n', '\n'));
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final blue = isDark ? AppColors.darkBlueBright : _kBlue;
-    final bg =
-        isDark ? blue.withValues(alpha: 0.12) : const Color(0xFFEEF4FF);
+    final bg = isDark ? blue.withValues(alpha: 0.12) : const Color(0xFFEEF4FF);
     final border =
         isDark ? blue.withValues(alpha: 0.35) : const Color(0xFFB8D0FF);
     final iconBg =

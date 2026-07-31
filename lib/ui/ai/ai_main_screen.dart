@@ -127,6 +127,18 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   String? _revealHeadline;
 
   String? _revealStationName;
+  String? _revealStationSub;
+  String? _stationSub; // 공유 카드용 부제 (브랜드 · 주소)
+
+  /// 널·빈 값을 빼고 ' · ' 로 잇는다. 전부 비면 null → 카드가 그 줄을 통째로 생략.
+  static String? _joinMeta(List<dynamic> parts) {
+    final out = parts
+        .map((e) => e?.toString().trim() ?? '')
+        .where((e) => e.isNotEmpty)
+        .toList();
+    return out.isEmpty ? null : out.join(' · ');
+  }
+
   IconData _revealStationIcon = Icons.local_gas_station_rounded;
   List<RevealFact> _revealFacts = const [];
 
@@ -134,6 +146,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     String caption,
     String headline, {
     String? stationName,
+    String? stationSub,
     IconData stationIcon = Icons.local_gas_station_rounded,
     List<RevealFact> facts = const [],
   }) {
@@ -142,6 +155,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       _revealCaption = caption;
       _revealHeadline = headline;
       _revealStationName = stationName;
+      _revealStationSub = stationSub;
       _revealStationIcon = stationIcon;
       _revealFacts = facts;
     });
@@ -174,6 +188,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final recSt = recItem is Map ? recItem['station'] : null;
     String name = '';
     double? recPrice;
+    _stationSub = null;
     if (recSt is Map) {
       final dn = recSt['display_name']?.toString().trim();
       final raw = (dn != null && dn.isNotEmpty)
@@ -182,6 +197,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       name =
           StationAliasService.resolveGas((recSt['id'] ?? '').toString(), raw);
       recPrice = d(recSt['price_won_per_liter']);
+      // 공유 카드 부제 — 서버가 주는 것 중 있는 것만 ' · ' 로 잇는다.
+      _stationSub = _joinMeta([
+        recSt['brand_name'],
+        recSt['address'],
+      ]);
     }
     final recCost = recItem is Map ? d(recItem['expected_cost_won']) : null;
     final detourMin = recItem is Map ? i(recItem['detour_time_min']) : 0;
@@ -225,6 +245,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         extraMin > 0 ? '$extraMin분 더 걸리지만' : '가는 길 그대로',
         '${SavingsRevealOverlay.won(caSavings)} 절감!',
         stationName: name,
+        stationSub: _stationSub,
         stationIcon: Icons.local_gas_station_rounded,
         facts: facts,
       );
@@ -247,6 +268,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           '주변 평균 대비',
           '${SavingsRevealOverlay.won(save)} 절약!',
           stationName: name,
+          stationSub: _stationSub,
           stationIcon: Icons.local_gas_station_rounded,
           facts: facts,
         );
@@ -257,6 +279,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       '우회할 필요 없이',
       '가는 길이 최적!',
       stationName: name,
+      stationSub: _stationSub,
       stationIcon: Icons.local_gas_station_rounded,
       facts: facts,
     );
@@ -273,10 +296,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     String name = '';
     final facts = <RevealFact>[];
     int? recCost;
+    _stationSub = null;
     if (rec is Map) {
       name = rec['name']?.toString() ?? '';
       final m = Map<String, dynamic>.from(rec);
       recCost = cost(m);
+      _stationSub = _joinMeta([m['operator'], m['address']]);
       final unit = m['unit_price_member'] is num
           ? (m['unit_price_member'] as num).round()
           : (m['unit_price'] is num ? (m['unit_price'] as num).round() : null);
@@ -307,6 +332,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             '다른 후보 평균 대비',
             '${SavingsRevealOverlay.won(save)} 절약!',
             stationName: name,
+            stationSub: _stationSub,
             stationIcon: Icons.ev_station_rounded,
             facts: facts,
           );
@@ -318,6 +344,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       '지금 배터리에 딱 맞는',
       '최적 충전소 추천!',
       stationName: name,
+      stationSub: _stationSub,
       stationIcon: Icons.ev_station_rounded,
       facts: facts,
     );
@@ -6308,6 +6335,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 caption: _revealCaption ?? '',
                 headline: _revealHeadline!,
                 stationName: _revealStationName,
+                stationSub: _revealStationSub,
                 stationIcon: _revealStationIcon,
                 facts: _revealFacts,
                 // 충전 추천이면 초록, 주유면 파랑 (아이콘으로 판정 — 호출부 공통)

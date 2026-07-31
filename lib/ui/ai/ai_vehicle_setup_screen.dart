@@ -105,7 +105,8 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
     debugPrint('  myDeviceId   = "${DkswCore.deviceId}"');
     debugPrint('  bootstrap?   = ${DkswCore.lastBootstrap != null}');
     debugPrint('  whitelistRaw = $raw (${raw.runtimeType})');
-    debugPrint('  whitelist    = ${list?.map((e) => '"${e.toString().trim()}"').toList()}');
+    debugPrint(
+        '  whitelist    = ${list?.map((e) => '"${e.toString().trim()}"').toList()}');
     debugPrint('  featureFlag  = ${_flagOn('feature.connected_car')}');
     debugPrint('  isBetaDevice = $_connectedBetaDevice');
     debugPrint('  → visible    = $_connectedVisible');
@@ -739,8 +740,11 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
         }
       }
     });
-    showAppToast(context,
-        hasSpec ? '${car.name} 연결됨 · 제원 자동 입력 (확인 후 수정하세요)' : '${car.name} 연결됨');
+    showAppToast(
+        context,
+        hasSpec
+            ? '${car.name} 연결됨 · 제원 자동 입력 (확인 후 수정하세요)'
+            : '${car.name} 연결됨');
   }
 
   // 연동 차량 선택 — 계정 차량 중 이 app 차량과 1:1 매칭할 차를 고른다.

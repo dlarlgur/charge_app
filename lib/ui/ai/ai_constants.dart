@@ -10,9 +10,9 @@ const kCompareBlue = Color(0xFF1D6FE0);
 // ─── 모드별 액센트 컬러 ───
 // 앱 전체 컨벤션과 통일: AppColors.gasBlue (주유) / AppColors.evGreen (충전)
 // (값은 compile-time const 유지 위해 같은 RGB 그대로 복사)
-const kFuelAccent = Color(0xFF3B82F6);      // = AppColors.gasBlue
+const kFuelAccent = Color(0xFF3B82F6); // = AppColors.gasBlue
 const kFuelAccentLight = Color(0xFFEFF6FF);
-const kEvAccent = Color(0xFF10B981);        // = AppColors.evGreen
+const kEvAccent = Color(0xFF10B981); // = AppColors.evGreen
 const kEvAccentLight = Color(0xFFECFDF5);
 // ai_reco_main.html 그라데이션 — primary gradient end (toggle/CTA 진한 톤)
 const kFuelAccentDeep = Color(0xFF2563EB);

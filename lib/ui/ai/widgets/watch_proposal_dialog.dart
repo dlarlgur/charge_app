@@ -7,7 +7,8 @@ class WatchProposalDialog extends StatelessWidget {
   final int? etaMin;
   final Color accentColor;
 
-  const WatchProposalDialog({super.key, required this.etaMin, required this.accentColor});
+  const WatchProposalDialog(
+      {super.key, required this.etaMin, required this.accentColor});
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +37,9 @@ class WatchProposalDialog extends StatelessWidget {
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
-                color: isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A1A),
+                color: isDark
+                    ? AppColors.darkTextPrimary
+                    : const Color(0xFF1A1A1A),
               ),
             ),
             const SizedBox(height: 10),
@@ -47,7 +50,9 @@ class WatchProposalDialog extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
-                color: isDark ? AppColors.darkTextSecondary : const Color(0xFF666666),
+                color: isDark
+                    ? AppColors.darkTextSecondary
+                    : const Color(0xFF666666),
                 height: 1.65,
               ),
             ),
@@ -59,13 +64,16 @@ class WatchProposalDialog extends StatelessWidget {
                     onPressed: () => Navigator.pop(context, false),
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(color: Colors.grey.shade300),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(vertical: 13),
                     ),
                     child: Text(
                       '나중에',
                       style: TextStyle(
-                          color: isDark ? AppColors.darkTextSecondary : const Color(0xFF888888),
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : const Color(0xFF888888),
                           fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -78,10 +86,12 @@ class WatchProposalDialog extends StatelessWidget {
                       backgroundColor: accentColor,
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(vertical: 13),
                     ),
-                    child: const Text('받기', style: TextStyle(fontWeight: FontWeight.w700)),
+                    child: const Text('받기',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
                   ),
                 ),
               ],

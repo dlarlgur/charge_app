@@ -35,7 +35,8 @@ class LocationPickerSheet extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<LocationPickerSheet> createState() => _LocationPickerSheetState();
+  ConsumerState<LocationPickerSheet> createState() =>
+      _LocationPickerSheetState();
 }
 
 class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
@@ -52,7 +53,8 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _searchFocus.requestFocus());
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _searchFocus.requestFocus());
     _loadAddress();
   }
 
@@ -80,7 +82,11 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
 
   Future<void> _onSearchChanged(String query) async {
     if (query.trim().isEmpty) {
-      setState(() { _results = []; _isLoading = false; _myLocationSelected = false; });
+      setState(() {
+        _results = [];
+        _isLoading = false;
+        _myLocationSelected = false;
+      });
       return;
     }
     final reqId = ++_searchRequestSeq;
@@ -88,16 +94,24 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
     try {
       // 지도 탭과 동일하게 "좌표 근처 우선 검색"을 사용
       final center = ref.read(mapCenterProvider);
-      final loc = center == null ? await ref.read(locationProvider.future) : null;
+      final loc =
+          center == null ? await ref.read(locationProvider.future) : null;
       final lat = center?.lat ?? loc?.lat;
       final lng = center?.lng ?? loc?.lng;
-      final results = await ApiService().searchPlaces(query.trim(), lat: lat, lng: lng);
+      final results =
+          await ApiService().searchPlaces(query.trim(), lat: lat, lng: lng);
       if (!mounted || reqId != _searchRequestSeq) return;
-      setState(() { _results = results; _isLoading = false; });
+      setState(() {
+        _results = results;
+        _isLoading = false;
+      });
     } catch (e) {
       if (kDebugMode) debugPrint('[location-picker] searchPlaces 실패: $e');
       if (!mounted || reqId != _searchRequestSeq) return;
-      setState(() { _results = []; _isLoading = false; });
+      setState(() {
+        _results = [];
+        _isLoading = false;
+      });
     }
   }
 
@@ -111,7 +125,9 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
         return;
       }
       _searchController.text = addr;
-      setState(() { _myLocationSelected = true; });
+      setState(() {
+        _myLocationSelected = true;
+      });
       _onSearchChanged(addr);
       _searchFocus.requestFocus();
     } else {
@@ -192,7 +208,9 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
           fontSize: 13,
           fontWeight: FontWeight.w600,
           color: registered
-              ? (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)
+              ? (isDark
+                  ? AppColors.darkTextPrimary
+                  : AppColors.lightTextPrimary)
               : mutedFg,
         ),
       ),
@@ -203,7 +221,8 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SizedBox(
         height: MediaQuery.of(context).size.height * 0.88,
         child: Column(
@@ -211,9 +230,11 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
             // 핸들
             Container(
               margin: const EdgeInsets.symmetric(vertical: 10),
-              width: 40, height: 4,
+              width: 40,
+              height: 4,
               decoration: BoxDecoration(
-                color: isDark ? AppColors.darkCardBorder : const Color(0xFFDDDDDD),
+                color:
+                    isDark ? AppColors.darkCardBorder : const Color(0xFFDDDDDD),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -236,7 +257,8 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
                 controller: _searchController,
                 focusNode: _searchFocus,
                 onChanged: (v) {
-                  if (_myLocationSelected) setState(() => _myLocationSelected = false);
+                  if (_myLocationSelected)
+                    setState(() => _myLocationSelected = false);
                   _onSearchChanged(v);
                 },
                 style: TextStyle(
@@ -246,15 +268,20 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
                 decoration: InputDecoration(
                   hintText: widget.isOrigin ? '출발지 검색' : '목적지 검색',
                   hintStyle: TextStyle(
-                    color: isDark ? AppColors.darkTextMuted : const Color(0xFFBBBBBB),
+                    color: isDark
+                        ? AppColors.darkTextMuted
+                        : const Color(0xFFBBBBBB),
                   ),
                   prefixIcon: Icon(
                     Icons.search_rounded,
-                    color: isDark ? AppColors.darkTextSecondary : const Color(0xFF999999),
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : const Color(0xFF999999),
                     size: 20,
                   ),
                   filled: true,
-                  fillColor: isDark ? AppColors.darkCard : const Color(0xFFF5F5F5),
+                  fillColor:
+                      isDark ? AppColors.darkCard : const Color(0xFFF5F5F5),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide.none,
@@ -304,7 +331,9 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
                 height: 1,
                 indent: 16,
                 endIndent: 16,
-                color: isDark ? AppColors.darkCardBorder : const Color(0xFFF0F0F0)),
+                color: isDark
+                    ? AppColors.darkCardBorder
+                    : const Color(0xFFF0F0F0)),
             // ②-1 집/회사 바로가기 — 등록=컬러+즉시 설정, 미등록=회색
             SizedBox(
               height: 42,
@@ -312,7 +341,8 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
                 children: [
                   Expanded(child: _placeItem('home', '집', Icons.home_rounded)),
                   _vHairline(isDark),
-                  Expanded(child: _placeItem('work', '회사', Icons.business_rounded)),
+                  Expanded(
+                      child: _placeItem('work', '회사', Icons.business_rounded)),
                 ],
               ),
             ),
@@ -321,24 +351,30 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
             Expanded(
               child: _isLoading
                   ? const Center(
-                      child: CircularProgressIndicator(color: kPrimary, strokeWidth: 2))
+                      child: CircularProgressIndicator(
+                          color: kPrimary, strokeWidth: 2))
                   : _searchController.text.isEmpty && !_myLocationSelected
                       ? (widget.searchHistoryItems.isEmpty
                           ? const Center(
                               child: Text('장소명, 주소를 입력하세요',
-                                  style: TextStyle(fontSize: 14, color: Color(0xFFBBBBBB))))
+                                  style: TextStyle(
+                                      fontSize: 14, color: Color(0xFFBBBBBB))))
                           : ListView.separated(
                               itemCount: widget.searchHistoryItems.length,
-                              separatorBuilder: (_, __) => const Divider(height: 1, indent: 56),
+                              separatorBuilder: (_, __) =>
+                                  const Divider(height: 1, indent: 56),
                               itemBuilder: (_, i) {
                                 final h = widget.searchHistoryItems[i];
                                 final name = h['name']?.toString() ?? '';
                                 final address = h['address']?.toString() ?? '';
                                 return ListTile(
-                                  leading: const Icon(Icons.history_rounded, color: Color(0xFF999999), size: 20),
+                                  leading: const Icon(Icons.history_rounded,
+                                      color: Color(0xFF999999), size: 20),
                                   title: Text(
                                     name,
-                                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                                    style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -347,7 +383,9 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
                                           address,
                                           style: TextStyle(
                                               fontSize: 12,
-                                              color: isDark ? AppColors.darkTextMuted : const Color(0xFF999999)),
+                                              color: isDark
+                                                  ? AppColors.darkTextMuted
+                                                  : const Color(0xFF999999)),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         )
@@ -359,107 +397,158 @@ class _LocationPickerSheetState extends ConsumerState<LocationPickerSheet> {
                       : _results.isEmpty && !_myLocationSelected
                           ? const Center(
                               child: Text('검색 결과가 없습니다',
-                                  style: TextStyle(fontSize: 14, color: Color(0xFF999999))))
+                                  style: TextStyle(
+                                      fontSize: 14, color: Color(0xFF999999))))
                           : ListView.builder(
-                          itemCount: _results.length + (_myLocationSelected ? 1 : 0),
-                          itemBuilder: (_, i) {
-                            // 내위치 클릭 후 상단에 "현재 위치 그대로 사용" 옵션
-                            if (_myLocationSelected && i == 0) {
-                              return Column(
-                                children: [
-                                  ListTile(
-                                    leading: Container(
-                                      width: 36, height: 36,
-                                      decoration: BoxDecoration(
-                                        color: kPrimaryLight,
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: const Icon(Icons.my_location_rounded,
-                                          color: kPrimary, size: 18),
-                                    ),
-                                    title: const Text('현재 위치 사용',
-                                        style: TextStyle(fontSize: 14,
-                                            fontWeight: FontWeight.w600,
-                                            color: kPrimary)),
-                                    subtitle: widget.currentLocationAddress != null
-                                        ? Text(widget.currentLocationAddress!,
+                              itemCount: _results.length +
+                                  (_myLocationSelected ? 1 : 0),
+                              itemBuilder: (_, i) {
+                                // 내위치 클릭 후 상단에 "현재 위치 그대로 사용" 옵션
+                                if (_myLocationSelected && i == 0) {
+                                  return Column(
+                                    children: [
+                                      ListTile(
+                                        leading: Container(
+                                          width: 36,
+                                          height: 36,
+                                          decoration: BoxDecoration(
+                                            color: kPrimaryLight,
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                          ),
+                                          child: const Icon(
+                                              Icons.my_location_rounded,
+                                              color: kPrimary,
+                                              size: 18),
+                                        ),
+                                        title: const Text('현재 위치 사용',
                                             style: TextStyle(
-                                                fontSize: 12,
-                                                color: isDark ? AppColors.darkTextSecondary : const Color(0xFF888888)),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis)
-                                        : null,
-                                    onTap: widget.onMyLocation,
-                                  ),
-                                  if (_results.isNotEmpty)
-                                    const Divider(height: 1, indent: 56),
-                                ],
-                              );
-                            }
-                            final r = _results[i - (_myLocationSelected ? 1 : 0)];
-                            final category = r['category']?.toString();
-                            final dist = r['distance'];
-                            final distStr = dist != null
-                                ? formatDistance((dist as num).toDouble())
-                                : null;
-                            return Column(
-                              children: [
-                                InkWell(
-                                  onTap: () => widget.onSearchResult(r),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                    child: Row(
-                                      crossAxisAlignment: CrossAxisAlignment.center,
-                                      children: [
-                                        const Icon(Icons.place_outlined, color: kPrimary, size: 20),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Row(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                                color: kPrimary)),
+                                        subtitle: widget
+                                                    .currentLocationAddress !=
+                                                null
+                                            ? Text(
+                                                widget.currentLocationAddress!,
+                                                style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: isDark
+                                                        ? AppColors
+                                                            .darkTextSecondary
+                                                        : const Color(
+                                                            0xFF888888)),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis)
+                                            : null,
+                                        onTap: widget.onMyLocation,
+                                      ),
+                                      if (_results.isNotEmpty)
+                                        const Divider(height: 1, indent: 56),
+                                    ],
+                                  );
+                                }
+                                final r =
+                                    _results[i - (_myLocationSelected ? 1 : 0)];
+                                final category = r['category']?.toString();
+                                final dist = r['distance'];
+                                final distStr = dist != null
+                                    ? formatDistance((dist as num).toDouble())
+                                    : null;
+                                return Column(
+                                  children: [
+                                    InkWell(
+                                      onTap: () => widget.onSearchResult(r),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 16, vertical: 12),
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: [
+                                            const Icon(Icons.place_outlined,
+                                                color: kPrimary, size: 20),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
                                                 children: [
-                                                  Expanded(
-                                                    child: Text(r['name']?.toString() ?? '',
-                                                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                                                        maxLines: 1,
-                                                        overflow: TextOverflow.ellipsis),
+                                                  Row(
+                                                    children: [
+                                                      Expanded(
+                                                        child: Text(
+                                                            r['name']
+                                                                    ?.toString() ??
+                                                                '',
+                                                            style: const TextStyle(
+                                                                fontSize: 14,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w500),
+                                                            maxLines: 1,
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis),
+                                                      ),
+                                                      if (category != null &&
+                                                          category
+                                                              .isNotEmpty) ...[
+                                                        const SizedBox(
+                                                            width: 6),
+                                                        Text(category,
+                                                            style: TextStyle(
+                                                                fontSize: 11,
+                                                                color: isDark
+                                                                    ? AppColors
+                                                                        .darkTextSecondary
+                                                                    : const Color(
+                                                                        0xFF888888))),
+                                                      ],
+                                                      if (distStr != null) ...[
+                                                        const SizedBox(
+                                                            width: 6),
+                                                        Text(distStr,
+                                                            style: const TextStyle(
+                                                                fontSize: 11,
+                                                                color: Color(
+                                                                    0xFF1D6FE0))),
+                                                      ],
+                                                    ],
                                                   ),
-                                                  if (category != null && category.isNotEmpty) ...[
-                                                    const SizedBox(width: 6),
-                                                    Text(category,
+                                                  if ((r['address']
+                                                              ?.toString() ??
+                                                          '')
+                                                      .isNotEmpty)
+                                                    Text(
+                                                        r['address'].toString(),
                                                         style: TextStyle(
-                                                            fontSize: 11,
-                                                            color: isDark ? AppColors.darkTextSecondary : const Color(0xFF888888))),
-                                                  ],
-                                                  if (distStr != null) ...[
-                                                    const SizedBox(width: 6),
-                                                    Text(distStr,
-                                                        style: const TextStyle(fontSize: 11, color: Color(0xFF1D6FE0))),
-                                                  ],
+                                                            fontSize: 12,
+                                                            color: isDark
+                                                                ? AppColors
+                                                                    .darkTextMuted
+                                                                : const Color(
+                                                                    0xFF999999)),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis),
                                                 ],
                                               ),
-                                              if ((r['address']?.toString() ?? '').isNotEmpty)
-                                                Text(r['address'].toString(),
-                                                    style: TextStyle(
-                                                        fontSize: 12,
-                                                        color: isDark ? AppColors.darkTextMuted : const Color(0xFF999999)),
-                                                    maxLines: 1,
-                                                    overflow: TextOverflow.ellipsis),
-                                            ],
-                                          ),
+                                            ),
+                                          ],
                                         ),
-                                      ],
+                                      ),
                                     ),
-                                  ),
-                                ),
-                                if (i < _results.length - 1 + (_myLocationSelected ? 1 : 0))
-                                  const Divider(height: 1, indent: 56),
-                              ],
-                            );
-                          },
-                        ),
-              ),
+                                    if (i <
+                                        _results.length -
+                                            1 +
+                                            (_myLocationSelected ? 1 : 0))
+                                      const Divider(height: 1, indent: 56),
+                                  ],
+                                );
+                              },
+                            ),
+            ),
           ],
         ),
       ),

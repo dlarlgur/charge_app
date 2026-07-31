@@ -56,7 +56,10 @@ class BigMetric extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           label,
-          style: const TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600),
+          style: const TextStyle(
+              fontSize: 10.5,
+              color: Color(0xFF94A3B8),
+              fontWeight: FontWeight.w600),
         ),
       ],
     );

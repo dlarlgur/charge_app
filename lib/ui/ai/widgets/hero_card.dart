@@ -32,8 +32,8 @@ class HeroCard extends StatelessWidget {
   final Set<String> preferredBrands;
   final ValueChanged<String>? onToggleBrand;
   // 충전 전용 — 사업자 필터. 요약 텍스트(예: "환경부, 워터" / "전체")·선택 수·탭 콜백.
-  final int operatorCount;         // 선택된 사업자 수 (0 = 전체)
-  final String operatorSummary;    // 행 오른쪽 요약 텍스트
+  final int operatorCount; // 선택된 사업자 수 (0 = 전체)
+  final String operatorSummary; // 행 오른쪽 요약 텍스트
   final VoidCallback? onTapOperators;
   // 충전 전용 — 급속 kW 구간('50'/'100'/'200'/'300') 멀티선택. 빈 set = 전체.
   // 급속 칩이 켜져 있을 때만 하위 칩 행으로 펼쳐진다 (점진 노출).
@@ -324,7 +324,8 @@ class HeroCard extends StatelessWidget {
               onTap: onTapOperators,
               borderRadius: BorderRadius.circular(12),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
                 decoration: BoxDecoration(
                   color: operatorCount > 0
                       ? modeAccentLight(isEv)
@@ -450,9 +451,7 @@ class HeroCard extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                   color: active
                       ? accent
-                      : (isDark
-                          ? AppColors.darkTextSecondary
-                          : kInk2),
+                      : (isDark ? AppColors.darkTextSecondary : kInk2),
                   letterSpacing: -0.1,
                 )),
           ],

@@ -18,6 +18,7 @@ class SavingsRevealOverlay extends StatefulWidget {
   final String? stationName; // 추천 주유소/충전소명
   final IconData stationIcon; // local_gas_station / ev_station
   final List<RevealFact> facts; // 상세 수치 행
+  final String? stationSub; // 스테이션 아래 한 줄 (유종 · 브랜드 · 영업시간)
   final bool isEv; // 충전=초록 / 주유=파랑 (앱 전체 색 규칙)
 
   const SavingsRevealOverlay({
@@ -27,6 +28,7 @@ class SavingsRevealOverlay extends StatefulWidget {
     this.stationName,
     this.stationIcon = Icons.local_gas_station_rounded,
     this.facts = const [],
+    this.stationSub,
     this.isEv = false,
   });
 
@@ -179,16 +181,98 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
       },
     );
     if (story == null || !mounted) return;
+    final style = await _pickStyle(story);
+    if (style == null || !mounted) return;
     await SavingsShare.shareCard(
       context,
       caption: widget.caption,
       headline: widget.headline,
       isEv: widget.isEv,
       stationName: widget.stationName,
+      stationSub: widget.stationSub,
       facts: widget.facts,
       story: story,
+      style: style,
     );
   }
+
+  /// 크기 다음 단계 — 같은 데이터를 세 화법 중 무엇으로 보낼지 고른다.
+  Future<ShareCardStyle?> _pickStyle(bool story) =>
+      showModalBottomSheet<ShareCardStyle>(
+        context: context,
+        shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        builder: (ctx) {
+          final dark = Theme.of(ctx).brightness == Brightness.dark;
+          final muted = dark ? Colors.white60 : const Color(0xFF64748B);
+          Widget tile(ShareCardStyle st, String title, String sub) => Expanded(
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: () => Navigator.pop(ctx, st),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          height: story ? 132 : 116,
+                          child: AspectRatio(
+                            aspectRatio: story ? 9 / 16 : 4 / 5,
+                            child: _StyleThumb(style: st, accent: _accent),
+                          ),
+                        ),
+                        const SizedBox(height: 9),
+                        Text(title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.3)),
+                        const SizedBox(height: 1),
+                        Text(sub,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 10.5, color: muted)),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const SizedBox(height: 12),
+                Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                        color: dark ? Colors.white24 : Colors.black12,
+                        borderRadius: BorderRadius.circular(2))),
+                const SizedBox(height: 18),
+                const Text('어떤 스타일로 만들까요?',
+                    style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3)),
+                const SizedBox(height: 5),
+                Text(story ? '스토리 · 릴스 (9:16)' : '인스타 피드 (4:5)',
+                    style: TextStyle(fontSize: 12.5, color: muted)),
+                const SizedBox(height: 12),
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  tile(ShareCardStyle.savings, '절약액', '숫자 하나로'),
+                  const SizedBox(width: 8),
+                  tile(ShareCardStyle.recommend, '추천 카드', '어디를 왜'),
+                  const SizedBox(width: 8),
+                  tile(ShareCardStyle.receipt, '영수증', '조목조목'),
+                ]),
+                const SizedBox(height: 8),
+              ]),
+            ),
+          );
+        },
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -568,6 +652,130 @@ class _MiniCardPreview extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// 스타일 선택용 축소판 — 실제 카드의 뼈대(밝은 배경 + 유종 포인트)를 그대로 줄인다.
+/// 글자는 넣지 않는다. 여기서 읽히는 건 '어떤 구성인가' 하나면 된다.
+class _StyleThumb extends StatelessWidget {
+  const _StyleThumb({required this.style, required this.accent});
+
+  final ShareCardStyle style;
+  final Color accent;
+
+  Color get _tint =>
+      Color.alphaBlend(accent.withValues(alpha: 0.14), Colors.white);
+
+  Widget _bar(double w, double h, Color c, {double r = 2}) =>
+      FractionallySizedBox(
+        widthFactor: w,
+        alignment: Alignment.centerLeft,
+        child: Container(
+          height: h,
+          decoration:
+              BoxDecoration(color: c, borderRadius: BorderRadius.circular(r)),
+        ),
+      );
+
+  Widget _box({Widget? child, Color? color}) => Container(
+        decoration: BoxDecoration(
+          color: color ?? Colors.white,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: child,
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final ink = const Color(0xFF0F172A).withValues(alpha: 0.75);
+    final faint = const Color(0xFF94A3B8).withValues(alpha: 0.6);
+    final Widget body;
+    final Color bg;
+    switch (style) {
+      case ShareCardStyle.savings:
+        bg = const Color(0xFFF7F8FA);
+        body = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _bar(0.45, 3, faint),
+            const SizedBox(height: 6),
+            _bar(0.8, 11, ink),
+            const SizedBox(height: 3),
+            _bar(0.42, 11, accent),
+            const SizedBox(height: 10),
+            _box(child: SizedBox(height: 16, width: double.infinity)),
+            const SizedBox(height: 5),
+            _box(
+                color: _tint,
+                child: const SizedBox(height: 18, width: double.infinity)),
+          ],
+        );
+      case ShareCardStyle.recommend:
+        bg = _tint;
+        body = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _bar(0.4, 3, faint),
+            const SizedBox(height: 5),
+            _bar(0.78, 9, accent),
+            const SizedBox(height: 3),
+            _bar(0.34, 9, accent),
+            const SizedBox(height: 9),
+            Row(children: [
+              Expanded(child: _box(child: const SizedBox(height: 15))),
+              const SizedBox(width: 3),
+              Expanded(child: _box(child: const SizedBox(height: 15))),
+              const SizedBox(width: 3),
+              Expanded(child: _box(child: const SizedBox(height: 15))),
+            ]),
+            const SizedBox(height: 5),
+            _box(
+                color: accent,
+                child: const SizedBox(height: 16, width: double.infinity)),
+          ],
+        );
+      case ShareCardStyle.receipt:
+        bg = const Color(0xFFEDEFF2);
+        body = _box(
+          child: Padding(
+            padding: const EdgeInsets.all(7),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _bar(0.5, 4, ink),
+                const SizedBox(height: 7),
+                for (var i = 0; i < 4; i++) ...[
+                  Row(children: [
+                    Expanded(flex: 4, child: _bar(1, 2.5, faint)),
+                    const Spacer(flex: 2),
+                    Expanded(flex: 3, child: _bar(1, 2.5, faint)),
+                  ]),
+                  const SizedBox(height: 4),
+                ],
+                const SizedBox(height: 3),
+                _box(
+                    color: _tint,
+                    child: const SizedBox(height: 16, width: double.infinity)),
+              ],
+            ),
+          ),
+        );
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        decoration: BoxDecoration(
+          color: bg,
+          border: Border.all(color: Colors.black.withValues(alpha: 0.07)),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        padding: const EdgeInsets.all(8),
+        child: body,
       ),
     );
   }

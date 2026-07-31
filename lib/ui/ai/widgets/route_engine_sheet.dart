@@ -46,7 +46,8 @@ class _EngineOption {
 const _options = [
   _EngineOption('tmap', '티맵', '추천경로 · 고속도로우선', 'assets/nav/tmap_logo.webp'),
   _EngineOption('naver', '네이버지도', '실시간 추천 · 큰길우선', 'assets/nav/naver_logo.png'),
-  _EngineOption('kakao', '카카오내비', '추천경로 · 큰길우선', 'assets/nav/kakaomap_logo.png'),
+  _EngineOption(
+      'kakao', '카카오내비', '추천경로 · 큰길우선', 'assets/nav/kakaomap_logo.png'),
 ];
 
 /// 엔진 선택 시트 — 선택 시 저장까지 하고 값을 반환, 닫으면 null.
@@ -103,8 +104,8 @@ Future<String?> showRouteEngineSheet(BuildContext context) {
                   title: Text(o.title,
                       style: const TextStyle(
                           fontSize: 14.5, fontWeight: FontWeight.w700)),
-                  subtitle: Text(o.sub,
-                      style: TextStyle(fontSize: 12, color: muted)),
+                  subtitle:
+                      Text(o.sub, style: TextStyle(fontSize: 12, color: muted)),
                   trailing: current == o.value
                       ? const Icon(Icons.check_circle_rounded,
                           color: Color(0xFF10B981), size: 20)

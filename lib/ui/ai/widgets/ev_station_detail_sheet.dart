@@ -78,7 +78,8 @@ class _EvStationDetailSheetState extends State<EvStationDetailSheet> {
     return SafeArea(
       top: false,
       child: Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        padding:
+            EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -87,7 +88,8 @@ class _EvStationDetailSheetState extends State<EvStationDetailSheet> {
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Center(
                 child: Container(
-                  width: 36, height: 4,
+                  width: 36,
+                  height: 4,
                   decoration: BoxDecoration(
                     color: Colors.grey.shade300,
                     borderRadius: BorderRadius.circular(2),
@@ -104,36 +106,42 @@ class _EvStationDetailSheetState extends State<EvStationDetailSheet> {
                 children: [
                   // 1. 헤더 — 이름 (큼) + 운영사 · 주소 (한 줄)
                   Text(name,
-                    style: TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w800,
-                      color: isDark ? AppColors.darkTextPrimary : const Color(0xFF111827),
-                      height: 1.25,
-                      letterSpacing: -0.3,
-                    )),
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w800,
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : const Color(0xFF111827),
+                        height: 1.25,
+                        letterSpacing: -0.3,
+                      )),
                   const SizedBox(height: 6),
                   Row(
                     children: [
                       if (operator.isNotEmpty)
                         Flexible(
                           child: Text(operator,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF64748B),
-                            ),
-                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF64748B),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
                         ),
                       if (operator.isNotEmpty && address.isNotEmpty) ...[
                         const SizedBox(width: 6),
-                        const Text('·', style: TextStyle(color: _kGrey, fontSize: 13)),
+                        const Text('·',
+                            style: TextStyle(color: _kGrey, fontSize: 13)),
                         const SizedBox(width: 6),
                       ],
                       if (address.isNotEmpty)
                         Expanded(
                           child: Text(address,
-                            style: const TextStyle(fontSize: 12, color: _kGrey),
-                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                              style:
+                                  const TextStyle(fontSize: 12, color: _kGrey),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
                         ),
                     ],
                   ),
@@ -145,20 +153,24 @@ class _EvStationDetailSheetState extends State<EvStationDetailSheet> {
                     decoration: BoxDecoration(
                       color: accentColor.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: accentColor.withValues(alpha: 0.18)),
+                      border: Border.all(
+                          color: accentColor.withValues(alpha: 0.18)),
                     ),
-                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
                     child: IntrinsicHeight(
                       child: Row(
                         children: [
-                          Expanded(child: BigMetric(
+                          Expanded(
+                              child: BigMetric(
                             value: '$availCount',
                             unit: '/$totalCount',
                             label: '이용가능',
                             color: availCount > 0 ? _kGreen : _kOrange,
                           )),
                           const MetricDivider(),
-                          Expanded(child: BigMetric(
+                          Expanded(
+                              child: BigMetric(
                             value: originDistM == null
                                 ? '-'
                                 : (originDistM >= 1000
@@ -168,23 +180,29 @@ class _EvStationDetailSheetState extends State<EvStationDetailSheet> {
                                 ? ''
                                 : (originDistM >= 1000 ? 'km' : 'm'),
                             label: '거리',
-                            color: isDark ? AppColors.darkTextPrimary : const Color(0xFF111827),
+                            color: isDark
+                                ? AppColors.darkTextPrimary
+                                : const Color(0xFF111827),
                           )),
                           const MetricDivider(),
-                          Expanded(child: BigMetric(
+                          Expanded(
+                              child: BigMetric(
                             value: etaLabel ?? '-',
                             unit: '',
                             label: '예상 소요',
                             color: accentColor,
                           )),
                           const MetricDivider(),
-                          Expanded(child: BigMetric(
+                          Expanded(
+                              child: BigMetric(
                             value: detourMin == null
                                 ? '-'
                                 : (detourMin == 0 ? '없음' : '+$detourMin'),
                             unit: detourMin != null && detourMin > 0 ? '분' : '',
                             label: '우회',
-                            color: detourMin != null && detourMin > 0 ? _kOrange : _kGreen,
+                            color: detourMin != null && detourMin > 0
+                                ? _kOrange
+                                : _kGreen,
                           )),
                         ],
                       ),
@@ -192,11 +210,13 @@ class _EvStationDetailSheetState extends State<EvStationDetailSheet> {
                   ),
 
                   // 3. 친근 안내 + 단가 (한 라인)
-                  if ((statusMessage != null && statusMessage.isNotEmpty) || unitPrice != null) ...[
+                  if ((statusMessage != null && statusMessage.isNotEmpty) ||
+                      unitPrice != null) ...[
                     const SizedBox(height: 12),
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF8F9FA),
                         borderRadius: BorderRadius.circular(12),
@@ -204,8 +224,10 @@ class _EvStationDetailSheetState extends State<EvStationDetailSheet> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          if (statusMessage != null && statusMessage.isNotEmpty) ...[
-                            Icon(Icons.tips_and_updates_rounded, size: 16, color: accentColor),
+                          if (statusMessage != null &&
+                              statusMessage.isNotEmpty) ...[
+                            Icon(Icons.tips_and_updates_rounded,
+                                size: 16, color: accentColor),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -223,12 +245,16 @@ class _EvStationDetailSheetState extends State<EvStationDetailSheet> {
                           if (unitPrice != null) ...[
                             const SizedBox(width: 10),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
-                                color: isDark ? AppColors.darkCard : Colors.white,
+                                color:
+                                    isDark ? AppColors.darkCard : Colors.white,
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
-                                  color: isDark ? AppColors.darkCardBorder : const Color(0xFFE5E7EB),
+                                  color: isDark
+                                      ? AppColors.darkCardBorder
+                                      : const Color(0xFFE5E7EB),
                                 ),
                               ),
                               child: Text(
@@ -236,7 +262,9 @@ class _EvStationDetailSheetState extends State<EvStationDetailSheet> {
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w800,
-                                  color: isDark ? AppColors.darkTextPrimary : const Color(0xFF111827),
+                                  color: isDark
+                                      ? AppColors.darkTextPrimary
+                                      : const Color(0xFF111827),
                                 ),
                               ),
                             ),
@@ -256,13 +284,15 @@ class _EvStationDetailSheetState extends State<EvStationDetailSheet> {
                       onPressed: widget.onMapTap,
                       icon: const Icon(Icons.route_rounded, size: 18),
                       label: const Text('지도에서 경로 보기',
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700, fontSize: 14.5)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: accentColor,
                         foregroundColor: Colors.white,
                         elevation: 0,
                         shadowColor: accentColor.withValues(alpha: 0.25),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
                   ),
@@ -280,16 +310,24 @@ class _EvStationDetailSheetState extends State<EvStationDetailSheet> {
                               Navigator.pop(context);
                               Navigator.of(context, rootNavigator: true).push(
                                 MaterialPageRoute(
-                                  builder: (_) => EvDetailScreen(stationId: widget.stationId),
+                                  builder: (_) => EvDetailScreen(
+                                      stationId: widget.stationId),
                                 ),
                               );
                             },
-                            icon: Icon(Icons.info_outline_rounded, size: 16, color: accentColor),
+                            icon: Icon(Icons.info_outline_rounded,
+                                size: 16, color: accentColor),
                             label: Text('상세보기',
-                              style: TextStyle(color: accentColor, fontWeight: FontWeight.w700, fontSize: 13.5)),
+                                style: TextStyle(
+                                    color: accentColor,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13.5)),
                             style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: accentColor.withValues(alpha: 0.5), width: 1.3),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              side: BorderSide(
+                                  color: accentColor.withValues(alpha: 0.5),
+                                  width: 1.3),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
                             ),
                           ),
                         ),
@@ -299,59 +337,73 @@ class _EvStationDetailSheetState extends State<EvStationDetailSheet> {
                         child: SizedBox(
                           height: 46,
                           child: OutlinedButton.icon(
-                            onPressed: widget.destLat != null ? () async {
-                              final existingSession = WatchService().session;
-                              if (existingSession != null && existingSession.statId != widget.stationId) {
-                                final switchOk = await showWatchSwitchDialog(
-                                  context,
-                                  currentStationName: existingSession.stationName,
-                                );
-                                if (!switchOk || !context.mounted) return;
-                                await WatchService().stop();
-                                await WatchService().start(
-                                  statId: widget.stationId,
-                                  stationName: name,
-                                  etaMin: originEtaMin ?? 0,
-                                  currentAvail: availCount,
-                                );
-                              } else if (existingSession == null) {
-                                final accepted = await showDialog<bool>(
-                                  context: context,
-                                  builder: (dCtx) => WatchProposalDialog(
-                                    etaMin: originEtaMin,
-                                    accentColor: accentColor,
-                                  ),
-                                );
-                                if (accepted == true) {
-                                  WatchService().start(
-                                    statId: widget.stationId,
-                                    stationName: name,
-                                    etaMin: originEtaMin ?? 0,
-                                    currentAvail: availCount,
-                                  );
-                                }
-                              }
-                              if (!context.mounted) return;
-                              Navigator.pop(context);
-                              if (!context.mounted) return;
-                              showViaWaypointNavigationSheet(
-                                context,
-                                originLat: widget.originLat,
-                                originLng: widget.originLng,
-                                waypointLat: (s['lat'] as num).toDouble(),
-                                waypointLng: (s['lng'] as num).toDouble(),
-                                waypointName: name,
-                                destinationLat: widget.destLat!,
-                                destinationLng: widget.destLng!,
-                                destinationName: widget.destName ?? '목적지',
-                              );
-                            } : null,
-                            icon: Icon(Icons.navigation_rounded, size: 16, color: accentColor),
+                            onPressed: widget.destLat != null
+                                ? () async {
+                                    final existingSession =
+                                        WatchService().session;
+                                    if (existingSession != null &&
+                                        existingSession.statId !=
+                                            widget.stationId) {
+                                      final switchOk =
+                                          await showWatchSwitchDialog(
+                                        context,
+                                        currentStationName:
+                                            existingSession.stationName,
+                                      );
+                                      if (!switchOk || !context.mounted) return;
+                                      await WatchService().stop();
+                                      await WatchService().start(
+                                        statId: widget.stationId,
+                                        stationName: name,
+                                        etaMin: originEtaMin ?? 0,
+                                        currentAvail: availCount,
+                                      );
+                                    } else if (existingSession == null) {
+                                      final accepted = await showDialog<bool>(
+                                        context: context,
+                                        builder: (dCtx) => WatchProposalDialog(
+                                          etaMin: originEtaMin,
+                                          accentColor: accentColor,
+                                        ),
+                                      );
+                                      if (accepted == true) {
+                                        WatchService().start(
+                                          statId: widget.stationId,
+                                          stationName: name,
+                                          etaMin: originEtaMin ?? 0,
+                                          currentAvail: availCount,
+                                        );
+                                      }
+                                    }
+                                    if (!context.mounted) return;
+                                    Navigator.pop(context);
+                                    if (!context.mounted) return;
+                                    showViaWaypointNavigationSheet(
+                                      context,
+                                      originLat: widget.originLat,
+                                      originLng: widget.originLng,
+                                      waypointLat: (s['lat'] as num).toDouble(),
+                                      waypointLng: (s['lng'] as num).toDouble(),
+                                      waypointName: name,
+                                      destinationLat: widget.destLat!,
+                                      destinationLng: widget.destLng!,
+                                      destinationName: widget.destName ?? '목적지',
+                                    );
+                                  }
+                                : null,
+                            icon: Icon(Icons.navigation_rounded,
+                                size: 16, color: accentColor),
                             label: Text('길안내',
-                              style: TextStyle(color: accentColor, fontWeight: FontWeight.w700, fontSize: 13.5)),
+                                style: TextStyle(
+                                    color: accentColor,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13.5)),
                             style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: accentColor.withValues(alpha: 0.5), width: 1.3),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              side: BorderSide(
+                                  color: accentColor.withValues(alpha: 0.5),
+                                  width: 1.3),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
                             ),
                           ),
                         ),
@@ -373,12 +425,16 @@ class _EvStationDetailSheetState extends State<EvStationDetailSheet> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.info_outline_rounded, size: 15, color: Color(0xFFC2410C)),
+                          const Icon(Icons.info_outline_rounded,
+                              size: 15, color: Color(0xFFC2410C)),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               '이용 제한: $limitDetail',
-                              style: const TextStyle(fontSize: 12, color: Color(0xFF9A3412), height: 1.4),
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF9A3412),
+                                  height: 1.4),
                             ),
                           ),
                         ],
@@ -397,12 +453,16 @@ class _EvStationDetailSheetState extends State<EvStationDetailSheet> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.sticky_note_2_outlined, size: 15, color: _kGrey),
+                          const Icon(Icons.sticky_note_2_outlined,
+                              size: 15, color: _kGrey),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               note,
-                              style: const TextStyle(fontSize: 12, color: Color(0xFF475569), height: 1.4),
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF475569),
+                                  height: 1.4),
                             ),
                           ),
                         ],

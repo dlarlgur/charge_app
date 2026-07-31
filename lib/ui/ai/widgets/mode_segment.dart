@@ -24,9 +24,11 @@ class ModeSegment extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     // ai_reco_main.html mode-toggle 양식 — 활성은 액센트 → deep 그라데이션, 비활성은 투명/회색.
-    final accentDeep = accent == kEvAccent ? kEvAccentDeep
-                     : accent == kFuelAccent ? kFuelAccentDeep
-                     : accent;
+    final accentDeep = accent == kEvAccent
+        ? kEvAccentDeep
+        : accent == kFuelAccent
+            ? kFuelAccentDeep
+            : accent;
     final inactiveColor = isDark ? AppColors.darkTextSecondary : kMuted;
     return GestureDetector(
       onTap: onTap,
