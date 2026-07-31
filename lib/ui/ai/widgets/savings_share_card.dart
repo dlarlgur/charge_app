@@ -69,6 +69,10 @@ class SavingsShareCard extends StatelessWidget {
       isEv ? const Color(0xFF047857) : const Color(0xFF1D4ED8);
   Color get _tint => isEv ? const Color(0xFFE8F7F0) : const Color(0xFFEDF3FF);
 
+  /// 스토리(9:16)는 세로가 1.4배다. 같은 크기로 그리면 가운데만 차고 위아래가 휑하니
+  /// 글자·여백을 함께 키워 화면을 채운다.
+  double sc(double v) => story ? v * 1.34 : v;
+
   static const _ink = Color(0xFF0F172A);
   static const _muted = Color(0xFF64748B);
   static const _line = Color(0xFFE2E8F0);
@@ -105,8 +109,11 @@ class SavingsShareCard extends StatelessWidget {
               SizedBox(height: story ? 26 : 16),
             ],
             Expanded(child: body),
-            SizedBox(height: story ? 18 : 12),
-            _footer(),
+            // 영수증은 로고·출처가 카드 안에 들어가므로 바깥 푸터를 그리지 않는다.
+            if (style != ShareCardStyle.receipt) ...[
+              SizedBox(height: story ? 18 : 12),
+              _footer(),
+            ],
           ],
         ),
       ),
@@ -375,8 +382,18 @@ class SavingsShareCard extends StatelessWidget {
 
   // ── 스타일 2 : 추천 카드 ───────────────────────────────────────────────────
 
+  /// '주변 평균 대비' 처럼 ▼ 로 시작하는 델타 값 — 시안에선 수치칸이 아니라
+  /// 스테이션 바 오른쪽 배지로 붙는다.
+  RevealFact? get _deltaFact {
+    for (final f in facts) {
+      if (f.value.trim().startsWith('▼') || f.label.contains('평균 대비')) return f;
+    }
+    return null;
+  }
+
   Widget _recommendBody() {
-    final f = facts.take(3).toList();
+    final d = _deltaFact;
+    final f = facts.where((e) => e != d).take(3).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
@@ -513,13 +530,26 @@ class SavingsShareCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                            fontSize: 10,
+                            fontSize: sc(10),
                             fontWeight: FontWeight.w600,
                             color: Colors.white.withValues(alpha: 0.78))),
                   ],
                 ],
               ),
             ),
+            if (_deltaFact != null) ...[
+              const SizedBox(width: 8),
+              Text(
+                _deltaFact!.value.split('/').first, // '▼32원/L' → '▼32원'
+                style: TextStyle(
+                  fontSize: sc(15),
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  letterSpacing: -0.5,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ],
           ],
         ),
       );
@@ -527,53 +557,54 @@ class SavingsShareCard extends StatelessWidget {
   // ── 스타일 3 : 영수증 ──────────────────────────────────────────────────────
 
   Widget _receiptBody() {
-    // 마지막 항목은 보통 '예상 비용' 성격이라 합계 줄로 따로 뺀다.
-    final rows = facts.toList();
-    // 남은 공간을 흰 카드가 다 먹으면 아래가 휑하다 → 내용만큼만 차지하고 위로 붙인다.
-    return Align(
-      alignment: Alignment.center,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(children: [
-              Text(isEv ? '충전 절약 영수증' : '주유 절약 영수증',
-                  style: const TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w800, color: _ink)),
-              const Spacer(),
-              Text(_today(),
-                  style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: _muted)),
-            ]),
-            SizedBox(height: story ? 20 : 14),
-            if ((stationName ?? '').trim().isNotEmpty)
-              _receiptRow(isEv ? '충전소' : '주유소', stationName!),
-            for (final f in rows) _receiptRow(f.label, f.value),
-            SizedBox(height: story ? 14 : 8),
-            const _Dashed(),
-            SizedBox(height: story ? 14 : 10),
-            Container(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-              decoration: BoxDecoration(
-                color: _tint,
-                borderRadius: BorderRadius.circular(12),
-              ),
+    // 시안 그대로: 제목/날짜 → 절취선 → 항목들 → 절취선 → 결제 예상액 → 절약 합계 → 로고.
+    // 로고·출처는 카드 '안'에 들어간다(바깥 푸터는 이 스타일에서 숨긴다).
+    final total = facts.where((f) => _isTotalLabel(f.label)).toList();
+    final rows = facts.where((f) => !_isTotalLabel(f.label)).toList();
+    return Container(
+      padding: EdgeInsets.fromLTRB(sc(18), sc(18), sc(18), sc(14)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Text(isEv ? '충전 절약 영수증' : '주유 절약 영수증',
+                style: TextStyle(
+                    fontSize: sc(14),
+                    fontWeight: FontWeight.w800,
+                    color: _ink)),
+            const Spacer(),
+            Text(_today(),
+                style: TextStyle(
+                    fontSize: sc(10),
+                    fontWeight: FontWeight.w600,
+                    color: _muted)),
+          ]),
+          SizedBox(height: sc(13)),
+          const _Dashed(),
+          SizedBox(height: sc(11)),
+          if ((stationName ?? '').trim().isNotEmpty)
+            _receiptRow(isEv ? '충전소' : '주유소', stationName!),
+          for (final f in rows) _receiptRow(f.label, f.value),
+          // 남는 세로는 여기서 먹는다 — 스토리(9:16)에서 항목이 위로 몰리지 않게.
+          const Spacer(),
+          SizedBox(height: sc(8)),
+          const _Dashed(),
+          SizedBox(height: sc(12)),
+          if (total.isNotEmpty)
+            Padding(
+              padding: EdgeInsets.only(bottom: sc(12)),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Text('절약 합계',
+                  Text(total.first.label,
                       style: TextStyle(
-                          fontSize: 12.5,
+                          fontSize: sc(12.5),
                           fontWeight: FontWeight.w800,
-                          color: _accentDeep)),
+                          color: _ink)),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Align(
@@ -581,33 +612,78 @@ class SavingsShareCard extends StatelessWidget {
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
                         alignment: Alignment.centerRight,
-                        child: Text(
-                          _savingsAmount(),
-                          style: TextStyle(
-                            fontSize: 25,
-                            fontWeight: FontWeight.w800,
-                            color: _accentInk,
-                            letterSpacing: -1,
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                          ),
-                        ),
+                        child: Text(total.first.value,
+                            style: TextStyle(
+                              fontSize: sc(21),
+                              fontWeight: FontWeight.w800,
+                              color: _ink,
+                              letterSpacing: -0.8,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures()
+                              ],
+                            )),
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
+          Container(
+            padding: EdgeInsets.fromLTRB(sc(14), sc(14), sc(14), sc(14)),
+            decoration: BoxDecoration(
+              color: _tint,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text('절약 합계',
+                    style: TextStyle(
+                        fontSize: sc(12.5),
+                        fontWeight: FontWeight.w800,
+                        color: _accentDeep)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        _savingsAmount(),
+                        style: TextStyle(
+                          fontSize: sc(25),
+                          fontWeight: FontWeight.w800,
+                          color: _accentInk,
+                          letterSpacing: -1,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: sc(14)),
+          _footer(),
+        ],
       ),
     );
   }
 
+  /// '예상 주유비 / 예상 충전요금 / 결제 예상액' — 합계 줄로 따로 뺄 항목
+  static bool _isTotalLabel(String label) =>
+      label.contains('예상 주유비') ||
+      label.contains('예상 충전요금') ||
+      label.contains('결제');
+
   /// 헤드라인에서 '절약!' 같은 꼬리말을 떼고 금액만 — 영수증에는 감탄사가 안 어울린다.
   String _savingsAmount() {
     final m = RegExp(r'^(.*?)\s*(절약|아낌)!?$').firstMatch(headline.trim());
-    final amount = (m?.group(1) ?? headline).trim();
-    return amount.startsWith('-') ? amount : '-$amount';
+    final amount =
+        (m?.group(1) ?? headline).trim().replaceFirst(RegExp(r'^-'), '');
+    return '▼$amount'; // 절약은 '-' 가 아니라 아래 화살표로 (시안 규칙)
   }
 
   Widget _receiptRow(String label, String value) => Padding(

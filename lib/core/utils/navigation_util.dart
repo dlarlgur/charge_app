@@ -131,7 +131,10 @@ Future<void> _launchKakaoNavi({
 }) async {
   try {
     if (await NaviApi.instance.isKakaoNaviInstalled()) {
-      await NaviApi.instance.navigate(
+      // navigate() 는 길안내가 곧바로 시작돼 사용자가 경로를 확인할 틈이 없다.
+      // shareDestination() 은 내부적으로 routeInfo=true → 경로/목적지 화면을 띄우고
+      // 사용자가 직접 안내 시작을 누른다. 티맵(tmap://route)과 동일한 동작.
+      await NaviApi.instance.shareDestination(
         destination: Location(name: name, x: '$lng', y: '$lat'),
         option: NaviOption(coordType: CoordType.wgs84),
         // SDK 문서 기준 최대 3개 — 초과분은 호출부에서 이미 잘라서 넘긴다

@@ -130,6 +130,18 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   String? _revealStationSub;
   String? _stationSub; // 공유 카드용 부제 (브랜드 · 주소)
 
+  /// 오피넷 유종 코드 → 한글 (카드에 B027 같은 내부 코드가 노출되면 안 된다)
+  static String? _fuelLabelOf(dynamic code) {
+    const map = {
+      'B027': '휘발유',
+      'B034': '고급휘발유',
+      'D047': '경유',
+      'K015': 'LPG',
+      'C004': '등유',
+    };
+    return map[code?.toString()];
+  }
+
   /// 널·빈 값을 빼고 ' · ' 로 잇는다. 전부 비면 null → 카드가 그 줄을 통째로 생략.
   static String? _joinMeta(List<dynamic> parts) {
     final out = parts
@@ -199,6 +211,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       recPrice = d(recSt['price_won_per_liter']);
       // 공유 카드 부제 — 서버가 주는 것 중 있는 것만 ' · ' 로 잇는다.
       _stationSub = _joinMeta([
+        _fuelLabelOf(recSt['fuel_type']),
         recSt['brand_name'],
         recSt['address'],
       ]);
@@ -226,17 +239,35 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final avgPrice =
         others.isEmpty ? null : others.reduce((a, b) => a + b) / others.length;
 
+    // 공유 카드(영수증형)가 시안대로 채워지려면 항목이 다 있어야 한다.
+    // 절약은 '-' 가 아니라 ▼ 로 표기 — 카드·오버레이 공통 규칙.
+    final computedMap = data['computed'];
+    final goalLiters =
+        computedMap is Map ? d(computedMap['goal_liters']) : null;
+    final routeDistM = recItem is Map ? d(recItem['detour_distance_m']) : null;
+    final fuelLabel = _fuelLabelOf(recSt is Map ? recSt['fuel_type'] : null);
+
     final facts = <RevealFact>[
+      if (fuelLabel != null) (label: '유종', value: fuelLabel),
       if (recPrice != null)
-        (label: '리터당', value: '${wonFmt.format(recPrice.round())}원'),
+        (label: '리터당 단가', value: '${wonFmt.format(recPrice.round())}원/L'),
       if (recPrice != null && avgPrice != null && avgPrice > recPrice)
         (
           label: '주변 평균 대비',
-          value: '-${wonFmt.format((avgPrice - recPrice).round())}원/L'
+          value: '▼${wonFmt.format((avgPrice - recPrice).round())}원/L'
+        ),
+      if (avgPrice != null)
+        (label: '주변 평균가', value: '${wonFmt.format(avgPrice.round())}원/L'),
+      if (goalLiters != null && goalLiters > 0)
+        (label: '주유량', value: '${goalLiters.toStringAsFixed(1)}L'),
+      if (routeDistM != null && routeDistM > 0)
+        (
+          label: '거리',
+          value: '경로에서 ${(routeDistM / 1000).toStringAsFixed(1)}km'
         ),
       if (recCost != null && recCost > 0)
         (label: '예상 주유비', value: '${wonFmt.format(recCost.round())}원'),
-      if (detourMin > 0) (label: '우회 시간', value: '+$detourMin분'),
+      if (detourMin > 0) (label: '추가 시간', value: '+$detourMin분'),
     ];
 
     if (caSavings >= 1000) {
