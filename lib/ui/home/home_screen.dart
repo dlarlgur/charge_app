@@ -655,6 +655,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 child: SafeArea(
                   top: false,
                   child: ReportFab(
+                    // 홈에서 보고 있는 탭(주유/충전)에 맞춰 라벨·색이 바뀐다.
+                    // 전기차만 등록한 사용자는 항상 충전 탭이라 초록 고정.
+                    isEv: ref.watch(settingsProvider).vehicleType ==
+                            VehicleType.ev ||
+                        (ref.watch(settingsProvider).vehicleType ==
+                                VehicleType.both &&
+                            ref.watch(activeTabProvider) == 1),
                     onTap: () => Navigator.of(context, rootNavigator: true)
                         .push(MaterialPageRoute(
                             builder: (_) => const FuelReportScreen())),

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
@@ -31,9 +30,12 @@ class ReportFabPref {
 /// 설정 안에만 두면 아무도 못 찾는 기능이라 홈에 상시 진입점을 둔다.
 /// 목록을 스크롤해도 가려지지 않게 Stack 오버레이로 띄우고, 바텀탭 위에 앉힌다.
 class ReportFab extends StatefulWidget {
-  const ReportFab({super.key, required this.onTap});
+  const ReportFab({super.key, required this.onTap, this.isEv = false});
 
   final VoidCallback onTap;
+
+  /// 충전 탭이면 초록·'충전 리포트', 주유 탭이면 파랑·'유가 리포트'
+  final bool isEv;
 
   @override
   State<ReportFab> createState() => _ReportFabState();
@@ -59,51 +61,53 @@ class _ReportFabState extends State<ReportFab> {
   @override
   Widget build(BuildContext context) {
     if (!ReportFabPref.get()) return const SizedBox.shrink();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // 흰 카드에 아이콘만 있으면 배경에 묻힌다 → 유종 색으로 채워 눈에 들어오게.
+    final base = widget.isEv ? AppColors.evGreen : AppColors.gasBlue;
+    final deep = widget.isEv ? AppColors.evGreenDark : AppColors.gasBlueDark;
     return Padding(
       padding: const EdgeInsets.only(left: 14, bottom: 10),
       child: Material(
-        color: isDark ? AppColors.darkSurface2 : Colors.white,
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(26),
-        elevation: isDark ? 0 : 3,
-        shadowColor: Colors.black.withValues(alpha: 0.18),
+        elevation: 6,
+        shadowColor: deep.withValues(alpha: 0.45),
         child: InkWell(
           borderRadius: BorderRadius.circular(26),
           onTap: widget.onTap,
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(12, 9, 15, 9),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.fromLTRB(11, 9, 15, 9),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(26),
-              border: Border.all(
-                color: isDark
-                    ? AppColors.darkCardBorder
-                    : AppColors.lightCardBorder,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [base, deep],
               ),
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 26,
-                  height: 26,
+                  width: 24,
+                  height: 24,
                   decoration: BoxDecoration(
-                    color: AppColors.gasBlue
-                        .withValues(alpha: isDark ? 0.22 : 0.12),
-                    borderRadius: BorderRadius.circular(9),
+                    color: Colors.white.withValues(alpha: 0.24),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(Icons.insights_rounded,
-                      size: 15, color: AppColors.gasBlue),
+                      size: 14, color: Colors.white),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 7),
                 Text(
-                  '유가 리포트',
-                  style: TextStyle(
+                  widget.isEv ? '충전 리포트' : '유가 리포트',
+                  style: const TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                     letterSpacing: -0.2,
-                    color: isDark
-                        ? AppColors.darkTextPrimary
-                        : AppColors.lightTextPrimary,
+                    color: Colors.white,
                   ),
                 ),
               ],
