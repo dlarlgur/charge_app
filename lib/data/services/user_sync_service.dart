@@ -46,6 +46,7 @@ class UserSyncService {
     bool? marketingConsent,
     bool? aiTextConsent, // 서드파티 AI 문구 동의 — 재설치 복원용
     String? routeEngine, // AI 경로 기준 내비 (tmap|naver|kakao) — 재설치 복원용
+    String? navScope, // 길찾기 범위 (station|destination) — 재설치 복원용
   }) async {
     final opt = await _auth();
     if (opt == null) return;
@@ -56,6 +57,7 @@ class UserSyncService {
     if (marketingConsent != null) body['marketingConsent'] = marketingConsent;
     if (aiTextConsent != null) body['aiTextConsent'] = aiTextConsent;
     if (routeEngine != null) body['routeEngine'] = routeEngine;
+    if (navScope != null) body['navScope'] = navScope;
     if (body.isEmpty) return;
     try {
       await _dio.put('/user/prefs', data: body, options: opt);

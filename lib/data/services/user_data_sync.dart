@@ -13,6 +13,7 @@ import 'favorite_service.dart';
 import 'place_service.dart';
 import 'station_alias_service.dart';
 import 'user_sync_service.dart';
+import '../../core/utils/nav_scope_pref.dart';
 
 /// 로그인/회원가입 시점의 회원 데이터 동기화 글루.
 /// - 서버에 데이터가 있으면 로컬에 적용(union, 무손실) + 알람 재구독 + 마케팅 동의 재적용
@@ -40,9 +41,11 @@ class UserDataSync {
         // AI 동의/경로 엔진만 저장된 계정도 '원격 데이터 있음'으로 봐야 한다.
         // 빠져 있으면 import 분기로 가서 서버 값을 복원하지 않아 "동의가 풀렸다"로 보임.
         prefs['aiTextConsent'] is bool ||
-        prefs['routeEngine'] != null;
+        prefs['routeEngine'] != null ||
+        prefs['navScope'] != null;
     if (hasRemote) {
-      await _applyRemote(prefs, vehicles, favorites, alarms, aliases, chargerMemos);
+      await _applyRemote(
+          prefs, vehicles, favorites, alarms, aliases, chargerMemos);
       if (places.isNotEmpty) await PlaceService.applyRemote(places);
       // 구버전에서 로컬(Hive)에만 저장돼 있던 값 1회 백필 — 서버가 비어 있을 때만 올려
       // 서버 우선 원칙을 깨지 않는다. (매번 올리지 않음: 서버에 값이 생기면 조건이 거짓)
@@ -65,12 +68,20 @@ class UserDataSync {
       final v = box.get('route_engine')?.toString();
       if (v == 'tmap' || v == 'naver' || v == 'kakao') engine = v;
     }
-    if (consent == null && engine == null) return;
+    String? scope;
+    if (prefs['navScope'] == null) {
+      final v = box.get('nav_scope')?.toString();
+      if (v == NavScopePref.station || v == NavScopePref.destination) {
+        scope = v;
+      }
+    }
+    if (consent == null && engine == null && scope == null) return;
     await UserSyncService.instance
-        .putPrefs(aiTextConsent: consent, routeEngine: engine);
+        .putPrefs(aiTextConsent: consent, routeEngine: engine, navScope: scope);
   }
 
-  static Future<void> _applyRemote(Map prefs, List vehicles, List favorites, List alarms, List aliases, List chargerMemos) async {
+  static Future<void> _applyRemote(Map prefs, List vehicles, List favorites,
+      List alarms, List aliases, List chargerMemos) async {
     final box = Hive.box(AppConstants.settingsBox);
 
     // 기본 차량설정(서버 우선)
@@ -86,7 +97,10 @@ class UserDataSync {
     // (구 데이터) 설정 유종 단일값으로 폴백. 이게 빠지면 재설치 후 설정은
     // 고급유인데 홈은 기본값 휘발유로 보여 "저장이 풀렸다"로 보임 (사용자 제보).
     final remoteFuels = (prefs['fuelTypes'] is List)
-        ? (prefs['fuelTypes'] as List).map((e) => e.toString()).where((s) => s.isNotEmpty).toList()
+        ? (prefs['fuelTypes'] as List)
+            .map((e) => e.toString())
+            .where((s) => s.isNotEmpty)
+            .toList()
         : const <String>[];
     if (remoteFuels.isNotEmpty) {
       box.put(AppConstants.keyGasFilterFuelTypes, remoteFuels);
@@ -102,9 +116,15 @@ class UserDataSync {
       if (DkswCore.consentAgreed('marketing') != want) {
         final m = DkswCore.signupConsents.firstWhere(
           (c) => c.key == 'marketing',
-          orElse: () => const SignupConsent(key: 'marketing', title: '마케팅 정보 수신', required: false, version: '1.0'),
+          orElse: () => const SignupConsent(
+              key: 'marketing',
+              title: '마케팅 정보 수신',
+              required: false,
+              version: '1.0'),
         );
-        await DkswCore.postConsents([ConsentChoice(key: 'marketing', agreed: want, version: m.version)]);
+        await DkswCore.postConsents([
+          ConsentChoice(key: 'marketing', agreed: want, version: m.version)
+        ]);
       }
     }
 
@@ -119,27 +139,39 @@ class UserDataSync {
       box.put('route_engine', re);
       RouteEnginePref.notifyChanged();
     }
+    // 길찾기 범위 복원 (주유소까지 | 목적지까지)
+    final ns = prefs['navScope']?.toString();
+    if (ns == NavScopePref.station || ns == NavScopePref.destination) {
+      box.put('nav_scope', ns);
+      NavScopePref.notifyChanged();
+    }
 
     // AI 차량 — 서버를 소스로 ai_vehicles 갱신
     if (vehicles.isNotEmpty) {
-      final list = vehicles.whereType<Map>().map((v) => {
-            'id': v['clientId'],
-            'name': v['name'] ?? '',
-            'vehicleType': v['kind'] ?? 'gas',
-            'fuelType': v['fuelType'] ?? 'B027',
-            'tankCapacity': v['tankCapacity'] ?? 55.0,
-            'efficiency': v['efficiency'] ?? 12.5,
-            'batteryCapacity': v['batteryCapacity'] ?? 64.0,
-            'evEfficiency': v['evEfficiency'] ?? 5.0,
-            'currentLevelPercent': v['currentLevelPercent'] ?? 25.0,
-            'targetMode': v['targetMode'] ?? 'FULL',
-            'targetValue': v['targetValue'] ?? 50000.0,
-            'targetChargePercent': v['targetChargePercent'] ?? 80.0,
-          }).toList();
+      final list = vehicles
+          .whereType<Map>()
+          .map((v) => {
+                'id': v['clientId'],
+                'name': v['name'] ?? '',
+                'vehicleType': v['kind'] ?? 'gas',
+                'fuelType': v['fuelType'] ?? 'B027',
+                'tankCapacity': v['tankCapacity'] ?? 55.0,
+                'efficiency': v['efficiency'] ?? 12.5,
+                'batteryCapacity': v['batteryCapacity'] ?? 64.0,
+                'evEfficiency': v['evEfficiency'] ?? 5.0,
+                'currentLevelPercent': v['currentLevelPercent'] ?? 25.0,
+                'targetMode': v['targetMode'] ?? 'FULL',
+                'targetValue': v['targetValue'] ?? 50000.0,
+                'targetChargePercent': v['targetChargePercent'] ?? 80.0,
+              })
+          .toList();
       box.put(AppConstants.keyAiVehicles, jsonEncode(list));
       box.put(AppConstants.keyAiOnboardingDone, true); // 차량 복원됨 → AI 온보딩 스킵
-      final sel = vehicles.whereType<Map>().firstWhere((v) => v['isSelected'] == true, orElse: () => vehicles.first as Map);
-      if (sel['clientId'] != null) box.put(AppConstants.keyAiSelectedVehicleId, sel['clientId']);
+      final sel = vehicles.whereType<Map>().firstWhere(
+          (v) => v['isSelected'] == true,
+          orElse: () => vehicles.first as Map);
+      if (sel['clientId'] != null)
+        box.put(AppConstants.keyAiSelectedVehicleId, sel['clientId']);
     }
 
     // 즐겨찾기 — union(로컬 보존, 없는 것만 추가)
@@ -149,8 +181,10 @@ class UserDataSync {
       if (id.isEmpty || type.isEmpty) continue;
       if (!FavoriteService.isFavorite(id, type)) {
         FavoriteService.add(
-          id: id, type: type,
-          name: (f['name'] ?? '').toString(), subtitle: (f['subtitle'] ?? '').toString(),
+          id: id,
+          type: type,
+          name: (f['name'] ?? '').toString(),
+          subtitle: (f['subtitle'] ?? '').toString(),
           extra: f['brand'] != null ? {'brand': f['brand']} : null,
         );
       }
@@ -180,12 +214,20 @@ class UserDataSync {
       final type = (a['type'] ?? '').toString();
       if (id.isEmpty) continue;
       if (type == 'gas') {
-        final fuels = (a['fuelTypes'] ?? '').toString().split(',').where((s) => s.isNotEmpty).toList();
+        final fuels = (a['fuelTypes'] ?? '')
+            .toString()
+            .split(',')
+            .where((s) => s.isNotEmpty)
+            .toList();
         if (fuels.isNotEmpty) {
-          await AlertService().subscribeMultiple(stationId: id, stationName: (a['name'] ?? '').toString(), fuelTypes: fuels);
+          await AlertService().subscribeMultiple(
+              stationId: id,
+              stationName: (a['name'] ?? '').toString(),
+              fuelTypes: fuels);
         }
       } else if (type == 'ev') {
-        await AlertService().subscribeEvAlarm(stationId: id, stationName: (a['name'] ?? '').toString());
+        await AlertService().subscribeEvAlarm(
+            stationId: id, stationName: (a['name'] ?? '').toString());
       }
     }
   }
@@ -198,45 +240,54 @@ class UserDataSync {
       'vehicleType': box.get(AppConstants.keyVehicleType),
       'fuelType': box.get(AppConstants.keyFuelType),
       // 홈 유종 필터 멀티선택 — 게스트 시절 골라둔 목록도 회원 이관에 포함
-      'fuelTypes': List<String>.from(
-          box.get(AppConstants.keyGasFilterFuelTypes, defaultValue: const <String>[])),
+      'fuelTypes': List<String>.from(box.get(AppConstants.keyGasFilterFuelTypes,
+          defaultValue: const <String>[])),
       'marketingConsent': DkswCore.consentAgreed('marketing') == true,
       // AI 문구 동의 — 게스트 시절 선택도 회원 이관 (미선택 null 은 서버가 무시)
       'aiTextConsent': box.get(AppConstants.keyAiThirdPartyConsent),
       // AI 경로 기준 내비 — 게스트 시절 선택도 이관
       'routeEngine': box.get('route_engine'),
+      'navScope': box.get('nav_scope'),
     };
 
     List vlist;
     try {
       final raw = box.get(AppConstants.keyAiVehicles);
-      vlist = (raw is String && raw.isNotEmpty) ? (jsonDecode(raw) as List) : const [];
+      vlist = (raw is String && raw.isNotEmpty)
+          ? (jsonDecode(raw) as List)
+          : const [];
     } catch (_) {
       vlist = const [];
     }
     final selected = box.get(AppConstants.keyAiSelectedVehicleId);
-    final vehicles = vlist.whereType<Map>().map((m) => {
-          'clientId': m['id'],
-          'name': m['name'],
-          'kind': m['vehicleType'],
-          'fuelType': m['fuelType'],
-          'tankCapacity': m['tankCapacity'],
-          'efficiency': m['efficiency'],
-          'targetMode': m['targetMode'],
-          'targetValue': m['targetValue'],
-          'batteryCapacity': m['batteryCapacity'],
-          'evEfficiency': m['evEfficiency'],
-          'targetChargePercent': m['targetChargePercent'],
-          'currentLevelPercent': m['currentLevelPercent'],
-          'isSelected': m['id'] == selected,
-        }).toList();
+    final vehicles = vlist
+        .whereType<Map>()
+        .map((m) => {
+              'clientId': m['id'],
+              'name': m['name'],
+              'kind': m['vehicleType'],
+              'fuelType': m['fuelType'],
+              'tankCapacity': m['tankCapacity'],
+              'efficiency': m['efficiency'],
+              'targetMode': m['targetMode'],
+              'targetValue': m['targetValue'],
+              'batteryCapacity': m['batteryCapacity'],
+              'evEfficiency': m['evEfficiency'],
+              'targetChargePercent': m['targetChargePercent'],
+              'currentLevelPercent': m['currentLevelPercent'],
+              'isSelected': m['id'] == selected,
+            })
+        .toList();
 
     final favorites = FavoriteService.getAll().map((f) {
       final id = (f['id'] ?? '').toString();
       final type = (f['type'] ?? '').toString();
       return {
-        'type': type, 'stationId': id,
-        'name': f['name'], 'subtitle': f['subtitle'], 'brand': f['brand'],
+        'type': type,
+        'stationId': id,
+        'name': f['name'],
+        'subtitle': f['subtitle'],
+        'brand': f['brand'],
         'alias': StationAliasService.get(id, type: type),
       };
     }).toList();
@@ -244,10 +295,16 @@ class UserDataSync {
     final svc = AlertService();
     final alarms = <Map<String, dynamic>>[];
     for (final id in svc.subscribedStationIds) {
-      alarms.add({'type': 'gas', 'stationId': id, 'fuelTypes': svc.subscribedFuelTypes(id).join(','), 'name': svc.subscribedStationNames[id] ?? ''});
+      alarms.add({
+        'type': 'gas',
+        'stationId': id,
+        'fuelTypes': svc.subscribedFuelTypes(id).join(','),
+        'name': svc.subscribedStationNames[id] ?? ''
+      });
     }
     for (final id in svc.evAlarmStationIds) {
-      alarms.add({'type': 'ev', 'stationId': id, 'name': svc.evAlarmNames[id] ?? ''});
+      alarms.add(
+          {'type': 'ev', 'stationId': id, 'name': svc.evAlarmNames[id] ?? ''});
     }
 
     return {

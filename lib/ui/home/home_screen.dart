@@ -49,6 +49,7 @@ import '../reports/fuel_report_screen.dart';
 import '../detail/gas_detail_screen.dart';
 import '../ai/widgets/route_engine_sheet.dart';
 import 'package:home_widget/home_widget.dart';
+import '../../core/utils/nav_scope_pref.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -117,37 +118,46 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _fcmOnMessageSub = FirebaseMessaging.onMessage.listen((message) {
       if (message.data['type'] == 'gas_price_alert') {
         if (drawLocal) {
-          showGasPriceNotification(message.data, soundMode: AlertService().alertSoundMode);
+          showGasPriceNotification(message.data,
+              soundMode: AlertService().alertSoundMode);
         }
         AlertService().addGasPriceMessage(message.data);
         _messageBadgeKey.currentState?.refreshCount();
       } else if (message.data['type'] == 'ev_alarm') {
         if (AlertService().evAlarmEnabled) {
           if (drawLocal) {
-            showEvAlarmNotification(message.data, soundMode: AlertService().evAlarmSoundMode);
+            showEvAlarmNotification(message.data,
+                soundMode: AlertService().evAlarmSoundMode);
           }
           AlertService().addEvAlarmMessage(message.data);
           _messageBadgeKey.currentState?.refreshCount();
         }
       } else if (message.data['type'] == 'ev_watch') {
         final stationId = message.data['stationId'] as String? ?? '';
-        final newAvail = int.tryParse(message.data['newAvail'] as String? ?? '') ?? 0;
-        if (stationId.isNotEmpty) WatchService().updateCurrentAvail(stationId, newAvail);
+        final newAvail =
+            int.tryParse(message.data['newAvail'] as String? ?? '') ?? 0;
+        if (stationId.isNotEmpty)
+          WatchService().updateCurrentAvail(stationId, newAvail);
       } else if (message.data['type'] == 'inquiry_reply') {
         // 1:1 문의 답변 — Android 는 직접 띄움 (v2 data-only 는 title/body 가 data 에 실림)
         if (drawLocal) {
           showInquiryReplyNotification(
-            title: message.notification?.title ?? message.data['title']?.toString(),
-            body: message.notification?.body ?? message.data['body']?.toString(),
-            inquiryId: int.tryParse(message.data['inquiryId']?.toString() ?? ''),
+            title: message.notification?.title ??
+                message.data['title']?.toString(),
+            body:
+                message.notification?.body ?? message.data['body']?.toString(),
+            inquiryId:
+                int.tryParse(message.data['inquiryId']?.toString() ?? ''),
           );
         }
         _saveToInbox(message);
       } else if (message.data['type'] == 'event') {
         if (drawLocal) {
           showEventNotification(
-            title: message.notification?.title ?? message.data['title']?.toString(),
-            body: message.notification?.body ?? message.data['body']?.toString(),
+            title: message.notification?.title ??
+                message.data['title']?.toString(),
+            body:
+                message.notification?.body ?? message.data['body']?.toString(),
             eventId: int.tryParse(message.data['id']?.toString() ?? ''),
           );
         }
@@ -155,8 +165,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       } else if (message.data['type'] == 'notice') {
         if (drawLocal) {
           showNoticeNotification(
-            title: message.notification?.title ?? message.data['title']?.toString(),
-            body: message.notification?.body ?? message.data['body']?.toString(),
+            title: message.notification?.title ??
+                message.data['title']?.toString(),
+            body:
+                message.notification?.body ?? message.data['body']?.toString(),
             noticeId: int.tryParse(message.data['id']?.toString() ?? ''),
           );
         }
@@ -164,8 +176,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       } else if (message.data['type'] == 'fuel_report') {
         if (drawLocal) {
           showFuelReportNotification(
-            title: message.notification?.title ?? message.data['title']?.toString(),
-            body: message.notification?.body ?? message.data['body']?.toString(),
+            title: message.notification?.title ??
+                message.data['title']?.toString(),
+            body:
+                message.notification?.body ?? message.data['body']?.toString(),
             reportId: int.tryParse(message.data['id']?.toString() ?? ''),
           );
         }
@@ -176,8 +190,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         // 자유 푸시·브리핑 등 그 외 모든 알림
         if (drawLocal) {
           showNoticeNotification(
-            title: message.notification?.title ?? message.data['title']?.toString(),
-            body: message.notification?.body ?? message.data['body']?.toString(),
+            title: message.notification?.title ??
+                message.data['title']?.toString(),
+            body:
+                message.notification?.body ?? message.data['body']?.toString(),
             noticeId: null,
           );
         }
@@ -247,7 +263,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         }
       } else if (message.data['type'] == 'ev_watch') {
         final stationId = message.data['stationId'] as String? ?? '';
-        final newAvail = int.tryParse(message.data['newAvail'] as String? ?? '') ?? 0;
+        final newAvail =
+            int.tryParse(message.data['newAvail'] as String? ?? '') ?? 0;
         if (stationId.isNotEmpty) {
           WatchService().updateCurrentAvail(stationId, newAvail);
           if (mounted) {
@@ -267,11 +284,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ));
         }
       } else if (message.data['type'] == 'event') {
-        _openEventDetail(int.tryParse(message.data['id']?.toString() ?? '') ?? 0);
+        _openEventDetail(
+            int.tryParse(message.data['id']?.toString() ?? '') ?? 0);
       } else if (message.data['type'] == 'notice') {
-        _openNoticeDetail(int.tryParse(message.data['id']?.toString() ?? '') ?? 0);
+        _openNoticeDetail(
+            int.tryParse(message.data['id']?.toString() ?? '') ?? 0);
       } else if (message.data['type'] == 'fuel_report') {
-        _openFuelReport(int.tryParse(message.data['id']?.toString() ?? '') ?? 0);
+        _openFuelReport(
+            int.tryParse(message.data['id']?.toString() ?? '') ?? 0);
       }
     });
 
@@ -308,7 +328,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           });
         }
       } else if (message.data['type'] == 'inquiry_reply') {
-        final id = int.tryParse(message.data['inquiryId']?.toString() ?? '') ?? 0;
+        final id =
+            int.tryParse(message.data['inquiryId']?.toString() ?? '') ?? 0;
         Future.delayed(const Duration(milliseconds: 600),
             () => navigateToInquiryNotifier.value = id);
       } else if (message.data['type'] == 'report_done') {
@@ -321,16 +342,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         });
       } else if (message.data['type'] == 'event') {
         final id = int.tryParse(message.data['id']?.toString() ?? '') ?? 0;
-        Future.delayed(const Duration(milliseconds: 600), () => _openEventDetail(id));
+        Future.delayed(
+            const Duration(milliseconds: 600), () => _openEventDetail(id));
       } else if (message.data['type'] == 'notice') {
         final id = int.tryParse(message.data['id']?.toString() ?? '') ?? 0;
-        Future.delayed(const Duration(milliseconds: 600), () => _openNoticeDetail(id));
+        Future.delayed(
+            const Duration(milliseconds: 600), () => _openNoticeDetail(id));
       } else if (message.data['type'] == 'fuel_report') {
         final id = int.tryParse(message.data['id']?.toString() ?? '') ?? 0;
-        Future.delayed(const Duration(milliseconds: 600), () => _openFuelReport(id));
+        Future.delayed(
+            const Duration(milliseconds: 600), () => _openFuelReport(id));
       }
     });
-
   }
 
   @override
@@ -365,13 +388,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   Future<void> _consumeWidgetPendingOnResume() async {
     try {
-      final type = await HomeWidget.getWidgetData<String>('widget_pending_type');
+      final type =
+          await HomeWidget.getWidgetData<String>('widget_pending_type');
       if (type == null || type.isEmpty) return;
-      final stationId = await HomeWidget.getWidgetData<String>(
-          'widget_pending_station_id');
+      final stationId =
+          await HomeWidget.getWidgetData<String>('widget_pending_station_id');
       await HomeWidget.saveWidgetData<String>('widget_pending_type', '');
-      await HomeWidget.saveWidgetData<String>(
-          'widget_pending_station_id', '');
+      await HomeWidget.saveWidgetData<String>('widget_pending_station_id', '');
       if (stationId == null || stationId.isEmpty) return;
       if (type == 'ev') {
         navigateToEvStationNotifier.value = stationId;
@@ -392,15 +415,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (type == 'gas_price_alert' || type == 'ev_alarm' || type == 'ev_watch') {
       return;
     }
-    final title = message.notification?.title ??
-        message.data['title']?.toString() ?? '';
-    final body = message.notification?.body ??
-        message.data['body']?.toString() ?? '';
+    final title =
+        message.notification?.title ?? message.data['title']?.toString() ?? '';
+    final body =
+        message.notification?.body ?? message.data['body']?.toString() ?? '';
     AlertService().saveTappedPush(
       title: title,
       body: body,
       type: type,
-      refId: (message.data['id'] ?? message.data['inquiryId'])?.toString() ?? '',
+      refId:
+          (message.data['id'] ?? message.data['inquiryId'])?.toString() ?? '',
     );
     _messageBadgeKey.currentState?.refreshCount();
   }
@@ -459,7 +483,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     try {
       final list = await DkswCore.fetchEvents();
       for (final e in list) {
-        if (e.id == id) { found = e; break; }
+        if (e.id == id) {
+          found = e;
+          break;
+        }
       }
     } catch (_) {}
     if (!mounted) return;
@@ -482,7 +509,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     try {
       final list = await DkswCore.fetchNotices();
       for (final n in list) {
-        if (n.id == id) { found = n; break; }
+        if (n.id == id) {
+          found = n;
+          break;
+        }
       }
     } catch (_) {}
     if (!mounted) return;
@@ -493,8 +523,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (!mounted) return;
     final item = found;
     Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
-      builder: (_) =>
-          item != null ? NoticeDetailScreen(notice: item) : const NoticesScreen(),
+      builder: (_) => item != null
+          ? NoticeDetailScreen(notice: item)
+          : const NoticesScreen(),
     ));
   }
 
@@ -504,8 +535,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // v2 data-only 는 title/body 가 data 에 실림 — notification 폴백 겸용.
     final title =
         message.notification?.title ?? message.data['title']?.toString();
-    final body =
-        message.notification?.body ?? message.data['body']?.toString();
+    final body = message.notification?.body ?? message.data['body']?.toString();
     if ((title == null || title.isEmpty) && (body == null || body.isEmpty)) {
       return;
     }
@@ -562,9 +592,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (_signupGateOpen || user == null || user.signupCompleted) return;
     _signupGateOpen = true;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) { _signupGateOpen = false; return; }
+      if (!mounted) {
+        _signupGateOpen = false;
+        return;
+      }
       // 다른 화면(로그인 등)이 위에 있으면 그쪽이 처리 → 중복 방지
-      if (ModalRoute.of(context)?.isCurrent != true) { _signupGateOpen = false; return; }
+      if (ModalRoute.of(context)?.isCurrent != true) {
+        _signupGateOpen = false;
+        return;
+      }
       await Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => SignupCompleteScreen(user: user),
       ));
@@ -594,102 +630,106 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         showExitConfirmDialog(context);
       },
       child: Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: IndexedStack(
-              index: bottomIndex,
-              children: [
-                _HomeTab(key: _messageBadgeKey),
-                const _MapTab(),
-                const AiMainScreen(),
-                const _FavoritesTab(),
-                const _SettingsTab(),
-              ],
-            ),
-          ),
-          // 자리변동알림 — 홈 탭에서 하단 플로팅 (스크롤해도 항상 보임, content 안 밀림)
-          if (bottomIndex == 0)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: _watchDragDy,
-              child: GestureDetector(
-                // 세로 드래그로 위치 이동 (아래↔위). 내부 버튼 탭과 충돌 없음.
-                onVerticalDragUpdate: (d) {
-                  final maxUp = MediaQuery.of(context).size.height * 0.62;
-                  setState(() => _watchDragDy =
-                      (_watchDragDy - d.delta.dy).clamp(0.0, maxUp));
-                },
-                child: const WatchSessionBar(),
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: IndexedStack(
+                index: bottomIndex,
+                children: [
+                  _HomeTab(key: _messageBadgeKey),
+                  const _MapTab(),
+                  const AiMainScreen(),
+                  const _FavoritesTab(),
+                  const _SettingsTab(),
+                ],
               ),
             ),
-        ],
-      ),
-      bottomNavigationBar: NavigationBarTheme(
-        data: NavigationBarThemeData(
-          height: 64,
-          backgroundColor: isDark ? AppColors.darkBg : AppColors.lightBg,
-          surfaceTintColor: Colors.transparent,
-          indicatorColor: (isDark ? AppColors.gasBlue : AppColors.gasBlueDark)
-              .withValues(alpha: 0.18),
-          labelTextStyle: WidgetStateProperty.resolveWith((states) {
-            final isSelected = states.contains(WidgetState.selected);
-            return TextStyle(
-              fontSize: 11,
-              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              color: isSelected
-                  ? (isDark ? AppColors.gasBlue : AppColors.gasBlueDark)
-                  : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
-            );
-          }),
-          iconTheme: WidgetStateProperty.resolveWith((states) {
-            final isSelected = states.contains(WidgetState.selected);
-            return IconThemeData(
-              size: 24,
-              color: isSelected
-                  ? (isDark ? AppColors.gasBlue : AppColors.gasBlueDark)
-                  : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
-            );
-          }),
-          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        ),
-        child: NavigationBar(
-          selectedIndex: bottomIndex,
-          onDestinationSelected: (i) {
-            HapticFeedback.selectionClick();
-            ref.read(bottomNavIndexProvider.notifier).state = i;
-          },
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.dashboard_outlined),
-              selectedIcon: Icon(Icons.dashboard_rounded),
-              label: '홈',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.map_outlined),
-              selectedIcon: Icon(Icons.map_rounded),
-              label: '지도',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.auto_awesome_outlined),
-              selectedIcon: Icon(Icons.auto_awesome_rounded),
-              label: 'AI',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.favorite_outline_rounded),
-              selectedIcon: Icon(Icons.favorite_rounded),
-              label: '즐겨찾기',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.person_outline_rounded),
-              selectedIcon: Icon(Icons.person_rounded),
-              label: '마이페이지',
-            ),
+            // 자리변동알림 — 홈 탭에서 하단 플로팅 (스크롤해도 항상 보임, content 안 밀림)
+            if (bottomIndex == 0)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: _watchDragDy,
+                child: GestureDetector(
+                  // 세로 드래그로 위치 이동 (아래↔위). 내부 버튼 탭과 충돌 없음.
+                  onVerticalDragUpdate: (d) {
+                    final maxUp = MediaQuery.of(context).size.height * 0.62;
+                    setState(() => _watchDragDy =
+                        (_watchDragDy - d.delta.dy).clamp(0.0, maxUp));
+                  },
+                  child: const WatchSessionBar(),
+                ),
+              ),
           ],
         ),
+        bottomNavigationBar: NavigationBarTheme(
+          data: NavigationBarThemeData(
+            height: 64,
+            backgroundColor: isDark ? AppColors.darkBg : AppColors.lightBg,
+            surfaceTintColor: Colors.transparent,
+            indicatorColor: (isDark ? AppColors.gasBlue : AppColors.gasBlueDark)
+                .withValues(alpha: 0.18),
+            labelTextStyle: WidgetStateProperty.resolveWith((states) {
+              final isSelected = states.contains(WidgetState.selected);
+              return TextStyle(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected
+                    ? (isDark ? AppColors.gasBlue : AppColors.gasBlueDark)
+                    : (isDark
+                        ? AppColors.darkTextMuted
+                        : AppColors.lightTextMuted),
+              );
+            }),
+            iconTheme: WidgetStateProperty.resolveWith((states) {
+              final isSelected = states.contains(WidgetState.selected);
+              return IconThemeData(
+                size: 24,
+                color: isSelected
+                    ? (isDark ? AppColors.gasBlue : AppColors.gasBlueDark)
+                    : (isDark
+                        ? AppColors.darkTextMuted
+                        : AppColors.lightTextMuted),
+              );
+            }),
+            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          ),
+          child: NavigationBar(
+            selectedIndex: bottomIndex,
+            onDestinationSelected: (i) {
+              HapticFeedback.selectionClick();
+              ref.read(bottomNavIndexProvider.notifier).state = i;
+            },
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.dashboard_outlined),
+                selectedIcon: Icon(Icons.dashboard_rounded),
+                label: '홈',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.map_outlined),
+                selectedIcon: Icon(Icons.map_rounded),
+                label: '지도',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.auto_awesome_outlined),
+                selectedIcon: Icon(Icons.auto_awesome_rounded),
+                label: 'AI',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.favorite_outline_rounded),
+                selectedIcon: Icon(Icons.favorite_rounded),
+                label: '즐겨찾기',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.person_outline_rounded),
+                selectedIcon: Icon(Icons.person_rounded),
+                label: '마이페이지',
+              ),
+            ],
+          ),
+        ),
       ),
-    ),
     );
   }
 }
@@ -731,7 +771,8 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // 차량 타입에 따라 activeTab 강제 지정
-    final activeTab = vehicleType == VehicleType.ev ? 1 : ref.watch(activeTabProvider);
+    final activeTab =
+        vehicleType == VehicleType.ev ? 1 : ref.watch(activeTabProvider);
     final showTab = vehicleType == VehicleType.both;
 
     return SafeArea(
@@ -749,7 +790,8 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
                   filterQuality: FilterQuality.medium,
                 ),
                 const SizedBox(width: 10),
-                Text('전기차 기름차', style: Theme.of(context).textTheme.headlineSmall),
+                Text('전기차 기름차',
+                    style: Theme.of(context).textTheme.headlineSmall),
                 const Spacer(),
                 Builder(builder: (_) {
                   final hasUnread = _msgCount > 0;
@@ -905,7 +947,8 @@ class _GasListViewState extends ConsumerState<_GasListView> {
   void initState() {
     super.initState();
     _scrollController.addListener(() {
-      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      if (_scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent - 200) {
         setState(() => _displayCount += _pageSize);
       }
     });
@@ -927,10 +970,15 @@ class _GasListViewState extends ConsumerState<_GasListView> {
 
     return RefreshIndicator(
       onRefresh: () async {
-        setState(() { _displayCount = _pageSize; _searchQuery = ''; _searchController.clear(); });
+        setState(() {
+          _displayCount = _pageSize;
+          _searchQuery = '';
+          _searchController.clear();
+        });
         ref.invalidate(locationProvider);
         ref.invalidate(gasStationsRawProvider);
-        ref.invalidate(favGasStationsProvider);  // 즐겨찾기 detail 도 새로 fetch (stale "기타"/"상태확인불가" 방지)
+        ref.invalidate(
+            favGasStationsProvider); // 즐겨찾기 detail 도 새로 fetch (stale "기타"/"상태확인불가" 방지)
       },
       child: CustomScrollView(
         controller: _scrollController,
@@ -950,40 +998,64 @@ class _GasListViewState extends ConsumerState<_GasListView> {
                     child: Container(
                       height: 40,
                       decoration: BoxDecoration(
-                        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+                        color:
+                            isDark ? AppColors.darkCard : AppColors.lightCard,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder, width: 0.5),
+                        border: Border.all(
+                            color: isDark
+                                ? AppColors.darkCardBorder
+                                : AppColors.lightCardBorder,
+                            width: 0.5),
                       ),
                       child: Row(
                         children: [
                           const SizedBox(width: 10),
-                          Icon(Icons.search_rounded, size: 17,
-                              color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                          Icon(Icons.search_rounded,
+                              size: 17,
+                              color: isDark
+                                  ? AppColors.darkTextMuted
+                                  : AppColors.lightTextMuted),
                           const SizedBox(width: 6),
                           Expanded(
                             child: TextField(
                               controller: _searchController,
-                              onChanged: (v) => setState(() { _searchQuery = v; _displayCount = _pageSize; }),
-                              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+                              onChanged: (v) => setState(() {
+                                _searchQuery = v;
+                                _displayCount = _pageSize;
+                              }),
+                              onTapOutside: (_) =>
+                                  FocusManager.instance.primaryFocus?.unfocus(),
                               decoration: InputDecoration(
                                 hintText: '주유소 검색',
                                 border: InputBorder.none,
                                 isDense: true,
                                 contentPadding: EdgeInsets.zero,
-                                hintStyle: TextStyle(fontSize: 13,
-                                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                                hintStyle: TextStyle(
+                                    fontSize: 13,
+                                    color: isDark
+                                        ? AppColors.darkTextMuted
+                                        : AppColors.lightTextMuted),
                               ),
-                              style: TextStyle(fontSize: 13,
-                                  color: isDark ? Colors.white : Colors.black87),
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  color:
+                                      isDark ? Colors.white : Colors.black87),
                             ),
                           ),
                           if (_searchQuery.isNotEmpty)
                             GestureDetector(
-                              onTap: () => setState(() { _searchQuery = ''; _searchController.clear(); }),
+                              onTap: () => setState(() {
+                                _searchQuery = '';
+                                _searchController.clear();
+                              }),
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 8),
-                                child: Icon(Icons.close_rounded, size: 15,
-                                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 8),
+                                child: Icon(Icons.close_rounded,
+                                    size: 15,
+                                    color: isDark
+                                        ? AppColors.darkTextMuted
+                                        : AppColors.lightTextMuted),
                               ),
                             ),
                         ],
@@ -1003,11 +1075,15 @@ class _GasListViewState extends ConsumerState<_GasListView> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.tune_rounded, size: 15, color: Colors.white),
+                          const Icon(Icons.tune_rounded,
+                              size: 15, color: Colors.white),
                           const SizedBox(width: 4),
                           Text(
                             filter.sort == 1 ? '가격순' : '거리순',
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
+                            style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white),
                           ),
                         ],
                       ),
@@ -1027,8 +1103,7 @@ class _GasListViewState extends ConsumerState<_GasListView> {
                 isDark: isDark,
                 // 리빌드 판단용 상태 시그니처 — child(ListView) 인스턴스는 매 빌드
                 // 새로 만들어져 비교가 무의미하므로, 화면에 영향 주는 상태만 비교.
-                signature:
-                    '${filter.fuelTypes.join(',')}|$activeFuel|$isDark',
+                signature: '${filter.fuelTypes.join(',')}|$activeFuel|$isDark',
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
@@ -1084,14 +1159,17 @@ class _GasListViewState extends ConsumerState<_GasListView> {
               loading: () => const GasSummaryCard(avgPrice: 0, priceDiff: 0),
               error: (_, __) => const GasSummaryCard(avgPrice: 0, priceDiff: 0),
               data: (stations) {
-                final stationAvg = stations.isEmpty ? 0.0
-                    : stations.map((s) => s.price).reduce((a, b) => a + b) / stations.length;
+                final stationAvg = stations.isEmpty
+                    ? 0.0
+                    : stations.map((s) => s.price).reduce((a, b) => a + b) /
+                        stations.length;
                 final avgAsync = ref.watch(gasAvgPriceProvider);
                 // 홈 표시는 활성 유종(토글)을 따라감 — 리스트/마커/평균 일관되게.
                 final fuelCode = ref.watch(effectiveGasFuelTypeProvider);
                 final fuelLabel = FuelType.fromCode(fuelCode).label;
                 // 응답 우선순위: local(시도) > national(전국) > 레거시 m[fuelCode]
-                final m = avgAsync.maybeWhen<Map<String, dynamic>?>(data: (v) => v, orElse: () => null);
+                final m = avgAsync.maybeWhen<Map<String, dynamic>?>(
+                    data: (v) => v, orElse: () => null);
                 double serverAvg = 0;
                 double priceDiff = 0;
                 String? sidoName;
@@ -1112,50 +1190,70 @@ class _GasListViewState extends ConsumerState<_GasListView> {
                     priceDiff = parseApiDouble(row['diff']);
                   }
                 }
-                final showLabel = sidoName != null ? '$sidoName $fuelLabel' : fuelLabel;
+                final showLabel =
+                    sidoName != null ? '$sidoName $fuelLabel' : fuelLabel;
                 final showAvg = serverAvg > 0 ? serverAvg : stationAvg;
-                return GasSummaryCard(avgPrice: showAvg, priceDiff: priceDiff, fuelLabel: showLabel);
+                return GasSummaryCard(
+                    avgPrice: showAvg,
+                    priceDiff: priceDiff,
+                    fuelLabel: showLabel);
               },
             ),
           ),
           // 리스트
           stationsAsync.when(
-            loading: () => SliverList(delegate: SliverChildBuilderDelegate(
-              (_, __) => const SkeletonCard(), childCount: 6,
+            loading: () => SliverList(
+                delegate: SliverChildBuilderDelegate(
+              (_, __) => const SkeletonCard(),
+              childCount: 6,
             )),
             error: (e, _) => SliverToBoxAdapter(
-              child: Center(child: Padding(
+              child: Center(
+                  child: Padding(
                 padding: const EdgeInsets.all(40),
                 child: Column(children: [
-                  const Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.darkTextMuted),
+                  const Icon(Icons.wifi_off_rounded,
+                      size: 48, color: AppColors.darkTextMuted),
                   const SizedBox(height: 12),
-                  Text('데이터를 불러올 수 없습니다', style: Theme.of(context).textTheme.bodyMedium),
+                  Text('데이터를 불러올 수 없습니다',
+                      style: Theme.of(context).textTheme.bodyMedium),
                   const SizedBox(height: 8),
-                  TextButton(onPressed: () => ref.invalidate(gasStationsRawProvider), child: const Text('다시 시도')),
+                  TextButton(
+                      onPressed: () => ref.invalidate(gasStationsRawProvider),
+                      child: const Text('다시 시도')),
                 ]),
               )),
             ),
             data: (stations) {
-              var filtered = _searchQuery.isEmpty ? stations
+              var filtered = _searchQuery.isEmpty
+                  ? stations
                   : stations.where((s) {
-                      if (s.name.contains(_searchQuery) || s.address.contains(_searchQuery)) return true;
+                      if (s.name.contains(_searchQuery) ||
+                          s.address.contains(_searchQuery)) return true;
                       final alias = StationAliasService.get(s.id, type: 'gas');
                       return alias != null && alias.contains(_searchQuery);
                     }).toList();
               if (filtered.isEmpty) {
                 return SliverToBoxAdapter(
-                  child: Center(child: Padding(
+                  child: Center(
+                      child: Padding(
                     padding: const EdgeInsets.all(40),
-                    child: Text(_searchQuery.isEmpty ? '주변에 주유소가 없습니다' : '\'$_searchQuery\' 검색 결과가 없습니다',
+                    child: Text(
+                        _searchQuery.isEmpty
+                            ? '주변에 주유소가 없습니다'
+                            : '\'$_searchQuery\' 검색 결과가 없습니다',
                         style: Theme.of(context).textTheme.bodyMedium),
                   )),
                 );
               }
               // provider에서 즐겨찾기 상위 정렬 + 필터 면제 처리됨
-              final favIds = FavoriteService.getByType('gas').map((f) => f['id'] as String).toSet();
+              final favIds = FavoriteService.getByType('gas')
+                  .map((f) => f['id'] as String)
+                  .toSet();
               final shown = filtered.take(_displayCount).toList();
               final merged = mergeWithAdSlots<GasStation>(shown);
-              return SliverList(delegate: SliverChildBuilderDelegate(
+              return SliverList(
+                  delegate: SliverChildBuilderDelegate(
                 (_, i) {
                   final item = merged[i];
                   if (item is _AdMobAt) {
@@ -1209,7 +1307,8 @@ class _EvListViewState extends ConsumerState<_EvListView> {
   void initState() {
     super.initState();
     _scrollController.addListener(() {
-      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      if (_scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent - 200) {
         setState(() => _displayCount += _pageSize);
       }
     });
@@ -1230,10 +1329,15 @@ class _EvListViewState extends ConsumerState<_EvListView> {
 
     return RefreshIndicator(
       onRefresh: () async {
-        setState(() { _displayCount = _pageSize; _searchQuery = ''; _searchController.clear(); });
+        setState(() {
+          _displayCount = _pageSize;
+          _searchQuery = '';
+          _searchController.clear();
+        });
         ref.invalidate(locationProvider);
         ref.invalidate(evStationsRawProvider);
-        ref.invalidate(favEvStationsProvider);  // 즐겨찾기 detail 도 새로 fetch (stale 표시 방지)
+        ref.invalidate(
+            favEvStationsProvider); // 즐겨찾기 detail 도 새로 fetch (stale 표시 방지)
       },
       child: CustomScrollView(
         controller: _scrollController,
@@ -1253,40 +1357,64 @@ class _EvListViewState extends ConsumerState<_EvListView> {
                     child: Container(
                       height: 40,
                       decoration: BoxDecoration(
-                        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+                        color:
+                            isDark ? AppColors.darkCard : AppColors.lightCard,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder, width: 0.5),
+                        border: Border.all(
+                            color: isDark
+                                ? AppColors.darkCardBorder
+                                : AppColors.lightCardBorder,
+                            width: 0.5),
                       ),
                       child: Row(
                         children: [
                           const SizedBox(width: 10),
-                          Icon(Icons.search_rounded, size: 17,
-                              color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                          Icon(Icons.search_rounded,
+                              size: 17,
+                              color: isDark
+                                  ? AppColors.darkTextMuted
+                                  : AppColors.lightTextMuted),
                           const SizedBox(width: 6),
                           Expanded(
                             child: TextField(
                               controller: _searchController,
-                              onChanged: (v) => setState(() { _searchQuery = v; _displayCount = _pageSize; }),
-                              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+                              onChanged: (v) => setState(() {
+                                _searchQuery = v;
+                                _displayCount = _pageSize;
+                              }),
+                              onTapOutside: (_) =>
+                                  FocusManager.instance.primaryFocus?.unfocus(),
                               decoration: InputDecoration(
                                 hintText: '충전소 검색',
                                 border: InputBorder.none,
                                 isDense: true,
                                 contentPadding: EdgeInsets.zero,
-                                hintStyle: TextStyle(fontSize: 13,
-                                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                                hintStyle: TextStyle(
+                                    fontSize: 13,
+                                    color: isDark
+                                        ? AppColors.darkTextMuted
+                                        : AppColors.lightTextMuted),
                               ),
-                              style: TextStyle(fontSize: 13,
-                                  color: isDark ? Colors.white : Colors.black87),
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  color:
+                                      isDark ? Colors.white : Colors.black87),
                             ),
                           ),
                           if (_searchQuery.isNotEmpty)
                             GestureDetector(
-                              onTap: () => setState(() { _searchQuery = ''; _searchController.clear(); }),
+                              onTap: () => setState(() {
+                                _searchQuery = '';
+                                _searchController.clear();
+                              }),
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 8),
-                                child: Icon(Icons.close_rounded, size: 15,
-                                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 8),
+                                child: Icon(Icons.close_rounded,
+                                    size: 15,
+                                    color: isDark
+                                        ? AppColors.darkTextMuted
+                                        : AppColors.lightTextMuted),
                               ),
                             ),
                         ],
@@ -1306,11 +1434,15 @@ class _EvListViewState extends ConsumerState<_EvListView> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.tune_rounded, size: 15, color: Colors.white),
+                          const Icon(Icons.tune_rounded,
+                              size: 15, color: Colors.white),
                           const SizedBox(width: 4),
                           Text(
                             filter.sort == 1 ? '거리순' : '가격순',
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
+                            style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white),
                           ),
                         ],
                       ),
@@ -1323,8 +1455,10 @@ class _EvListViewState extends ConsumerState<_EvListView> {
           // 요약 카드
           SliverToBoxAdapter(
             child: stationsAsync.when(
-              loading: () => const EvSummaryCard(totalStations: 0, availableStations: 0),
-              error: (_, __) => const EvSummaryCard(totalStations: 0, availableStations: 0),
+              loading: () =>
+                  const EvSummaryCard(totalStations: 0, availableStations: 0),
+              error: (_, __) =>
+                  const EvSummaryCard(totalStations: 0, availableStations: 0),
               data: (stations) => EvSummaryCard(
                 totalStations: stations.length,
                 availableStations: stations.where((s) => s.hasAvailable).length,
@@ -1333,44 +1467,60 @@ class _EvListViewState extends ConsumerState<_EvListView> {
           ),
           // 리스트
           stationsAsync.when(
-            loading: () => SliverList(delegate: SliverChildBuilderDelegate(
-              (_, __) => const SkeletonCard(), childCount: 6,
+            loading: () => SliverList(
+                delegate: SliverChildBuilderDelegate(
+              (_, __) => const SkeletonCard(),
+              childCount: 6,
             )),
             error: (e, _) => SliverToBoxAdapter(
-              child: Center(child: Padding(
+              child: Center(
+                  child: Padding(
                 padding: const EdgeInsets.all(40),
                 child: Column(children: [
-                  const Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.darkTextMuted),
+                  const Icon(Icons.wifi_off_rounded,
+                      size: 48, color: AppColors.darkTextMuted),
                   const SizedBox(height: 12),
-                  Text('데이터를 불러올 수 없습니다', style: Theme.of(context).textTheme.bodyMedium),
+                  Text('데이터를 불러올 수 없습니다',
+                      style: Theme.of(context).textTheme.bodyMedium),
                   const SizedBox(height: 8),
-                  TextButton(onPressed: () => ref.invalidate(evStationsRawProvider), child: const Text('다시 시도')),
+                  TextButton(
+                      onPressed: () => ref.invalidate(evStationsRawProvider),
+                      child: const Text('다시 시도')),
                 ]),
               )),
             ),
             data: (stations) {
-              var filtered = _searchQuery.isEmpty ? stations
+              var filtered = _searchQuery.isEmpty
+                  ? stations
                   : stations.where((s) {
                       if (s.name.contains(_searchQuery) ||
                           s.address.contains(_searchQuery) ||
                           s.operator.contains(_searchQuery)) return true;
-                      final alias = StationAliasService.get(s.statId, type: 'ev');
+                      final alias =
+                          StationAliasService.get(s.statId, type: 'ev');
                       return alias != null && alias.contains(_searchQuery);
                     }).toList();
               if (filtered.isEmpty) {
                 return SliverToBoxAdapter(
-                  child: Center(child: Padding(
+                  child: Center(
+                      child: Padding(
                     padding: const EdgeInsets.all(40),
-                    child: Text(_searchQuery.isEmpty ? '주변에 충전소가 없습니다' : '\'$_searchQuery\' 검색 결과가 없습니다',
+                    child: Text(
+                        _searchQuery.isEmpty
+                            ? '주변에 충전소가 없습니다'
+                            : '\'$_searchQuery\' 검색 결과가 없습니다',
                         style: Theme.of(context).textTheme.bodyMedium),
                   )),
                 );
               }
               // provider에서 즐겨찾기 상위 정렬 + 필터 면제 처리됨
-              final favIds = FavoriteService.getByType('ev').map((f) => f['id'] as String).toSet();
+              final favIds = FavoriteService.getByType('ev')
+                  .map((f) => f['id'] as String)
+                  .toSet();
               final shown = filtered.take(_displayCount).toList();
               final merged = mergeWithAdSlots<EvStation>(shown);
-              return SliverList(delegate: SliverChildBuilderDelegate(
+              return SliverList(
+                  delegate: SliverChildBuilderDelegate(
                 (_, i) {
                   final item = merged[i];
                   if (item is _AdMobAt) {
@@ -1542,7 +1692,8 @@ class _AlertPageState extends State<_AlertPage> {
   }
 
   Widget _buildAlertBody(String body, Color mutedColor, bool isDark) {
-    final primaryColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final primaryColor =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     final lines = body.split('\n');
     final spans = <InlineSpan>[];
     for (var i = 0; i < lines.length; i++) {
@@ -1633,7 +1784,13 @@ class _AlertPageState extends State<_AlertPage> {
     final refId = (msg['ref_id'] ?? '').toString();
     if (refId.isEmpty) return false;
     return const {
-      'notice', 'event', 'inquiry_reply', 'ev', 'ev_alarm', 'ev_watch', 'gas_price',
+      'notice',
+      'event',
+      'inquiry_reply',
+      'ev',
+      'ev_alarm',
+      'ev_watch',
+      'gas_price',
       'fuel_report',
     }.contains(type);
   }
@@ -1643,9 +1800,15 @@ class _AlertPageState extends State<_AlertPage> {
       case 'notice':
         return (icon: Icons.campaign_rounded, color: const Color(0xFFE8700A));
       case 'event':
-        return (icon: Icons.card_giftcard_rounded, color: const Color(0xFF7C3AED));
+        return (
+          icon: Icons.card_giftcard_rounded,
+          color: const Color(0xFF7C3AED)
+        );
       case 'inquiry_reply':
-        return (icon: Icons.mark_chat_read_rounded, color: const Color(0xFF16A34A));
+        return (
+          icon: Icons.mark_chat_read_rounded,
+          color: const Color(0xFF16A34A)
+        );
       case 'fuel_report':
         return (icon: Icons.insights_rounded, color: AppColors.gasBlue);
       case 'ev':
@@ -1653,7 +1816,10 @@ class _AlertPageState extends State<_AlertPage> {
       case 'ev_watch':
         return (icon: Icons.bolt_rounded, color: const Color(0xFF16A34A));
       default:
-        return (icon: Icons.local_gas_station_rounded, color: AppColors.gasBlue);
+        return (
+          icon: Icons.local_gas_station_rounded,
+          color: AppColors.gasBlue
+        );
     }
   }
 
@@ -1671,7 +1837,8 @@ class _AlertPageState extends State<_AlertPage> {
       backgroundColor: isDark ? AppColors.darkBg : const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: isDark ? AppColors.darkCard : Colors.white,
-        foregroundColor: isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a),
+        foregroundColor:
+            isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a),
         elevation: 0,
         leading: _selectionMode
             ? TextButton(
@@ -1698,8 +1865,7 @@ class _AlertPageState extends State<_AlertPage> {
                           fontSize: 14, color: AppColors.gasBlue)),
                 ),
                 TextButton(
-                  onPressed:
-                      _selected.isEmpty ? null : _confirmDeleteSelected,
+                  onPressed: _selected.isEmpty ? null : _confirmDeleteSelected,
                   child: Text('삭제',
                       style: TextStyle(
                           fontSize: 14,
@@ -1761,9 +1927,8 @@ class _AlertPageState extends State<_AlertPage> {
                   onTap: _selectionMode
                       ? () => _toggleSelect(id)
                       : (canOpen ? () => _openFromAlert(msg) : null),
-                  onLongPress: _selectionMode
-                      ? null
-                      : () => _enterSelectionMode(id),
+                  onLongPress:
+                      _selectionMode ? null : () => _enterSelectionMode(id),
                   child: Container(
                     color: isSelected
                         ? AppColors.gasBlue.withValues(alpha: 0.07)
@@ -1781,9 +1946,8 @@ class _AlertPageState extends State<_AlertPage> {
                                   ? Icons.check_circle_rounded
                                   : Icons.radio_button_unchecked_rounded,
                               size: 22,
-                              color: isSelected
-                                  ? AppColors.gasBlue
-                                  : mutedColor,
+                              color:
+                                  isSelected ? AppColors.gasBlue : mutedColor,
                             ),
                           )
                         else
@@ -1795,8 +1959,8 @@ class _AlertPageState extends State<_AlertPage> {
                               color: visual.color.withValues(alpha: 0.1),
                               shape: BoxShape.circle,
                             ),
-                            child:
-                                Icon(visual.icon, color: visual.color, size: 20),
+                            child: Icon(visual.icon,
+                                color: visual.color, size: 20),
                           ),
                         Expanded(
                           child: Column(
@@ -1813,8 +1977,7 @@ class _AlertPageState extends State<_AlertPage> {
                                     ),
                                   ),
                                   Text(
-                                    _formatTime(
-                                        msg['timestamp'] as String?),
+                                    _formatTime(msg['timestamp'] as String?),
                                     style: TextStyle(
                                         fontSize: 11, color: mutedColor),
                                   ),
@@ -1880,7 +2043,8 @@ class _FavoritesTab extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text('즐겨찾기', style: Theme.of(context).textTheme.headlineSmall),
+              child: Text('즐겨찾기',
+                  style: Theme.of(context).textTheme.headlineSmall),
             ),
           ),
           const Expanded(child: FavoritesScreen()),
@@ -1889,7 +2053,6 @@ class _FavoritesTab extends StatelessWidget {
     );
   }
 }
-
 
 // ─── 설정 탭 래퍼 ───
 class _SettingsTab extends StatelessWidget {
@@ -1911,15 +2074,18 @@ class _AccountCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider);
     final ready = ref.watch(authInitializedProvider); // 복원 완료 전엔 로그인 상태 단정 X
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textPrimary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
     final loggedIn = user != null;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
-        onTap: () => loggedIn ? context.push('/account') : context.push('/login'),
+        onTap: () =>
+            loggedIn ? context.push('/account') : context.push('/login'),
         child: Ink(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
@@ -1931,7 +2097,8 @@ class _AccountCard extends ConsumerWidget {
               end: Alignment.centerRight,
             ),
             border: Border.all(
-              color: isDark ? AppColors.darkCardBorder : const Color(0xFFDCE7F0),
+              color:
+                  isDark ? AppColors.darkCardBorder : const Color(0xFFDCE7F0),
               width: 1,
             ),
           ),
@@ -1951,11 +2118,16 @@ class _AccountCard extends ConsumerWidget {
                     shape: BoxShape.circle,
                   ),
                   clipBehavior: Clip.antiAlias,
-                  child: (loggedIn && (user.profileImageUrl?.isNotEmpty ?? false))
-                      ? Image.network(user.profileImageUrl!, fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              const Icon(Icons.person_rounded, color: Colors.white, size: 30))
-                      : const Icon(Icons.person_rounded, color: Colors.white, size: 30),
+                  child:
+                      (loggedIn && (user.profileImageUrl?.isNotEmpty ?? false))
+                          ? Image.network(user.profileImageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const Icon(
+                                  Icons.person_rounded,
+                                  color: Colors.white,
+                                  size: 30))
+                          : const Icon(Icons.person_rounded,
+                              color: Colors.white, size: 30),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -1967,7 +2139,11 @@ class _AccountCard extends ConsumerWidget {
                         children: [
                           Flexible(
                             child: Text(
-                              !ready ? '불러오는 중…' : (loggedIn ? '${user.nickname ?? '사용자'}님' : '로그인이 필요합니다'),
+                              !ready
+                                  ? '불러오는 중…'
+                                  : (loggedIn
+                                      ? '${user.nickname ?? '사용자'}님'
+                                      : '로그인이 필요합니다'),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
@@ -1979,7 +2155,8 @@ class _AccountCard extends ConsumerWidget {
                             ),
                           ),
                           const SizedBox(width: 4),
-                          Icon(Icons.chevron_right_rounded, size: 20, color: textSecondary),
+                          Icon(Icons.chevron_right_rounded,
+                              size: 20, color: textSecondary),
                         ],
                       ),
                       const SizedBox(height: 4),
@@ -1991,7 +2168,8 @@ class _AccountCard extends ConsumerWidget {
                                 : '폰을 바꿔도 차량 정보·설정이 그대로 유지돼요'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12.5, height: 1.4, color: textSecondary),
+                        style: TextStyle(
+                            fontSize: 12.5, height: 1.4, color: textSecondary),
                       ),
                     ],
                   ),
@@ -2003,7 +2181,6 @@ class _AccountCard extends ConsumerWidget {
       ),
     );
   }
-
 }
 
 /// 홈 위젯 배경 투명도 조절 타일 — 탭하면 슬라이더 시트(투명도 0~100%).
@@ -2040,8 +2217,8 @@ class _RouteEngineTileEmbedState extends State<_RouteEngineTileEmbed> {
     final label = RouteEnginePref.label(RouteEnginePref.get());
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      leading:
-          SettingsScreenEmbed.settingsIconChip(Icons.alt_route_rounded, widget.isDark),
+      leading: SettingsScreenEmbed.settingsIconChip(
+          Icons.alt_route_rounded, widget.isDark),
       title: Text('AI 경로 기준',
           style: Theme.of(context)
               .textTheme
@@ -2066,6 +2243,115 @@ class _RouteEngineTileEmbedState extends State<_RouteEngineTileEmbed> {
   }
 }
 
+/// 길찾기 범위 — 추천 주유소까지만 / 목적지까지 한 번에.
+/// 길찾기 시트에서도 매번 바꿀 수 있고, 여기선 기본값을 정한다(같은 값을 공유).
+class _NavScopeTileEmbed extends StatefulWidget {
+  final bool isDark;
+  const _NavScopeTileEmbed({required this.isDark});
+  @override
+  State<_NavScopeTileEmbed> createState() => _NavScopeTileEmbedState();
+}
+
+class _NavScopeTileEmbedState extends State<_NavScopeTileEmbed> {
+  @override
+  void initState() {
+    super.initState();
+    NavScopePref.version.addListener(_onChanged);
+  }
+
+  @override
+  void dispose() {
+    NavScopePref.version.removeListener(_onChanged);
+    super.dispose();
+  }
+
+  void _onChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final muted =
+        widget.isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final cur = NavScopePref.get();
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      leading: SettingsScreenEmbed.settingsIconChip(
+          Icons.turn_sharp_right_rounded, widget.isDark),
+      title: Text('길찾기 기본',
+          style: Theme.of(context)
+              .textTheme
+              .titleSmall
+              ?.copyWith(fontWeight: FontWeight.w600)),
+      subtitle: Text('추천 주유소까지만 안내할지, 목적지까지 이어서 안내할지',
+          style: TextStyle(fontSize: 11.5, color: muted)),
+      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+        Text(NavScopePref.label(cur),
+            style:
+                Theme.of(context).textTheme.bodyMedium?.copyWith(color: muted)),
+        Padding(
+          padding: const EdgeInsets.only(left: 2),
+          child: Icon(Icons.chevron_right_rounded, size: 20, color: muted),
+        ),
+      ]),
+      onTap: () async {
+        final picked = await showModalBottomSheet<String>(
+          context: context,
+          shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+          builder: (ctx) {
+            final dark = Theme.of(ctx).brightness == Brightness.dark;
+            final m = dark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+            Widget item(String v, String title, String sub, IconData ic) =>
+                ListTile(
+                  leading: Icon(ic,
+                      size: 22, color: cur == v ? AppColors.gasBlue : m),
+                  title: Text(title,
+                      style: const TextStyle(
+                          fontSize: 14.5, fontWeight: FontWeight.w700)),
+                  subtitle: Text(sub, style: TextStyle(fontSize: 12, color: m)),
+                  trailing: cur == v
+                      ? const Icon(Icons.check_circle_rounded,
+                          color: AppColors.gasBlue, size: 20)
+                      : null,
+                  onTap: () => Navigator.pop(ctx, v),
+                );
+            return SafeArea(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const SizedBox(height: 14),
+                Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                        color: dark ? Colors.white24 : Colors.black12,
+                        borderRadius: BorderRadius.circular(2))),
+                const SizedBox(height: 14),
+                const Text('길찾기 기본',
+                    style:
+                        TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 6),
+                item(NavScopePref.destination, '목적지까지',
+                    '추천 주유소를 경유지로 넣고 목적지까지 안내', Icons.flag_rounded),
+                item(NavScopePref.station, '주유소까지', '추천 주유소만 목적지로 안내 (예전 방식)',
+                    Icons.local_gas_station_rounded),
+                const SizedBox(height: 10),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text('길찾기 시트에서도 매번 바꿀 수 있어요',
+                      style: TextStyle(fontSize: 11.5, color: m)),
+                ),
+                const SizedBox(height: 12),
+              ]),
+            );
+          },
+        );
+        if (picked != null) await NavScopePref.set(picked);
+        if (mounted) setState(() {});
+      },
+    );
+  }
+}
+
 class _WidgetOpacityTile extends StatefulWidget {
   const _WidgetOpacityTile({required this.isDark});
   final bool isDark;
@@ -2080,7 +2366,8 @@ class _WidgetOpacityTileState extends State<_WidgetOpacityTile> {
   void initState() {
     super.initState();
     WidgetService.getWidgetOpacity().then((opacity) {
-      if (mounted) setState(() => _transparency = (100 - opacity).clamp(0, 100));
+      if (mounted)
+        setState(() => _transparency = (100 - opacity).clamp(0, 100));
     });
   }
 
@@ -2096,9 +2383,8 @@ class _WidgetOpacityTileState extends State<_WidgetOpacityTile> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) {
           // 설명문은 secondary — muted 는 캡션용이라 설명 문장엔 한 단계 밝게.
-          final desc = isDark
-              ? AppColors.darkTextSecondary
-              : AppColors.lightTextMuted;
+          final desc =
+              isDark ? AppColors.darkTextSecondary : AppColors.lightTextMuted;
           return SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
@@ -2143,9 +2429,8 @@ class _WidgetOpacityTileState extends State<_WidgetOpacityTile> {
                             textAlign: TextAlign.right,
                             style: TextStyle(
                                 fontWeight: FontWeight.w700,
-                                color: isDark
-                                    ? AppColors.darkTextPrimary
-                                    : null)),
+                                color:
+                                    isDark ? AppColors.darkTextPrimary : null)),
                       ),
                     ],
                   ),
@@ -2164,8 +2449,8 @@ class _WidgetOpacityTileState extends State<_WidgetOpacityTile> {
         widget.isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      leading:
-          SettingsScreenEmbed.settingsIconChip(Icons.opacity_rounded, widget.isDark),
+      leading: SettingsScreenEmbed.settingsIconChip(
+          Icons.opacity_rounded, widget.isDark),
       title: Text('위젯 배경 투명도',
           style: Theme.of(context)
               .textTheme
@@ -2173,7 +2458,8 @@ class _WidgetOpacityTileState extends State<_WidgetOpacityTile> {
               ?.copyWith(fontWeight: FontWeight.w600)),
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
         Text('$_transparency%',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: muted)),
+            style:
+                Theme.of(context).textTheme.bodyMedium?.copyWith(color: muted)),
         Padding(
           padding: const EdgeInsets.only(left: 2),
           child: Icon(Icons.chevron_right_rounded, size: 20, color: muted),
@@ -2311,7 +2597,8 @@ class _AiConsentTileState extends State<_AiConsentTile> {
 
   @override
   Widget build(BuildContext context) {
-    final muted = widget.isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final muted =
+        widget.isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     final on = AiConsent.value == true;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
@@ -2341,7 +2628,8 @@ class _ChargeMarketingTile extends ConsumerStatefulWidget {
   const _ChargeMarketingTile({required this.isDark});
 
   @override
-  ConsumerState<_ChargeMarketingTile> createState() => _ChargeMarketingTileState();
+  ConsumerState<_ChargeMarketingTile> createState() =>
+      _ChargeMarketingTileState();
 }
 
 class _ChargeMarketingTileState extends ConsumerState<_ChargeMarketingTile> {
@@ -2378,7 +2666,10 @@ class _ChargeMarketingTileState extends ConsumerState<_ChargeMarketingTile> {
         .firstWhere(
           (c) => c.key == 'marketing',
           orElse: () => const SignupConsent(
-              key: 'marketing', title: '마케팅 정보 수신', required: false, version: '1.0'),
+              key: 'marketing',
+              title: '마케팅 정보 수신',
+              required: false,
+              version: '1.0'),
         )
         .version;
     await DkswCore.postConsents([
@@ -2400,15 +2691,20 @@ class _ChargeMarketingTileState extends ConsumerState<_ChargeMarketingTile> {
 
   @override
   Widget build(BuildContext context) {
-    final muted = widget.isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final muted =
+        widget.isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     ref.watch(authProvider); // 회원가입 등 외부 동의 변경 시 리빌드 트리거
     final on = _on; // 게스트도 device 기반 consent 로 ON 가능
     void handle(bool v) => _set(v);
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      leading: SettingsScreenEmbed.settingsIconChip(Icons.campaign_rounded, widget.isDark),
+      leading: SettingsScreenEmbed.settingsIconChip(
+          Icons.campaign_rounded, widget.isDark),
       title: Text('이벤트·혜택 알림 받기',
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+          style: Theme.of(context)
+              .textTheme
+              .titleSmall
+              ?.copyWith(fontWeight: FontWeight.w600)),
       subtitle: Text('이벤트·프로모션 등 광고성 정보 수신',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(color: muted)),
       trailing: Switch(
@@ -2460,14 +2756,21 @@ class SettingsScreenEmbed extends ConsumerWidget {
           ),
           _sectionHeader(context, '차량 설정'),
           settingsCard(isDark, [
-            _tile(context, isDark, Icons.directions_car_rounded, '차량 타입', settings.vehicleType.label, () {
-              _showPicker(context, '차량 타입', VehicleType.values.map((t) => t.label).toList(),
-                VehicleType.values.indexOf(settings.vehicleType),
-                (i) => ref.read(settingsProvider.notifier).setVehicleType(VehicleType.values[i]));
+            _tile(context, isDark, Icons.directions_car_rounded, '차량 타입',
+                settings.vehicleType.label, () {
+              _showPicker(
+                  context,
+                  '차량 타입',
+                  VehicleType.values.map((t) => t.label).toList(),
+                  VehicleType.values.indexOf(settings.vehicleType),
+                  (i) => ref
+                      .read(settingsProvider.notifier)
+                      .setVehicleType(VehicleType.values[i]));
             }),
             if (settings.vehicleType != VehicleType.ev) ...[
               settingsDivider(isDark),
-              _tile(context, isDark, Icons.local_gas_station_rounded, '유종', fuelSummary, () {
+              _tile(context, isDark, Icons.local_gas_station_rounded, '유종',
+                  fuelSummary, () {
                 _showFuelMultiPicker(context, ref);
               }),
             ],
@@ -2483,11 +2786,17 @@ class SettingsScreenEmbed extends ConsumerWidget {
           _sectionHeader(context, '앱 설정'),
           settingsCard(isDark, [
             _tile(context, isDark, Icons.dark_mode_rounded, '테마',
-              themeMode == ThemeMode.dark ? '다크' : '라이트', () {
-                const modes = [ThemeMode.light, ThemeMode.dark];
-                _showPicker(context, '테마', ['라이트 모드', '다크 모드'],
-                  modes.indexOf(themeMode == ThemeMode.system ? ThemeMode.light : themeMode),
-                  (i) => ref.read(themeModeProvider.notifier).setTheme(modes[i]));
+                themeMode == ThemeMode.dark ? '다크' : '라이트', () {
+              const modes = [ThemeMode.light, ThemeMode.dark];
+              _showPicker(
+                  context,
+                  '테마',
+                  ['라이트 모드', '다크 모드'],
+                  modes.indexOf(themeMode == ThemeMode.system
+                      ? ThemeMode.light
+                      : themeMode),
+                  (i) =>
+                      ref.read(themeModeProvider.notifier).setTheme(modes[i]));
             }),
             settingsDivider(isDark),
             // 리포트는 주제별로 발행되고 내 차종에 맞는 것만 보이므로 타이틀도 맞춘다
@@ -2505,6 +2814,8 @@ class SettingsScreenEmbed extends ConsumerWidget {
                   MaterialPageRoute(builder: (_) => const FuelReportScreen()));
             }),
             settingsDivider(isDark),
+            _NavScopeTileEmbed(isDark: isDark),
+            settingsDivider(isDark),
             _RouteEngineTileEmbed(isDark: isDark),
             settingsDivider(isDark),
             _WidgetOpacityTile(isDark: isDark),
@@ -2519,9 +2830,13 @@ class SettingsScreenEmbed extends ConsumerWidget {
             _tile(context, isDark, Icons.star_rounded, '리뷰를 남겨주세요', '',
                 () => RatingPromptService.openReview()),
             settingsDivider(isDark),
-            _tile(context, isDark, Icons.share_rounded, '친구에게 추천하기', '',
-                () => Share.share(
-                    '전기차 기름차 - 충전소·주유소 실시간 최저가·빈자리 알림 앱\n'
+            _tile(
+                context,
+                isDark,
+                Icons.share_rounded,
+                '친구에게 추천하기',
+                '',
+                () => Share.share('전기차 기름차 - 충전소·주유소 실시간 최저가·빈자리 알림 앱\n'
                     'https://play.google.com/store/apps/details?id=com.dksw.charge')),
             settingsDivider(isDark),
             _tile(context, isDark, Icons.description_outlined, '정책 및 약관', '',
@@ -2535,7 +2850,9 @@ class SettingsScreenEmbed extends ConsumerWidget {
                   'App version: ${DkswCore.appVersion}',
                   style: TextStyle(
                     fontSize: 12,
-                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                    color: isDark
+                        ? AppColors.darkTextMuted
+                        : AppColors.lightTextMuted,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -2543,7 +2860,9 @@ class SettingsScreenEmbed extends ConsumerWidget {
                   'Copyright 2026. 동키소프트웨어 All rights reserved.',
                   style: TextStyle(
                     fontSize: 11,
-                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                    color: isDark
+                        ? AppColors.darkTextMuted
+                        : AppColors.lightTextMuted,
                   ),
                 ),
               ],
@@ -2606,15 +2925,21 @@ class SettingsScreenEmbed extends ConsumerWidget {
         child: Icon(icon, size: 20, color: AppColors.gasBlue),
       );
 
-  Widget _tile(BuildContext context, bool isDark, IconData icon, String title, String value, VoidCallback? onTap) {
+  Widget _tile(BuildContext context, bool isDark, IconData icon, String title,
+      String value, VoidCallback? onTap) {
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       leading: settingsIconChip(icon, isDark),
       title: Text(title,
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+          style: Theme.of(context)
+              .textTheme
+              .titleSmall
+              ?.copyWith(fontWeight: FontWeight.w600)),
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-        Text(value, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: muted)),
+        Text(value,
+            style:
+                Theme.of(context).textTheme.bodyMedium?.copyWith(color: muted)),
         if (onTap != null)
           Padding(
             padding: const EdgeInsets.only(left: 2),
@@ -2625,7 +2950,8 @@ class SettingsScreenEmbed extends ConsumerWidget {
     );
   }
 
-  void _showPicker(BuildContext context, String title, List<String> options, int selected, ValueChanged<int> onSelect) {
+  void _showPicker(BuildContext context, String title, List<String> options,
+      int selected, ValueChanged<int> onSelect) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -2640,11 +2966,18 @@ class SettingsScreenEmbed extends ConsumerWidget {
               const SizedBox(height: 16),
               Text(title, style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
-              ...List.generate(options.length, (i) => ListTile(
-                title: Text(options[i]),
-                trailing: i == selected ? const Icon(Icons.check, color: AppColors.gasBlue) : null,
-                onTap: () { onSelect(i); Navigator.pop(context); },
-              )),
+              ...List.generate(
+                  options.length,
+                  (i) => ListTile(
+                        title: Text(options[i]),
+                        trailing: i == selected
+                            ? const Icon(Icons.check, color: AppColors.gasBlue)
+                            : null,
+                        onTap: () {
+                          onSelect(i);
+                          Navigator.pop(context);
+                        },
+                      )),
               const SizedBox(height: 16),
             ]),
           ),
@@ -2669,8 +3002,7 @@ class SettingsScreenEmbed extends ConsumerWidget {
         builder: (ctx, setSheet) => SafeArea(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             const SizedBox(height: 16),
-            Text('유종 (복수 선택)',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text('유종 (복수 선택)', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             ...order.map((t) {
               final on = selected.contains(t.code);
@@ -2760,7 +3092,8 @@ class _SupportEmbedState extends State<_SupportEmbed> {
       (r[1] as List).length,
       (r[2] as List).length,
     );
-    debugPrint('[SupportEmbed] fetched: n=${c.notices} e=${c.events} f=${c.faqs}');
+    debugPrint(
+        '[SupportEmbed] fetched: n=${c.notices} e=${c.events} f=${c.faqs}');
     return c;
   }
 
@@ -2779,32 +3112,46 @@ class _SupportEmbedState extends State<_SupportEmbed> {
         final hasE = c != null && c.events > 0;
         final hasF = c != null && c.faqs > 0;
         final isDark = widget.isDark;
-        final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+        final muted =
+            isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
 
-        Widget tile(IconData icon, String title, int count, String route) => ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-          leading: SettingsScreenEmbed.settingsIconChip(icon, isDark),
-          title: Text(title,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-            if (count > 0) Text('$count', style: TextStyle(fontSize: 13, color: muted)),
-            if (count > 0) const SizedBox(width: 4),
-            Icon(Icons.chevron_right_rounded, size: 20, color: muted),
-          ]),
-          onTap: () => context.push(route),
-        );
+        Widget tile(IconData icon, String title, int count, String route) =>
+            ListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              leading: SettingsScreenEmbed.settingsIconChip(icon, isDark),
+              title: Text(title,
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w600)),
+              trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                if (count > 0)
+                  Text('$count', style: TextStyle(fontSize: 13, color: muted)),
+                if (count > 0) const SizedBox(width: 4),
+                Icon(Icons.chevron_right_rounded, size: 20, color: muted),
+              ]),
+              onTap: () => context.push(route),
+            );
 
         final tiles = <Widget>[
           // 공지사항은 글이 없어도 항상 노출.
           tile(Icons.campaign_rounded, '공지사항', c?.notices ?? 0, '/notices'),
-          if (hasE) tile(Icons.celebration_rounded, '이벤트', c!.events, '/events'),
-          if (hasF) tile(Icons.help_outline_rounded, '자주 묻는 질문', c!.faqs, '/faq'),
+          if (hasE)
+            tile(Icons.celebration_rounded, '이벤트', c!.events, '/events'),
+          if (hasF)
+            tile(Icons.help_outline_rounded, '자주 묻는 질문', c!.faqs, '/faq'),
           // 1:1 문의하기 — 항상 노출
           ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            leading: SettingsScreenEmbed.settingsIconChip(Icons.support_agent_rounded, isDark),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            leading: SettingsScreenEmbed.settingsIconChip(
+                Icons.support_agent_rounded, isDark),
             title: Text('1:1 문의하기',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                style: Theme.of(context)
+                    .textTheme
+                    .titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w600)),
             trailing: Icon(Icons.chevron_right_rounded, size: 20, color: muted),
             onTap: () async {
               // 1:1 문의는 로그인 전용 — 내역이 기기 바꿔도 유지되도록.
@@ -2872,7 +3219,7 @@ class _SupportEmbedState extends State<_SupportEmbed> {
 class _AlertSettingTileEmbed extends StatefulWidget {
   final bool isDark;
   const _AlertSettingTileEmbed({required this.isDark});
-  
+
   @override
   State<_AlertSettingTileEmbed> createState() => _AlertSettingTileEmbedState();
 }
@@ -2963,19 +3310,25 @@ class _AlertSettingTileEmbedState extends State<_AlertSettingTileEmbed> {
   @override
   Widget build(BuildContext context) {
     final isDark = widget.isDark;
-    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    final secondaryColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final mutedColor =
+        isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final secondaryColor =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
     return Column(
       children: [
         ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           leading: Icon(
-            _enabled ? Icons.notifications_rounded : Icons.notifications_off_rounded,
+            _enabled
+                ? Icons.notifications_rounded
+                : Icons.notifications_off_rounded,
             size: 22,
             color: _enabled ? AppColors.gasBlue : secondaryColor,
           ),
-          title: Text('주유 가격 알림', style: Theme.of(context).textTheme.titleSmall),
+          title:
+              Text('주유 가격 알림', style: Theme.of(context).textTheme.titleSmall),
           subtitle: Text(
             _enabled
                 ? '${_ids.isEmpty ? '알림 주유소 없음' : '${_ids.length}/${AlertService.gasAlarmMaxCount}곳 설정됨'} · 매일 $_alertTimeText 발송'
@@ -2989,7 +3342,8 @@ class _AlertSettingTileEmbedState extends State<_AlertSettingTileEmbed> {
                 GestureDetector(
                   onTap: _pickAlertTime,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     margin: const EdgeInsets.only(right: 4),
                     decoration: BoxDecoration(
                       color: AppColors.gasBlue.withValues(alpha: 0.1),
@@ -2997,7 +3351,10 @@ class _AlertSettingTileEmbedState extends State<_AlertSettingTileEmbed> {
                     ),
                     child: Text(
                       _alertTimeText,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.gasBlue),
+                      style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.gasBlue),
                     ),
                   ),
                 ),
@@ -3009,15 +3366,21 @@ class _AlertSettingTileEmbedState extends State<_AlertSettingTileEmbed> {
                     child: AnimatedRotation(
                       turns: _expanded ? 0.5 : 0,
                       duration: const Duration(milliseconds: 200),
-                      child: Icon(Icons.keyboard_arrow_down_rounded, size: 22, color: mutedColor),
+                      child: Icon(Icons.keyboard_arrow_down_rounded,
+                          size: 22, color: mutedColor),
                     ),
                   ),
                 ),
               _toggling
                   ? const SizedBox(
-                      width: 36, height: 20,
-                      child: Center(child: SizedBox(width: 16, height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2))))
+                      width: 36,
+                      height: 20,
+                      child: Center(
+                          child: SizedBox(
+                              width: 16,
+                              height: 16,
+                              child:
+                                  CircularProgressIndicator(strokeWidth: 2))))
                   : Transform.scale(
                       scale: 0.85,
                       child: Switch(
@@ -3028,9 +3391,10 @@ class _AlertSettingTileEmbedState extends State<_AlertSettingTileEmbed> {
                     ),
             ],
           ),
-          onTap: _ids.isNotEmpty ? () => setState(() => _expanded = !_expanded) : null,
+          onTap: _ids.isNotEmpty
+              ? () => setState(() => _expanded = !_expanded)
+              : null,
         ),
-
         if (_enabled)
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
@@ -3051,14 +3415,19 @@ class _AlertSettingTileEmbedState extends State<_AlertSettingTileEmbed> {
                         setState(() => _soundMode = idx);
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
                           color: selected
                               ? AppColors.gasBlue.withValues(alpha: 0.15)
-                              : (isDark ? const Color(0x0AFFFFFF) : const Color(0xFFF1F5F9)),
+                              : (isDark
+                                  ? const Color(0x0AFFFFFF)
+                                  : const Color(0xFFF1F5F9)),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: selected ? AppColors.gasBlue : Colors.transparent,
+                            color: selected
+                                ? AppColors.gasBlue
+                                : Colors.transparent,
                             width: 1,
                           ),
                         ),
@@ -3066,8 +3435,10 @@ class _AlertSettingTileEmbedState extends State<_AlertSettingTileEmbed> {
                           label,
                           style: TextStyle(
                             fontSize: 12,
-                            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                            color: selected ? AppColors.gasBlue : secondaryColor,
+                            fontWeight:
+                                selected ? FontWeight.w600 : FontWeight.normal,
+                            color:
+                                selected ? AppColors.gasBlue : secondaryColor,
                           ),
                         ),
                       ),
@@ -3077,7 +3448,6 @@ class _AlertSettingTileEmbedState extends State<_AlertSettingTileEmbed> {
               ],
             ),
           ),
-
         AnimatedSize(
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeInOut,
@@ -3085,16 +3455,22 @@ class _AlertSettingTileEmbedState extends State<_AlertSettingTileEmbed> {
               ? Container(
                   margin: const EdgeInsets.fromLTRB(14, 2, 14, 10),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0x0AFFFFFF) : const Color(0xFFF8FAFC),
+                    color: isDark
+                        ? const Color(0x0AFFFFFF)
+                        : const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: isDark ? const Color(0x14FFFFFF) : const Color(0xFFE2E8F0),
+                      color: isDark
+                          ? const Color(0x14FFFFFF)
+                          : const Color(0xFFE2E8F0),
                       width: 0.5,
                     ),
                   ),
                   child: Column(
                     children: _ids.map((id) {
-                      final name = StationAliasService.resolve(id, AlertService().stationName(id), type: 'gas');
+                      final name = StationAliasService.resolve(
+                          id, AlertService().stationName(id),
+                          type: 'gas');
                       final fuelTypes = AlertService().subscribedFuelTypes(id);
                       return ListTile(
                         dense: true,
@@ -3102,21 +3478,32 @@ class _AlertSettingTileEmbedState extends State<_AlertSettingTileEmbed> {
                         leading: Icon(Icons.local_gas_station_rounded,
                             size: 18, color: AppColors.gasBlue),
                         title: Text(name,
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                            style: const TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w500)),
                         subtitle: fuelTypes.isNotEmpty
                             ? Padding(
                                 padding: const EdgeInsets.only(top: 3),
                                 child: Wrap(
                                   spacing: 4,
-                                  children: fuelTypes.map((ft) => Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.gasBlue.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(AlertService.fuelLabel(ft),
-                                        style: const TextStyle(fontSize: 11, color: AppColors.gasBlue, fontWeight: FontWeight.w600)),
-                                  )).toList(),
+                                  children: fuelTypes
+                                      .map((ft) => Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.gasBlue
+                                                  .withValues(alpha: 0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                                AlertService.fuelLabel(ft),
+                                                style: const TextStyle(
+                                                    fontSize: 11,
+                                                    color: AppColors.gasBlue,
+                                                    fontWeight:
+                                                        FontWeight.w600)),
+                                          ))
+                                      .toList(),
                                 ),
                               )
                             : null,
@@ -3146,7 +3533,8 @@ class _EvAlarmSettingTileEmbed extends StatefulWidget {
   final bool isDark;
   const _EvAlarmSettingTileEmbed({required this.isDark});
   @override
-  State<_EvAlarmSettingTileEmbed> createState() => _EvAlarmSettingTileEmbedState();
+  State<_EvAlarmSettingTileEmbed> createState() =>
+      _EvAlarmSettingTileEmbedState();
 }
 
 class _EvAlarmSettingTileEmbedState extends State<_EvAlarmSettingTileEmbed> {
@@ -3215,23 +3603,33 @@ class _EvAlarmSettingTileEmbedState extends State<_EvAlarmSettingTileEmbed> {
   @override
   Widget build(BuildContext context) {
     final isDark = widget.isDark;
-    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    final secondaryColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final mutedColor =
+        isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final secondaryColor =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
     return Column(
       children: [
         ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           leading: Icon(
-            _enabled ? Icons.ev_station_rounded : Icons.notifications_off_rounded,
+            _enabled
+                ? Icons.ev_station_rounded
+                : Icons.notifications_off_rounded,
             size: 22,
-            color: (_enabled && _ids.isNotEmpty) ? AppColors.evGreen : secondaryColor,
+            color: (_enabled && _ids.isNotEmpty)
+                ? AppColors.evGreen
+                : secondaryColor,
           ),
-          title: Text('충전소 현황 알림', style: Theme.of(context).textTheme.titleSmall),
+          title:
+              Text('충전소 현황 알림', style: Theme.of(context).textTheme.titleSmall),
           subtitle: Text(
             !_enabled
                 ? '알림 꺼짐'
-                : (_ids.isEmpty ? '알림 설정된 충전소 없음' : '${_ids.length}/${AlertService.evAlarmMaxCount}곳 설정됨'),
+                : (_ids.isEmpty
+                    ? '알림 설정된 충전소 없음'
+                    : '${_ids.length}/${AlertService.evAlarmMaxCount}곳 설정됨'),
             style: TextStyle(fontSize: 12, color: mutedColor),
           ),
           trailing: Row(
@@ -3245,7 +3643,8 @@ class _EvAlarmSettingTileEmbedState extends State<_EvAlarmSettingTileEmbed> {
                     child: AnimatedRotation(
                       turns: _expanded ? 0.5 : 0,
                       duration: const Duration(milliseconds: 200),
-                      child: Icon(Icons.keyboard_arrow_down_rounded, size: 22, color: mutedColor),
+                      child: Icon(Icons.keyboard_arrow_down_rounded,
+                          size: 22, color: mutedColor),
                     ),
                   ),
                 ),
@@ -3259,14 +3658,17 @@ class _EvAlarmSettingTileEmbedState extends State<_EvAlarmSettingTileEmbed> {
               ),
             ],
           ),
-          onTap: (_enabled && _ids.isNotEmpty) ? () => setState(() => _expanded = !_expanded) : null,
+          onTap: (_enabled && _ids.isNotEmpty)
+              ? () => setState(() => _expanded = !_expanded)
+              : null,
         ),
         if (_enabled && _ids.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
             child: Row(
               children: [
-                Text('알림 방식', style: TextStyle(fontSize: 12, color: mutedColor)),
+                Text('알림 방식',
+                    style: TextStyle(fontSize: 12, color: mutedColor)),
                 const SizedBox(width: 12),
                 ...['소리', '진동', '무음'].asMap().entries.map((e) {
                   final idx = e.key;
@@ -3280,22 +3682,29 @@ class _EvAlarmSettingTileEmbedState extends State<_EvAlarmSettingTileEmbed> {
                         setState(() => _soundMode = idx);
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
                           color: selected
                               ? AppColors.evGreen.withValues(alpha: 0.15)
-                              : (isDark ? const Color(0x0AFFFFFF) : const Color(0xFFF1F5F9)),
+                              : (isDark
+                                  ? const Color(0x0AFFFFFF)
+                                  : const Color(0xFFF1F5F9)),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: selected ? AppColors.evGreen : Colors.transparent,
+                            color: selected
+                                ? AppColors.evGreen
+                                : Colors.transparent,
                           ),
                         ),
                         child: Text(
                           label,
                           style: TextStyle(
                             fontSize: 12,
-                            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                            color: selected ? AppColors.evGreen : secondaryColor,
+                            fontWeight:
+                                selected ? FontWeight.w600 : FontWeight.normal,
+                            color:
+                                selected ? AppColors.evGreen : secondaryColor,
                           ),
                         ),
                       ),
@@ -3312,23 +3721,33 @@ class _EvAlarmSettingTileEmbedState extends State<_EvAlarmSettingTileEmbed> {
               ? Container(
                   margin: const EdgeInsets.fromLTRB(14, 2, 14, 10),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0x0AFFFFFF) : const Color(0xFFF8FAFC),
+                    color: isDark
+                        ? const Color(0x0AFFFFFF)
+                        : const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: isDark ? const Color(0x14FFFFFF) : const Color(0xFFE2E8F0),
+                      color: isDark
+                          ? const Color(0x14FFFFFF)
+                          : const Color(0xFFE2E8F0),
                       width: 0.5,
                     ),
                   ),
                   child: Column(
                     children: _ids.map((id) {
-                      final name = StationAliasService.resolve(id, AlertService().evAlarmStationName(id), type: 'ev');
+                      final name = StationAliasService.resolve(
+                          id, AlertService().evAlarmStationName(id),
+                          type: 'ev');
                       return ListTile(
                         dense: true,
                         contentPadding: const EdgeInsets.fromLTRB(14, 0, 4, 0),
-                        leading: const Icon(Icons.ev_station_rounded, size: 18, color: AppColors.evGreen),
-                        title: Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                        leading: const Icon(Icons.ev_station_rounded,
+                            size: 18, color: AppColors.evGreen),
+                        title: Text(name,
+                            style: const TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w500)),
                         trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                          icon: const Icon(Icons.delete_outline_rounded,
+                              color: Colors.redAccent, size: 20),
                           onPressed: () => _unsubscribe(id),
                         ),
                       );
@@ -3376,15 +3795,18 @@ class _DndSettingTileEmbedState extends State<_DndSettingTileEmbed> {
   Widget build(BuildContext context) {
     final isDark = widget.isDark;
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    final secondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final secondary =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
     return Column(
       children: [
         ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-          leading: Icon(Icons.bedtime_rounded, size: 22,
-              color: _enabled ? AppColors.gasBlue : secondary),
-          title: Text('방해 금지 시간', style: Theme.of(context).textTheme.titleSmall),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          leading: Icon(Icons.bedtime_rounded,
+              size: 22, color: _enabled ? AppColors.gasBlue : secondary),
+          title:
+              Text('방해 금지 시간', style: Theme.of(context).textTheme.titleSmall),
           subtitle: Text(
             !_enabled
                 ? '꺼짐'
@@ -3470,7 +3892,9 @@ class _DndSettingTileEmbedState extends State<_DndSettingTileEmbed> {
             Text('$label  ', style: TextStyle(fontSize: 11, color: secondary)),
             Text(_fmt(min),
                 style: const TextStyle(
-                    fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.gasBlue)),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.gasBlue)),
           ],
         ),
       ),

@@ -4,6 +4,8 @@ import 'package:kakao_flutter_sdk_navi/kakao_flutter_sdk_navi.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../app_dialog.dart';
 import '../constants/api_constants.dart';
+import '../theme/app_colors.dart';
+import 'nav_scope_pref.dart';
 
 // 길안내 오안내 주의 안내 "다시 보지 않기" 플래그 (일반/휴게소 별도, 전 내비 공통).
 // 제보 반영: ① 좌표가 어긋난 주유소·충전소는 어느 내비 앱이든 엉뚱한 위치로 안내될
@@ -13,24 +15,62 @@ import '../constants/api_constants.dart';
 const _kNavWarnOff = 'nav_warn_off';
 const _kNavWarnRestOff = 'nav_warn_rest_off';
 
+/// 길안내 경유지/목적지 한 지점.
+class NavStop {
+  final String name;
+  final double lat;
+  final double lng;
+  const NavStop({required this.name, required this.lat, required this.lng});
+}
+
+/// AI 탭에서 사용자가 넣은 경유지 — 결과 화면·상세 시트가 파라미터로 들고 다니지 않아도
+/// 내비 호출이 그대로 쓸 수 있게 세션에 보관한다. 추천 실행 시점에 갱신된다.
+class AiRouteSession {
+  AiRouteSession._();
+  static List<NavStop> vias = const [];
+  static void set(List<NavStop> v) => vias = List.unmodifiable(v);
+  static void clear() => vias = const [];
+}
+
+/// 앱별 경유지 수용 한계 (공식 문서 기준)
+///   티맵 rV1~rV5 = 5 / 카카오 viaList = 3 / 네이버 v1~v3 = 3
+const int _kTmapViaMax = 5;
+const int _kKakaoViaMax = 3;
+const int _kNaverViaMax = 3;
+
 /// 단순 목적지 길안내 (충전소/주유소 직접 안내)
+///
+/// [destination] 을 주면 시트 상단에 "주유소까지 / 목적지까지" 선택이 뜨고,
+/// 목적지까지를 고르면 [lat]/[lng] 지점과 [waypoints] 를 경유지로 넘긴다.
 Future<void> showNavigationSheet(
   BuildContext context, {
   required double lat,
   required double lng,
   required String name,
+  NavStop? destination,
+  List<NavStop> waypoints = const [],
 }) async {
   await showModalBottomSheet(
     context: context,
+    isScrollControlled: true, // 세그먼트·안내가 붙어도 작은 화면에서 잘리지 않게
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (_) => _NavigationSheet(lat: lat, lng: lng, name: name),
+    builder: (_) => _NavigationSheet(
+      lat: lat,
+      lng: lng,
+      name: name,
+      destination: destination,
+      waypoints: waypoints,
+    ),
   );
 }
 
-/// 경유지 포함 길안내 — 충전소/주유소를 목적지로 안내
-/// (네비 앱이 아니므로 충전소까지만 안내하는 것이 자연스러움)
+/// 경유지 포함 길안내 — 추천 주유소/충전소를 거쳐 최종 목적지까지.
+///
+/// 예전에는 "내비 앱이 경유지를 못 받는다"고 보고 주유소까지만 안내했는데,
+/// 3사 모두 경유지를 지원한다(티맵 5 / 카카오 3 / 네이버 3). 사용자가 AI 탭에서
+/// 넣은 경유지 [extraWaypoints] 도 순서 그대로 함께 넘긴다.
 Future<void> showViaWaypointNavigationSheet(
   BuildContext context, {
   required double originLat,
@@ -42,13 +82,20 @@ Future<void> showViaWaypointNavigationSheet(
   required double destinationLat,
   required double destinationLng,
   required String destinationName,
+  List<NavStop> extraWaypoints = const [],
 }) async {
-  // 충전소(경유지)를 목적지로 단순 안내
   await showNavigationSheet(
     context,
     lat: waypointLat,
     lng: waypointLng,
     name: waypointName,
+    destination: NavStop(
+      name: destinationName,
+      lat: destinationLat,
+      lng: destinationLng,
+    ),
+    // 명시 전달이 없으면 AI 탭에서 넣은 경유지를 그대로 쓴다
+    waypoints: extraWaypoints.isNotEmpty ? extraWaypoints : AiRouteSession.vias,
   );
 }
 
@@ -76,12 +123,20 @@ Future<void> _launchKakaoNavi({
   required String name,
   required double lat,
   required double lng,
+  List<NavStop> vias = const [],
 }) async {
   try {
     if (await NaviApi.instance.isKakaoNaviInstalled()) {
       await NaviApi.instance.navigate(
         destination: Location(name: name, x: '$lng', y: '$lat'),
         option: NaviOption(coordType: CoordType.wgs84),
+        // SDK 문서 기준 최대 3개 — 초과분은 호출부에서 이미 잘라서 넘긴다
+        viaList: vias.isEmpty
+            ? null
+            : vias
+                .map(
+                    (v) => Location(name: v.name, x: '${v.lng}', y: '${v.lat}'))
+                .toList(),
       );
     } else {
       await launchUrl(
@@ -97,15 +152,58 @@ Future<void> _launchKakaoNavi({
   }
 }
 
-class _NavigationSheet extends StatelessWidget {
+class _NavigationSheet extends StatefulWidget {
   final double lat, lng;
   final String name;
-  const _NavigationSheet(
-      {required this.lat, required this.lng, required this.name});
+  final NavStop? destination;
+  final List<NavStop> waypoints;
+  const _NavigationSheet({
+    required this.lat,
+    required this.lng,
+    required this.name,
+    this.destination,
+    this.waypoints = const [],
+  });
+
+  @override
+  State<_NavigationSheet> createState() => _NavigationSheetState();
+}
+
+class _NavigationSheetState extends State<_NavigationSheet> {
+  late bool _toDestination = NavScopePref.toDestination;
+
+  double get lat => widget.lat;
+  double get lng => widget.lng;
+  String get name => widget.name;
+
+  /// 목적지까지 안내할 때 넘길 경유지 — [추천 지점, 사용자 경유지…] 순서.
+  List<NavStop> get _stops => [
+        NavStop(name: name, lat: lat, lng: lng),
+        ...widget.waypoints,
+      ];
+
+  /// 실제 목적지 (목적지까지 모드면 최종 목적지, 아니면 추천 지점)
+  NavStop get _goal => _toDestination && widget.destination != null
+      ? widget.destination!
+      : NavStop(name: name, lat: lat, lng: lng);
+
+  List<NavStop> _viasFor(int max) =>
+      (_toDestination && widget.destination != null)
+          ? _stops.take(max).toList()
+          : const [];
+
+  /// 앱별로 몇 곳이 잘리는지 — 시트에 그대로 알려준다(조용히 버리지 않게)
+  String _viaNote(int max) {
+    if (!(_toDestination && widget.destination != null)) return '';
+    final n = _stops.length;
+    if (n == 0) return '';
+    return n <= max ? '경유 $n곳 전달' : '경유 $n곳 중 $max곳만 전달';
+  }
 
   @override
   Widget build(BuildContext context) {
     final restArea = _isRestArea(name);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -123,12 +221,20 @@ class _NavigationSheet extends StatelessWidget {
             const Text('길찾기 앱 선택',
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
+            if (widget.destination != null) ...[
+              _scopeSegment(isDark),
+              const SizedBox(height: 4),
+            ],
             _navItem(
               context,
               icon: const _NavAssetIcon('assets/nav/tmap_logo.webp'),
               label: '티맵',
-              subtitle: restArea ? '고속도로 휴게소는 티맵 안내를 권장해요' : 'SK텔레콤',
-              subtitleColor: restArea ? const Color(0xFFE07000) : Colors.grey,
+              subtitle: _viaNote(_kTmapViaMax).isNotEmpty
+                  ? _viaNote(_kTmapViaMax)
+                  : (restArea ? '고속도로 휴게소는 티맵 안내를 권장해요' : 'SK텔레콤'),
+              subtitleColor: restArea && _viaNote(_kTmapViaMax).isEmpty
+                  ? const Color(0xFFE07000)
+                  : Colors.grey,
               popBeforeTap: false,
               onTap: () => _tapNav(
                 context,
@@ -136,11 +242,7 @@ class _NavigationSheet extends StatelessWidget {
                   Uri(
                     scheme: 'tmap',
                     host: 'route',
-                    queryParameters: {
-                      'goalname': name,
-                      'goaly': '$lat',
-                      'goalx': '$lng',
-                    },
+                    queryParameters: _tmapParams(),
                   ).toString(),
                   fallback: 'https://www.tmap.co.kr',
                 ),
@@ -150,31 +252,154 @@ class _NavigationSheet extends StatelessWidget {
               context,
               icon: const _NavAssetIcon('assets/nav/naver_logo.png'),
               label: '네이버 지도',
-              subtitle: '네이버',
+              subtitle: _viaNote(_kNaverViaMax).isNotEmpty
+                  ? _viaNote(_kNaverViaMax)
+                  : '네이버',
               popBeforeTap: false,
               onTap: () => _tapNav(
                 context,
                 naver: true,
-                () => _launch(
-                  'nmap://navigation?dlat=$lat&dlng=$lng&dname=${Uri.encodeComponent(name)}&appname=${AppConstants.packageName}',
-                  fallback: 'https://map.naver.com',
-                ),
+                () => _launch(_naverUrl(), fallback: 'https://map.naver.com'),
               ),
             ),
             _navItem(
               context,
               icon: const _NavAssetIcon('assets/nav/kakaomap_logo.png'),
               label: '카카오내비',
-              subtitle: '카카오',
+              subtitle: _viaNote(_kKakaoViaMax).isNotEmpty
+                  ? _viaNote(_kKakaoViaMax)
+                  : '카카오',
               popBeforeTap: false,
               onTap: () => _tapNav(
                 context,
-                () => _launchKakaoNavi(name: name, lat: lat, lng: lng),
+                () => _launchKakaoNavi(
+                  name: _goal.name,
+                  lat: _goal.lat,
+                  lng: _goal.lng,
+                  vias: _viasFor(_kKakaoViaMax),
+                ),
               ),
             ),
             const SizedBox(height: 8),
           ],
         ),
+      ),
+    );
+  }
+
+  /// 티맵 파라미터 — 목적지 goalname/goalx/goaly + 경유지 rV1~rV5.
+  /// (공식 문서 'TMAPApp 길안내(옵션설정)' 기준, 경유지 최대 5개)
+  Map<String, String> _tmapParams() {
+    final g = _goal;
+    final p = <String, String>{
+      'goalname': g.name,
+      'goaly': '${g.lat}',
+      'goalx': '${g.lng}',
+    };
+    final vias = _viasFor(_kTmapViaMax);
+    for (var i = 0; i < vias.length; i++) {
+      p['rV${i + 1}Name'] = vias[i].name;
+      p['rV${i + 1}X'] = '${vias[i].lng}';
+      p['rV${i + 1}Y'] = '${vias[i].lat}';
+    }
+    return p;
+  }
+
+  /// 네이버 URL — 목적지 dlat/dlng/dname + 경유지 v1~v3
+  String _naverUrl() {
+    final g = _goal;
+    final b = StringBuffer('nmap://navigation?dlat=${g.lat}&dlng=${g.lng}'
+        '&dname=${Uri.encodeComponent(g.name)}');
+    final vias = _viasFor(_kNaverViaMax);
+    for (var i = 0; i < vias.length; i++) {
+      b.write('&v${i + 1}lat=${vias[i].lat}&v${i + 1}lng=${vias[i].lng}'
+          '&v${i + 1}name=${Uri.encodeComponent(vias[i].name)}');
+    }
+    b.write('&appname=${AppConstants.packageName}');
+    return b.toString();
+  }
+
+  /// 안내 범위 선택 — 매번 묻지 않고, 시트에서 바로 바꿀 수 있게.
+  Widget _scopeSegment(bool isDark) {
+    final border =
+        isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder;
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    Widget seg(String value, String label) {
+      final on =
+          (_toDestination ? NavScopePref.destination : NavScopePref.station) ==
+              value;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () {
+            final next = value == NavScopePref.destination;
+            if (next == _toDestination) return;
+            setState(() => _toDestination = next);
+            NavScopePref.set(value);
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(vertical: 9),
+            decoration: BoxDecoration(
+              color: on
+                  ? AppColors.gasBlue.withValues(alpha: isDark ? 0.22 : 0.10)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(
+                  color: on
+                      ? AppColors.gasBlue.withValues(alpha: 0.55)
+                      : Colors.transparent),
+            ),
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: on ? FontWeight.w800 : FontWeight.w600,
+                color: on
+                    ? AppColors.gasBlue
+                    : (isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.lightTextSecondary),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final n = _stops.length;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 2, 20, 0),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: (isDark ? Colors.white : Colors.black)
+                  .withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(11),
+              border: Border.all(color: border),
+            ),
+            child: Row(children: [
+              seg(NavScopePref.station, '주유소까지'),
+              seg(NavScopePref.destination, '목적지까지'),
+            ]),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _toDestination
+                ? (n > 1
+                    ? '$name 외 ${n - 1}곳 경유 → ${_goal.name}'
+                    : '$name 경유 → ${_goal.name}')
+                : '$name 까지만 안내해요',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 11.5, height: 1.4, color: muted),
+          ),
+        ],
       ),
     );
   }

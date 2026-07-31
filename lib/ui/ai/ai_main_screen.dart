@@ -48,6 +48,7 @@ import '../detail/gas_detail_screen.dart';
 import '../widgets/gas_station_map_badge.dart';
 import 'ai_constants.dart';
 import '../../data/services/rating_prompt_service.dart';
+import '../../core/utils/navigation_util.dart';
 
 class AiMainScreen extends ConsumerStatefulWidget {
   const AiMainScreen({super.key});
@@ -178,8 +179,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       final raw = (dn != null && dn.isNotEmpty)
           ? dn
           : (recSt['name']?.toString() ?? '');
-      name = StationAliasService.resolveGas(
-          (recSt['id'] ?? '').toString(), raw);
+      name =
+          StationAliasService.resolveGas((recSt['id'] ?? '').toString(), raw);
       recPrice = d(recSt['price_won_per_liter']);
     }
     final recCost = recItem is Map ? d(recItem['expected_cost_won']) : null;
@@ -202,9 +203,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       }
     }
     final others = prices.where((p) => p != recPrice).toList();
-    final avgPrice = others.isEmpty
-        ? null
-        : others.reduce((a, b) => a + b) / others.length;
+    final avgPrice =
+        others.isEmpty ? null : others.reduce((a, b) => a + b) / others.length;
 
     final facts = <RevealFact>[
       if (recPrice != null)
@@ -284,8 +284,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           ? (m['est_charge_kwh'] as num).toDouble()
           : null;
       if (recCost != null) {
-        facts.add(
-            (label: '예상 충전요금', value: '${wonFmt.format(recCost)}원'));
+        facts.add((label: '예상 충전요금', value: '${wonFmt.format(recCost)}원'));
       }
       if (unit != null) {
         facts.add((label: '단가', value: '${wonFmt.format(unit)}원/kWh'));
@@ -323,6 +322,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       facts: facts,
     );
   }
+
   bool _routesDistinct = false; // false면 두 경로 동일 → 선택 UI 숨김
   bool _loadingRouteAlts = false; // 경로 대안 불러오는 중 (로딩 표시)
   bool _heroCollapsed = false; // 배터리/차량 카드 접기 (지도 가림 최소화) // 교통 색상용
@@ -1023,7 +1023,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   }
 
   // ── 위치 선택 시트 ──
-  void _showLocationSheet({required bool isOrigin, bool forVia = false, int? viaIndex}) {
+  void _showLocationSheet(
+      {required bool isOrigin, bool forVia = false, int? viaIndex}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
@@ -1386,11 +1387,26 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   }
 
   /// 경유지 좌표 리스트 (API 전달용) — 아직 안 채운(pending) 행은 제외
-  List<Map<String, dynamic>> get _viaCoords => [
-        for (final v in _vias)
-          if (v['lat'] is num && v['lng'] is num)
-            {'lat': v['lat'], 'lng': v['lng']},
-      ];
+  List<Map<String, dynamic>> get _viaCoords {
+    final out = [
+      for (final v in _vias)
+        if (v['lat'] is num && v['lng'] is num)
+          {'lat': v['lat'], 'lng': v['lng']},
+    ];
+    // 내비 호출(결과 화면·상세 시트)이 파라미터 없이도 같은 경유지를 쓰도록 세션에 반영
+    AiRouteSession.set([
+      for (final v in _vias)
+        if (v['lat'] is num && v['lng'] is num)
+          NavStop(
+            name: (v['name'] ?? '경유지').toString().trim().isEmpty
+                ? '경유지'
+                : v['name'].toString(),
+            lat: (v['lat'] as num).toDouble(),
+            lng: (v['lng'] as num).toDouble(),
+          ),
+    ]);
+    return out;
+  }
 
   bool _viaMarkersBubble = false; // 확대 시 '경유 N' 버블 모드
 
@@ -1476,8 +1492,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         );
         final m = NMarker(
           id: 'ai_via_point_$i',
-          position: NLatLng((v['lat'] as num).toDouble(),
-              (v['lng'] as num).toDouble()),
+          position: NLatLng(
+              (v['lat'] as num).toDouble(), (v['lng'] as num).toDouble()),
           icon: icon,
           size: bubble ? const Size(64, 30) : const Size(22, 22),
           anchor: const NPoint(0.5, 0.5),
@@ -1537,7 +1553,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       _destName = last['name'] as String?;
       _vias
         ..clear()
-        ..addAll(slots.sublist(1, slots.length - 1).whereType<Map<String, dynamic>>());
+        ..addAll(slots
+            .sublist(1, slots.length - 1)
+            .whereType<Map<String, dynamic>>());
       _errorMessage = null;
     });
     _updateViaMarkers();
@@ -1756,7 +1774,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           color: isDark ? AppColors.darkCard : Colors.white,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-              color: isDark ? AppColors.darkCardBorder : const Color(0xFFE2E8F0)),
+              color:
+                  isDark ? AppColors.darkCardBorder : const Color(0xFFE2E8F0)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.08),
@@ -1823,7 +1842,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     );
   }
 
-  Widget _routeChip(Map<String, dynamic> r, bool isEv, {bool sameRoute = false}) {
+  Widget _routeChip(Map<String, dynamic> r, bool isEv,
+      {bool sameRoute = false}) {
     final accent = isEv ? const Color(0xFF10B981) : const Color(0xFF3B82F6);
     final accentLight =
         isEv ? const Color(0xFFECFDF5) : const Color(0xFFEFF6FF);
@@ -3718,7 +3738,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'pathPoints': pathPoints,
         if (directDurationMs != null) 'directDurationMs': directDurationMs,
         'highwayOnly': _evHighwayOnly,
-        if (_preferredEvOperators.isNotEmpty) 'operators': _preferredEvOperators.toList(),
+        if (_preferredEvOperators.isNotEmpty)
+          'operators': _preferredEvOperators.toList(),
         if (_evChargerType == 'FAST' && _evFastOutputs.isNotEmpty)
           'fastOutputs': _evFastOutputs.toList(),
         'ai_text': AiConsent.value == true, // 서드파티 AI 문구 동의
@@ -3938,7 +3959,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'pathPoints': pathPoints,
         'userSelect': true,
         'highwayOnly': _evHighwayOnly,
-        if (_preferredEvOperators.isNotEmpty) 'operators': _preferredEvOperators.toList(),
+        if (_preferredEvOperators.isNotEmpty)
+          'operators': _preferredEvOperators.toList(),
         if (_evChargerType == 'FAST' && _evFastOutputs.isNotEmpty)
           'fastOutputs': _evFastOutputs.toList(),
         'ai_text': AiConsent.value == true, // 서드파티 AI 문구 동의
