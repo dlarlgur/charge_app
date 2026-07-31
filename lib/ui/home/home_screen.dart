@@ -51,6 +51,7 @@ import '../ai/widgets/route_engine_sheet.dart';
 import 'package:home_widget/home_widget.dart';
 import '../../core/utils/nav_scope_pref.dart';
 import 'report_fab.dart';
+import '../settings/ad_inquiry_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -2863,6 +2864,12 @@ class SettingsScreenEmbed extends ConsumerWidget {
                 '매주 흐름 분석', () {
               Navigator.of(context, rootNavigator: true).push(
                   MaterialPageRoute(builder: (_) => const FuelReportScreen()));
+            }),
+            settingsDivider(isDark),
+            _tile(context, isDark, Icons.campaign_rounded, '광고 문의',
+                '앱 지면에 광고를 싣고 싶다면', () {
+              Navigator.of(context, rootNavigator: true).push(
+                  MaterialPageRoute(builder: (_) => const AdInquiryScreen()));
             }),
             settingsDivider(isDark),
             _ReportFabTile(isDark: isDark),
