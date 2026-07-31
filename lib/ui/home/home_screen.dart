@@ -646,6 +646,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 ],
               ),
             ),
+            // 유가·충전 리포트 바로가기 — 설정에만 두면 못 찾는 기능이라 홈에 상시 진입점.
+            // 좌측 하단 고정(목록 스크롤과 무관), 자리변동 바보다 살짝 위에 앉힌다.
+            if (bottomIndex == 0)
+              Positioned(
+                left: 0,
+                bottom: _watchDragDy + 4,
+                child: SafeArea(
+                  top: false,
+                  child: ReportFab(
+                    onTap: () => Navigator.of(context, rootNavigator: true)
+                        .push(MaterialPageRoute(
+                            builder: (_) => const FuelReportScreen())),
+                  ),
+                ),
+              ),
             // 자리변동알림 — 홈 탭에서 하단 플로팅 (스크롤해도 항상 보임, content 안 밀림)
             if (bottomIndex == 0)
               Positioned(
