@@ -311,24 +311,20 @@ class _NavigationSheetState extends State<_NavigationSheet> {
 
   /// 티맵 파라미터 — 목적지 goalname/goalx/goaly + 경유지 rV1~rV5.
   /// (공식 문서 'TMAPApp 길안내(옵션설정)' 기준, 경유지 최대 5개)
+  /// 티맵 파라미터.
+  ///
+  /// 목적지는 goalname/goalx/goaly — 이 조합은 실기기에서 동작이 검증돼 있다.
+  /// rGoName/rGoX/rGoY(옵션설정 계열)로 바꿔봤더니 목적지조차 안 열려서 되돌렸다.
+  /// 경유지 rV1~rV5 는 공식 문서에 있는 키라 함께 붙여두되, 실제 반영 여부는
+  /// 티맵 쪽 확인이 필요하다(운영담당자 재문의 예정).
   Map<String, String> _tmapParams() {
     final g = _goal;
-    final vias = _viasFor(_kTmapViaMax);
-    if (vias.isEmpty) {
-      // 경유지 없음 — 기존에 검증된 단순 실행 파라미터 그대로
-      return {
-        'goalname': g.name,
-        'goaly': '${g.lat}',
-        'goalx': '${g.lng}',
-      };
-    }
-    // 경유지 있음 — 공식 문서 'TMAPApp 길안내(옵션설정)' 계열(rGo*/rV*).
-    // goalname 계열에 rV* 만 붙이면 티맵이 경유지를 무시한다(계열을 섞으면 안 됨).
     final p = <String, String>{
-      'rGoName': g.name,
-      'rGoX': '${g.lng}',
-      'rGoY': '${g.lat}',
+      'goalname': g.name,
+      'goaly': '${g.lat}',
+      'goalx': '${g.lng}',
     };
+    final vias = _viasFor(_kTmapViaMax);
     for (var i = 0; i < vias.length; i++) {
       p['rV${i + 1}Name'] = vias[i].name;
       p['rV${i + 1}X'] = '${vias[i].lng}';
