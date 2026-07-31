@@ -1,3 +1,6 @@
+import 'dart:io' show Platform;
+
+import 'package:android_intent_plus/android_intent.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:kakao_flutter_sdk_navi/kakao_flutter_sdk_navi.dart';
@@ -260,14 +263,7 @@ class _NavigationSheetState extends State<_NavigationSheet> {
               popBeforeTap: false,
               onTap: () => _tapNav(
                 context,
-                () => _launch(
-                  Uri(
-                    scheme: 'tmap',
-                    host: 'route',
-                    queryParameters: _tmapParams(),
-                  ).toString(),
-                  fallback: 'https://www.tmap.co.kr',
-                ),
+                _launchTmap,
               ),
             ),
             _navItem(
@@ -309,41 +305,60 @@ class _NavigationSheetState extends State<_NavigationSheet> {
     );
   }
 
-  /// 티맵 파라미터.
+  /// 티맵 실행.
   ///
-  /// 두 계열이 있고 섞으면 안 된다:
-  ///  · 단순 실행 — goalname/goalx/goaly (목적지 하나. 경유지 미지원)
-  ///  · 옵션 설정 — rStName/rStX/rStY + rGoName/rGoX/rGoY + rV1~rV5
+  /// 경유지는 **URL 스킴으로 못 넘긴다.** 공식 문서의 rGoName/rV1Name 은
+  /// 쿼리 파라미터가 아니라 **Intent extra 키**다(안드로이드 샘플 코드였음).
+  /// 실제로 다른 앱이 티맵을 부르는 걸 logcat 으로 확인:
+  ///   act=android.intent.action.MAIN cmp=com.skt.tmap.ku/.IntroActivity (has extras)
   ///
-  /// 이전에 rGo* + rV* 만 보내고 **출발지(rSt*)를 빼먹어** 앱이 아예 안 열렸다.
-  /// 옵션 계열은 출발·목적이 모두 있어야 성립한다(다른 앱이 3지점을 넘기는 걸로 확인).
-  /// 출발 좌표를 모르면 경유지를 포기하고 검증된 단순 실행으로 떨어진다.
-  Map<String, String> _tmapParams() {
-    final g = _goal;
+  /// 그래서 안드로이드에서 경유지가 있으면 Intent 로 보내고,
+  /// iOS·실패 시에는 검증된 URL 스킴(목적지만)으로 떨어진다.
+  Future<void> _launchTmap() async {
     final vias = _viasFor(_kTmapViaMax);
     final o = widget.origin;
-    final canOption = vias.isNotEmpty && o != null;
-    if (!canOption) {
-      return {
-        'goalname': g.name,
-        'goaly': '${g.lat}',
-        'goalx': '${g.lng}',
+    if (Platform.isAndroid && vias.isNotEmpty && o != null) {
+      final g = _goal;
+      final args = <String, dynamic>{
+        'rStName': o.name.trim().isEmpty ? '출발지' : o.name,
+        'rStX': '${o.lng}',
+        'rStY': '${o.lat}',
+        'rGoName': g.name,
+        'rGoX': '${g.lng}',
+        'rGoY': '${g.lat}',
       };
+      for (var i = 0; i < vias.length; i++) {
+        args['rV${i + 1}Name'] = vias[i].name;
+        args['rV${i + 1}X'] = '${vias[i].lng}';
+        args['rV${i + 1}Y'] = '${vias[i].lat}';
+      }
+      try {
+        await AndroidIntent(
+          action: 'android.intent.action.MAIN',
+          package: 'com.skt.tmap.ku',
+          componentName: 'com.skt.tmap.ku.IntroActivity',
+          arguments: args,
+        ).launch();
+        return;
+      } catch (e) {
+        debugPrint('[TMAP] Intent 실패 → URL 스킴 폴백: $e');
+      }
     }
-    final p = <String, String>{
-      'rStName': o.name.trim().isEmpty ? '출발지' : o.name,
-      'rStX': '${o.lng}',
-      'rStY': '${o.lat}',
-      'rGoName': g.name,
-      'rGoX': '${g.lng}',
-      'rGoY': '${g.lat}',
+    await _launch(
+      Uri(scheme: 'tmap', host: 'route', queryParameters: _tmapParams())
+          .toString(),
+      fallback: 'https://www.tmap.co.kr',
+    );
+  }
+
+  /// 티맵 URL 파라미터 (목적지만 — 경유지는 Intent 로 간다).
+  Map<String, String> _tmapParams() {
+    final g = _goal;
+    return {
+      'goalname': g.name,
+      'goaly': '${g.lat}',
+      'goalx': '${g.lng}',
     };
-    for (var i = 0; i < vias.length; i++) {
-      p['rV${i + 1}Name'] = vias[i].name;
-      p['rV${i + 1}X'] = '${vias[i].lng}';
-      p['rV${i + 1}Y'] = '${vias[i].lat}';
-    }
-    return p;
   }
 
   /// 네이버 URL — 목적지 dlat/dlng/dname + 경유지 v1~v3

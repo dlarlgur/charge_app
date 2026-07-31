@@ -189,6 +189,9 @@
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="tmap" />
         </intent>
+        <!-- 티맵 경유지 안내 — URL 스킴으로는 경유지를 못 넘겨서 Intent(extras)로 부른다.
+             Android 11+ 는 패키지를 명시해야 조회·실행이 가능. -->
+        <package android:name="com.skt.tmap.ku" />
         <!-- 전화 -->
         <intent>
             <action android:name="android.intent.action.DIAL" />
