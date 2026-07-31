@@ -309,22 +309,35 @@ class _NavigationSheetState extends State<_NavigationSheet> {
     );
   }
 
-  /// 티맵 파라미터 — 목적지 goalname/goalx/goaly + 경유지 rV1~rV5.
-  /// (공식 문서 'TMAPApp 길안내(옵션설정)' 기준, 경유지 최대 5개)
   /// 티맵 파라미터.
   ///
-  /// 목적지는 goalname/goalx/goaly — 이 조합은 실기기에서 동작이 검증돼 있다.
-  /// rGoName/rGoX/rGoY(옵션설정 계열)로 바꿔봤더니 목적지조차 안 열려서 되돌렸다.
-  /// 경유지 rV1~rV5 는 공식 문서에 있는 키라 함께 붙여두되, 실제 반영 여부는
-  /// 티맵 쪽 확인이 필요하다(운영담당자 재문의 예정).
+  /// 두 계열이 있고 섞으면 안 된다:
+  ///  · 단순 실행 — goalname/goalx/goaly (목적지 하나. 경유지 미지원)
+  ///  · 옵션 설정 — rStName/rStX/rStY + rGoName/rGoX/rGoY + rV1~rV5
+  ///
+  /// 이전에 rGo* + rV* 만 보내고 **출발지(rSt*)를 빼먹어** 앱이 아예 안 열렸다.
+  /// 옵션 계열은 출발·목적이 모두 있어야 성립한다(다른 앱이 3지점을 넘기는 걸로 확인).
+  /// 출발 좌표를 모르면 경유지를 포기하고 검증된 단순 실행으로 떨어진다.
   Map<String, String> _tmapParams() {
     final g = _goal;
-    final p = <String, String>{
-      'goalname': g.name,
-      'goaly': '${g.lat}',
-      'goalx': '${g.lng}',
-    };
     final vias = _viasFor(_kTmapViaMax);
+    final o = widget.origin;
+    final canOption = vias.isNotEmpty && o != null;
+    if (!canOption) {
+      return {
+        'goalname': g.name,
+        'goaly': '${g.lat}',
+        'goalx': '${g.lng}',
+      };
+    }
+    final p = <String, String>{
+      'rStName': o.name.trim().isEmpty ? '출발지' : o.name,
+      'rStX': '${o.lng}',
+      'rStY': '${o.lat}',
+      'rGoName': g.name,
+      'rGoX': '${g.lng}',
+      'rGoY': '${g.lat}',
+    };
     for (var i = 0; i < vias.length; i++) {
       p['rV${i + 1}Name'] = vias[i].name;
       p['rV${i + 1}X'] = '${vias[i].lng}';
