@@ -320,6 +320,24 @@ class ApiService {
     return r is Map ? Map<String, dynamic>.from(r) : null;
   }
 
+  /// 우리 동네 유가 — 집(없으면 현재 위치) 좌표 기준 시군구 시세 + 반경 최저가.
+  /// 좌표는 지역 판별에만 쓰이고 서버에 저장되지 않는다.
+  Future<Map<String, dynamic>?> getLocalFuelBrief({
+    required double lat,
+    required double lng,
+    String? fuel,
+  }) async {
+    final res = await _dio.get(
+      '${ApiConstants.fuelReports}/local',
+      queryParameters: {'lat': lat, 'lng': lng, if (fuel != null) 'fuel': fuel},
+    );
+    final d = res.data;
+    if (d is Map && d['success'] == true && d['ok'] == true) {
+      return Map<String, dynamic>.from(d);
+    }
+    return null;
+  }
+
   // ─── 1:1 문의 ───
   Future<bool> createInquiry({
     required String appId,
