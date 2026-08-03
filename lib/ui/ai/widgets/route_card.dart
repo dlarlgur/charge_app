@@ -82,17 +82,34 @@ class RouteCard extends StatelessWidget {
     );
   }
 
-  /// 접기 손잡이 — 카드 아래 가운데. 지도를 가리지 않는 최소 높이(18px)로,
-  /// 화살표만 두어 "여기를 누르면 접힌다" 가 설명 없이 읽히게 한다.
+  /// 접기 손잡이 — 카드 아래 가운데.
+  /// 화살표만 덩그러니 두니 배경에 묻혀 안 보였다(형 제보) → 옅은 배경 칩으로 감싸
+  /// '누를 수 있는 것' 임을 형태로 알린다. 구분선으로 카드 본문과도 분리.
   Widget _collapseHandle(bool isDark) => GestureDetector(
         onTap: onToggleCollapsed,
         behavior: HitTestBehavior.opaque,
-        child: SizedBox(
-          height: 18,
-          child: Center(
-            child: Icon(Icons.keyboard_arrow_up_rounded,
-                size: 18, color: _mutedText(isDark)),
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Divider(height: 1, color: _line(isDark)),
+            SizedBox(
+              height: 30,
+              child: Center(
+                child: Container(
+                  width: 46,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.07)
+                        : const Color(0xFFF1F3F6),
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: Icon(Icons.keyboard_arrow_up_rounded,
+                      size: 19, color: _secondaryText(isDark)),
+                ),
+              ),
+            ),
+          ],
         ),
       );
 
@@ -105,36 +122,45 @@ class RouteCard extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
         height: 26,
+        // 경로 텍스트(출발→목적)는 Expanded 안에서 남는 폭을 나눠 쓰고, '경유 N' 배지와
+        // 펼치기 화살표는 오른쪽 끝에 고정한다. 배지를 텍스트 바로 뒤에 두면 목적지
+        // 이름 길이에 따라 위치가 들쭉날쭉해 읽기 나쁘다(형 지적).
         child: Row(
           children: [
-            SizedBox(width: 18, child: Center(child: _originDot())),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(origin,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w500,
-                      color: _secondaryText(isDark))),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 7),
-              child: Icon(Icons.arrow_forward_rounded,
-                  size: 14, color: _mutedText(isDark)),
-            ),
-            SizedBox(width: 12, child: Center(child: _destDot())),
-            const SizedBox(width: 7),
-            Flexible(
-              child: Text(dest,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w600,
-                      color: destName == null
-                          ? _placeholder(isDark)
-                          : _primaryText(isDark))),
+            Expanded(
+              child: Row(
+                children: [
+                  SizedBox(width: 18, child: Center(child: _originDot())),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(origin,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w500,
+                            color: _secondaryText(isDark))),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 7),
+                    child: Icon(Icons.arrow_forward_rounded,
+                        size: 14, color: _mutedText(isDark)),
+                  ),
+                  SizedBox(width: 12, child: Center(child: _destDot())),
+                  const SizedBox(width: 7),
+                  Flexible(
+                    child: Text(dest,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            color: destName == null
+                                ? _placeholder(isDark)
+                                : _primaryText(isDark))),
+                  ),
+                ],
+              ),
             ),
             if (viaNames.isNotEmpty) ...[
               const SizedBox(width: 8),
