@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../app_dialog.dart';
 import '../constants/api_constants.dart';
 import '../theme/app_colors.dart';
+import 'nav_app_pref.dart';
 import 'nav_scope_pref.dart';
 
 // 길안내 오안내 주의 안내 "다시 보지 않기" 플래그 (일반/휴게소 별도, 전 내비 공통).
@@ -51,13 +52,14 @@ Future<void> showNavigationSheet(
   NavStop? destination,
   List<NavStop> waypoints = const [],
   NavStop? origin,
+  /// 경로 카드의 주유소·충전소 줄에 붙일 보조 문구 (예: '+1분 · 1,823원/L').
+  /// 없으면 '경유' 만 표시한다.
+  String? stationNote,
 }) async {
   await showModalBottomSheet(
     context: context,
-    isScrollControlled: true, // 세그먼트·안내가 붙어도 작은 화면에서 잘리지 않게
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
+    isScrollControlled: true, // 경로 카드·앱 선택이 붙어도 작은 화면에서 잘리지 않게
+    backgroundColor: Colors.transparent,
     builder: (_) => _NavigationSheet(
       lat: lat,
       lng: lng,
@@ -65,6 +67,7 @@ Future<void> showNavigationSheet(
       destination: destination,
       waypoints: waypoints,
       origin: origin,
+      stationNote: stationNote,
     ),
   );
 }
@@ -86,6 +89,7 @@ Future<void> showViaWaypointNavigationSheet(
   required double destinationLng,
   required String destinationName,
   List<NavStop> extraWaypoints = const [],
+  String? stationNote,
 }) async {
   await showNavigationSheet(
     context,
@@ -100,6 +104,7 @@ Future<void> showViaWaypointNavigationSheet(
     // 명시 전달이 없으면 AI 탭에서 넣은 경유지를 그대로 쓴다
     waypoints: extraWaypoints.isNotEmpty ? extraWaypoints : AiRouteSession.vias,
     origin: NavStop(name: originName, lat: originLat, lng: originLng),
+    stationNote: stationNote,
   );
 }
 
@@ -159,12 +164,20 @@ Future<void> _launchKakaoNavi({
   }
 }
 
+/// 경로 카드 한 줄 — 추천 지점(주유소/충전소)인지 사용자 경유지인지 구분해 들고 다닌다.
+class _Stop {
+  final NavStop stop;
+  final bool isStation; // true = 추천 주유소·충전소 (끌 수 없음)
+  const _Stop(this.stop, {required this.isStation});
+}
+
 class _NavigationSheet extends StatefulWidget {
   final double lat, lng;
   final String name;
   final NavStop? destination;
   final List<NavStop> waypoints;
   final NavStop? origin; // 경유지 순서 정렬 기준
+  final String? stationNote;
   const _NavigationSheet({
     required this.lat,
     required this.lng,
@@ -172,6 +185,7 @@ class _NavigationSheet extends StatefulWidget {
     this.destination,
     this.waypoints = const [],
     this.origin,
+    this.stationNote,
   });
 
   @override
@@ -180,25 +194,29 @@ class _NavigationSheet extends StatefulWidget {
 
 class _NavigationSheetState extends State<_NavigationSheet> {
   late bool _toDestination = NavScopePref.toDestination;
+  late String _app = NavAppPref.get();
+
+  /// 사용자가 끈 경유지 — _ordered 인덱스 기준. 주유소 줄은 절대 들어오지 않는다.
+  final Set<int> _viaOff = <int>{};
 
   double get lat => widget.lat;
   double get lng => widget.lng;
   String get name => widget.name;
 
-  /// 목적지까지 안내할 때 넘길 경유지 — [추천 지점, 사용자 경유지…] 순서.
-  /// 경유지 목록 — 추천 지점과 사용자 경유지를 **출발지에서 가까운 순**으로 정렬한다.
+  bool get _hasDest => widget.destination != null;
+
+  /// 경유 후보 전체 — 추천 지점 + 사용자 경유지를 **출발지에서 가까운 순**으로 정렬.
   /// 예전엔 추천 주유소를 무조건 맨 앞에 넣어서, 실제로는 경유지를 지나서 있는 주유소가
   /// '경유지 1' 로 들어가 경로가 엉켰다(형 제보).
-  List<NavStop> get _stops {
-    final list = <NavStop>[
-      NavStop(name: name, lat: lat, lng: lng),
-      ...widget.waypoints,
+  List<_Stop> get _ordered {
+    final list = <_Stop>[
+      _Stop(NavStop(name: name, lat: lat, lng: lng), isStation: true),
+      ...widget.waypoints.map((w) => _Stop(w, isStation: false)),
     ];
     final o = widget.origin;
     if (o == null || list.length < 2) return list;
-    final sorted = [...list]
-      ..sort((a, b) => _distSq(o, a).compareTo(_distSq(o, b)));
-    return sorted;
+    return [...list]
+      ..sort((a, b) => _distSq(o, a.stop).compareTo(_distSq(o, b.stop)));
   }
 
   /// 정렬용 상대 거리 — 순서만 필요해 제곱 비교로 충분(경도 보정 포함).
@@ -209,101 +227,510 @@ class _NavigationSheetState extends State<_NavigationSheet> {
   }
 
   /// 실제 목적지 (목적지까지 모드면 최종 목적지, 아니면 추천 지점)
-  NavStop get _goal => _toDestination && widget.destination != null
-      ? widget.destination!
-      : NavStop(name: name, lat: lat, lng: lng);
+  NavStop get _goal =>
+      _toDestination && _hasDest ? widget.destination! : NavStop(name: name, lat: lat, lng: lng);
 
-  List<NavStop> _viasFor(int max) =>
-      (_toDestination && widget.destination != null)
-          ? _stops.take(max).toList()
-          : const [];
-
-  /// 앱별로 몇 곳이 잘리는지 — 시트에 그대로 알려준다(조용히 버리지 않게)
-  String _viaNote(int max) {
-    if (!(_toDestination && widget.destination != null)) return '';
-    final n = _stops.length;
-    if (n == 0) return '';
-    return n <= max ? '경유 $n곳 전달' : '경유 $n곳 중 $max곳만 전달';
+  /// 켜져 있는 경유지 (주유소는 항상 포함).
+  List<_Stop> get _enabled {
+    final all = _ordered;
+    return [
+      for (var i = 0; i < all.length; i++)
+        if (all[i].isStation || !_viaOff.contains(i)) all[i],
+    ];
   }
+
+  /// 앱에 실제로 넘길 경유지.
+  ///
+  /// ★ 한도(티맵5·카카오3·네이버3)를 넘으면 **주유소는 절대 빼지 않고** 사용자 경유지부터
+  ///   앞에서 순서대로 채운다. 예전 take(max) 는 주유소가 정렬상 뒤에 있으면 잘려나가
+  ///   "주유소를 들르려고 눌렀는데 안 들르는" 경로가 나갔다.
+  List<NavStop> _viasFor(int max) {
+    if (!(_toDestination && _hasDest)) return const [];
+    final on = _enabled; // 순서 = 출발지 근접순
+    if (on.length <= max) return on.map((e) => e.stop).toList();
+
+    // 한도 초과 — 주유소 한 자리를 먼저 빼두고, 남는 칸만 사용자 경유지로 앞에서부터 채운다.
+    // 순서는 그대로 유지된다.
+    var budget = on.any((e) => e.isStation) ? max - 1 : max;
+    final out = <NavStop>[];
+    for (final s in on) {
+      if (s.isStation) {
+        out.add(s.stop); // 항상 통과 — 끌 수도, 잘릴 수도 없다
+      } else if (budget > 0) {
+        out.add(s.stop);
+        budget--;
+      }
+    }
+    return out;
+  }
+
+
+  int get _maxForApp => switch (_app) {
+        NavAppPref.naver => _kNaverViaMax,
+        NavAppPref.kakao => _kKakaoViaMax,
+        _ => _kTmapViaMax,
+      };
 
   @override
   Widget build(BuildContext context) {
-    final restArea = _isRestArea(name);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16),
+    final bg = isDark ? AppColors.darkSurface1 : Colors.white;
+    final textPrimary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    // 작은 화면에서도 CTA 까지 닿게 — 넘치면 가운데 영역만 스크롤된다.
+    final maxH = MediaQuery.of(context).size.height * 0.9;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      constraints: BoxConstraints(maxHeight: maxH),
+      child: SafeArea(
+        top: false,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            const SizedBox(height: 10),
             Container(
-              width: 36,
+              width: 40,
               height: 4,
               decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2)),
-            ),
-            const SizedBox(height: 16),
-            const Text('길찾기 앱 선택',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            if (widget.destination != null) ...[
-              _scopeChooser(isDark),
-              const SizedBox(height: 4),
-            ],
-            _navItem(
-              context,
-              icon: const _NavAssetIcon('assets/nav/tmap_logo.webp'),
-              label: '티맵',
-              subtitle: _viaNote(_kTmapViaMax).isNotEmpty
-                  ? _viaNote(_kTmapViaMax)
-                  : (restArea ? '고속도로 휴게소는 티맵 안내를 권장해요' : 'SK텔레콤'),
-              subtitleColor: restArea && _viaNote(_kTmapViaMax).isEmpty
-                  ? const Color(0xFFE07000)
-                  : Colors.grey,
-              popBeforeTap: false,
-              onTap: () => _tapNav(
-                context,
-                _launchTmap,
+                color:
+                    isDark ? const Color(0x33FFFFFF) : const Color(0xFFDDE3EA),
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-            _navItem(
-              context,
-              icon: const _NavAssetIcon('assets/nav/naver_logo.png'),
-              label: '네이버 지도',
-              subtitle: _viaNote(_kNaverViaMax).isNotEmpty
-                  ? _viaNote(_kNaverViaMax)
-                  : '네이버',
-              popBeforeTap: false,
-              onTap: () => _tapNav(
-                context,
-                naver: true,
-                () => _launch(_naverUrl(), fallback: 'https://map.naver.com'),
-              ),
-            ),
-            _navItem(
-              context,
-              icon: const _NavAssetIcon('assets/nav/kakaomap_logo.png'),
-              label: '카카오내비',
-              subtitle: _viaNote(_kKakaoViaMax).isNotEmpty
-                  ? _viaNote(_kKakaoViaMax)
-                  : '카카오',
-              popBeforeTap: false,
-              onTap: () => _tapNav(
-                context,
-                () => _launchKakaoNavi(
-                  name: _goal.name,
-                  lat: _goal.lat,
-                  lng: _goal.lng,
-                  vias: _viasFor(_kKakaoViaMax),
+            const SizedBox(height: 18),
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      _hasDest ? '어떻게 안내할까요?' : '길 안내 시작',
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                        color: textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      // 경유지가 있으면 부제에서 바로 보이게 — "주유소만 들르는 건가?" 혼동 방지.
+                      _hasDest
+                          ? (widget.waypoints.isEmpty
+                              ? '$name 들렀다가 ${widget.destination!.name}까지'
+                              : '$name · 경유지 ${widget.waypoints.length}곳 들렀다가 ${widget.destination!.name}까지')
+                          : name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 13, height: 1.35, color: muted),
+                    ),
+                    if (_hasDest) ...[
+                      const SizedBox(height: 16),
+                      _scopeSegment(isDark),
+                    ],
+                    const SizedBox(height: 14),
+                    _hintRow(isDark, muted),
+                    if (_hasDest && widget.waypoints.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      _viaSection(isDark, muted),
+                    ],
+                    const SizedBox(height: 18),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        '앱 선택',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.2,
+                          color: isDark
+                              ? AppColors.darkBlueBright
+                              : AppColors.gasBlueDark,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 9),
+                    _appPicker(isDark),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: _startButton(context),
+            ),
+            const SizedBox(height: 10),
+            Text('다음에도 이 앱으로 바로 열어드려요',
+                style: TextStyle(fontSize: 12, color: muted)),
+            const SizedBox(height: 12),
           ],
         ),
       ),
     );
+  }
+
+  // ── 안내 범위 (목적지까지 / 주유소까지만) ──────────────────────────────────
+  Widget _scopeSegment(bool isDark) {
+    final trackBg = isDark ? const Color(0x14FFFFFF) : const Color(0xFFF1F5F9);
+    final offText =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    Widget seg(String label, bool on, VoidCallback onTap) => Expanded(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onTap,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              height: 46,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: on ? AppColors.gasBlue : Colors.transparent,
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
+                  color: on ? Colors.white : offText,
+                ),
+              ),
+            ),
+          ),
+        );
+
+    void setScope(bool toDest) {
+      if (toDest == _toDestination) return;
+      setState(() => _toDestination = toDest);
+      NavScopePref.set(
+          toDest ? NavScopePref.destination : NavScopePref.station);
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: trackBg,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          seg('목적지까지', _toDestination, () => setScope(true)),
+          // 이름을 넣으면 "㈜이아이디 희망주유소까지만" 처럼 길어져 잘린다.
+          // 어디를 말하는지는 바로 위 부제("○○ 들렀다가 △△까지")가 이미 알려준다.
+          seg('여기까지만', !_toDestination, () => setScope(false)),
+        ],
+      ),
+    );
+  }
+
+  Widget _hintRow(bool isDark, Color muted) {
+    final text = !_hasDest
+        ? '$name(으)로 안내를 시작해요'
+        : _toDestination
+            ? '주유소를 경유지로 넣고 ${widget.destination!.name}까지 안내해요'
+            : '$name까지만 안내하고 끝나요';
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          _toDestination && _hasDest
+              ? Icons.alt_route_rounded
+              : Icons.place_rounded,
+          size: 16,
+          color: isDark ? AppColors.darkBlueBright : AppColors.gasBlue,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(fontSize: 12.5, height: 1.35, color: muted),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── 경유지 (있을 때만) ─────────────────────────────────────────────────────
+  // 항상 펼쳐진 카드 — 접이식은 "내 경유지가 어떻게 되는 거지?" 를 한 번 더 눌러야
+  // 알 수 있어서 뺐다(형 피드백). 주유소는 목록에 없다 — 이 시트를 연 목적 자체라
+  // 끌 수 있으면 안 된다.
+  Widget _viaSection(bool isDark, Color muted) {
+    final stops = _ordered;
+    final max = _maxForApp;
+    final over = _enabled.length > max; // 주유소 포함 총 경유가 앱 한도 초과
+    final warn = isDark ? AppColors.darkOrangeBright : const Color(0xFFE07000);
+    final textPrimary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+
+    // 실제로 전달될 지점 — 잘리는 경유지에 '미전달' 을 붙이기 위해 미리 계산한다.
+    final sent = _viasFor(max).toSet();
+
+    final rows = <Widget>[];
+    var no = 0;
+    for (var i = 0; i < stops.length; i++) {
+      final s = stops[i];
+      if (s.isStation) continue;
+      no++;
+      final on = !_viaOff.contains(i);
+      final dropped = on && !sent.contains(s.stop);
+      rows.add(Padding(
+        padding: EdgeInsets.only(top: no == 1 ? 10 : 8),
+        child: Row(
+          children: [
+            // 번호 배지 — 내비에 넘어가는 '순서' 가 그대로 보인다
+            Container(
+              width: 21,
+              height: 21,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: on
+                    ? AppColors.gasBlue.withValues(alpha: isDark ? 0.22 : 0.10)
+                    : muted.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                '$no',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: on
+                      ? (isDark ? AppColors.darkBlueBright : AppColors.gasBlueDark)
+                      : muted,
+                ),
+              ),
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Text(
+                s.stop.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.2,
+                  color: on ? textPrimary : muted,
+                  decoration: on ? null : TextDecoration.lineThrough,
+                  decorationColor: muted,
+                ),
+              ),
+            ),
+            if (dropped) ...[
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: warn.withValues(alpha: isDark ? 0.22 : 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text('미전달',
+                    style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        color: warn)),
+              ),
+              const SizedBox(width: 6),
+            ],
+            SizedBox(
+              height: 24,
+              child: FittedBox(
+                fit: BoxFit.contain,
+                child: Switch(
+                  value: on,
+                  onChanged: (v) => setState(
+                      () => v ? _viaOff.remove(i) : _viaOff.add(i)),
+                  activeThumbColor: Colors.white,
+                  activeTrackColor: AppColors.gasBlue,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ));
+    }
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : const Color(0xFFF6F8FB),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.alt_route_rounded,
+                  size: 14,
+                  color: isDark ? AppColors.darkBlueBright : AppColors.gasBlue),
+              const SizedBox(width: 6),
+              Text(
+                '함께 들르는 경유지',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
+                  color: muted,
+                ),
+              ),
+            ],
+          ),
+          ...rows,
+          // 한도 초과일 때만 — 평소엔 개수·전달 여부를 떠들지 않는다(번호와 스위치로 충분).
+          if (over) ...[
+            const SizedBox(height: 10),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.error_outline_rounded, size: 13, color: warn),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    '${NavAppPref.label(_app)}는 주유소 포함 $max곳까지 받아요 — '
+                    '넘치는 곳은 끄거나, 그대로 두면 표시된 곳만 빠져요',
+                    style: TextStyle(
+                        fontSize: 11.5, height: 1.4, color: warn,
+                        fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ── 내비 앱 선택 ───────────────────────────────────────────────────────────
+  Widget _appPicker(bool isDark) {
+    Widget tile(String key, String asset, String label) {
+      final on = _app == key;
+      final border =
+          isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder;
+      return Expanded(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            if (_app == key) return;
+            setState(() => _app = key);
+            NavAppPref.set(key);
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              color: on
+                  ? AppColors.gasBlue.withValues(alpha: isDark ? 0.16 : 0.06)
+                  : (isDark ? AppColors.darkCard : Colors.white),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: on ? AppColors.gasBlue : border,
+                width: on ? 1.6 : 1,
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _NavAssetIcon(asset, size: 42),
+                const SizedBox(height: 9),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: on ? FontWeight.w800 : FontWeight.w600,
+                    letterSpacing: -0.3,
+                    color: on
+                        ? (isDark
+                            ? AppColors.darkBlueBright
+                            : AppColors.gasBlueDark)
+                        : (isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        tile(NavAppPref.tmap, 'assets/nav/tmap_logo.webp', '티맵'),
+        const SizedBox(width: 10),
+        tile(NavAppPref.naver, 'assets/nav/naver_logo.png', '네이버'),
+        const SizedBox(width: 10),
+        tile(NavAppPref.kakao, 'assets/nav/kakaomap_logo.png', '카카오내비'),
+      ],
+    );
+  }
+
+  Widget _startButton(BuildContext context) {
+    return SizedBox(
+      width: double.infinity, // 시트 폭을 꽉 채운다 — 안 주면 라벨 크기만큼만 그려짐
+      height: 54,
+      child: ElevatedButton.icon(
+        onPressed: () => _startNav(context),
+        icon: const Icon(Icons.navigation_rounded, size: 20),
+        // ElevatedButton.icon 이 label 을 이미 Flexible 로 감싼다(_ElevatedButtonWithIcon).
+        // 여기서 또 감싸면 Flexible 이 Flex 직속이 아니게 돼 런타임 assertion 으로 터진다.
+        // 폭 제한은 그 Flexible 이 해주므로 maxLines+ellipsis 만 걸면 된다.
+        label: Text(
+          '${NavAppPref.labelWithRo(_app)} 안내 시작',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+              fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: -0.3),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.gasBlue,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _startNav(BuildContext context) {
+    switch (_app) {
+      case NavAppPref.naver:
+        return _tapNav(
+          context,
+          naver: true,
+          () => _launch(_naverUrl(), fallback: 'https://map.naver.com'),
+        );
+      case NavAppPref.kakao:
+        return _tapNav(
+          context,
+          () => _launchKakaoNavi(
+            name: _goal.name,
+            lat: _goal.lat,
+            lng: _goal.lng,
+            vias: _viasFor(_kKakaoViaMax),
+          ),
+        );
+      default:
+        return _tapNav(context, _launchTmap);
+    }
   }
 
   /// 티맵 실행.
@@ -368,130 +795,6 @@ class _NavigationSheetState extends State<_NavigationSheet> {
     return b.toString();
   }
 
-  /// 안내 범위 선택 — 매번 묻지 않고, 시트에서 바로 바꿀 수 있게.
-  /// 안내 범위 선택 — "무엇을 고르는 건지" 가 바로 읽히게 질문 + 결과로 보여준다.
-  /// (세그먼트만 있으면 뭘 선택하는지 몰라 헷갈린다는 피드백 반영)
-  Widget _scopeChooser(bool isDark) {
-    final border =
-        isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder;
-    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    final textPrimary =
-        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final viaCount = _stops.length;
-    final destName = widget.destination?.name ?? '목적지';
-
-    Widget option({
-      required String value,
-      required String title,
-      required Widget detail,
-      required IconData icon,
-    }) {
-      final on =
-          (_toDestination ? NavScopePref.destination : NavScopePref.station) ==
-              value;
-      return GestureDetector(
-        onTap: () {
-          final next = value == NavScopePref.destination;
-          if (next == _toDestination) return;
-          setState(() => _toDestination = next);
-          NavScopePref.set(value);
-        },
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
-          decoration: BoxDecoration(
-            color: on
-                ? AppColors.gasBlue.withValues(alpha: isDark ? 0.16 : 0.07)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: on ? AppColors.gasBlue.withValues(alpha: 0.55) : border,
-              width: on ? 1.4 : 1,
-            ),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                on
-                    ? Icons.radio_button_checked_rounded
-                    : Icons.radio_button_unchecked_rounded,
-                size: 18,
-                color: on ? AppColors.gasBlue : muted,
-              ),
-              const SizedBox(width: 9),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: on ? FontWeight.w800 : FontWeight.w600,
-                        letterSpacing: -0.2,
-                        color: on ? AppColors.gasBlue : textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    DefaultTextStyle(
-                      style:
-                          TextStyle(fontSize: 11.5, height: 1.35, color: muted),
-                      child: detail,
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(left: 6, top: 1),
-                child: Icon(icon, size: 15, color: muted),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 2, 20, 2),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8, left: 2),
-            child: Text(
-              '어디까지 안내할까요?',
-              style: TextStyle(
-                  fontSize: 12.5, fontWeight: FontWeight.w700, color: muted),
-            ),
-          ),
-          option(
-            value: NavScopePref.destination,
-            title: '목적지까지',
-            icon: Icons.flag_rounded,
-            detail: Text(
-              viaCount > 1
-                  ? '$name 외 ${viaCount - 1}곳 들렀다가 → $destName'
-                  : '$name 들렀다가 → $destName',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(height: 7),
-          option(
-            value: NavScopePref.station,
-            title: '$name 까지만',
-            icon: Icons.local_gas_station_rounded,
-            detail: const Text('도착하면 안내가 끝나요'),
-          ),
-        ],
-      ),
-    );
-  }
-
   /// 내비 앱 공통 — 첫 사용 시(또는 "다시 보지 않기" 전) 목적지 확인 안내 후 실행.
   /// 모든 주유소·충전소에서 표시. 고속(화)도로 [도착지 유지] 안내는 네이버 한정
   /// (네이버만 목적지를 일반도로로 바꾸도록 유도하는 팝업을 띄움).
@@ -526,51 +829,29 @@ class _NavigationSheetState extends State<_NavigationSheet> {
     if (context.mounted) Navigator.pop(context); // 시트 닫기
     await launchNav();
   }
-
-  Widget _navItem(
-    BuildContext context, {
-    required Widget icon,
-    required String label,
-    required String subtitle,
-    Color subtitleColor = Colors.grey,
-    required VoidCallback onTap,
-    bool popBeforeTap = true,
-  }) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-      leading: icon,
-      title: Text(label,
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-      subtitle:
-          Text(subtitle, style: TextStyle(fontSize: 12, color: subtitleColor)),
-      trailing: const Icon(Icons.chevron_right_rounded, color: Colors.grey),
-      onTap: () {
-        if (popBeforeTap) Navigator.pop(context);
-        onTap();
-      },
-    );
-  }
 }
 
 class _NavAssetIcon extends StatelessWidget {
   final String assetPath;
-  const _NavAssetIcon(this.assetPath);
+  final double size;
+  const _NavAssetIcon(this.assetPath, {this.size = 48});
 
   @override
   Widget build(BuildContext context) {
+    final r = size * 0.25;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(r),
       child: Image.asset(
         assetPath,
-        width: 48,
-        height: 48,
+        width: size,
+        height: size,
         fit: BoxFit.cover,
         errorBuilder: (_, __, ___) => Container(
-          width: 48,
-          height: 48,
+          width: size,
+          height: size,
           decoration: BoxDecoration(
             color: const Color(0xFFEDEDED),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(r),
           ),
           child: const Icon(Icons.map, color: Colors.grey),
         ),
