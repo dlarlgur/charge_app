@@ -113,7 +113,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   // 경로 카드 접힘 — 경유지 3곳이면 5행(≈220px)이라 지도가 너무 좁다(형 제보).
   // 경로가 계산되면 한 번 자동으로 접고, 그 뒤로는 사용자 조작만 따른다.
   bool _routeCardCollapsed = false;
-  bool _routeCardAutoCollapsed = false;
+  // 경로가 나오면 경로 카드·차량 카드를 함께 한 번 접는다. 사용자가 둘 중 하나라도
+  // 직접 조작하면 이 세션에선 더 건드리지 않는다.
+  bool _panelsAutoCollapsed = false;
   final List<NMarker> _viaMarkers = []; // 지도 '경유 N' 마커
 
   // ── 분석에 사용된 마지막 경로 (결과화면 지도용) ──
@@ -1362,7 +1364,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     //  사용자가 매번 손으로 접어야 한다)
     setState(() {
       _loadingRouteAlts = true;
-      _routeCardAutoCollapsed = false;
+      _panelsAutoCollapsed = false;
     });
     try {
       final isEv = _aiAnalysisType == 'ev';
@@ -1401,9 +1403,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         _loadingRouteAlts = false;
         // 경로가 나왔다 = 입력이 끝났다 → 경로 카드를 접어 지도를 넓게 준다.
         // 한 번만 자동으로 접고, 사용자가 펼치면 다시 건드리지 않는다.
-        if (!_routeCardAutoCollapsed) {
-          _routeCardAutoCollapsed = true;
+        if (!_panelsAutoCollapsed) {
+          _panelsAutoCollapsed = true;
           _routeCardCollapsed = true;
+          _heroCollapsed = true; // 차량 카드(게이지·선호조건·브랜드)도 같이
         }
       });
       _applySelectedRoute();
@@ -1711,14 +1714,23 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () => setState(() => _heroCollapsed = !_heroCollapsed),
+      onTap: () => setState(() {
+        _heroCollapsed = !_heroCollapsed;
+        _panelsAutoCollapsed = true;
+      }),
       // 위/아래로 드래그해서 펼치기/접기
       onVerticalDragEnd: (details) {
         final v = details.primaryVelocity ?? 0;
         if (v > 80) {
-          setState(() => _heroCollapsed = true);
+          setState(() {
+            _heroCollapsed = true;
+            _panelsAutoCollapsed = true;
+          });
         } else if (v < -80) {
-          setState(() => _heroCollapsed = false);
+          setState(() {
+            _heroCollapsed = false;
+            _panelsAutoCollapsed = true;
+          });
         }
       },
       // 카드와 한 덩어리 — 배경/그림자 없이 카드 상단 안쪽에 핸들만 (주유 시트와 동일 톤).
@@ -1751,7 +1763,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final ink = isDark ? AppColors.darkTextPrimary : const Color(0xFF0F172A);
     final muted = isDark ? AppColors.darkTextMuted : const Color(0xFF64748B);
     return GestureDetector(
-      onTap: () => setState(() => _heroCollapsed = false),
+      onTap: () => setState(() {
+        _heroCollapsed = false;
+        _panelsAutoCollapsed = true;
+      }),
       behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -5681,8 +5696,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           collapsed: _routeCardCollapsed,
                           onToggleCollapsed: () => setState(() {
                             _routeCardCollapsed = !_routeCardCollapsed;
-                            // 사용자가 직접 펼쳤으면 자동 접기가 다시 덮어쓰지 않게.
-                            _routeCardAutoCollapsed = true;
+                            // 사용자가 직접 조작했으면 자동 접기가 덮어쓰지 않게.
+                            _panelsAutoCollapsed = true;
                           }),
                           onClearOrigin: () => setState(() {
                             _originName = null;
