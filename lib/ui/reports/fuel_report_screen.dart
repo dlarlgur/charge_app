@@ -1,15 +1,20 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/constants/api_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/models.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/place_service.dart';
 import '../../providers/providers.dart';
+import '../favorites/place_picker_screen.dart';
 
 /// 유가 · 충전 리포트 — 주간/월간 리포트 목록과 상세.
 ///
@@ -36,11 +41,13 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
   final _loading = <String, bool>{};
   final _error = <String, String?>{};
 
-  // 우리 동네 유가 — 집(없으면 현재 위치) 기준. 집 미등록이면 _localFromHome=false 로
-  // 카드에 '집을 등록하면 항상 우리 동네 기준' 안내를 띄운다.
+  // 우리 동네 유가 — 사용자가 '받기'를 눌러 생성하는 온디맨드 리포트 (형 확정).
+  // 자동 로드하지 않는다: 집 미등록 → 등록 유도 카드 / 등록 + 미생성 → '받기' 카드 /
+  // 생성됨 → 요약 카드(탭 → 상세 화면). 같은 날 결과는 Hive 에 캐시해 재진입 시 그대로.
+  static const _kLocalBriefCache = 'local_fuel_brief_cache';
   Map<String, dynamic>? _local;
-  bool _localFromHome = false;
   bool _localLoading = false;
+  String? _localError;
 
   @override
   void initState() {
@@ -63,6 +70,7 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
       if (mounted) setState(() {});
       _load(_topics[_tab!.index]);
     });
+    _restoreLocalCache();
     _load(_topics[initial]);
   }
 
@@ -75,39 +83,78 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
   Color _accent(String topic) =>
       topic == 'ev' ? AppColors.evGreen : AppColors.gasBlue;
 
-  /// 우리 동네 유가 로드 — 집 좌표 우선, 없으면 현재 위치.
-  /// 서버는 같은 시군구 사용자끼리 결과를 공유(캐시)하므로 호출 제한을 두지 않는다.
-  Future<void> _loadLocal({bool force = false}) async {
-    if (_localLoading) return;
-    if (!force && _local != null) return;
-    setState(() => _localLoading = true);
+  String _todayYmd() {
+    final now = DateTime.now();
+    return '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
+  }
+
+  /// 오늘 생성해 둔 리포트가 있으면 복원 (날짜 지나면 무시 → 다시 '받기' 카드).
+  void _restoreLocalCache() {
     try {
-      final home = PlaceService.get('home');
-      double? lat = (home?['lat'] as num?)?.toDouble();
-      double? lng = (home?['lng'] as num?)?.toDouble();
-      final fromHome = lat != null && lng != null;
-      if (!fromHome) {
-        final loc = await ref.read(locationProvider.future);
-        lat = loc?.lat;
-        lng = loc?.lng;
+      final raw = Hive.box(AppConstants.settingsBox).get(_kLocalBriefCache);
+      if (raw is! String || raw.isEmpty) return;
+      final m = jsonDecode(raw);
+      if (m is Map && m['date'] == _todayYmd() && m['data'] is Map) {
+        _local = Map<String, dynamic>.from(m['data'] as Map);
       }
-      if (lat == null || lng == null) {
-        if (mounted) setState(() => _localLoading = false);
-        return;
-      }
+    } catch (_) {}
+  }
+
+  /// '우리 동네 유가 받기' — 집 좌표로 생성. 서버가 시군구 단위로 캐시하므로
+  /// 같은 동네 사용자끼리 결과를 공유하고, 하루 제한은 앱 캐시(당일 1회 생성)로 충분.
+  Future<void> _generateLocal() async {
+    if (_localLoading) return;
+    final home = PlaceService.get('home');
+    final lat = (home?['lat'] as num?)?.toDouble();
+    final lng = (home?['lng'] as num?)?.toDouble();
+    if (lat == null || lng == null) return; // 미등록 — 버튼 자체가 등록 유도 카드
+    setState(() {
+      _localLoading = true;
+      _localError = null;
+    });
+    try {
       final fuel = ref.read(settingsProvider).fuelType.code;
       final r = await ApiService().getLocalFuelBrief(lat: lat, lng: lng, fuel: fuel);
       if (!mounted) return;
+      if (r == null) {
+        setState(() {
+          _localLoading = false;
+          _localError = '동네 시세를 만들지 못했어요. 잠시 후 다시 시도해 주세요';
+        });
+        return;
+      }
+      await Hive.box(AppConstants.settingsBox).put(
+          _kLocalBriefCache, jsonEncode({'date': _todayYmd(), 'data': r}));
+      if (!mounted) return;
       setState(() {
         _local = r;
-        _localFromHome = fromHome;
         _localLoading = false;
       });
+      // 생성 직후 바로 상세로 — '받기'를 눌렀다 = 내용을 보고 싶다.
+      _openLocalDetail(r);
     } catch (_) {
       if (!mounted) return;
-      // 실패 시 카드만 빠지고 리포트 목록은 그대로 — 부가 정보가 화면을 망치지 않게.
-      setState(() => _localLoading = false);
+      setState(() {
+        _localLoading = false;
+        _localError = '동네 시세를 만들지 못했어요. 잠시 후 다시 시도해 주세요';
+      });
     }
+  }
+
+  /// 집 등록 화면 열기 — 즐겨찾기 탭의 집 등록과 같은 플로우.
+  Future<void> _registerHome() async {
+    final picked = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(builder: (_) => const PlacePickerScreen(title: '집 등록')),
+    );
+    if (picked != null) {
+      await PlaceService.set('home', picked);
+      if (mounted) setState(() {});
+    }
+  }
+
+  void _openLocalDetail(Map<String, dynamic> d) {
+    Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => LocalFuelBriefDetailScreen(data: d)));
   }
 
   Future<void> _load(String topic, {bool force = false}) async {
@@ -133,7 +180,6 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
         if (topic == 'fuel' && daily != null) _today = daily;
         _loading[topic] = false;
       });
-      if (topic == 'fuel') _loadLocal(force: force);
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -189,8 +235,7 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
         ? _todayCard(_today!, isDark)
         : null;
     // 전국(오늘) → 우리 동네 → 주간·월간 분석 순. 넓은 시세에서 내 동네로 좁혀 읽힌다.
-    final localCard =
-        (topic == 'fuel' && _local != null) ? _localCard(_local!, isDark) : null;
+    final localCard = topic == 'fuel' ? _localCard(isDark) : null;
     final extras = <Widget>[
       if (todayCard != null) todayCard,
       if (localCard != null) localCard,
@@ -339,10 +384,157 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
     );
   }
 
-  /// 우리 동네 유가 — 지역 평균 + 전국 대비 + 집 근처 최저가 한 줄.
-  /// 탭하면 서술·TOP3 를 시트로 펼친다(화면을 새로 만들지 않고 목록 흐름 유지).
-  Widget _localCard(Map<String, dynamic> d, bool isDark) {
+  /// 우리 동네 유가 — 3단 상태 카드 (형 확정: 온디맨드 생성).
+  ///  ① 집 미등록: 등록 유도 (탭 → 집 등록 화면)
+  ///  ② 집 등록 + 오늘 미생성: '오늘 시세 받기' 버튼 — 사용자가 직접 생성
+  ///  ③ 생성됨: 요약 카드, 탭 → 상세 화면 (다른 리포트와 같은 패턴)
+  Widget _localCard(bool isDark) {
     const accent = AppColors.gasBlue;
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final primary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final secondary =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    Widget shell({required Widget child, VoidCallback? onTap}) => Material(
+          color: isDark
+              ? AppColors.darkGasActiveCard
+              : AppColors.lightGasActiveCard,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: onTap,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(16, 13, 14, 14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                    color: isDark
+                        ? AppColors.darkGasActiveBorder
+                        : AppColors.lightGasActiveBorder),
+              ),
+              child: child,
+            ),
+          ),
+        );
+
+    final home = PlaceService.get('home');
+
+    // ① 집 미등록 — 등록으로 안내
+    if (home == null) {
+      return shell(
+        onTap: _registerHome,
+        child: Row(
+          children: [
+            const Icon(Icons.home_rounded, size: 30, color: accent),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('집을 등록하면 우리 동네 유가를 알려드려요',
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
+                          color: primary)),
+                  const SizedBox(height: 3),
+                  Text('동네 평균가 · 전국 비교 · 집 근처 최저가 TOP3',
+                      style: TextStyle(fontSize: 12, color: muted)),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Text('집 등록',
+                style: TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w800, color: accent)),
+            Icon(Icons.chevron_right_rounded, size: 20, color: muted),
+          ],
+        ),
+      );
+    }
+
+    // ② 오늘 아직 안 만듦 — 받기 버튼
+    if (_local == null) {
+      final homeName = (home['name'] ?? '집').toString();
+      return shell(
+        onTap: _localLoading ? null : _generateLocal,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                _pill('우리 동네', accent, isDark),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text('$homeName 기준',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: muted)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('오늘의 우리 동네 유가 받기',
+                          style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.3,
+                              color: primary)),
+                      const SizedBox(height: 3),
+                      Text('동네 평균가 · 전국 비교 · 집 근처 최저가 TOP3',
+                          style: TextStyle(
+                              fontSize: 12, height: 1.4, color: secondary)),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                _localLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: accent))
+                    : Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 13, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: accent,
+                          borderRadius: BorderRadius.circular(9),
+                        ),
+                        child: const Text('받기',
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white)),
+                      ),
+              ],
+            ),
+            if (_localError != null) ...[
+              const SizedBox(height: 7),
+              Text(_localError!,
+                  style: TextStyle(
+                      fontSize: 11.5,
+                      color: isDark
+                          ? AppColors.darkOrangeBright
+                          : const Color(0xFFE07000))),
+            ],
+          ],
+        ),
+      );
+    }
+
+    // ③ 생성됨 — 요약 + 상세로
+    final d = _local!;
     final region = (d['region'] as Map?) ?? const {};
     final price = (d['region_price'] as Map?) ?? const {};
     final cmp = (d['compare'] as Map?) ?? const {};
@@ -352,233 +544,56 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
     final avg = (price['avg_won_per_liter'] as num?)?.round();
     final vsNation = (cmp['vs_nation_won'] as num?)?.toDouble();
     final stations = (nearby['stations'] as List?) ?? const [];
-    final best = stations.isNotEmpty ? Map<String, dynamic>.from(stations.first) : null;
-    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final best =
+        stations.isNotEmpty ? Map<String, dynamic>.from(stations.first) : null;
 
-    return Material(
-      color: isDark ? AppColors.darkGasActiveCard : AppColors.lightGasActiveCard,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => _showLocalSheet(d, isDark),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 13, 14, 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-                color: isDark
-                    ? AppColors.darkGasActiveBorder
-                    : AppColors.lightGasActiveBorder),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return shell(
+      onTap: () => _openLocalDetail(d),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  _pill('우리 동네', accent, isDark),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      _localFromHome ? '$label · 집 기준' : '$label · 현재 위치',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: muted),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(Icons.chevron_right_rounded, size: 20, color: muted),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(
-                    avg != null ? '$fuelLabel ${_comma(avg)}원' : '$fuelLabel 시세',
+              _pill('우리 동네', accent, isDark),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text('$label · 집 기준',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                        fontSize: 16.5,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.3,
-                        color: isDark
-                            ? AppColors.darkTextPrimary
-                            : AppColors.lightTextPrimary),
-                  ),
-                  const SizedBox(width: 8),
-                  if (vsNation != null)
-                    _localDeltaChip(vsNation, isDark, suffix: '원 (전국 대비)'),
-                ],
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: muted)),
               ),
-              if (best != null) ...[
-                const SizedBox(height: 6),
-                Text(
-                  '집 근처 최저가 ${best['name']} ${_comma((best['price_won_per_liter'] as num).round())}원',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: 12.5,
-                      height: 1.5,
-                      color: isDark
-                          ? AppColors.darkTextSecondary
-                          : AppColors.lightTextSecondary),
-                ),
-              ],
-              if (!_localFromHome) ...[
-                const SizedBox(height: 6),
-                Text('집을 등록하면 항상 우리 동네 기준으로 보여드려요',
-                    style: TextStyle(fontSize: 11.5, color: muted)),
-              ],
+              const Spacer(),
+              Icon(Icons.chevron_right_rounded, size: 20, color: muted),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  /// 우리 동네 상세 — AI 서술 + 반경 최저가 TOP3 + 시도/전국 비교.
-  void _showLocalSheet(Map<String, dynamic> d, bool isDark) {
-    final region = (d['region'] as Map?) ?? const {};
-    final price = (d['region_price'] as Map?) ?? const {};
-    final cmp = (d['compare'] as Map?) ?? const {};
-    final nearby = (d['nearby'] as Map?) ?? const {};
-    final label = (region['label'] ?? '우리 동네').toString();
-    final fuelLabel = (d['fuel_label'] ?? '휘발유').toString();
-    final narrative = (d['narrative'] ?? '').toString().trim();
-    final stations = (nearby['stations'] as List?) ?? const [];
-    final radiusKm = ((nearby['radius_m'] as num?) ?? 5000) / 1000;
-    final count = (price['station_count'] as num?)?.round();
-    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    final primary =
-        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final secondary =
-        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: isDark ? AppColors.darkSurface1 : AppColors.lightCard,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => SafeArea(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.8),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Center(
-                  child: Container(
-                    width: 38,
-                    height: 4,
-                    decoration: BoxDecoration(
-                        color: muted.withValues(alpha: 0.35),
-                        borderRadius: BorderRadius.circular(2)),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text('$label $fuelLabel 시세',
-                    style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.3,
-                        color: primary)),
-                if (count != null) ...[
-                  const SizedBox(height: 4),
-                  Text('주유소 $count곳 기준', style: TextStyle(fontSize: 12, color: muted)),
-                ],
-                if (narrative.isNotEmpty) ...[
-                  const SizedBox(height: 14),
-                  MarkdownBody(
-                    data: narrative,
-                    styleSheet: MarkdownStyleSheet(
-                      p: TextStyle(fontSize: 13.5, height: 1.65, color: secondary),
-                      strong: TextStyle(
-                          fontSize: 13.5,
-                          height: 1.65,
-                          fontWeight: FontWeight.w800,
-                          color: primary),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 18),
-                Text('집 근처 ${radiusKm.toStringAsFixed(0)}km 최저가',
-                    style: TextStyle(
-                        fontSize: 13.5, fontWeight: FontWeight.w800, color: primary)),
-                const SizedBox(height: 8),
-                if (stations.isEmpty)
-                  Text('주변에서 판매 중인 주유소를 찾지 못했어요',
-                      style: TextStyle(fontSize: 12.5, color: muted))
-                else
-                  ...stations.map((raw) {
-                    final s = Map<String, dynamic>.from(raw as Map);
-                    final dist = (s['distance_m'] as num?)?.toDouble();
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text((s['name'] ?? '').toString(),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                        color: primary)),
-                                if (dist != null)
-                                  Text('${(dist / 1000).toStringAsFixed(1)}km',
-                                      style:
-                                          TextStyle(fontSize: 11.5, color: muted)),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                              '${_comma((s['price_won_per_liter'] as num).round())}원',
-                              style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.gasBlue)),
-                        ],
-                      ),
-                    );
-                  }),
-                const SizedBox(height: 14),
-                _localCompareRow('경기 평균',
-                    (cmp['sido_avg_won_per_liter'] as num?)?.round(), isDark),
-                _localCompareRow('전국 평균',
-                    (cmp['nation_avg_won_per_liter'] as num?)?.round(), isDark),
-              ],
-            ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Text(
+                avg != null ? '$fuelLabel ${_comma(avg)}원' : '$fuelLabel 시세',
+                style: TextStyle(
+                    fontSize: 16.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
+                    color: primary),
+              ),
+              const SizedBox(width: 8),
+              if (vsNation != null)
+                _localDeltaChip(vsNation, isDark, suffix: '원 (전국 대비)'),
+            ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _localCompareRow(String label, int? value, bool isDark) {
-    if (value == null) return const SizedBox.shrink();
-    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: TextStyle(fontSize: 12.5, color: muted)),
-          Text('${_comma(value)}원',
-              style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  color: isDark
-                      ? AppColors.darkTextSecondary
-                      : AppColors.lightTextSecondary)),
+          if (best != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              '집 근처 최저가 ${best['name']} ${_comma((best['price_won_per_liter'] as num).round())}원',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12.5, height: 1.5, color: secondary),
+            ),
+          ],
         ],
       ),
     );
@@ -1683,4 +1698,326 @@ String _mmdd(String yyyymmdd) {
   final s = yyyymmdd.replaceAll('-', '');
   if (s.length < 8) return s;
   return '${int.parse(s.substring(4, 6))}/${int.parse(s.substring(6, 8))}';
+}
+
+
+/* ══════════════════════════ 우리 동네 유가 상세 ══════════════════════════ */
+
+/// 우리 동네 유가 상세 — 다른 리포트 상세와 같은 패턴(전용 화면).
+/// 데이터는 목록에서 생성한 것을 그대로 받는다(재조회 없음 — 당일 캐시와 일치 보장).
+class LocalFuelBriefDetailScreen extends StatelessWidget {
+  const LocalFuelBriefDetailScreen({super.key, required this.data});
+
+  final Map<String, dynamic> data;
+
+  String _fmtYmd(dynamic raw) {
+    final s = (raw ?? '').toString();
+    if (s.length != 8) return s;
+    return '${s.substring(0, 4)}.${s.substring(4, 6)}.${s.substring(6, 8)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    const accent = AppColors.gasBlue;
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final primary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final secondary =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final cardBg = isDark ? AppColors.darkCard : Colors.white;
+    final cardBorder =
+        isDark ? AppColors.darkCardBorder : const Color(0xFFE8ECF0);
+
+    final region = (data['region'] as Map?) ?? const {};
+    final price = (data['region_price'] as Map?) ?? const {};
+    final cmp = (data['compare'] as Map?) ?? const {};
+    final nearby = (data['nearby'] as Map?) ?? const {};
+    final label = (region['label'] ?? '우리 동네').toString();
+    final sidoLabel = (region['sido_label'] ?? '').toString();
+    final fuelLabel = (data['fuel_label'] ?? '휘발유').toString();
+    final narrative = (data['narrative'] ?? '').toString().trim();
+    final avg = (price['avg_won_per_liter'] as num?)?.round();
+    final count = (price['station_count'] as num?)?.round();
+    final minName = (price['min_station_name'] ?? '').toString();
+    final minPrice = (price['min_won_per_liter'] as num?)?.round();
+    final sidoAvg = (cmp['sido_avg_won_per_liter'] as num?)?.round();
+    final nationAvg = (cmp['nation_avg_won_per_liter'] as num?)?.round();
+    final vsNation = (cmp['vs_nation_won'] as num?)?.round();
+    final stations = (nearby['stations'] as List?) ?? const [];
+    final radiusKm = ((nearby['radius_m'] as num?) ?? 5000) / 1000;
+    final saveWon = (nearby['save_vs_region_won'] as num?)?.round();
+
+    Widget sectionCard(Widget child) => Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 15),
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: cardBorder, width: 0.8),
+          ),
+          child: child,
+        );
+
+    Widget sectionHead(IconData icon, String text) => Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(
+            children: [
+              Icon(icon, size: 15, color: accent),
+              const SizedBox(width: 6),
+              Text(text,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
+                      color: primary)),
+            ],
+          ),
+        );
+
+    Widget avgRow(String name, int? value, {bool highlight = false}) {
+      if (value == null) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(top: 7),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(name,
+                style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: highlight ? FontWeight.w800 : FontWeight.w500,
+                    color: highlight ? primary : muted)),
+            Text('${_comma(value)}원',
+                style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: highlight ? FontWeight.w800 : FontWeight.w600,
+                    color: highlight ? accent : secondary)),
+          ],
+        ),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('우리 동네 유가')),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 30),
+        children: [
+          // ── 헤더 ──
+          Row(
+            children: [
+              _pill('우리 동네', accent, isDark),
+              const SizedBox(width: 7),
+              Text(_fmtYmd(data['stats_date']),
+                  style: TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600, color: muted)),
+            ],
+          ),
+          const SizedBox(height: 9),
+          Text('$label $fuelLabel 시세',
+              style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.4,
+                  height: 1.3,
+                  color: primary)),
+          const SizedBox(height: 4),
+          Text('등록한 집 주변 · 주유소 ${count ?? '-'}곳 집계',
+              style: TextStyle(fontSize: 12.5, color: muted)),
+          const SizedBox(height: 16),
+
+          // ── 평균가 히어로 ──
+          sectionCard(Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(avg != null ? _comma(avg) : '-',
+                      style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -1,
+                          height: 1,
+                          color: primary)),
+                  const SizedBox(width: 4),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 3),
+                    child: Text('원/L',
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: muted)),
+                  ),
+                  const Spacer(),
+                  if (vsNation != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 9, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: (vsNation > 0
+                                ? const Color(0xFFEF4444)
+                                : AppColors.evGreen)
+                            .withValues(alpha: isDark ? 0.18 : 0.10),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        vsNation == 0
+                            ? '전국 평균 수준'
+                            : '전국보다 ${_comma(vsNation.abs())}원 ${vsNation > 0 ? '비쌈' : '저렴'}',
+                        style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w800,
+                            color: vsNation > 0
+                                ? const Color(0xFFEF4444)
+                                : AppColors.evGreen),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Divider(height: 1, color: cardBorder),
+              avgRow('$label 평균', avg, highlight: true),
+              if (sidoLabel.isNotEmpty) avgRow('$sidoLabel 평균', sidoAvg),
+              avgRow('전국 평균', nationAvg),
+            ],
+          )),
+
+          // ── AI 서술 ──
+          if (narrative.isNotEmpty)
+            sectionCard(Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                sectionHead(Icons.auto_awesome_rounded, '오늘의 동네 시세 읽기'),
+                MarkdownBody(
+                  data: narrative,
+                  styleSheet: MarkdownStyleSheet(
+                    p: TextStyle(fontSize: 13.5, height: 1.7, color: secondary),
+                    strong: TextStyle(
+                        fontSize: 13.5,
+                        height: 1.7,
+                        fontWeight: FontWeight.w800,
+                        color: primary),
+                  ),
+                ),
+              ],
+            )),
+
+          // ── 집 근처 최저가 TOP3 ──
+          sectionCard(Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              sectionHead(Icons.local_gas_station_rounded,
+                  '집 근처 ${radiusKm.toStringAsFixed(0)}km 최저가'),
+              if (stations.isEmpty)
+                Text('주변에서 판매 중인 주유소를 찾지 못했어요',
+                    style: TextStyle(fontSize: 12.5, color: muted))
+              else
+                for (var i = 0; i < stations.length; i++)
+                  Builder(builder: (_) {
+                    final st =
+                        Map<String, dynamic>.from(stations[i] as Map);
+                    final dist = (st['distance_m'] as num?)?.toDouble();
+                    final top = i == 0;
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 9),
+                      margin: EdgeInsets.only(
+                          bottom: i == stations.length - 1 ? 0 : 6),
+                      decoration: BoxDecoration(
+                        color: top
+                            ? accent.withValues(alpha: isDark ? 0.10 : 0.06)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 22,
+                            height: 22,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: top
+                                  ? accent
+                                  : muted.withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text('${i + 1}',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: top ? Colors.white : muted)),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text((st['name'] ?? '').toString(),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: -0.2,
+                                        color: primary)),
+                                if (dist != null)
+                                  Text(
+                                      '${(dist / 1000).toStringAsFixed(1)}km',
+                                      style: TextStyle(
+                                          fontSize: 11.5, color: muted)),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                              '${_comma((st['price_won_per_liter'] as num).round())}원',
+                              style: TextStyle(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: top ? accent : secondary)),
+                        ],
+                      ),
+                    );
+                  }),
+              if (saveWon != null && saveWon > 0) ...[
+                const SizedBox(height: 10),
+                Text('1위에서 넣으면 동네 평균보다 리터당 ${_comma(saveWon)}원 아껴요',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: secondary)),
+              ],
+            ],
+          )),
+
+          // ── 동네 전체 최저가 ──
+          if (minName.isNotEmpty && minPrice != null)
+            sectionCard(Row(
+              children: [
+                const Icon(Icons.emoji_events_rounded,
+                    size: 18, color: Color(0xFFF59E0B)),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Text('$label 전체 최저가는 $minName',
+                      style: TextStyle(
+                          fontSize: 12.5, height: 1.4, color: secondary)),
+                ),
+                const SizedBox(width: 8),
+                Text('${_comma(minPrice)}원',
+                    style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                        color: primary)),
+              ],
+            )),
+
+          const SizedBox(height: 6),
+          Text('오피넷 판매가 기준 · 하루 한 번 갱신돼요',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11.5, color: muted)),
+        ],
+      ),
+    );
+  }
 }
