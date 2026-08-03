@@ -52,9 +52,14 @@ Future<void> showNavigationSheet(
   NavStop? destination,
   List<NavStop> waypoints = const [],
   NavStop? origin,
+
   /// 경로 카드의 주유소·충전소 줄에 붙일 보조 문구 (예: '+1분 · 1,823원/L').
   /// 없으면 '경유' 만 표시한다.
   String? stationNote,
+
+  /// 안내 범위 세그먼트에 쓸 지점 종류 — '주유소' | '충전소'.
+  /// 안 넘기면 '여기까지만' 으로 표시한다(어느 쪽인지 모를 때).
+  String? stopKind,
 }) async {
   await showModalBottomSheet(
     context: context,
@@ -68,6 +73,7 @@ Future<void> showNavigationSheet(
       waypoints: waypoints,
       origin: origin,
       stationNote: stationNote,
+      stopKind: stopKind,
     ),
   );
 }
@@ -90,6 +96,7 @@ Future<void> showViaWaypointNavigationSheet(
   required String destinationName,
   List<NavStop> extraWaypoints = const [],
   String? stationNote,
+  String? stopKind,
 }) async {
   await showNavigationSheet(
     context,
@@ -105,6 +112,7 @@ Future<void> showViaWaypointNavigationSheet(
     waypoints: extraWaypoints.isNotEmpty ? extraWaypoints : AiRouteSession.vias,
     origin: NavStop(name: originName, lat: originLat, lng: originLng),
     stationNote: stationNote,
+    stopKind: stopKind,
   );
 }
 
@@ -178,6 +186,7 @@ class _NavigationSheet extends StatefulWidget {
   final List<NavStop> waypoints;
   final NavStop? origin; // 경유지 순서 정렬 기준
   final String? stationNote;
+  final String? stopKind;
   const _NavigationSheet({
     required this.lat,
     required this.lng,
@@ -186,6 +195,7 @@ class _NavigationSheet extends StatefulWidget {
     this.waypoints = const [],
     this.origin,
     this.stationNote,
+    this.stopKind,
   });
 
   @override
@@ -193,6 +203,9 @@ class _NavigationSheet extends StatefulWidget {
 }
 
 class _NavigationSheetState extends State<_NavigationSheet> {
+  /// 열 때 기본은 '목적지까지 + 경유지 전부 켜짐'.
+  /// 설정 화면에서 '주유소까지'를 명시적으로 고른 사용자만 그 값으로 시작한다.
+  /// (시트 안에서 끈 건 저장하지 않으므로 다음에 열면 다시 전부 켜진 상태다)
   late bool _toDestination = NavScopePref.toDestination;
   late String _app = NavAppPref.get();
 
@@ -227,8 +240,9 @@ class _NavigationSheetState extends State<_NavigationSheet> {
   }
 
   /// 실제 목적지 (목적지까지 모드면 최종 목적지, 아니면 추천 지점)
-  NavStop get _goal =>
-      _toDestination && _hasDest ? widget.destination! : NavStop(name: name, lat: lat, lng: lng);
+  NavStop get _goal => _toDestination && _hasDest
+      ? widget.destination!
+      : NavStop(name: name, lat: lat, lng: lng);
 
   /// 켜져 있는 경유지 (주유소는 항상 포함).
   List<_Stop> get _enabled {
@@ -263,7 +277,6 @@ class _NavigationSheetState extends State<_NavigationSheet> {
     }
     return out;
   }
-
 
   int get _maxForApp => switch (_app) {
         NavAppPref.naver => _kNaverViaMax,
@@ -311,7 +324,7 @@ class _NavigationSheetState extends State<_NavigationSheet> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      _hasDest ? '어떻게 안내할까요?' : '길 안내 시작',
+                      '길 안내 시작',
                       style: TextStyle(
                         fontSize: 19,
                         fontWeight: FontWeight.w800,
@@ -319,28 +332,11 @@ class _NavigationSheetState extends State<_NavigationSheet> {
                         color: textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 5),
-                    Text(
-                      // 경유지가 있으면 부제에서 바로 보이게 — "주유소만 들르는 건가?" 혼동 방지.
-                      _hasDest
-                          ? (widget.waypoints.isEmpty
-                              ? '$name 들렀다가 ${widget.destination!.name}까지'
-                              : '$name · 경유지 ${widget.waypoints.length}곳 들렀다가 ${widget.destination!.name}까지')
-                          : name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 13, height: 1.35, color: muted),
-                    ),
-                    if (_hasDest) ...[
-                      const SizedBox(height: 16),
-                      _scopeSegment(isDark),
-                    ],
                     const SizedBox(height: 14),
-                    _hintRow(isDark, muted),
-                    if (_hasDest && widget.waypoints.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      _viaSection(isDark, muted),
-                    ],
+                    // 세그먼트·힌트·경유지 카드 3덩어리를 경로 카드 하나로 합쳤다.
+                    // 위→아래로 실제 이동 순서가 그려지니 "뭘 끄면 어떻게 되는지" 가
+                    // 설명 없이 읽힌다(형 판단).
+                    _routeCard(isDark),
                     const SizedBox(height: 18),
                     Align(
                       alignment: Alignment.centerLeft,
@@ -377,239 +373,265 @@ class _NavigationSheetState extends State<_NavigationSheet> {
     );
   }
 
-  // ── 안내 범위 (목적지까지 / 주유소까지만) ──────────────────────────────────
-  Widget _scopeSegment(bool isDark) {
-    final trackBg = isDark ? const Color(0x14FFFFFF) : const Color(0xFFF1F5F9);
-    final offText =
-        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-
-    Widget seg(String label, bool on, VoidCallback onTap) => Expanded(
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: onTap,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              height: 46,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: on ? AppColors.gasBlue : Colors.transparent,
-                borderRadius: BorderRadius.circular(11),
-              ),
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.3,
-                  color: on ? Colors.white : offText,
-                ),
-              ),
-            ),
-          ),
-        );
-
-    void setScope(bool toDest) {
-      if (toDest == _toDestination) return;
-      setState(() => _toDestination = toDest);
-      NavScopePref.set(
-          toDest ? NavScopePref.destination : NavScopePref.station);
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: trackBg,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          seg('목적지까지', _toDestination, () => setScope(true)),
-          // 이름을 넣으면 "㈜이아이디 희망주유소까지만" 처럼 길어져 잘린다.
-          // 어디를 말하는지는 바로 위 부제("○○ 들렀다가 △△까지")가 이미 알려준다.
-          seg('여기까지만', !_toDestination, () => setScope(false)),
-        ],
-      ),
-    );
-  }
-
-  Widget _hintRow(bool isDark, Color muted) {
-    final text = !_hasDest
-        ? '$name(으)로 안내를 시작해요'
-        : _toDestination
-            ? '주유소를 경유지로 넣고 ${widget.destination!.name}까지 안내해요'
-            : '$name까지만 안내하고 끝나요';
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(
-          _toDestination && _hasDest
-              ? Icons.alt_route_rounded
-              : Icons.place_rounded,
-          size: 16,
-          color: isDark ? AppColors.darkBlueBright : AppColors.gasBlue,
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(fontSize: 12.5, height: 1.35, color: muted),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ── 경유지 (있을 때만) ─────────────────────────────────────────────────────
-  // 항상 펼쳐진 카드 — 접이식은 "내 경유지가 어떻게 되는 거지?" 를 한 번 더 눌러야
-  // 알 수 있어서 뺐다(형 피드백). 주유소는 목록에 없다 — 이 시트를 연 목적 자체라
-  // 끌 수 있으면 안 된다.
-  Widget _viaSection(bool isDark, Color muted) {
-    final stops = _ordered;
-    final max = _maxForApp;
-    final over = _enabled.length > max; // 주유소 포함 총 경유가 앱 한도 초과
+  // ── 경로 카드 ──────────────────────────────────────────────────────────────
+  // 현재 위치 → (경유 지점들) → 목적지 를 위에서 아래로. 각 줄의 스위치가 곧
+  // "이 지점을 들를지" 라서 별도 설명이 필요 없다.
+  //  · 주유소·충전소 줄엔 스위치가 없다 — 이 시트를 연 목적 자체라 끌 수 있으면 안 된다.
+  //  · 목적지 스위치를 끄면 주유소가 종점이 되고(기존 '주유소까지만'), 그 아래 경유지는
+  //    갈 일이 없으므로 흐려진다.
+  //  · 앱 한도(카카오·네이버 3곳)에 밀려 못 넘기는 줄은 그 자리에서 이유를 말한다.
+  //    '미전달' 같은 말 대신 "카카오내비에선 빠져요" — 뭘 해야 하는지가 바로 읽히게.
+  Widget _routeCard(bool isDark) {
+    final cardBg =
+        isDark ? AppColors.darkGasActiveCard : AppColors.lightGasActiveCard;
+    final line = isDark ? const Color(0x2EFFFFFF) : const Color(0xFFC3D9F5);
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     final warn = isDark ? AppColors.darkOrangeBright : const Color(0xFFE07000);
-    final textPrimary =
-        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
 
-    // 실제로 전달될 지점 — 잘리는 경유지에 '미전달' 을 붙이기 위해 미리 계산한다.
-    final sent = _viasFor(max).toSet();
+    final stops = _ordered;
+    final sent = _viasFor(_maxForApp).toSet();
+    final kind = widget.stopKind ?? '이곳';
 
-    final rows = <Widget>[];
-    var no = 0;
+    final rows = <Widget>[
+      _stopRow(
+        isDark: isDark,
+        icon: Icons.circle,
+        iconSize: 10,
+        iconColor: isDark ? AppColors.darkTextMuted : const Color(0xFF9BA8B9),
+        title: (widget.origin?.name.trim().isNotEmpty ?? false)
+            ? widget.origin!.name
+            : '현재 위치',
+        titleMuted: true,
+        line: line,
+        showLine: true,
+      ),
+    ];
+
     for (var i = 0; i < stops.length; i++) {
       final s = stops[i];
-      if (s.isStation) continue;
-      no++;
-      final on = !_viaOff.contains(i);
-      final dropped = on && !sent.contains(s.stop);
-      rows.add(Padding(
-        padding: EdgeInsets.only(top: no == 1 ? 10 : 8),
-        child: Row(
-          children: [
-            // 번호 배지 — 내비에 넘어가는 '순서' 가 그대로 보인다
-            Container(
-              width: 21,
-              height: 21,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: on
-                    ? AppColors.gasBlue.withValues(alpha: isDark ? 0.22 : 0.10)
-                    : muted.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
+      final isVia = !s.isStation;
+      final on = !isVia || !_viaOff.contains(i);
+      // 목적지 안내를 끄면 주유소가 종점 → 그 뒤 경유지는 의미가 없다.
+      final disabled = isVia && !_toDestination;
+      final dropped = isVia && on && !disabled && !sent.contains(s.stop);
+
+      final String sub;
+      if (s.isStation) {
+        final note = widget.stationNote?.trim();
+        sub = (note != null && note.isNotEmpty) ? '경유 · $note' : '경유';
+      } else if (dropped) {
+        sub = '${NavAppPref.label(_app)}에선 빠져요';
+      } else if (disabled) {
+        sub = '목적지까지 안내할 때만 들러요';
+      } else {
+        sub = on ? '경유' : '안 들러요';
+      }
+
+      rows.add(_stopRow(
+        isDark: isDark,
+        icon:
+            s.isStation ? Icons.local_gas_station_rounded : Icons.place_rounded,
+        iconSize: 18,
+        iconColor: s.isStation
+            ? AppColors.gasBlue
+            : (dropped
+                ? warn
+                : (isDark
+                    ? AppColors.darkTextSecondary
+                    : const Color(0xFF64748B))),
+        title: s.stop.name,
+        subtitle: sub,
+        subtitleColor: dropped ? warn : null,
+        dimmed: (!on || disabled) && !dropped,
+        line: line,
+        showLine: true,
+        trailing: s.isStation
+            ? null
+            : _switch(
+                value: on,
+                enabled: !disabled,
+                onChanged: (v) =>
+                    setState(() => v ? _viaOff.remove(i) : _viaOff.add(i)),
               ),
-              child: Text(
-                '$no',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  color: on
-                      ? (isDark ? AppColors.darkBlueBright : AppColors.gasBlueDark)
-                      : muted,
-                ),
-              ),
-            ),
-            const SizedBox(width: 9),
-            Expanded(
-              child: Text(
-                s.stop.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: -0.2,
-                  color: on ? textPrimary : muted,
-                  decoration: on ? null : TextDecoration.lineThrough,
-                  decorationColor: muted,
-                ),
-              ),
-            ),
-            if (dropped) ...[
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  color: warn.withValues(alpha: isDark ? 0.22 : 0.12),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text('미전달',
-                    style: TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
-                        color: warn)),
-              ),
-              const SizedBox(width: 6),
-            ],
-            SizedBox(
-              height: 24,
-              child: FittedBox(
-                fit: BoxFit.contain,
-                child: Switch(
-                  value: on,
-                  onChanged: (v) => setState(
-                      () => v ? _viaOff.remove(i) : _viaOff.add(i)),
-                  activeThumbColor: Colors.white,
-                  activeTrackColor: AppColors.gasBlue,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-              ),
-            ),
-          ],
+      ));
+    }
+
+    if (_hasDest) {
+      rows.add(_stopRow(
+        isDark: isDark,
+        icon: Icons.flag_rounded,
+        iconSize: 18,
+        iconColor: isDark ? AppColors.darkTextPrimary : const Color(0xFF334155),
+        title: widget.destination!.name,
+        subtitle: _toDestination ? '최종 목적지까지 안내' : '$kind에서 안내가 끝나요',
+        dimmed: !_toDestination,
+        line: line,
+        showLine: false,
+        // ★ 이 스위치는 '이번 안내' 에만 적용된다 — NavScopePref 에 저장하지 않는다.
+        //   예전엔 껐을 때 전역 설정까지 바꿔서, 한 번 끄면 다음부터 계속 꺼진 채로
+        //   열렸다(형 제보: 디폴트는 목적지까지 + 경유지 전부 켜짐이어야 함).
+        //   전역 기본값은 설정 화면의 '길안내 범위' 타일에서만 바꾼다.
+        trailing: _switch(
+          value: _toDestination,
+          enabled: true,
+          onChanged: (v) => setState(() => _toDestination = v),
         ),
       ));
     }
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+      padding: const EdgeInsets.fromLTRB(16, 16, 14, 16),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : const Color(0xFFF6F8FB),
-        borderRadius: BorderRadius.circular(14),
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(Icons.alt_route_rounded,
-                  size: 14,
-                  color: isDark ? AppColors.darkBlueBright : AppColors.gasBlue),
-              const SizedBox(width: 6),
-              Text(
-                '함께 들르는 경유지',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.2,
-                  color: muted,
-                ),
-              ),
-            ],
-          ),
           ...rows,
-          // 한도 초과일 때만 — 평소엔 개수·전달 여부를 떠들지 않는다(번호와 스위치로 충분).
-          if (over) ...[
-            const SizedBox(height: 10),
+          // 한도에 밀린 줄이 있을 때만 — 어떻게 하면 되는지 한 줄.
+          if (_toDestination && _enabled.length > _maxForApp) ...[
+            const SizedBox(height: 4),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.error_outline_rounded, size: 13, color: warn),
-                const SizedBox(width: 6),
+                Icon(Icons.error_outline_rounded, size: 14, color: warn),
+                const SizedBox(width: 7),
                 Expanded(
                   child: Text(
-                    '${NavAppPref.label(_app)}는 주유소 포함 $max곳까지 받아요 — '
-                    '넘치는 곳은 끄거나, 그대로 두면 표시된 곳만 빠져요',
+                    '${NavAppPref.label(_app)}는 주유소 포함 $_maxForApp곳까지만 받아요. '
+                    '다른 앱을 고르거나, 안 들를 곳을 꺼주세요.',
                     style: TextStyle(
-                        fontSize: 11.5, height: 1.4, color: warn,
-                        fontWeight: FontWeight.w600),
+                        fontSize: 11.5,
+                        height: 1.4,
+                        fontWeight: FontWeight.w600,
+                        color: warn),
                   ),
                 ),
               ],
             ),
           ],
+          if (!_hasDest) ...[
+            const SizedBox(height: 2),
+            Padding(
+              padding: const EdgeInsets.only(left: 31),
+              child: Text('이 지점으로 안내를 시작해요',
+                  style: TextStyle(fontSize: 12, color: muted)),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  /// 경로 카드 한 줄 — 왼쪽 아이콘 + 세로 연결선, 오른쪽 스위치(있을 때).
+  /// 연결선 높이는 줄마다 다르므로 IntrinsicHeight 로 실제 높이에 맞춘다
+  /// (고정 높이로 두면 큰 글씨 설정에서 선이 끊기거나 넘친다).
+  Widget _stopRow({
+    required bool isDark,
+    required IconData icon,
+    required double iconSize,
+    required Color iconColor,
+    required String title,
+    String? subtitle,
+    Color? subtitleColor,
+    bool titleMuted = false,
+    bool dimmed = false,
+    required Color line,
+    required bool showLine,
+    Widget? trailing,
+  }) {
+    final textPrimary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+
+    return Opacity(
+      opacity: dimmed ? 0.45 : 1,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 22,
+              child: Column(
+                children: [
+                  SizedBox(
+                    height: 22,
+                    child: Center(
+                        child: Icon(icon, size: iconSize, color: iconColor)),
+                  ),
+                  if (showLine)
+                    Expanded(child: Container(width: 1.5, color: line)),
+                ],
+              ),
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(bottom: showLine ? 16 : 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        height: 1.3,
+                        fontWeight:
+                            titleMuted ? FontWeight.w600 : FontWeight.w700,
+                        letterSpacing: -0.2,
+                        color: titleMuted ? muted : textPrimary,
+                      ),
+                    ),
+                    if (subtitle != null && subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.3,
+                          fontWeight: subtitleColor != null
+                              ? FontWeight.w700
+                              : FontWeight.w400,
+                          color: subtitleColor ?? muted,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            if (trailing != null) ...[
+              const SizedBox(width: 8),
+              Padding(padding: const EdgeInsets.only(top: 1), child: trailing),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _switch({
+    required bool value,
+    required bool enabled,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return SizedBox(
+      height: 26,
+      child: FittedBox(
+        fit: BoxFit.contain,
+        child: Switch(
+          value: value,
+          onChanged: enabled ? onChanged : null,
+          activeThumbColor: Colors.white,
+          activeTrackColor: AppColors.gasBlue,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
       ),
     );
   }

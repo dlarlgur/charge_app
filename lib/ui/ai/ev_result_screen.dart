@@ -1308,6 +1308,7 @@ class _StationCardState extends State<_StationCard> {
                                 destinationLat: widget.destLat!,
                                 destinationLng: widget.destLng!,
                                 destinationName: widget.destName ?? '목적지',
+                                stopKind: '충전소',
                               );
                             },
                           )),
@@ -1830,6 +1831,7 @@ class _StationCardState extends State<_StationCard> {
                                   destinationLat: widget.destLat!,
                                   destinationLng: widget.destLng!,
                                   destinationName: widget.destName ?? '목적지',
+                                  stopKind: '충전소',
                                 );
                               },
                             )),

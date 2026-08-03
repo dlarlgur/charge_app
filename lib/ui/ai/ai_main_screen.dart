@@ -2350,6 +2350,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
               goalLng: _destLng!,
               waypointLat: primaryStLat,
               waypointLng: primaryStLng,
+              // 사용자가 넣은 경유지도 함께 — 안 넣으면 지도가 경유지를 건너뛰고 그려진다
+              vias: _viaCoords,
+              engine: RouteEnginePref.get(),
             );
             if (vr['success'] == true) {
               final parsed = _pathPointsFromServerJson(vr['path_points']);
@@ -3570,6 +3573,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           goalLng: _destLng!,
           waypointLat: stLat,
           waypointLng: stLng,
+          vias: _viaCoords,
           engine: RouteEnginePref.get(),
         );
         if (vr['success'] == true) {
@@ -3677,6 +3681,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           goalLng: _destLng!,
           waypointLat: stLat,
           waypointLng: stLng,
+          vias: _viaCoords,
           engine: RouteEnginePref.get(),
         );
         if (vr['success'] == true) {
@@ -3893,6 +3898,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         goalLng: _destLng!,
         waypointLat: stLat,
         waypointLng: stLng,
+        vias: _viaCoords,
+        engine: RouteEnginePref.get(),
       );
       if (vr['success'] == true) {
         final parsed = _pathPointsFromServerJson(vr['path_points']);

@@ -1750,6 +1750,7 @@ class _RecommendedCard extends StatelessWidget {
                           destinationLat: destLat!,
                           destinationLng: destLng!,
                           destinationName: destinationName,
+                          stopKind: '주유소',
                         )
                     : null,
                 style: ElevatedButton.styleFrom(
@@ -1909,6 +1910,7 @@ class _CompareCards extends StatelessWidget {
             destinationLat: destLat!,
             destinationLng: destLng!,
             destinationName: destinationName,
+            stopKind: '주유소',
           );
     }
 
@@ -2550,6 +2552,7 @@ class _OptionCard extends StatelessWidget {
                           destinationLat: destLat!,
                           destinationLng: destLng!,
                           destinationName: destinationName,
+                          stopKind: '주유소',
                         )
                     : null,
                 style: ElevatedButton.styleFrom(
@@ -3947,6 +3950,7 @@ class _CompareRecommendCard extends StatelessWidget {
                           destinationLat: destLat!,
                           destinationLng: destLng!,
                           destinationName: destinationName,
+                          stopKind: '주유소',
                         )
                     : null,
                 style: ElevatedButton.styleFrom(

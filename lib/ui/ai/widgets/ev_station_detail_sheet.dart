@@ -388,6 +388,7 @@ class _EvStationDetailSheetState extends State<EvStationDetailSheet> {
                                       destinationLat: widget.destLat!,
                                       destinationLng: widget.destLng!,
                                       destinationName: widget.destName ?? '목적지',
+                                      stopKind: '충전소',
                                     );
                                   }
                                 : null,
