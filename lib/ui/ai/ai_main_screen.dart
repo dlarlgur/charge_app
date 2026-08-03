@@ -1709,8 +1709,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     ));
   }
 
-  // 네이버 지도처럼 그랩 핸들 — 탭하면 배터리/차량 카드 접기/펼치기
-  Widget _buildHeroToggleHandle() {
+  // 접기 손잡이 — 경로 카드(RouteCard._collapseHandle)와 같은 칩+화살표 모양.
+  // 회색 막대는 방향을 알려주지 않고 배경에도 묻혀서, 두 카드 모두 칩으로 통일했다.
+  // 화살표는 각 카드가 '접히는 방향'을 가리킨다: 하단 카드라 펼침=아래로 접기,
+  // 접힘=위로 펼치기. (상단 경로 카드는 반대 방향)
+  // 지도 위에 떠 있을 땐(접힘 상태) 카드 배경이 없어 회색 칩이 안 보이므로 흰 칩+그림자.
+  Widget _buildHeroToggleHandle({bool onMap = false}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -1733,17 +1737,38 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           });
         }
       },
-      // 카드와 한 덩어리 — 배경/그림자 없이 카드 상단 안쪽에 핸들만 (주유 시트와 동일 톤).
       child: Container(
         width: double.infinity,
         alignment: Alignment.center,
-        padding: const EdgeInsets.only(top: 10, bottom: 8),
+        padding: EdgeInsets.only(top: onMap ? 0 : 10, bottom: 8),
         child: Container(
-          width: 40,
-          height: 4,
+          width: 46,
+          height: 22,
           decoration: BoxDecoration(
-            color: isDark ? AppColors.darkCardBorder : const Color(0xFFD0D5DA),
-            borderRadius: BorderRadius.circular(99),
+            color: onMap
+                ? (isDark ? AppColors.darkMapOverlay : Colors.white)
+                : (isDark
+                    ? Colors.white.withValues(alpha: 0.07)
+                    : const Color(0xFFF1F3F6)),
+            borderRadius: BorderRadius.circular(11),
+            boxShadow: onMap
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.08),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    )
+                  ]
+                : null,
+          ),
+          child: Icon(
+            _heroCollapsed
+                ? Icons.keyboard_arrow_up_rounded
+                : Icons.keyboard_arrow_down_rounded,
+            size: 19,
+            color: isDark
+                ? AppColors.darkTextSecondary
+                : const Color(0xFF64748B),
           ),
         ),
       ),
@@ -5777,7 +5802,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                         // ─── 접기 핸들 + HeroCard (네이버처럼 접어 지도 확보) ───
                         // 펼침 상태에선 핸들을 HeroCard 안 최상단(topHandle)으로 넣어 한 덩어리로.
                         // 접힘 요약 바 위에선 카드 밖 핸들 유지.
-                        if (_heroCollapsed) _buildHeroToggleHandle(),
+                        if (_heroCollapsed) _buildHeroToggleHandle(onMap: true),
                         if (_heroCollapsed)
                           _buildCollapsedHeroBar(
                             isEv: isEvVehicle,
