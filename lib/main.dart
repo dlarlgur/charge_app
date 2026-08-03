@@ -496,18 +496,24 @@ void main() async {
   // 콘솔 공지/이벤트 FCM 토픽 구독 — fire-and-forget (실패해도 부팅 무관).
   // 반드시 DkswCore.init 이후: 토픽명이 events_<package> 로 패키지명에 의존하기 때문.
   unawaited(() async {
-    try {
-      // iOS 는 APNs 토큰이 등록되기 전에 subscribeToTopic 을 부르면 실패한다
-      // ("APNS token has not been set yet"). 이 블록은 catch 로 조용히 삼켜지므로
-      // 실패하면 그 기기는 공지/이벤트 토픽을 아예 구독하지 못한 상태로 남는다.
-      // → 토큰이 준비될 때까지 최대 10초 기다린 뒤 구독한다.
-      if (Platform.isIOS) {
-        for (var i = 0; i < 10; i++) {
+    // iOS 는 APNs 토큰이 등록되기 전에 subscribeToTopic 을 부르면 실패한다
+    // ("APNS token has not been set yet") → 토큰이 준비될 때까지 최대 10초 기다린다.
+    // 두 구독 그룹이 공유하는 준비 단계라 try 밖에 둔다.
+    if (Platform.isIOS) {
+      for (var i = 0; i < 10; i++) {
+        try {
           final apns = await FirebaseMessaging.instance.getAPNSToken();
           if (apns != null) break;
-          await Future.delayed(const Duration(seconds: 1));
-        }
+        } catch (_) {/* 준비 안 됨 — 다음 초에 재시도 */}
+        await Future.delayed(const Duration(seconds: 1));
       }
+    }
+
+    // ★ 공지/이벤트와 차량 토픽을 각각 독립 try 로 감싼다.
+    //   예전엔 한 try 안에 있어서, iOS 에서 앞의 subscribeToTopic 이 던지면(APNs 지연·
+    //   알림 권한 거부 등) catch 로 빠지며 뒤의 syncVehicleTopics() 가 통째로 스킵됐다.
+    //   그 기기는 veh_gas/veh_ev 미구독이라 콘솔의 '주유/전기 타겟' 캠페인을 못 받는다.
+    try {
       // v2 토픽(data-only) 구독 — 공지/이벤트를 OS 가 아닌 '앱이' 그려서
       // 방해금지 게이트·알림함 저장·탭 라우팅이 백그라운드에서도 동작.
       // 레거시 토픽(notification payload)은 해지 — 이중 수신 방지. 콘솔은 두 토픽에
@@ -520,12 +526,18 @@ void main() async {
           .unsubscribeFromTopic(DkswCore.noticesTopic());
       await FirebaseMessaging.instance
           .unsubscribeFromTopic(DkswCore.eventsTopic());
-      // 차량타입별 토픽(veh_gas/veh_ev) — 콘솔 '주유/전기' 타겟 푸시용. 매 부팅 재동기화.
-      await PushTopicService.syncVehicleTopics();
-      debugPrint('[PUSH] 토픽 구독 완료');
+      debugPrint('[PUSH] 공지·이벤트 토픽 구독 완료');
     } catch (e) {
       // 조용히 삼키면 iOS 미구독을 영원히 모른다 — 로그만 남기고 부팅은 계속
-      debugPrint('[PUSH] 토픽 구독 실패: $e');
+      debugPrint('[PUSH] 공지·이벤트 토픽 구독 실패: $e');
+    }
+
+    // 차량타입별 토픽(veh_gas/veh_ev) — 콘솔 '주유/전기' 타겟 푸시용. 매 부팅 재동기화.
+    try {
+      await PushTopicService.syncVehicleTopics();
+      debugPrint('[PUSH] 차량 토픽 구독 완료');
+    } catch (e) {
+      debugPrint('[PUSH] 차량 토픽 구독 실패: $e');
     }
   }());
 
