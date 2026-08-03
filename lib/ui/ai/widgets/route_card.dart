@@ -23,6 +23,11 @@ class RouteCard extends StatelessWidget {
   /// 드래그 순서 변경 — 행 인덱스 (0=출발, 1..n=경유, n+1=목적)
   final void Function(int oldIndex, int newIndex)? onReorder;
 
+  /// 접힘 — 한 줄 요약("출발 → 목적지", 경유 N)만 남기고 지도를 넓게 쓴다.
+  /// 경유지 3곳이면 카드가 5행(≈220px)이라 지도가 화면 절반도 안 남는다(형 제보).
+  final bool collapsed;
+  final VoidCallback? onToggleCollapsed;
+
   const RouteCard({
     super.key,
     required this.originName,
@@ -38,6 +43,8 @@ class RouteCard extends StatelessWidget {
     this.onAddVia,
     this.onSwap,
     this.onReorder,
+    this.collapsed = false,
+    this.onToggleCollapsed,
   });
 
   @override
@@ -62,7 +69,95 @@ class RouteCard extends StatelessWidget {
           ),
         ],
       ),
-      child: viaNames.isEmpty ? _twoRows(isDark) : _multiRows(isDark),
+      child: collapsed
+          ? _collapsedRow(isDark)
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                viaNames.isEmpty ? _twoRows(isDark) : _multiRows(isDark),
+                if (onToggleCollapsed != null) _collapseHandle(isDark),
+              ],
+            ),
+    );
+  }
+
+  /// 접기 손잡이 — 카드 아래 가운데. 지도를 가리지 않는 최소 높이(18px)로,
+  /// 화살표만 두어 "여기를 누르면 접힌다" 가 설명 없이 읽히게 한다.
+  Widget _collapseHandle(bool isDark) => GestureDetector(
+        onTap: onToggleCollapsed,
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox(
+          height: 18,
+          child: Center(
+            child: Icon(Icons.keyboard_arrow_up_rounded,
+                size: 18, color: _mutedText(isDark)),
+          ),
+        ),
+      );
+
+  /// 접힌 상태 — "출발 → 목적지" 한 줄 + 경유 개수. 탭하면 펼쳐진다.
+  Widget _collapsedRow(bool isDark) {
+    final origin = originName ?? currentLocationAddress ?? '현재 위치';
+    final dest = destName ?? '목적지 입력';
+    return GestureDetector(
+      onTap: onToggleCollapsed,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        height: 26,
+        child: Row(
+          children: [
+            SizedBox(width: 18, child: Center(child: _originDot())),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(origin,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w500,
+                      color: _secondaryText(isDark))),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 7),
+              child: Icon(Icons.arrow_forward_rounded,
+                  size: 14, color: _mutedText(isDark)),
+            ),
+            SizedBox(width: 12, child: Center(child: _destDot())),
+            const SizedBox(width: 7),
+            Flexible(
+              child: Text(dest,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                      color: destName == null
+                          ? _placeholder(isDark)
+                          : _primaryText(isDark))),
+            ),
+            if (viaNames.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: _line(isDark),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text('경유 ${viaNames.length}',
+                    style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: _mutedText(isDark))),
+              ),
+            ],
+            const SizedBox(width: 4),
+            Icon(Icons.keyboard_arrow_down_rounded,
+                size: 18, color: _mutedText(isDark)),
+          ],
+        ),
+      ),
     );
   }
 

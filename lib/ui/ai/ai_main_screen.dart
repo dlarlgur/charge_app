@@ -110,6 +110,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   String? _destName;
   // 경유지 (최대 3개) — 경로 프리뷰/추천 모두 경유 반영 경로를 따라간다
   final List<Map<String, dynamic>> _vias = []; // {lat,lng,name}
+  // 경로 카드 접힘 — 경유지 3곳이면 5행(≈220px)이라 지도가 너무 좁다(형 제보).
+  // 경로가 계산되면 한 번 자동으로 접고, 그 뒤로는 사용자 조작만 따른다.
+  bool _routeCardCollapsed = false;
+  bool _routeCardAutoCollapsed = false;
   final List<NMarker> _viaMarkers = []; // 지도 '경유 N' 마커
 
   // ── 분석에 사용된 마지막 경로 (결과화면 지도용) ──
@@ -1353,7 +1357,13 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       engine = await showRouteEngineSheet(context) ?? 'tmap';
     }
     if (!mounted) return;
-    setState(() => _loadingRouteAlts = true);
+    // 새 경로를 다시 뽑는다 = 입력을 고치는 중 → 이번 결과가 나오면 다시 접어준다.
+    // (이 리셋이 없으면 앱 실행 후 딱 한 번만 접히고, 목적지를 바꿔 넣을 때마다
+    //  사용자가 매번 손으로 접어야 한다)
+    setState(() {
+      _loadingRouteAlts = true;
+      _routeCardAutoCollapsed = false;
+    });
     try {
       final isEv = _aiAnalysisType == 'ev';
       final res = await ApiService().getRouteAlternatives(
@@ -1389,6 +1399,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         _lastStartLat = startLat;
         _lastStartLng = startLng;
         _loadingRouteAlts = false;
+        // 경로가 나왔다 = 입력이 끝났다 → 경로 카드를 접어 지도를 넓게 준다.
+        // 한 번만 자동으로 접고, 사용자가 펼치면 다시 건드리지 않는다.
+        if (!_routeCardAutoCollapsed) {
+          _routeCardAutoCollapsed = true;
+          _routeCardCollapsed = true;
+        }
       });
       _applySelectedRoute();
     } catch (e) {
@@ -5662,6 +5678,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           onClearVia: _removeVia,
                           onReorder: (o, n) =>
                               unawaited(_reorderRouteSlots(o, n)),
+                          collapsed: _routeCardCollapsed,
+                          onToggleCollapsed: () => setState(() {
+                            _routeCardCollapsed = !_routeCardCollapsed;
+                            // 사용자가 직접 펼쳤으면 자동 접기가 다시 덮어쓰지 않게.
+                            _routeCardAutoCollapsed = true;
+                          }),
                           onClearOrigin: () => setState(() {
                             _originName = null;
                             _originLat = null;
