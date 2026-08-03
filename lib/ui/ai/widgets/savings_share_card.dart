@@ -73,6 +73,19 @@ class SavingsShareCard extends StatelessWidget {
   /// 글자·여백을 함께 키워 화면을 채운다.
   double sc(double v) => story ? v * 1.18 : v;
 
+  /// 절약 카드 전용 다크 팔레트 — 다른 공유 카드가 전부 흰색이라 이 한 장만 대비를 준다.
+  bool get _dark => style == ShareCardStyle.savings;
+  /// 딥네이비 위에서 읽히는 밝은 액센트 (흰 배경용 _accentInk 는 너무 어둡다)
+  Color get _accentGlow => isEv ? const Color(0xFF34D399) : const Color(0xFF60A5FA);
+  static const _dInk = Color(0xFFF8FAFC);   // 다크 위 본문
+  static const _dMuted = Color(0xFF94A3B8); // 다크 위 보조
+  static const _dCard = Color(0x14FFFFFF);  // 다크 위 카드면 (흰색 8%)
+  static const _dLine = Color(0x1FFFFFFF);  // 다크 위 경계선
+
+  Color get _fg => _dark ? _dInk : _ink;
+  Color get _fgMuted => _dark ? _dMuted : _muted;
+  Color get _accentFg => _dark ? _accentGlow : _accentInk;
+
   static const _ink = Color(0xFF0F172A);
   static const _muted = Color(0xFF64748B);
   static const _line = Color(0xFFE2E8F0);
@@ -85,21 +98,35 @@ class SavingsShareCard extends StatelessWidget {
       ShareCardStyle.receipt => _receiptBody(),
     };
     final bg = switch (style) {
-      ShareCardStyle.savings => const Color(0xFFF7F8FA),
+      ShareCardStyle.savings => const Color(0xFF0A101C),
       ShareCardStyle.recommend => _tint,
       ShareCardStyle.receipt => const Color(0xFFEDEFF2),
     };
     return DefaultTextStyle(
-      style: const TextStyle(
+      style: TextStyle(
         fontFamily: 'Pretendard',
-        color: _ink,
+        color: _fg,
         height: 1.25,
         letterSpacing: -0.3,
       ),
       child: Container(
         width: side,
         height: heightFor(story),
-        color: bg,
+        decoration: _dark
+            ? BoxDecoration(
+                // 우상단이 밝은 대각 그라데이션 + 액센트 글로우 — 평평한 단색보다 깊이가 산다.
+                gradient: LinearGradient(
+                  begin: Alignment.topRight,
+                  end: Alignment.bottomLeft,
+                  colors: [
+                    Color.lerp(const Color(0xFF16243B), _accentGlow, 0.10)!,
+                    const Color(0xFF0C1424),
+                    const Color(0xFF080D17),
+                  ],
+                  stops: const [0, 0.55, 1],
+                ),
+              )
+            : BoxDecoration(color: bg),
         padding: const EdgeInsets.fromLTRB(22, 20, 22, 18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -128,25 +155,29 @@ class SavingsShareCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.fromLTRB(10, 5, 12, 5),
             decoration: BoxDecoration(
-              color: _tint,
+              color: _dark ? _dCard : _tint,
               borderRadius: BorderRadius.circular(999),
+              border: _dark ? Border.all(color: _dLine) : null,
             ),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.auto_awesome_rounded, size: 11, color: _accentDeep),
+              Icon(Icons.auto_awesome_rounded,
+                  size: sc(11), color: _accentFg),
               const SizedBox(width: 4),
               Text(
                 isEv ? 'AI 충전 추천' : 'AI 주유 추천',
                 style: TextStyle(
-                    fontSize: 11.5,
+                    fontSize: sc(11.5),
                     fontWeight: FontWeight.w800,
-                    color: _accentDeep),
+                    color: _accentFg),
               ),
             ]),
           ),
           const Spacer(),
           Text(_today(),
-              style: const TextStyle(
-                  fontSize: 11, fontWeight: FontWeight.w600, color: _muted)),
+              style: TextStyle(
+                  fontSize: sc(11),
+                  fontWeight: FontWeight.w600,
+                  color: _fgMuted)),
         ],
       );
 
@@ -154,17 +185,21 @@ class SavingsShareCard extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(7),
-            child: Image.asset(_logoAsset, width: 22, height: 22),
+            child: Image.asset(_logoAsset, width: sc(22), height: sc(22)),
           ),
           const SizedBox(width: 7),
-          const Text('전기차 기름차',
+          Text('전기차 기름차',
               style: TextStyle(
-                  fontSize: 12.5, fontWeight: FontWeight.w800, color: _ink)),
+                  fontSize: sc(12.5),
+                  fontWeight: FontWeight.w800,
+                  color: _fg)),
           const Spacer(),
           Text(
             style == ShareCardStyle.receipt ? '출처: 오피넷' : '기름값·충전요금 아끼기',
-            style: const TextStyle(
-                fontSize: 10.5, fontWeight: FontWeight.w600, color: _muted),
+            style: TextStyle(
+                fontSize: sc(10.5),
+                fontWeight: FontWeight.w600,
+                color: _fgMuted),
           ),
         ],
       );
@@ -232,126 +267,178 @@ class SavingsShareCard extends StatelessWidget {
   // ── 스타일 1 : 절약액 ──────────────────────────────────────────────────────
 
   Widget _savingsBody() {
-    // '1,068원 절약!' → 숫자 줄과 '절약!' 줄을 나눠 액센트를 뒷줄에만 준다.
+    // 레퍼런스 레이아웃: 라벨 → 큰 금액(숫자 흰색 + '절약!' 액센트) → 경로 스트립 → 수치 3칸
     final m = RegExp(r'^(.*?)\s*(절약|아낌)(!?)$').firstMatch(headline.trim());
     final amount = m?.group(1) ?? headline;
     final tail = m == null ? null : '${m.group(2)}${m.group(3)}';
-    // 고정 간격을 쓰면 남는 세로가 한쪽에 몰려 위아래로 갈라진다.
-    // 덩어리(문구·스테이션·수치)로 묶고 사이 여백을 균등 분배한다.
+    final isAmount = m != null;
+
+    // 남는 세로를 Spacer 하나가 통째로 먹으면 문구와 경로 스트립 사이만 휑해진다.
+    // 문구 / 경로 / 수치 세 덩어리로 묶고 spaceBetween 으로 간격을 균등 분배한다.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
         if (caption.trim().isNotEmpty) ...[
           Text(caption,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                  fontSize: 12.5, fontWeight: FontWeight.w700, color: _muted)),
-          const SizedBox(height: 6),
+              style: TextStyle(
+                  fontSize: sc(13),
+                  fontWeight: FontWeight.w700,
+                  color: _fgMuted)),
+          SizedBox(height: sc(8)),
         ],
+        // 금액은 흰색, '절약!' 만 액센트 — 숫자가 주인공이고 액센트는 포인트로만.
         FittedBox(
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
-          child: Text(amount,
-              style: const TextStyle(
-                fontSize: 42,
-                fontWeight: FontWeight.w800,
-                color: _ink,
-                height: 1.05,
-                letterSpacing: -2,
-                fontFeatures: [FontFeature.tabularFigures()],
-              )),
-        ),
-        if (tail != null)
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(tail,
-                style: TextStyle(
-                  fontSize: 42,
-                  fontWeight: FontWeight.w800,
-                  color: _accentInk,
-                  height: 1.05,
-                  letterSpacing: -2,
-                )),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(amount,
+                  style: TextStyle(
+                    fontSize: sc(isAmount ? 44 : 40),
+                    fontWeight: FontWeight.w800,
+                    color: isAmount ? _fg : _accentFg,
+                    height: 1.02,
+                    letterSpacing: -2,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  )),
+              if (tail != null) ...[
+                SizedBox(width: sc(8)),
+                Text(tail,
+                    style: TextStyle(
+                      fontSize: sc(44),
+                      fontWeight: FontWeight.w800,
+                      color: _accentFg,
+                      height: 1.02,
+                      letterSpacing: -2,
+                    )),
+              ],
+            ],
           ),
-        if ((stationName ?? '').trim().isNotEmpty) _stationCard(),
+        ),
+          ],
+        ),
+        if ((stationName ?? '').trim().isNotEmpty) _routeStrip(),
         if (facts.isNotEmpty) _factStrip(),
       ],
     );
   }
 
-  Widget _stationCard() => Container(
-        padding: const EdgeInsets.fromLTRB(10, 10, 12, 10),
+  /// 출발 ─── ● 주유소 ─── 도착. 경로 위에 들렀다는 걸 한눈에 보여주는 조각.
+  Widget _routeStrip() => Container(
+        padding: EdgeInsets.fromLTRB(sc(16), sc(18), sc(16), sc(15)),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: _line),
+          color: _dark ? _dCard : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _dark ? _dLine : _line),
         ),
-        child: Row(
+        child: Column(
           children: [
-            _stationIcon(),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(stationName!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w800,
-                          color: _ink)),
-                  if ((stationSub ?? '').trim().isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(stationSub!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w600,
-                            color: _muted)),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: _tint,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text('★ 최저가',
+            Row(children: [
+              _endDot(),
+              Expanded(child: _dashLine()),
+              _stationNode(),
+              Expanded(child: _dashLine()),
+              _endDot(),
+            ]),
+            SizedBox(height: sc(10)),
+            Row(children: [
+              Text('출발',
                   style: TextStyle(
-                      fontSize: 10,
+                      fontSize: sc(10.5),
+                      fontWeight: FontWeight.w600,
+                      color: _fgMuted)),
+              Expanded(
+                child: Text(
+                  stationName!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: sc(12.5),
                       fontWeight: FontWeight.w800,
-                      color: _accentDeep)),
-            ),
+                      color: _fg),
+                ),
+              ),
+              Text('도착',
+                  style: TextStyle(
+                      fontSize: sc(10.5),
+                      fontWeight: FontWeight.w600,
+                      color: _fgMuted)),
+            ]),
           ],
         ),
       );
 
-  /// 하단 수치 3칸. 4개 이상이면 앞 3개만 — 넘치면 글자가 서로 침범한다.
+  Widget _endDot() => Container(
+        width: sc(7),
+        height: sc(7),
+        decoration: BoxDecoration(
+          color: _dark ? const Color(0xFF64748B) : const Color(0xFFCBD5E1),
+          shape: BoxShape.circle,
+        ),
+      );
+
+  Widget _dashLine() => Padding(
+        padding: EdgeInsets.symmetric(horizontal: sc(7)),
+        child: SizedBox(
+          height: 2,
+          child: CustomPaint(
+            painter: _DashPainter(
+              color: _dark ? const Color(0xFF3A4A63) : const Color(0xFFCBD5E1),
+            ),
+          ),
+        ),
+      );
+
+  /// 주유소 노드 — 액센트 원 + 바깥 글로우(다크에서만).
+  Widget _stationNode() => Container(
+        width: sc(26),
+        height: sc(26),
+        decoration: BoxDecoration(
+          color: _accentFg,
+          shape: BoxShape.circle,
+          boxShadow: _dark
+              ? [
+                  BoxShadow(
+                    color: _accentFg.withValues(alpha: 0.45),
+                    blurRadius: sc(12),
+                    spreadRadius: sc(1),
+                  ),
+                ]
+              : null,
+        ),
+        child: Icon(
+          isEv ? Icons.ev_station_rounded : Icons.local_gas_station_rounded,
+          size: sc(14),
+          color: _dark ? const Color(0xFF0A101C) : Colors.white,
+        ),
+      );
+
   Widget _factStrip() {
     final f = facts.take(3).toList();
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+      padding: EdgeInsets.symmetric(horizontal: 4, vertical: sc(12)),
       decoration: BoxDecoration(
-        color: _tint,
+        color: _dark ? _dCard : Colors.white,
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _dark ? _dLine : _line),
       ),
       child: Row(
         children: [
           for (var i = 0; i < f.length; i++) ...[
             if (i > 0)
               Container(
-                  width: 1,
-                  height: 26,
-                  color: Colors.white.withValues(alpha: 0.8)),
+                  width: 1, height: sc(26), color: _dark ? _dLine : _line),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -362,12 +449,12 @@ class SavingsShareCard extends StatelessWidget {
                     Text(f[i].label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 10,
+                        style: TextStyle(
+                            fontSize: sc(10),
                             fontWeight: FontWeight.w700,
-                            color: _muted)),
-                    const SizedBox(height: 3),
-                    _valueText(f[i].value, size: 15.5),
+                            color: _fgMuted)),
+                    SizedBox(height: sc(4)),
+                    _valueText(f[i].value, size: sc(15.5), color: _fg),
                   ],
                 ),
               ),
@@ -640,7 +727,7 @@ class SavingsShareCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text('절약 합계',
+                Text(_headlineIsAmount ? '절약 합계' : 'AI 판단',
                     style: TextStyle(
                         fontSize: sc(12.5),
                         fontWeight: FontWeight.w800,
@@ -654,11 +741,13 @@ class SavingsShareCard extends StatelessWidget {
                       alignment: Alignment.centerRight,
                       child: Text(
                         _savingsAmount(),
+                        maxLines: 1,
+                        // 금액은 크게(주인공), 문구는 한 단 작게 — 25pt 문구는 칸을 넘겨 답답하다.
                         style: TextStyle(
-                          fontSize: sc(25),
+                          fontSize: sc(_headlineIsAmount ? 25 : 16),
                           fontWeight: FontWeight.w800,
                           color: _accentInk,
-                          letterSpacing: -1,
+                          letterSpacing: _headlineIsAmount ? -1 : -0.4,
                           fontFeatures: const [FontFeature.tabularFigures()],
                         ),
                       ),
@@ -681,12 +770,17 @@ class SavingsShareCard extends StatelessWidget {
       label.contains('예상 충전요금') ||
       label.contains('결제');
 
+  /// 헤드라인이 금액형('1,068원 절약!')인지 — 아니면 '가는 길이 최적!' 같은 문구다.
+  bool get _headlineIsAmount =>
+      RegExp(r'^(.*?)\s*(절약|아낌)!?$').hasMatch(headline.trim());
+
   /// 헤드라인에서 '절약!' 같은 꼬리말을 떼고 금액만 — 영수증에는 감탄사가 안 어울린다.
   String _savingsAmount() {
     final m = RegExp(r'^(.*?)\s*(절약|아낌)!?$').firstMatch(headline.trim());
     final amount =
         (m?.group(1) ?? headline).trim().replaceFirst(RegExp(r'^-'), '');
-    return '▼$amount'; // 절약은 '-' 가 아니라 아래 화살표로 (시안 규칙)
+    // ▼ 는 '금액이 줄었다'는 기호다. '가는 길이 최적!' 같은 문구에 붙이면 말이 안 된다.
+    return _headlineIsAmount ? '▼$amount' : amount;
   }
 
   Widget _receiptRow(String label, String value) => Padding(
@@ -841,10 +935,13 @@ class SavingsShare {
 
 /// 영수증 절취선 — Flutter 기본 Divider 로는 점선이 안 나와 직접 그린다.
 class _DashPainter extends CustomPainter {
+  const _DashPainter({this.color = const Color(0xFFCBD5E1)});
+  final Color color;
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFFCBD5E1)
+      ..color = color
       ..strokeWidth = 1.4
       ..strokeCap = StrokeCap.round;
     const dash = 4.0;
