@@ -51,6 +51,14 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
   bool _localLoading = false;
   String? _localError;
 
+  // 레이아웃 2종(형 확정): hero(오늘 평균 히어로) | dash(유종 선택 + 7일 그래프).
+  // 앱바 토글로 전환, Hive 저장. 유가 탭 전용 — 충전은 기존 목록 유지.
+  static const _kLayoutPref = 'report_layout_style';
+  String _layout = 'hero';
+  // 일간 리포트 상세(facts) — 유종별 오늘값·7일 시계열. 히어로 타일·대시 그래프 재료.
+  Map<String, dynamic>? _dailyFacts;
+  String _dashFuel = 'B027';
+
   @override
   void initState() {
     super.initState();
@@ -73,6 +81,10 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
       _load(_topics[_tab!.index]);
     });
     _restoreLocalCache();
+    final saved = Hive.box(AppConstants.settingsBox).get(_kLayoutPref);
+    if (saved == 'dash' || saved == 'hero') _layout = saved as String;
+    final f = ref.read(settingsProvider).fuelType.code;
+    if (const ['B027', 'D047', 'B034', 'K015'].contains(f)) _dashFuel = f;
     _load(_topics[initial]);
   }
 
@@ -182,6 +194,7 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
         if (topic == 'fuel' && daily != null) _today = daily;
         _loading[topic] = false;
       });
+      if (topic == 'fuel' && daily != null) _loadDailyFacts(daily);
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -189,6 +202,20 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
         _error[topic] = '리포트를 불러오지 못했어요';
       });
     }
+  }
+
+  /// 일간 리포트 상세의 facts(유종별 price/diff + week 시계열)를 받아온다.
+  /// 실패해도 조용히 — 히어로/대시는 기존 오늘 카드로 폴백.
+  Future<void> _loadDailyFacts(Map<String, dynamic> daily) async {
+    if (_dailyFacts != null) return;
+    final id = int.tryParse(daily['id']?.toString() ?? '');
+    if (id == null) return;
+    try {
+      final r = await ApiService().getFuelReport(id);
+      final facts = r?['facts'];
+      if (!mounted || facts is! Map) return;
+      setState(() => _dailyFacts = Map<String, dynamic>.from(facts));
+    } catch (_) {}
   }
 
   @override
@@ -201,6 +228,22 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
         title: Text(single
             ? (_topics.first == 'ev' ? '충전 리포트' : '유가 리포트')
             : '유가 · 충전 리포트'),
+        actions: [
+          // 히어로 ↔ 대시보드 전환 (유가 탭에서만 의미 있음)
+          if (_topics[single ? 0 : (_tab?.index ?? 0)] == 'fuel')
+            IconButton(
+              tooltip: _layout == 'hero' ? '대시보드 보기' : '히어로 보기',
+              icon: Icon(_layout == 'hero'
+                  ? Icons.insert_chart_outlined_rounded
+                  : Icons.view_agenda_outlined),
+              onPressed: () {
+                setState(
+                    () => _layout = _layout == 'hero' ? 'dash' : 'hero');
+                Hive.box(AppConstants.settingsBox)
+                    .put(_kLayoutPref, _layout);
+              },
+            ),
+        ],
         bottom: single
             ? null
             : TabBar(
@@ -225,68 +268,64 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
   Widget _list(String topic, bool isDark) {
     if (_loading[topic] == true && !_cache.containsKey(topic)) {
       return Center(
-          child:
-              CircularProgressIndicator(strokeWidth: 2, color: _accent(topic)));
+          child: CircularProgressIndicator(
+              strokeWidth: 2, color: _accent(topic)));
     }
     final err = _error[topic];
     final items = _cache[topic] ?? const <Map<String, dynamic>>[];
     if (err != null && items.isEmpty) {
       return _empty(isDark, err, retry: () => _load(topic, force: true));
     }
-    final todayCard = (topic == 'fuel' && _today != null)
-        ? _todayCard(_today!, isDark)
-        : null;
-    // 우리 동네 → 전국(오늘) → 주간·월간 분석 순 (형 확정: 동네가 맨 위).
-    // '받기' 액션 카드가 최상단이라 눈에 먼저 들어오고, 전국 시세는 그 아래 배경 정보로.
-    final localCard = topic == 'fuel' ? _localCard(isDark) : null;
-    final extras = <Widget>[
-      if (localCard != null) localCard,
-      if (todayCard != null) todayCard,
-    ];
-    // 주간·월간이 아직 없어도 일간·동네 카드는 보여준다 (출시 직후 케이스)
-    if (items.isEmpty && extras.isEmpty) {
-      return _empty(
-        isDark,
-        topic == 'ev' ? '아직 발행된 충전 리포트가 없어요' : '아직 발행된 유가 리포트가 없어요',
-        sub: topic == 'ev'
-            ? '매주 충전 요금과 정책 흐름을 정리해 알려드려요'
-            : '매주 기름값 흐름과 정책 소식을 정리해 알려드려요',
-      );
-    }
-    // 같은 카드가 끝없이 반복되면 스캔이 힘들다(형 제보) — 최신 리포트만 큰 카드로
-    // 강조하고, 지난 것들은 월별 그룹 카드 안의 슬림 행(주차 배지 + 제목 한 줄)으로.
-    final rows = <Widget>[...extras];
-    if (items.isEmpty) {
-      final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-      rows.add(Padding(
-        padding: const EdgeInsets.fromLTRB(4, 14, 4, 0),
-        child: Text('주간 · 월간 분석 리포트는 매주 월요일에 올라와요',
-            style: TextStyle(fontSize: 12.5, color: muted)),
-      ));
-    } else {
-      rows.add(_card(items.first, isDark));
-      if (items.length > 1) {
-        String? cur;
-        var group = <Map<String, dynamic>>[];
-        void flush() {
-          if (group.isNotEmpty) {
-            rows.add(_monthGroup(cur ?? '', group, isDark, topic));
-          }
-          group = [];
-        }
 
-        for (final r in items.skip(1)) {
-          final d = (r['date'] ?? '').toString();
-          final m = d.length >= 7 ? d.substring(0, 7) : '';
-          if (m != cur) {
-            flush();
-            cur = m;
-          }
-          group.add(Map<String, dynamic>.from(r));
+    final rows = <Widget>[];
+    if (topic == 'fuel') {
+      // ── 유가: 히어로/대시 2 레이아웃 (형 확정, 앱바 토글) ──
+      if (_layout == 'dash') {
+        rows.add(_fuelChips(isDark));
+        final dash = _dashCard(isDark);
+        if (dash != null) {
+          rows.add(dash);
+        } else if (_today != null) {
+          rows.add(_todayCard(_today!, isDark)); // facts 아직이면 기존 오늘 카드
         }
-        flush();
+      } else {
+        final hero = _dailyFacts != null ? _heroToday(isDark) : null;
+        if (hero != null) {
+          rows.add(hero);
+        } else if (_today != null) {
+          rows.add(_todayCard(_today!, isDark));
+        }
       }
+      rows.add(_localCard(isDark));
+      final t3 = _top3Card(isDark);
+      if (t3 != null) rows.add(t3);
+      if (items.isEmpty) {
+        final muted =
+            isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+        rows.add(Padding(
+          padding: const EdgeInsets.fromLTRB(4, 14, 4, 0),
+          child: Text('주간 · 월간 분석 리포트는 매주 월요일에 올라와요',
+              style: TextStyle(fontSize: 12.5, color: muted)),
+        ));
+      } else {
+        // 히어로: 최신 큰 카드 + 지난 그룹 / 대시: 전부 슬림 그룹 (시안 4c)
+        _appendGroups(rows, items, isDark, topic,
+            firstBig: _layout != 'dash');
+        rows.add(_archiveRow(isDark, topic));
+      }
+    } else {
+      // ── 충전: 기존 구성 유지 (최신 큰 카드 + 월별 그룹) ──
+      if (items.isEmpty) {
+        return _empty(
+          isDark,
+          '아직 발행된 충전 리포트가 없어요',
+          sub: '매주 충전 요금과 정책 흐름을 정리해 알려드려요',
+        );
+      }
+      _appendGroups(rows, items, isDark, topic, firstBig: true);
+      rows.add(_archiveRow(isDark, topic));
     }
+
     return RefreshIndicator(
       onRefresh: () => _load(topic, force: true),
       color: _accent(topic),
@@ -299,9 +338,81 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
     );
   }
 
+  /// 최신 큰 카드(firstBig) + 월별 그룹 슬림 행 — 카드 반복 스캔 피로 해소(형 제보).
+  void _appendGroups(List<Widget> rows, List<Map<String, dynamic>> items,
+      bool isDark, String topic,
+      {required bool firstBig}) {
+    var rest = items;
+    if (firstBig) {
+      rows.add(_card(items.first, isDark));
+      rest = items.skip(1).toList();
+    }
+    if (rest.isEmpty) return;
+    String? cur;
+    var group = <Map<String, dynamic>>[];
+    void flush() {
+      if (group.isNotEmpty) {
+        rows.add(_monthGroup(cur ?? '', group, isDark, topic,
+            headSuffix: firstBig ? '지난 리포트' : '리포트'));
+      }
+      group = [];
+    }
+
+    for (final r in rest) {
+      final d = (r['date'] ?? '').toString();
+      final m = d.length >= 7 ? d.substring(0, 7) : '';
+      if (m != cur) {
+        flush();
+        cur = m;
+      }
+      group.add(Map<String, dynamic>.from(r));
+    }
+    flush();
+  }
+
+  /// 지난 리포트 전체보기 — 년도·월별 아카이브 (형 확정: 쌓이면 여기서).
+  Widget _archiveRow(bool isDark, String topic) {
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    return Material(
+      color: isDark ? AppColors.darkSurface1 : AppColors.lightCard,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => FuelReportArchiveScreen(topic: topic))),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+                color: isDark
+                    ? AppColors.darkCardBorder
+                    : AppColors.lightCardBorder),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.history_rounded, size: 17, color: muted),
+              const SizedBox(width: 9),
+              Text('지난 리포트 전체보기',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary)),
+              const Spacer(),
+              Icon(Icons.chevron_right_rounded, size: 19, color: muted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   /// 지난 리포트 월 그룹 — 카드 하나 안에 [월 헤더 + 슬림 행들] (퀵메뉴 카드와 같은 문법).
   Widget _monthGroup(
-      String month, List<Map<String, dynamic>> list, bool isDark, String topic) {
+      String month, List<Map<String, dynamic>> list, bool isDark, String topic,
+      {String headSuffix = '지난 리포트'}) {
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     final line = isDark ? AppColors.darkCardBorder : const Color(0xFFF0F3F6);
     String label = month;
@@ -323,7 +434,7 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 2),
-            child: Text('$label 지난 리포트',
+            child: Text('$label $headSuffix',
                 style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
@@ -752,6 +863,448 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: c)),
+    );
+  }
+
+  static const _fuelCodes = ['B027', 'D047', 'B034', 'K015'];
+  static const _fuelChipLabel = {
+    'B027': '휘발유', 'D047': '경유', 'B034': '고급', 'K015': 'LPG',
+  };
+  static const _factsKey = {
+    'B027': 'gasoline', 'D047': 'diesel', 'B034': 'premium', 'K015': 'lpg',
+  };
+
+  void _openDailyDetail() {
+    final id = int.tryParse(_today?['id']?.toString() ?? '');
+    if (id == null) return;
+    Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => FuelReportDetailScreen(reportId: id)));
+  }
+
+  /// 4a 히어로 — 오늘 전국 평균이 주인공. 큰 휘발유값 + 등락 + 유종 타일 3개 (형 시안).
+  Widget _heroToday(bool isDark) {
+    const accent = AppColors.gasBlue;
+    final f = _dailyFacts!;
+    final g = f['gasoline'] is Map ? f['gasoline'] as Map : null;
+    if (g == null || (g['price'] as num?) == null) return _todayCard(_today ?? {}, isDark);
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final primary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+
+    Widget tile(String label, dynamic v) {
+      final price = (v is Map ? v['price'] as num? : null)?.round();
+      if (price == null) return const SizedBox.shrink();
+      return Expanded(
+        child: Container(
+          margin: const EdgeInsets.only(right: 7),
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          decoration: BoxDecoration(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.05)
+                : Colors.white.withValues(alpha: 0.75),
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: Column(
+            children: [
+              Text(label, style: TextStyle(fontSize: 11, color: muted)),
+              const SizedBox(height: 3),
+              Text('${_comma(price)}원',
+                  style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
+                      color: primary)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Material(
+      color:
+          isDark ? AppColors.darkGasActiveCard : AppColors.lightGasActiveCard,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: _openDailyDetail,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 13, 14, 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+                color: isDark
+                    ? AppColors.darkGasActiveBorder
+                    : AppColors.lightGasActiveBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  _pill('오늘', accent, isDark),
+                  const SizedBox(width: 6),
+                  Text('${_fmtDate(_today?['date'])} · 전국 평균',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: muted)),
+                  const Spacer(),
+                  Icon(Icons.chevron_right_rounded, size: 20, color: muted),
+                ],
+              ),
+              const SizedBox(height: 9),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('휘발유',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: muted)),
+                  const SizedBox(width: 8),
+                  Text(_comma((g['price'] as num).round()),
+                      style: TextStyle(
+                          fontSize: 33,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -1,
+                          height: 1,
+                          color: primary)),
+                  const SizedBox(width: 4),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 3),
+                    child: Text('원/L',
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: muted)),
+                  ),
+                  const Spacer(),
+                  _localDeltaChip(
+                      ((g['diff'] as num?) ?? 0).toDouble(), isDark,
+                      suffix: '원'),
+                ],
+              ),
+              const SizedBox(height: 11),
+              Row(
+                children: [
+                  tile('경유', f['diesel']),
+                  tile('고급휘발유', f['premium']),
+                  tile('LPG', f['lpg']),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 4c 대시보드 — 유종 칩. 목록 최상단.
+  Widget _fuelChips(bool isDark) {
+    const accent = AppColors.gasBlue;
+    return Row(
+      children: [
+        for (final c in _fuelCodes)
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: GestureDetector(
+              onTap: () => setState(() => _dashFuel = c),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+                decoration: BoxDecoration(
+                  color: _dashFuel == c
+                      ? accent
+                      : (isDark
+                          ? Colors.white.withValues(alpha: 0.06)
+                          : Colors.white),
+                  borderRadius: BorderRadius.circular(99),
+                  border: _dashFuel == c
+                      ? null
+                      : Border.all(
+                          color: isDark
+                              ? AppColors.darkCardBorder
+                              : AppColors.lightCardBorder),
+                ),
+                child: Text(
+                  _fuelChipLabel[c]!,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    color: _dashFuel == c
+                        ? Colors.white
+                        : (isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// 4c 대시보드 — 선택 유종 큰 숫자 + 등락 + 7일 추이 미니 바. facts 없으면 null.
+  Widget? _dashCard(bool isDark) {
+    final f = _dailyFacts;
+    if (f == null) return null;
+    final key = _factsKey[_dashFuel] ?? 'gasoline';
+    final v = f[key];
+    final price = (v is Map ? v['price'] as num? : null);
+    if (price == null) return null;
+    final diff = ((v as Map)['diff'] as num?)?.toDouble() ?? 0;
+    const accent = AppColors.gasBlue;
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final primary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+
+    // 7일 시계열 — facts.week[key] = [{date, price}...] (과거→최신)
+    final weekRaw = f['week'] is Map ? (f['week'] as Map)[key] : null;
+    final series = <({String d, double p})>[];
+    if (weekRaw is List) {
+      for (final e in weekRaw) {
+        if (e is! Map) continue;
+        final pp = (e['price'] as num?)?.toDouble();
+        if (pp == null) continue;
+        series.add((d: (e['date'] ?? '').toString(), p: pp));
+      }
+    }
+    final pts = series.length > 7 ? series.sublist(series.length - 7) : series;
+    double minP = double.infinity, maxP = -double.infinity;
+    for (final e in pts) {
+      if (e.p < minP) minP = e.p;
+      if (e.p > maxP) maxP = e.p;
+    }
+    final span = (maxP - minP).abs() < 0.01 ? 1.0 : (maxP - minP);
+    String dayLabel(String d) {
+      final t = d.replaceAll('-', '');
+      if (t.length < 8) return d;
+      return '${int.parse(t.substring(4, 6))}.${int.parse(t.substring(6, 8))}';
+    }
+
+    return Material(
+      color: isDark ? AppColors.darkSurface1 : AppColors.lightCard,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: _openDailyDetail,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 13, 14, 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+                color: isDark
+                    ? AppColors.darkCardBorder
+                    : AppColors.lightCardBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text('전국 평균 · ${_fmtDate(_today?['date'])}',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: muted)),
+                  const Spacer(),
+                  _localDeltaChip(diff, isDark, suffix: '원'),
+                ],
+              ),
+              const SizedBox(height: 7),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(_comma(price.round()),
+                      style: TextStyle(
+                          fontSize: 33,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -1,
+                          height: 1,
+                          color: primary)),
+                  const SizedBox(width: 4),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 3),
+                    child: Text('원/L',
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: muted)),
+                  ),
+                ],
+              ),
+              if (pts.length >= 2) ...[
+                const SizedBox(height: 13),
+                SizedBox(
+                  height: 74,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      for (var i = 0; i < pts.length; i++)
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 3),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Container(
+                                  height: 26 +
+                                      ((pts[i].p - minP) / span) * 32,
+                                  decoration: BoxDecoration(
+                                    color: i == pts.length - 1
+                                        ? accent
+                                        : accent.withValues(
+                                            alpha: isDark ? 0.32 : 0.18),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  i == pts.length - 1
+                                      ? '오늘'
+                                      : dayLabel(pts[i].d),
+                                  style: TextStyle(
+                                    fontSize: 9.5,
+                                    fontWeight: i == pts.length - 1
+                                        ? FontWeight.w800
+                                        : FontWeight.w500,
+                                    color: i == pts.length - 1
+                                        ? accent
+                                        : muted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 내 주변 최저가 TOP3 — 동네 유가를 '받은' 뒤에만 (형 확정: 두 레이아웃 공통).
+  Widget? _top3Card(bool isDark) {
+    final d = _local;
+    if (d == null) return null;
+    final nearby = (d['nearby'] as Map?) ?? const {};
+    final stations = (nearby['stations'] as List?) ?? const [];
+    if (stations.isEmpty) return null;
+    const accent = AppColors.gasBlue;
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final primary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final line = isDark ? AppColors.darkCardBorder : const Color(0xFFF0F3F6);
+    final radiusKm = ((nearby['radius_m'] as num?) ?? 5000) / 1000;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface1 : AppColors.lightCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+            color:
+                isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InkWell(
+            onTap: () => _openLocalDetail(d),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 12, 4),
+              child: Row(
+                children: [
+                  _pill('내 주변', accent, isDark),
+                  const SizedBox(width: 6),
+                  Text('최저가 TOP3 · ${radiusKm.toStringAsFixed(0)}km',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: muted)),
+                  const Spacer(),
+                  Icon(Icons.chevron_right_rounded, size: 19, color: muted),
+                ],
+              ),
+            ),
+          ),
+          for (var i = 0; i < stations.length && i < 3; i++) ...[
+            if (i > 0)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Divider(height: 1, thickness: 1, color: line),
+              ),
+            Builder(builder: (ctx) {
+              final st = Map<String, dynamic>.from(stations[i] as Map);
+              final dist = (st['distance_m'] as num?)?.toDouble();
+              final top = i == 0;
+              final stId = (st['id'] ?? '').toString();
+              return InkWell(
+                onTap: stId.isEmpty
+                    ? null
+                    : () => Navigator.of(ctx).push(MaterialPageRoute(
+                        builder: (_) => GasDetailScreen(stationId: stId))),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 9, 16, 9),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 21,
+                        height: 21,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color:
+                              top ? accent : muted.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text('${i + 1}',
+                            style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800,
+                                color: top ? Colors.white : muted)),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text((st['name'] ?? '').toString(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.2,
+                                color: primary)),
+                      ),
+                      const SizedBox(width: 8),
+                      if (dist != null)
+                        Text('${(dist / 1000).toStringAsFixed(1)}km',
+                            style:
+                                TextStyle(fontSize: 11.5, color: muted)),
+                      const SizedBox(width: 9),
+                      Text(
+                          '${_comma((st['price_won_per_liter'] as num).round())}원',
+                          style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w800,
+                              color: top
+                                  ? accent
+                                  : (isDark
+                                      ? AppColors.darkTextSecondary
+                                      : AppColors.lightTextSecondary))),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ],
+          const SizedBox(height: 4),
+        ],
+      ),
     );
   }
 
@@ -2305,6 +2858,191 @@ class _NearRow extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/* ══════════════════════════ 지난 리포트 아카이브 ══════════════════════════ */
+
+/// 년도 → 월별로 묶어 보는 전체 아카이브 (형 확정: 쌓여도 여기서 다 찾게).
+/// 행이 (제목·날짜)뿐이라 300건을 한 번에 받아 클라이언트에서 그룹핑한다.
+class FuelReportArchiveScreen extends StatefulWidget {
+  const FuelReportArchiveScreen({super.key, required this.topic});
+
+  final String topic;
+
+  @override
+  State<FuelReportArchiveScreen> createState() =>
+      _FuelReportArchiveScreenState();
+}
+
+class _FuelReportArchiveScreenState extends State<FuelReportArchiveScreen> {
+  List<Map<String, dynamic>> _items = const [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final list =
+          await ApiService().getFuelReports(topic: widget.topic, limit: 300);
+      if (!mounted) return;
+      setState(() {
+        _items = list;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = '리포트를 불러오지 못했어요';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent =
+        widget.topic == 'ev' ? AppColors.evGreen : AppColors.gasBlue;
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final primary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final line = isDark ? AppColors.darkCardBorder : const Color(0xFFF0F3F6);
+
+    // 년 → 월 그룹핑 (최신 우선 정렬은 서버가 보장)
+    final rows = <Widget>[];
+    String? curYear;
+    String? curMonth;
+    var group = <Map<String, dynamic>>[];
+    void flushMonth() {
+      if (group.isEmpty) return;
+      final list = group;
+      group = [];
+      final m = int.tryParse(curMonth ?? '') ?? 0;
+      rows.add(Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkSurface1 : AppColors.lightCard,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+              color: isDark
+                  ? AppColors.darkCardBorder
+                  : AppColors.lightCardBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 2),
+              child: Text('$m월',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: muted)),
+            ),
+            for (var i = 0; i < list.length; i++) ...[
+              if (i > 0)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Divider(height: 1, thickness: 1, color: line),
+                ),
+              _row(list[i], isDark, accent, primary, muted),
+            ],
+          ],
+        ),
+      ));
+    }
+
+    for (final r in _items) {
+      final d = (r['date'] ?? '').toString();
+      if (d.length < 7) continue;
+      final y = d.substring(0, 4);
+      final m = d.substring(5, 7);
+      if (y != curYear) {
+        flushMonth();
+        curYear = y;
+        curMonth = null;
+        rows.add(Padding(
+          padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
+          child: Text('$y년',
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
+                  color: primary)),
+        ));
+      }
+      if (m != curMonth) {
+        flushMonth();
+        curMonth = m;
+      }
+      group.add(Map<String, dynamic>.from(r));
+    }
+    flushMonth();
+
+    return Scaffold(
+      appBar: AppBar(
+          title: Text(widget.topic == 'ev' ? '지난 충전 리포트' : '지난 유가 리포트')),
+      body: _loading
+          ? Center(
+              child:
+                  CircularProgressIndicator(strokeWidth: 2, color: accent))
+          : (_items.isEmpty
+              ? Center(
+                  child: Text(_error ?? '아직 쌓인 리포트가 없어요',
+                      style: TextStyle(fontSize: 13.5, color: muted)))
+              : ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+                  children: rows,
+                )),
+    );
+  }
+
+  Widget _row(Map<String, dynamic> r, bool isDark, Color accent, Color primary,
+      Color muted) {
+    final monthly = r['kind'] == 'monthly';
+    String badge = monthly ? '월간' : '주간';
+    final d = (r['date'] ?? '').toString();
+    if (!monthly && d.length >= 10) {
+      final dt = DateTime.tryParse(d.substring(0, 10));
+      if (dt != null) badge = '${((dt.day - 1) ~/ 7) + 1}주차';
+    }
+    return InkWell(
+      onTap: () {
+        final id = int.tryParse(r['id']?.toString() ?? '');
+        if (id == null) return;
+        Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => FuelReportDetailScreen(reportId: id)));
+      },
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
+        child: Row(
+          children: [
+            SizedBox(width: 44, child: _pill(badge, accent, isDark)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                (r['title'] ?? '').toString(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.2,
+                    color: primary),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Icon(Icons.chevron_right_rounded, size: 18, color: muted),
+          ],
+        ),
+      ),
     );
   }
 }
