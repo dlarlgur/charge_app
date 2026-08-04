@@ -632,6 +632,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         showExitConfirmDialog(context);
       },
       child: Scaffold(
+        // 플로팅 알약 바 — extendBody 로 콘텐츠가 바 뒤로 흐르게. 안 그러면 알약 주변
+        // 띠가 Scaffold 배경색으로 채워져 지도탭 등 배경색이 다른 탭에서 회색
+        // 음영 밴드로 보인다(형 제보). body 의 MediaQuery.padding.bottom 에 바 높이가
+        // 들어오므로 SafeArea/padding.bottom 쓰는 리스트는 자동으로 피한다.
+        extendBody: true,
         body: Stack(
           children: [
             Positioned.fill(
