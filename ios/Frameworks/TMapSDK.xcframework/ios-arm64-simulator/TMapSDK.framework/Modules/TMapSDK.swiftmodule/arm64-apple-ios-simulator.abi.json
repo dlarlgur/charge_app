@@ -1,0 +1,299 @@
+{
+  "ABIRoot": {
+    "kind": "Root",
+    "name": "TMapSDK",
+    "printedName": "TMapSDK",
+    "children": [
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "TMapSDK",
+        "declAttributes": [
+          "RawDocComment"
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "CoreLocation",
+        "printedName": "CoreLocation",
+        "declKind": "Import",
+        "moduleName": "TMapSDK"
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "TMapTapiDelegate",
+        "printedName": "TMapTapiDelegate",
+        "children": [
+          {
+            "kind": "Function",
+            "name": "SKTMapApikeySucceed",
+            "printedName": "SKTMapApikeySucceed()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@TMapSDK@objc(pl)TMapTapiDelegate(im)SKTMapApikeySucceed",
+            "mangledName": "$s7TMapSDK0A12TapiDelegateP19SKTMapApikeySucceedyyF",
+            "moduleName": "TMapSDK",
+            "genericSig": "<τ_0_0 where τ_0_0 : TMapSDK.TMapTapiDelegate>",
+            "sugared_genericSig": "<Self where Self : TMapSDK.TMapTapiDelegate>",
+            "protocolReq": true,
+            "declAttributes": [
+              "Optional",
+              "ObjC"
+            ],
+            "reqNewWitnessTableEntry": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "SKTMapApikeyFailed",
+            "printedName": "SKTMapApikeyFailed(error:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Foundation.NSError?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSError",
+                    "printedName": "Foundation.NSError",
+                    "usr": "c:objc(cs)NSError"
+                  }
+                ],
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@TMapSDK@objc(pl)TMapTapiDelegate(im)SKTMapApikeyFailedWithError:",
+            "mangledName": "$s7TMapSDK0A12TapiDelegateP18SKTMapApikeyFailed5errorySo7NSErrorCSg_tF",
+            "moduleName": "TMapSDK",
+            "genericSig": "<τ_0_0 where τ_0_0 : TMapSDK.TMapTapiDelegate>",
+            "sugared_genericSig": "<Self where Self : TMapSDK.TMapTapiDelegate>",
+            "protocolReq": true,
+            "objc_name": "SKTMapApikeyFailedWithError:",
+            "declAttributes": [
+              "Optional",
+              "ObjC"
+            ],
+            "reqNewWitnessTableEntry": true,
+            "funcSelfKind": "NonMutating"
+          }
+        ],
+        "declKind": "Protocol",
+        "usr": "c:@M@TMapSDK@objc(pl)TMapTapiDelegate",
+        "mangledName": "$s7TMapSDK0A12TapiDelegateP",
+        "moduleName": "TMapSDK",
+        "genericSig": "<τ_0_0 : AnyObject>",
+        "sugared_genericSig": "<Self : AnyObject>",
+        "declAttributes": [
+          "AccessControl",
+          "ObjC"
+        ],
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Escapable",
+            "printedName": "Escapable",
+            "usr": "s:s9EscapableP",
+            "mangledName": "$ss9EscapableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Copyable",
+            "printedName": "Copyable",
+            "usr": "s:s8CopyableP",
+            "mangledName": "$ss8CopyableP"
+          }
+        ]
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "TMapApi",
+        "printedName": "TMapApi",
+        "children": [
+          {
+            "kind": "Function",
+            "name": "setSKTMapAuthenticationWithDelegate",
+            "printedName": "setSKTMapAuthenticationWithDelegate(_:apiKey:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "(any TMapSDK.TMapTapiDelegate)?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "TMapTapiDelegate",
+                    "printedName": "any TMapSDK.TMapTapiDelegate",
+                    "usr": "c:@M@TMapSDK@objc(pl)TMapTapiDelegate"
+                  }
+                ],
+                "usr": "s:Sq"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:7TMapSDK0A3ApiC35setSKTMapAuthenticationWithDelegate_6apiKeyyAA0a4TapiH0_pSg_SStFZ",
+            "mangledName": "$s7TMapSDK0A3ApiC35setSKTMapAuthenticationWithDelegate_6apiKeyyAA0a4TapiH0_pSg_SStFZ",
+            "moduleName": "TMapSDK",
+            "static": true,
+            "declAttributes": [
+              "Final",
+              "AccessControl"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "invokeRoute",
+            "printedName": "invokeRoute(_:coordinate:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Bool",
+                "printedName": "Swift.Bool",
+                "usr": "s:Sb"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CLLocationCoordinate2D",
+                "printedName": "_LocationEssentials.CLLocationCoordinate2D",
+                "usr": "c:@S@CLLocationCoordinate2D"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:7TMapSDK0A3ApiC11invokeRoute_10coordinateSbSS_So22CLLocationCoordinate2DVtFZ",
+            "mangledName": "$s7TMapSDK0A3ApiC11invokeRoute_10coordinateSbSS_So22CLLocationCoordinate2DVtFZ",
+            "moduleName": "TMapSDK",
+            "static": true,
+            "declAttributes": [
+              "Final",
+              "AccessControl"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "invokeRoute",
+            "printedName": "invokeRoute(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Bool",
+                "printedName": "Swift.Bool",
+                "usr": "s:Sb"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Dictionary",
+                "printedName": "[Swift.String : Any]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "ProtocolComposition",
+                    "printedName": "Any"
+                  }
+                ],
+                "usr": "s:SD"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:7TMapSDK0A3ApiC11invokeRouteySbSDySSypGFZ",
+            "mangledName": "$s7TMapSDK0A3ApiC11invokeRouteySbSDySSypGFZ",
+            "moduleName": "TMapSDK",
+            "static": true,
+            "declAttributes": [
+              "Final",
+              "AccessControl"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "isTmapApplicationInstalled",
+            "printedName": "isTmapApplicationInstalled()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Bool",
+                "printedName": "Swift.Bool",
+                "usr": "s:Sb"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:7TMapSDK0A3ApiC26isTmapApplicationInstalledSbyFZ",
+            "mangledName": "$s7TMapSDK0A3ApiC26isTmapApplicationInstalledSbyFZ",
+            "moduleName": "TMapSDK",
+            "static": true,
+            "declAttributes": [
+              "Final",
+              "AccessControl"
+            ],
+            "funcSelfKind": "NonMutating"
+          }
+        ],
+        "declKind": "Class",
+        "usr": "s:7TMapSDK0A3ApiC",
+        "mangledName": "$s7TMapSDK0A3ApiC",
+        "moduleName": "TMapSDK",
+        "declAttributes": [
+          "AccessControl"
+        ],
+        "hasMissingDesignatedInitializers": true,
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Copyable",
+            "printedName": "Copyable",
+            "usr": "s:s8CopyableP",
+            "mangledName": "$ss8CopyableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Escapable",
+            "printedName": "Escapable",
+            "usr": "s:s9EscapableP",
+            "mangledName": "$ss9EscapableP"
+          }
+        ]
+      }
+    ],
+    "json_format_version": 8
+  },
+  "ConstValues": []
+}
