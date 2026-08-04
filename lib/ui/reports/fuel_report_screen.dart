@@ -234,11 +234,12 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
     final todayCard = (topic == 'fuel' && _today != null)
         ? _todayCard(_today!, isDark)
         : null;
-    // 전국(오늘) → 우리 동네 → 주간·월간 분석 순. 넓은 시세에서 내 동네로 좁혀 읽힌다.
+    // 우리 동네 → 전국(오늘) → 주간·월간 분석 순 (형 확정: 동네가 맨 위).
+    // '받기' 액션 카드가 최상단이라 눈에 먼저 들어오고, 전국 시세는 그 아래 배경 정보로.
     final localCard = topic == 'fuel' ? _localCard(isDark) : null;
     final extras = <Widget>[
-      if (todayCard != null) todayCard,
       if (localCard != null) localCard,
+      if (todayCard != null) todayCard,
     ];
     // 주간·월간이 아직 없어도 일간·동네 카드는 보여준다 (출시 직후 케이스)
     if (items.isEmpty && extras.isEmpty) {
