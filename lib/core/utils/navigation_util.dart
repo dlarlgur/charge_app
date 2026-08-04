@@ -418,7 +418,10 @@ class _NavigationSheetState extends State<_NavigationSheet> {
       final String sub;
       if (s.isStation) {
         final note = widget.stationNote?.trim();
-        sub = (note != null && note.isNotEmpty) ? '경유 · $note' : '경유';
+        // 최종 목적지가 없으면(동네 최저가 → 바로 길안내 등) 이 지점이 곧 종점 —
+        // '경유' 라고 쓰면 어디로 가는 길에 들르는 걸로 읽힌다(형 제보).
+        final role = _hasDest ? '경유' : '목적지';
+        sub = (note != null && note.isNotEmpty) ? '$role · $note' : role;
       } else if (dropped) {
         sub = '${NavAppPref.label(_app)}에선 빠져요';
       } else if (disabled) {

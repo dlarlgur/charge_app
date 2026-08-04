@@ -58,6 +58,9 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
   // 일간 리포트 상세(facts) — 유종별 오늘값·7일 시계열. 히어로 타일·대시 그래프 재료.
   Map<String, dynamic>? _dailyFacts;
   String _dashFuel = 'B027';
+  // 충전 히어로 재료 — 최신 주간 리포트 상세의 facts.ev (급속 평균·최저·최고·운영사).
+  Map<String, dynamic>? _evFacts;
+  String? _evFactsDate;
 
   @override
   void initState() {
@@ -199,6 +202,7 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
         _loading[topic] = false;
       });
       if (topic == 'fuel' && daily != null) _loadDailyFacts(daily);
+      if (topic == 'ev' && list.isNotEmpty) _loadEvFacts(list.first);
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -219,6 +223,22 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
       final facts = r?['facts'];
       if (!mounted || facts is! Map) return;
       setState(() => _dailyFacts = Map<String, dynamic>.from(facts));
+    } catch (_) {}
+  }
+
+  /// 충전 히어로 재료 — 최신 주간 상세의 facts.ev. 실패 시 기존 큰 카드로 폴백.
+  Future<void> _loadEvFacts(Map<String, dynamic> latest) async {
+    if (_evFacts != null) return;
+    final id = int.tryParse(latest['id']?.toString() ?? '');
+    if (id == null) return;
+    try {
+      final r = await ApiService().getFuelReport(id);
+      final ev = r?['facts'] is Map ? (r!['facts'] as Map)['ev'] : null;
+      if (!mounted || ev is! Map) return;
+      setState(() {
+        _evFacts = Map<String, dynamic>.from(ev);
+        _evFactsDate = (latest['date'] ?? '').toString();
+      });
     } catch (_) {}
   }
 
@@ -303,7 +323,7 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
         rows.add(_archiveRow(isDark, topic));
       }
     } else {
-      // ── 충전: 기존 구성 유지 (최신 큰 카드 + 월별 그룹) ──
+      // ── 충전: 유가 히어로와 같은 문법의 초록 히어로 (형 요청 '충전도 이쁘게') ──
       if (items.isEmpty) {
         return _empty(
           isDark,
@@ -311,7 +331,13 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
           sub: '매주 충전 요금과 정책 흐름을 정리해 알려드려요',
         );
       }
-      _appendGroups(rows, items, isDark, topic, firstBig: true);
+      final evHero = _evFacts != null ? _evHero(isDark, items.first) : null;
+      if (evHero != null) {
+        rows.add(evHero);
+        _appendGroups(rows, items, isDark, topic, firstBig: false);
+      } else {
+        _appendGroups(rows, items, isDark, topic, firstBig: true);
+      }
       rows.add(_archiveRow(isDark, topic));
     }
 
@@ -877,6 +903,144 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
     if (id == null) return;
     Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => FuelReportDetailScreen(reportId: id)));
+  }
+
+  /// 충전 히어로 — 이번 주 급속 회원가 평균 큰 숫자 + 최저/최고/운영사 타일 (형 요청).
+  Widget _evHero(bool isDark, Map<String, dynamic> latest) {
+    const accent = AppColors.evGreen;
+    final f = _evFacts!;
+    final avg = (f['avg'] as num?)?.round();
+    if (avg == null) return _card(latest, isDark);
+    final minV = (f['min'] as num?)?.round();
+    final maxV = (f['max'] as num?)?.round();
+    final ops = (f['operators'] as List?)?.length;
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final primary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+
+    Widget tile(String label, String? value) {
+      if (value == null) return const SizedBox.shrink();
+      return Expanded(
+        child: Container(
+          margin: const EdgeInsets.only(right: 7),
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          decoration: BoxDecoration(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.05)
+                : Colors.white.withValues(alpha: 0.75),
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: Column(
+            children: [
+              Text(label, style: TextStyle(fontSize: 11, color: muted)),
+              const SizedBox(height: 3),
+              Text(value,
+                  style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
+                      color: primary)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Material(
+      color: isDark ? AppColors.darkEvActiveCard : AppColors.lightEvActiveCard,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          final id = int.tryParse(latest['id']?.toString() ?? '');
+          if (id == null) return;
+          Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => FuelReportDetailScreen(reportId: id)));
+        },
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 13, 14, 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+                color: isDark
+                    ? AppColors.darkEvActiveBorder
+                    : AppColors.lightEvActiveBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  _pill('이번 주', accent, isDark),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                        _weeklyPeriod(_evFactsDate ?? latest['date']) ??
+                            _fmtDate(latest['date']),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: muted)),
+                  ),
+                  const Spacer(),
+                  Icon(Icons.chevron_right_rounded, size: 20, color: muted),
+                ],
+              ),
+              const SizedBox(height: 9),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('급속 평균',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: muted)),
+                  const SizedBox(width: 8),
+                  Text(_comma(avg),
+                      style: TextStyle(
+                          fontSize: 33,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -1,
+                          height: 1,
+                          color: primary)),
+                  const SizedBox(width: 4),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 3),
+                    child: Text('원/kWh · 회원가',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: muted)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 11),
+              Row(
+                children: [
+                  tile('최저', minV != null ? '${_comma(minV)}원' : null),
+                  tile('최고', maxV != null ? '${_comma(maxV)}원' : null),
+                  tile('운영사', ops != null ? '$ops곳' : null),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // 제목 한 줄 — 히어로가 최신 주간 카드를 대체하므로 무슨 리포트인지 보이게
+              Text((latest['title'] ?? '').toString(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.2,
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary)),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   /// 4a 히어로 — 오늘 전국 평균이 주인공. 큰 휘발유값 + 등락 + 유종 타일 3개 (형 시안).
