@@ -151,8 +151,9 @@ class _HomeQuickFabState extends State<HomeQuickFab>
     final single = widget.items.length == 1;
 
     return Padding(
-      // 우측·하단 모서리에 최대한 밀착 (형 요청 2차 — 8/2 도 부족)
-      padding: const EdgeInsets.only(right: 2, bottom: 0),
+      // 우측 여백 10 — 2 는 모서리에 너무 붙어 쏠려 보임(형 확인). 아래는 body 끝이
+      // 하단 바 위라 이게 최저 위치(더 내리려면 바 영역과 겹치는 구조 변경 필요).
+      padding: const EdgeInsets.only(right: 10, bottom: 0),
       child: CompositedTransformTarget(
         link: _link,
         child: _mainButton(isDark, single),
