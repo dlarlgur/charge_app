@@ -2855,12 +2855,6 @@ class SettingsScreenEmbed extends ConsumerWidget {
                           : 'fuel')));
             }),
             settingsDivider(isDark),
-            _tile(context, isDark, Icons.campaign_rounded, '광고 문의',
-                '앱 지면에 광고를 싣고 싶다면', () {
-              Navigator.of(context, rootNavigator: true).push(
-                  MaterialPageRoute(builder: (_) => const AdInquiryScreen()));
-            }),
-            settingsDivider(isDark),
             _ReportFabTile(isDark: isDark),
             settingsDivider(isDark),
             _WidgetOpacityTile(isDark: isDark),
@@ -2881,6 +2875,13 @@ class SettingsScreenEmbed extends ConsumerWidget {
                 '',
                 () => Share.share('전기차 기름차 - 충전소·주유소 실시간 최저가·빈자리 알림 앱\n'
                     'https://play.google.com/store/apps/details?id=com.dksw.charge')),
+            settingsDivider(isDark),
+            // 광고 문의는 앱 동작 설정이 아니라 대외 안내라 '앱 설정' 카드에서 분리 (형 지적)
+            _tile(context, isDark, Icons.campaign_rounded, '광고 문의',
+                '앱 지면에 광고를 싣고 싶다면', () {
+              Navigator.of(context, rootNavigator: true).push(
+                  MaterialPageRoute(builder: (_) => const AdInquiryScreen()));
+            }),
             settingsDivider(isDark),
             _tile(context, isDark, Icons.description_outlined, '정책 및 약관', '',
                 () => context.push('/policies')),
