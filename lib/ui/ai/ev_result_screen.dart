@@ -450,6 +450,8 @@ class _AltAccordion extends StatelessWidget {
       if (unitPrice != null) '${_wonFmt.format(unitPrice)}원/kWh',
       if (detourMin != null && detourMin > 0) '+${fmtMin(detourMin)} 우회',
       if (detourMin != null && detourMin == 0) '우회 없음',
+      // 유료일 때만 — 무료까지 넣으면 접힌 줄이 길어진다
+      if (station['parking_free'] == false) '주차 유료',
     ];
 
     // 추천 대비 차액 (시안) — 싸면 초록 '저렴', 비싸면 앰버 '비쌈'. 계산 불가 시 생략.
@@ -1802,6 +1804,12 @@ class _StationCardState extends State<_StationCard> {
             color: greenD, weight: FontWeight.w600),
       if (unitPriceMember == null && unitPriceNonMember == null)
         metaChip(Icons.bolt_rounded, '가격 미공개'),
+      // 주차 무료/유료 (형 확정) — 서버 parking_free. 구서버 응답(필드 없음)은 미표시.
+      if (station['parking_free'] == true)
+        metaChip(Icons.local_parking_rounded, '주차 무료'),
+      if (station['parking_free'] == false)
+        metaChip(Icons.local_parking_rounded, '주차 유료',
+            color: _kAmber, weight: FontWeight.w600),
     ];
 
     return Container(
