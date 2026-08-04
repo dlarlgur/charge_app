@@ -41,11 +41,12 @@ class QuickMenuItem {
   final VoidCallback onTap;
 }
 
-/// 홈 우측 하단 퀵메뉴 (형 확정 v3).
+/// 홈 우측 하단 퀵메뉴 (형 확정 v3: 카드 한 장에 행 분할 팝업 메뉴).
 ///
-/// 떠 있는 칩 여러 개는 서로 따로 놀아 보여서 폐기 — 메뉴 버튼을 누르면 버튼 위로
-/// **카드 한 장**이 펼쳐지고, 그 안이 구분선으로 행 분할되는 팝업 메뉴 형태.
-/// 행 = [그라데이션 아이콘 타일 + 라벨 + ›]. 항목이 1개면 메뉴 없이 바로 실행.
+/// 메뉴 카드는 홈 Stack 안이 아니라 **Overlay(최상단 레이어)** 에 띄운다 —
+/// Stack 안에 그리면 자리변동 바 등 뒤 형제 위젯에 가려져 "눌러도 안 뜨는" 문제가
+/// 났다(형 제보). Overlay + LayerLink 앵커라 무엇 위에서든 항상 보이고,
+/// 바깥 탭으로 닫기도 자연스럽게 된다. 항목이 1개면 메뉴 없이 바로 실행.
 class HomeQuickFab extends StatefulWidget {
   const HomeQuickFab({super.key, required this.items});
 
@@ -61,6 +62,8 @@ class _HomeQuickFabState extends State<HomeQuickFab>
       vsync: this, duration: const Duration(milliseconds: 200));
   late final CurvedAnimation _anim = CurvedAnimation(
       parent: _ctrl, curve: Curves.easeOutCubic, reverseCurve: Curves.easeIn);
+  final LayerLink _link = LayerLink();
+  OverlayEntry? _entry;
   bool _open = false;
 
   @override
@@ -72,6 +75,7 @@ class _HomeQuickFabState extends State<HomeQuickFab>
   @override
   void dispose() {
     ReportFabPref.version.removeListener(_onChanged);
+    _removeEntry();
     _ctrl.dispose();
     super.dispose();
   }
@@ -80,31 +84,73 @@ class _HomeQuickFabState extends State<HomeQuickFab>
     if (mounted) setState(() {});
   }
 
-  void _toggle() {
-    setState(() => _open = !_open);
-    _open ? _ctrl.forward() : _ctrl.reverse();
+  void _removeEntry() {
+    _entry?.remove();
+    _entry = null;
+  }
+
+  void _openMenu() {
+    if (_entry != null) return;
+    _entry = OverlayEntry(
+      builder: (_) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return Stack(
+          children: [
+            // 바깥 탭 → 닫기 (배경은 안 어둡게 — 홈 지도가 계속 보이게)
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _closeMenu,
+              ),
+            ),
+            CompositedTransformFollower(
+              link: _link,
+              targetAnchor: Alignment.topRight,
+              followerAnchor: Alignment.bottomRight,
+              offset: const Offset(0, -10),
+              child: _menuCard(isDark),
+            ),
+          ],
+        );
+      },
+    );
+    Overlay.of(context, rootOverlay: true).insert(_entry!);
+    setState(() => _open = true);
+    _ctrl.forward(from: 0);
+  }
+
+  Future<void> _closeMenu() async {
+    if (_entry == null) return;
+    await _ctrl.reverse();
+    _removeEntry();
+    if (mounted) setState(() => _open = false);
   }
 
   void _select(QuickMenuItem item) {
-    _toggle(); // 골랐으면 접는다
+    // 화면 전환 위에 메뉴가 남지 않게 애니메이션 없이 즉시 제거.
+    _removeEntry();
+    _ctrl.value = 0;
+    setState(() => _open = false);
     item.onTap();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!ReportFabPref.get()) return const SizedBox.shrink();
+    if (!ReportFabPref.get()) {
+      // build 중 Overlay 조작은 금지 — 프레임 뒤로 미룬다 (설정에서 끈 직후 케이스).
+      if (_entry != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _removeEntry());
+      }
+      return const SizedBox.shrink();
+    }
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final single = widget.items.length == 1;
 
     return Padding(
       padding: const EdgeInsets.only(right: 14, bottom: 10),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          if (!single) _menuCard(isDark),
-          _mainButton(isDark, single),
-        ],
+      child: CompositedTransformTarget(
+        link: _link,
+        child: _mainButton(isDark, single),
       ),
     );
   }
@@ -118,7 +164,6 @@ class _HomeQuickFabState extends State<HomeQuickFab>
       animation: _ctrl,
       builder: (_, child) {
         final v = _anim.value;
-        if (_ctrl.isDismissed) return const SizedBox.shrink();
         // 버튼(우하단)에서 자라나는 느낌 — scale + 살짝 위로.
         return Opacity(
           opacity: v,
@@ -133,7 +178,6 @@ class _HomeQuickFabState extends State<HomeQuickFab>
         );
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
         constraints: const BoxConstraints(minWidth: 196),
         decoration: BoxDecoration(
           color: cardBg,
@@ -223,7 +267,9 @@ class _HomeQuickFabState extends State<HomeQuickFab>
         : const [Color(0xFF3B82F6), Color(0xFF2563EB)];
     final icon = single ? widget.items.first.icon : Icons.grid_view_rounded;
     return GestureDetector(
-      onTap: single ? widget.items.first.onTap : _toggle,
+      onTap: single
+          ? widget.items.first.onTap
+          : (_open ? _closeMenu : _openMenu),
       child: Container(
         width: 50,
         height: 50,
