@@ -2806,6 +2806,16 @@ class SettingsScreenEmbed extends ConsumerWidget {
             settingsDivider(isDark),
             _DndSettingTileEmbed(isDark: isDark),
           ]),
+          // AI 추천 관련 설정은 별도 섹션 — '앱 설정' 한 카드에 9개가 몰려 있어
+          // 뭐가 어디 있는지 못 찾았다(형 지적).
+          _sectionHeader(context, 'AI 추천'),
+          settingsCard(isDark, [
+            _RouteEngineTileEmbed(isDark: isDark),
+            settingsDivider(isDark),
+            _NavScopeTileEmbed(isDark: isDark),
+            settingsDivider(isDark),
+            _AiConsentTile(isDark: isDark),
+          ]),
           _sectionHeader(context, '앱 설정'),
           settingsCard(isDark, [
             _tile(context, isDark, Icons.dark_mode_rounded, '테마',
@@ -2848,15 +2858,9 @@ class SettingsScreenEmbed extends ConsumerWidget {
             settingsDivider(isDark),
             _ReportFabTile(isDark: isDark),
             settingsDivider(isDark),
-            _NavScopeTileEmbed(isDark: isDark),
-            settingsDivider(isDark),
-            _RouteEngineTileEmbed(isDark: isDark),
-            settingsDivider(isDark),
             _WidgetOpacityTile(isDark: isDark),
             settingsDivider(isDark),
             _ChargeMarketingTile(isDark: isDark),
-            settingsDivider(isDark),
-            _AiConsentTile(isDark: isDark),
           ]),
           _SupportEmbed(isDark: isDark),
           _sectionHeader(context, '정보'),
