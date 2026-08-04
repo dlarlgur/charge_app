@@ -45,7 +45,6 @@ import 'ai_vehicle_list_screen.dart';
 import 'ai_vehicle_setup_screen.dart';
 import 'ev_result_screen.dart';
 import '../detail/gas_detail_screen.dart';
-import '../detail/ev_detail_screen.dart';
 import '../widgets/gas_station_map_badge.dart';
 import 'ai_constants.dart';
 import '../../data/services/rating_prompt_service.dart';
@@ -171,7 +170,6 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     String? verdict,
     int? myUnitWon,
     int? avgUnitWon,
-    String? stId,
   }) {
     setState(() {
       _savingsRevealSeq++;
@@ -184,14 +182,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       _revealVerdict = verdict;
       _revealMyUnitWon = myUnitWon;
       _revealAvgUnitWon = avgUnitWon;
-      _revealStId = stId;
     });
   }
 
   String? _revealVerdict;
   int? _revealMyUnitWon;
   int? _revealAvgUnitWon;
-  String? _revealStId; // [확인] → 상세화면 이동용 (형 확정: 경유 길안내 아님)
 
   /// 주유 추천 — 절약 포인트 + 추천 상세(주유소명/단가/예상비용/추가시간)를 카드로.
   /// ① 우회 실질 절감(비교 데이터) 있으면 "N분 더 걸리지만 / M원 절감!"
@@ -302,7 +298,6 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         verdict: extraMin > 0 ? '+$extraMin분 우회해도 이득' : '우회 없이 가는 길이 최적',
         myUnitWon: recPrice?.round(),
         avgUnitWon: avgPrice?.round(),
-        stId: recSt is Map ? recSt['id']?.toString() : null,
       );
       return;
     }
@@ -330,7 +325,6 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           // 이 분기 조건에서 recPrice/avgPrice 는 non-null 로 승격됨
           myUnitWon: recPrice.round(),
           avgUnitWon: avgPrice.round(),
-          stId: recSt is Map ? recSt['id']?.toString() : null,
         );
         return;
       }
@@ -345,7 +339,6 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       verdict: '우회 없이 가는 길이 최적',
       myUnitWon: recPrice?.round(),
       avgUnitWon: avgPrice?.round(),
-      stId: recSt is Map ? recSt['id']?.toString() : null,
     );
   }
 
@@ -424,7 +417,6 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             verdict: evVerdict,
             myUnitWon: unit,
             avgUnitWon: avgUnit,
-            stId: rec is Map ? rec['id']?.toString() : null,
           );
           return;
         }
@@ -440,7 +432,6 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       verdict: evVerdict,
       myUnitWon: unit,
       avgUnitWon: avgUnit,
-      stId: rec is Map ? rec['id']?.toString() : null,
     );
   }
 
@@ -4014,6 +4005,23 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final stLng = (station['lng'] as num?)?.toDouble();
     if (stLat == null || stLng == null) return;
 
+    // 형 확정: 다른 마커를 다 지우지 말 것 — 탭한 충전소만 강조(recommended 슬롯)하고
+    // 나머지 결과 충전소들은 대안 마커로 유지한다.
+    final tappedId = station['statId']?.toString();
+    final others = <Map<String, dynamic>>[];
+    if (!_isEvSelectMode && _lastResultData != null) {
+      void addOther(dynamic m) {
+        if (m is! Map) return;
+        final mm = Map<String, dynamic>.from(m);
+        if (tappedId != null && mm['statId']?.toString() == tappedId) return;
+        others.add(mm);
+      }
+
+      addOther(_lastResultData!['recommended']);
+      final alts = _lastResultData!['alternatives'];
+      if (alts is List) alts.forEach(addOther);
+    }
+
     var pathPoints = _lastPathPoints;
     List<Map<String, dynamic>>? pathSegments;
     try {
@@ -4044,9 +4052,21 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       destLat: _destLat!,
       destLng: _destLng!,
       recommended: station,
-      alternatives: const [],
+      alternatives: others,
     );
     if (!mounted) return;
+
+    // 형 확정: 해당 충전소로 카메라 이동+확대 (경로 전체 fit 이 덮어쓰지 않게 마지막에)
+    try {
+      await _mapController?.updateCamera(
+        NCameraUpdate.scrollAndZoomTo(
+          target: NLatLng(stLat, stLng),
+          zoom: 14,
+        )..setAnimation(
+            animation: NCameraAnimation.easing,
+            duration: const Duration(milliseconds: 500)),
+      );
+    } catch (_) {}
 
     if (_isEvSelectMode) {
       // 직접선택 리스트에서 호출 → 결과 모드의 단일 카드로 전환.
@@ -6528,18 +6548,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 destName: _destName,
                 myUnitWon: _revealMyUnitWon,
                 avgUnitWon: _revealAvgUnitWon,
-                // [확인] → 추천 스테이션 상세화면 (형 확정: 팝업에서 바로 길안내 아님)
-                onConfirm: _revealStId == null
-                    ? null
-                    : () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                _revealStationIcon == Icons.ev_station_rounded
-                                    ? EvDetailScreen(stationId: _revealStId!)
-                                    : GasDetailScreen(
-                                        stationId: _revealStId!),
-                          ),
-                        ),
+                // [확인] = 닫기만 — 뒤의 AI 추천 결과 화면이 바로 보인다
+                // (형 정정: 상세화면으로 튕기지 말 것).
               ),
           ],
         ),
