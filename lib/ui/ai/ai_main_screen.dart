@@ -3476,6 +3476,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final fuelColor = _fuelColor(fuel);
     if (!mounted) return;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    // 주유=파랑 단일 축 (형 확정 — 시트가 주황톤이라 지적). 유종 칩만 유종색 유지.
+    final accentBlue =
+        isDark ? AppColors.darkBlueBright : const Color(0xFF2563EB);
     await showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -3552,7 +3555,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                   Expanded(
                       child: _miniSheetMetric(
                           '리터당', '${_wonFmt.format(price)}원',
-                          valueColor: fuelColor, big: true)),
+                          valueColor: accentBlue, big: true)),
                   const SizedBox(width: 12),
                   Container(width: 1, height: 30, color: divider),
                   const SizedBox(width: 16),
@@ -3580,16 +3583,16 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                       );
                     },
                     icon: Icon(Icons.storefront_outlined,
-                        size: 17, color: fuelColor),
+                        size: 17, color: accentBlue),
                     label: Text('주유소 상세보기',
                         style: TextStyle(
                             fontSize: 13.5,
                             fontWeight: FontWeight.w700,
-                            color: fuelColor)),
+                            color: accentBlue)),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      side:
-                          BorderSide(color: fuelColor.withValues(alpha: 0.45)),
+                      side: BorderSide(
+                          color: accentBlue.withValues(alpha: 0.45)),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
                     ),
