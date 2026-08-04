@@ -150,10 +150,10 @@ class _HomeQuickFabState extends State<HomeQuickFab>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final single = widget.items.length == 1;
 
-    return Padding(
-      // docked FAB 슬롯이 좌우 16 마진을 주므로 자체 여백은 없앰 (형 확정 위치:
-      // 하단 바에 걸쳐 앉기 — body 한계 밖까지 내려간다)
-      padding: EdgeInsets.zero,
+    // docked 슬롯은 버튼 중심을 바 위젯 상단선에 맞춰 반(25px)이 아래로 걸치는데,
+    // 투명 오버행이 22px 라 알약 바를 3px 침범했다 → 6px 올려 '딱 안 닿게' (형 확정).
+    return Transform.translate(
+      offset: const Offset(0, -6),
       child: CompositedTransformTarget(
         link: _link,
         child: _mainButton(isDark, single),
