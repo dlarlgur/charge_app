@@ -652,7 +652,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             if (bottomIndex == 0)
               Positioned(
                 right: 0,
-                bottom: _watchDragDy + 4,
+                bottom: _watchDragDy,
                 child: SafeArea(
                   top: false,
                   child: Builder(builder: (_) {

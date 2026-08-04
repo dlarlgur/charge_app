@@ -151,8 +151,8 @@ class _HomeQuickFabState extends State<HomeQuickFab>
     final single = widget.items.length == 1;
 
     return Padding(
-      // 우측·하단으로 바짝 (형 요청 — 14/10 이 화면 안쪽으로 붕 떠 보였음)
-      padding: const EdgeInsets.only(right: 8, bottom: 2),
+      // 우측·하단 모서리에 최대한 밀착 (형 요청 2차 — 8/2 도 부족)
+      padding: const EdgeInsets.only(right: 2, bottom: 0),
       child: CompositedTransformTarget(
         link: _link,
         child: _mainButton(isDark, single),
