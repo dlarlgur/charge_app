@@ -274,7 +274,7 @@ class EvResultBodyState extends State<EvResultBody> {
                 if (recommended != null) ...[
                   _EvAiMessageBanner(
                       message: recommended['ui_message']?.toString() ?? ''),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 18),
                 ],
 
                 // ── 추천 충전소 ──
@@ -492,17 +492,11 @@ class _AltAccordion extends StatelessWidget {
         : const Color(0xFFDBEAFE);
 
     return Container(
+      // 시안: 얇은 테두리만, 그림자 없음
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: cardBorder),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -515,19 +509,19 @@ class _AltAccordion extends StatelessWidget {
             InkWell(
               onTap: onToggle,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 13, 10, 13),
+                padding: const EdgeInsets.fromLTRB(14, 13, 12, 13),
                 child: Row(
                   children: [
                     SizedBox(
-                      width: 24,
+                      width: 22,
                       child: Text('$rank',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                              fontSize: 13,
+                              fontSize: 12,
                               fontWeight: FontWeight.w800,
                               color: muted)),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1054,16 +1048,18 @@ class _StationCardState extends State<_StationCard> {
       bool isRaised = false,
       VoidCallback? onToggleRaise}) {
     // 다크: 밝은 변형 (라이트 원색은 다크 카드 위 대비 미달)
-    final green = isDark ? AppColors.darkGreenBright : const Color(0xFF16A34A);
+    final green = isDark ? _kEvGreen : _kEvGreenDark;
     final orange =
         isDark ? AppColors.darkOrangeBright : const Color(0xFFEA580C);
     final red = isDark ? AppColors.darkRedBright : const Color(0xFFDC2626);
+    // 시안: 볼드는 상태색이 아니라 잉크색 — 상태는 아이콘·배경 틴트가 말해준다.
+    final ink = isDark ? AppColors.darkTextPrimary : const Color(0xFF0F172A);
 
     // 상태별 색/아이콘/문구.
     final Color c;
     final IconData icon;
     final List<InlineSpan> spans;
-    const pct = TextStyle(fontWeight: FontWeight.w900);
+    final pct = TextStyle(fontWeight: FontWeight.w700, color: ink);
     final ct = comfortTarget ?? 100;
 
     switch (status) {
@@ -1076,10 +1072,10 @@ class _StationCardState extends State<_StationCard> {
             comfortTarget <= targetNow - 5;
         spans = [
           const TextSpan(text: '충전 후 목적지 도착 시 '),
-          TextSpan(text: '약 $destSoc%', style: pct.copyWith(color: c)),
+          TextSpan(text: '약 $destSoc%', style: pct),
           TextSpan(text: canLower ? ' 남아요. 급하면 ' : ' 남아 여유 있게 도착해요'),
           if (canLower) ...[
-            TextSpan(text: '$ct%', style: pct.copyWith(color: c)),
+            TextSpan(text: '$ct%', style: pct),
             const TextSpan(text: '만 충전해도 충분해서 시간 아껴요'),
           ],
         ];
@@ -1094,9 +1090,9 @@ class _StationCardState extends State<_StationCard> {
             const TextSpan(text: '로는 도착 시 '),
           ] else
             const TextSpan(text: '현재 목표로는 도착 시 '),
-          TextSpan(text: '약 $destSoc%', style: pct.copyWith(color: c)),
+          TextSpan(text: '약 $destSoc%', style: pct),
           const TextSpan(text: ' — 여기서 '),
-          TextSpan(text: '$ct%까지 충전', style: pct.copyWith(color: c)),
+          TextSpan(text: '$ct%까지 충전', style: pct),
           const TextSpan(text: '하면 여유 있게 도착해요'),
         ];
         break;
@@ -1105,10 +1101,10 @@ class _StationCardState extends State<_StationCard> {
         icon = Icons.info_rounded;
         spans = [
           const TextSpan(text: '여기선 '),
-          TextSpan(text: '100% 충전', style: pct.copyWith(color: c)),
+          TextSpan(text: '100% 충전', style: pct),
           TextSpan(text: maxSoc != null ? '해도 도착 약 ' : '해도 목적지까지 빠듯해요'),
           if (maxSoc != null) ...[
-            TextSpan(text: '$maxSoc%', style: pct.copyWith(color: c)),
+            TextSpan(text: '$maxSoc%', style: pct),
             const TextSpan(text: '로 빠듯 — 중간이나 목적지 근처에서 한 번 더 충전 권장'),
           ],
         ];
@@ -1120,7 +1116,7 @@ class _StationCardState extends State<_StationCard> {
         final altTail = betterAltName != null
             ? [
                 const TextSpan(text: ' — 아래 '),
-                TextSpan(text: betterAltName, style: pct.copyWith(color: c)),
+                TextSpan(text: betterAltName, style: pct),
                 const TextSpan(text: '이 더 여유롭게 도착해요'),
               ]
             : <InlineSpan>[
@@ -1132,13 +1128,13 @@ class _StationCardState extends State<_StationCard> {
         spans = [
           if (maxSoc != null && maxSoc > 0) ...[
             const TextSpan(text: '여기선 '),
-            TextSpan(text: '100% 충전', style: pct.copyWith(color: c)),
+            TextSpan(text: '100% 충전', style: pct),
             const TextSpan(text: '해도 도착 약 '),
-            TextSpan(text: '$maxSoc%', style: pct.copyWith(color: c)),
+            TextSpan(text: '$maxSoc%', style: pct),
             const TextSpan(text: '로 부족'),
           ] else ...[
             const TextSpan(text: '여기 충전만으론 목적지까지 '),
-            TextSpan(text: '부족', style: pct.copyWith(color: c)),
+            TextSpan(text: '부족', style: pct),
           ],
           ...altTail,
         ];
@@ -1161,8 +1157,8 @@ class _StationCardState extends State<_StationCard> {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: RichText(
-              text: TextSpan(
+            child: Text.rich(
+              TextSpan(
                 style: TextStyle(
                     fontSize: 11.5,
                     height: 1.55,
@@ -1721,24 +1717,26 @@ class _StationCardState extends State<_StationCard> {
           ],
         ));
         rows.add(const SizedBox(height: 11));
+        // ColoredBox 는 자식이 없으면 최소 높이(0)로 그려져 게이지가 사라진다(형 제보)
+        // → 꽉 채우는 Container 로.
         rows.add(ClipRRect(
           borderRadius: BorderRadius.circular(99),
           child: SizedBox(
             height: 7,
+            width: double.infinity,
             child: Row(
               children: [
                 if (arrivalSoc > 0)
                   Expanded(
-                      flex: arrivalSoc,
-                      child: const ColoredBox(color: _kAmber)),
+                      flex: arrivalSoc, child: Container(color: _kAmber)),
                 if (after > arrivalSoc)
                   Expanded(
                       flex: after - arrivalSoc,
-                      child: const ColoredBox(color: _kEvGreen)),
+                      child: Container(color: _kEvGreen)),
                 if (after < 100)
                   Expanded(
                       flex: 100 - after,
-                      child: ColoredBox(
+                      child: Container(
                           color: isDark
                               ? const Color(0x22FFFFFF)
                               : const Color(0xFFE2E8F0))),
@@ -1805,9 +1803,9 @@ class _StationCardState extends State<_StationCard> {
       }
       if (costW != null) {
         if (rows.isNotEmpty) {
-          rows.add(const SizedBox(height: 12));
+          rows.add(const SizedBox(height: 11));
           rows.add(Container(height: 1, color: cardBorder));
-          rows.add(const SizedBox(height: 12));
+          rows.add(const SizedBox(height: 11));
         }
         rows.add(costW);
       }
@@ -1925,7 +1923,9 @@ class _StationCardState extends State<_StationCard> {
 
           // ── 본문 ──
           Padding(
-            padding: const EdgeInsets.all(14),
+            padding: widget.bare
+                ? const EdgeInsets.fromLTRB(14, 12, 14, 14)
+                : const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
