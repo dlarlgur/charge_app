@@ -4010,7 +4010,8 @@ class _AiBottomNav extends StatelessWidget {
   final ValueChanged<int> onSelect;
 
   static const _overhang = 22.0; // 원이 바 위로 튀어나오는 높이 (투명 영역)
-  static const _barH = 58.0;
+  // 58 은 아이콘+라벨이 꽉 차 보였다(형 확인) — 위아래 여백을 줘 알약형이 살게.
+  static const _barH = 66.0;
   static const _circle = 62.0;
 
   @override
