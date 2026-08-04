@@ -2951,7 +2951,12 @@ class _AltSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final valid = alternatives.whereType<Map>().toList();
+    // 도달 불가(서버 unreachable=true) 후보는 아예 뺀다 — 어차피 못 가는 곳이
+    // 리스트만 길게 만든다(형 확정). 이전엔 회색+⚠ 로 보여줬었음.
+    final valid = alternatives
+        .whereType<Map>()
+        .where((m) => m['unreachable'] != true)
+        .toList();
     if (valid.isEmpty) return const SizedBox.shrink();
 
     final selectedId = selectedItem?['station'] is Map
