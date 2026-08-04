@@ -1459,11 +1459,13 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         _lastStartLat = startLat;
         _lastStartLng = startLng;
         _loadingRouteAlts = false;
-        // 경로가 나왔다 = 입력이 끝났다 → 경로 카드를 접어 지도를 넓게 준다.
+        // 경로가 나왔다 = 입력이 끝났다 → 차량 카드(아래)는 접어 지도를 넓게 준다.
+        // 상단 경로 카드는 형 확정: 출발·목적지만일 땐 접지 말고,
+        // 경유지가 하나 이상일 때만 접는다 (경유지 추가하면 줄이 길어져서).
         // 한 번만 자동으로 접고, 사용자가 펼치면 다시 건드리지 않는다.
         if (!_panelsAutoCollapsed) {
           _panelsAutoCollapsed = true;
-          _routeCardCollapsed = true;
+          _routeCardCollapsed = _viaCoords.isNotEmpty;
           _heroCollapsed = true; // 차량 카드(게이지·선호조건·브랜드)도 같이
         }
       });
