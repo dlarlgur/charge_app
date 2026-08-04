@@ -109,7 +109,10 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
       if (raw is! String || raw.isEmpty) return;
       final m = jsonDecode(raw);
       if (m is Map && m['date'] == _todayYmd() && m['data'] is Map) {
-        _local = Map<String, dynamic>.from(m['data'] as Map);
+        final d = Map<String, dynamic>.from(m['data'] as Map);
+        // 구형 캐시(전 유종 fuels 없던 응답)면 버린다 — 그대로 쓰면 선택 유종만
+        // 나와서 "왜 고급휘발유만 나와" 상태가 하루 종일 유지된다(형 제보).
+        if (d['fuels'] is List) _local = d;
       }
     } catch (_) {}
   }
@@ -128,7 +131,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
     });
     try {
       final fuel = ref.read(settingsProvider).fuelType.code;
-      final r = await ApiService().getLocalFuelBrief(lat: lat, lng: lng, fuel: fuel);
+      final r =
+          await ApiService().getLocalFuelBrief(lat: lat, lng: lng, fuel: fuel);
       if (!mounted) return;
       if (r == null) {
         setState(() {
@@ -137,8 +141,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
         });
         return;
       }
-      await Hive.box(AppConstants.settingsBox).put(
-          _kLocalBriefCache, jsonEncode({'date': _todayYmd(), 'data': r}));
+      await Hive.box(AppConstants.settingsBox)
+          .put(_kLocalBriefCache, jsonEncode({'date': _todayYmd(), 'data': r}));
       if (!mounted) return;
       setState(() {
         _local = r;
@@ -167,8 +171,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
   }
 
   void _openLocalDetail(Map<String, dynamic> d) {
-    Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => LocalFuelBriefDetailScreen(data: d)));
+    Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => LocalFuelBriefDetailScreen(data: d)));
   }
 
   Future<void> _load(String topic, {bool force = false}) async {
@@ -228,22 +232,6 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
         title: Text(single
             ? (_topics.first == 'ev' ? '충전 리포트' : '유가 리포트')
             : '유가 · 충전 리포트'),
-        actions: [
-          // 히어로 ↔ 대시보드 전환 (유가 탭에서만 의미 있음)
-          if (_topics[single ? 0 : (_tab?.index ?? 0)] == 'fuel')
-            IconButton(
-              tooltip: _layout == 'hero' ? '대시보드 보기' : '히어로 보기',
-              icon: Icon(_layout == 'hero'
-                  ? Icons.insert_chart_outlined_rounded
-                  : Icons.view_agenda_outlined),
-              onPressed: () {
-                setState(
-                    () => _layout = _layout == 'hero' ? 'dash' : 'hero');
-                Hive.box(AppConstants.settingsBox)
-                    .put(_kLayoutPref, _layout);
-              },
-            ),
-        ],
         bottom: single
             ? null
             : TabBar(
@@ -268,8 +256,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
   Widget _list(String topic, bool isDark) {
     if (_loading[topic] == true && !_cache.containsKey(topic)) {
       return Center(
-          child: CircularProgressIndicator(
-              strokeWidth: 2, color: _accent(topic)));
+          child:
+              CircularProgressIndicator(strokeWidth: 2, color: _accent(topic)));
     }
     final err = _error[topic];
     final items = _cache[topic] ?? const <Map<String, dynamic>>[];
@@ -279,7 +267,9 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
 
     final rows = <Widget>[];
     if (topic == 'fuel') {
-      // ── 유가: 히어로/대시 2 레이아웃 (형 확정, 앱바 토글) ──
+      // ── 유가: 기본/대시보드 2 레이아웃 — 토글은 목록 상단에 항상 보이게
+      //   (앱바 구석 아이콘은 아무도 못 찾는다 — 형 지적) ──
+      rows.add(_layoutSwitcher(isDark));
       if (_layout == 'dash') {
         rows.add(_fuelChips(isDark));
         final dash = _dashCard(isDark);
@@ -309,8 +299,7 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
         ));
       } else {
         // 히어로: 최신 큰 카드 + 지난 그룹 / 대시: 전부 슬림 그룹 (시안 4c)
-        _appendGroups(rows, items, isDark, topic,
-            firstBig: _layout != 'dash');
+        _appendGroups(rows, items, isDark, topic, firstBig: _layout != 'dash');
         rows.add(_archiveRow(isDark, topic));
       }
     } else {
@@ -857,21 +846,30 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
     final c = flat
         ? (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)
         : (up ? const Color(0xFFEF4444) : AppColors.evGreen);
-    final txt = flat ? '전국 평균과 비슷' : '${up ? '▲' : '▼'} ${_comma(v.abs().round())}$suffix';
+    final txt = flat
+        ? '전국 평균과 비슷'
+        : '${up ? '▲' : '▼'} ${_comma(v.abs().round())}$suffix';
     return Flexible(
       child: Text(txt,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: c)),
+          style:
+              TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: c)),
     );
   }
 
   static const _fuelCodes = ['B027', 'D047', 'B034', 'K015'];
   static const _fuelChipLabel = {
-    'B027': '휘발유', 'D047': '경유', 'B034': '고급', 'K015': 'LPG',
+    'B027': '휘발유',
+    'D047': '경유',
+    'B034': '고급',
+    'K015': 'LPG',
   };
   static const _factsKey = {
-    'B027': 'gasoline', 'D047': 'diesel', 'B034': 'premium', 'K015': 'lpg',
+    'B027': 'gasoline',
+    'D047': 'diesel',
+    'B034': 'premium',
+    'K015': 'lpg',
   };
 
   void _openDailyDetail() {
@@ -886,7 +884,9 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
     const accent = AppColors.gasBlue;
     final f = _dailyFacts!;
     final g = f['gasoline'] is Map ? f['gasoline'] as Map : null;
-    if (g == null || (g['price'] as num?) == null) return _todayCard(_today ?? {}, isDark);
+    if (g == null || (g['price'] as num?) == null) {
+      return _todayCard(_today ?? {}, isDark);
+    }
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     final primary =
         isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
@@ -979,8 +979,7 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
                             color: muted)),
                   ),
                   const Spacer(),
-                  _localDeltaChip(
-                      ((g['diff'] as num?) ?? 0).toDouble(), isDark,
+                  _localDeltaChip(((g['diff'] as num?) ?? 0).toDouble(), isDark,
                       suffix: '원'),
                 ],
               ),
@@ -999,50 +998,133 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
     );
   }
 
+  /// 보기 방식 세그먼트 — 기본(요약 카드) | 대시보드(유종·그래프). Hive 저장.
+  Widget _layoutSwitcher(bool isDark) {
+    const accent = AppColors.gasBlue;
+    Widget seg(String key, IconData icon, String label) {
+      final on = _layout == key;
+      return GestureDetector(
+        onTap: () {
+          if (_layout == key) return;
+          setState(() => _layout = key);
+          Hive.box(AppConstants.settingsBox).put(_kLayoutPref, key);
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+          decoration: BoxDecoration(
+            color: on
+                ? (isDark ? AppColors.darkSurface2 : Colors.white)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
+            boxShadow: on && !isDark
+                ? [
+                    BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.07),
+                        blurRadius: 5,
+                        offset: const Offset(0, 1)),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon,
+                  size: 14,
+                  color: on
+                      ? accent
+                      : (isDark
+                          ? AppColors.darkTextMuted
+                          : AppColors.lightTextMuted)),
+              const SizedBox(width: 5),
+              Text(label,
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: on ? FontWeight.w800 : FontWeight.w600,
+                      color: on
+                          ? (isDark
+                              ? AppColors.darkTextPrimary
+                              : AppColors.lightTextPrimary)
+                          : (isDark
+                              ? AppColors.darkTextMuted
+                              : AppColors.lightTextMuted))),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.05)
+                : const Color(0xFFEDF1F5),
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              seg('hero', Icons.view_agenda_rounded, '기본'),
+              seg('dash', Icons.insert_chart_rounded, '대시보드'),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   /// 4c 대시보드 — 유종 칩. 목록 최상단.
   Widget _fuelChips(bool isDark) {
     const accent = AppColors.gasBlue;
-    return Row(
-      children: [
-        for (final c in _fuelCodes)
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () => setState(() => _dashFuel = c),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
-                decoration: BoxDecoration(
-                  color: _dashFuel == c
-                      ? accent
-                      : (isDark
-                          ? Colors.white.withValues(alpha: 0.06)
-                          : Colors.white),
-                  borderRadius: BorderRadius.circular(99),
-                  border: _dashFuel == c
-                      ? null
-                      : Border.all(
-                          color: isDark
-                              ? AppColors.darkCardBorder
-                              : AppColors.lightCardBorder),
-                ),
-                child: Text(
-                  _fuelChipLabel[c]!,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
+    // 좁은 화면·큰 시스템 글씨에서 4칩이 넘칠 수 있어 가로 스크롤 허용
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final c in _fuelCodes)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: GestureDetector(
+                onTap: () => setState(() => _dashFuel = c),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+                  decoration: BoxDecoration(
                     color: _dashFuel == c
-                        ? Colors.white
+                        ? accent
                         : (isDark
-                            ? AppColors.darkTextSecondary
-                            : AppColors.lightTextSecondary),
+                            ? Colors.white.withValues(alpha: 0.06)
+                            : Colors.white),
+                    borderRadius: BorderRadius.circular(99),
+                    border: _dashFuel == c
+                        ? null
+                        : Border.all(
+                            color: isDark
+                                ? AppColors.darkCardBorder
+                                : AppColors.lightCardBorder),
+                  ),
+                  child: Text(
+                    _fuelChipLabel[c]!,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      color: _dashFuel == c
+                          ? Colors.white
+                          : (isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.lightTextSecondary),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -1138,7 +1220,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
               if (pts.length >= 2) ...[
                 const SizedBox(height: 13),
                 SizedBox(
-                  height: 74,
+                  // 84 = 최대 막대 54 + 간격 4 + 라벨 ~14 + 큰 글씨 여유 (74 는 1px 오버플로우)
+                  height: 84,
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
@@ -1150,8 +1233,7 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
                                 Container(
-                                  height: 26 +
-                                      ((pts[i].p - minP) / span) * 32,
+                                  height: 24 + ((pts[i].p - minP) / span) * 30,
                                   decoration: BoxDecoration(
                                     color: i == pts.length - 1
                                         ? accent
@@ -1165,14 +1247,14 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
                                   i == pts.length - 1
                                       ? '오늘'
                                       : dayLabel(pts[i].d),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.clip,
                                   style: TextStyle(
                                     fontSize: 9.5,
                                     fontWeight: i == pts.length - 1
                                         ? FontWeight.w800
                                         : FontWeight.w500,
-                                    color: i == pts.length - 1
-                                        ? accent
-                                        : muted,
+                                    color: i == pts.length - 1 ? accent : muted,
                                   ),
                                 ),
                               ],
@@ -1259,8 +1341,7 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
                         height: 21,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color:
-                              top ? accent : muted.withValues(alpha: 0.15),
+                          color: top ? accent : muted.withValues(alpha: 0.15),
                           shape: BoxShape.circle,
                         ),
                         child: Text('${i + 1}',
@@ -1283,8 +1364,7 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
                       const SizedBox(width: 8),
                       if (dist != null)
                         Text('${(dist / 1000).toStringAsFixed(1)}km',
-                            style:
-                                TextStyle(fontSize: 11.5, color: muted)),
+                            style: TextStyle(fontSize: 11.5, color: muted)),
                       const SizedBox(width: 9),
                       Text(
                           '${_comma((st['price_won_per_liter'] as num).round())}원',
@@ -2409,7 +2489,6 @@ String _mmdd(String yyyymmdd) {
   return '${int.parse(s.substring(4, 6))}/${int.parse(s.substring(6, 8))}';
 }
 
-
 /* ══════════════════════════ 우리 동네 유가 상세 ══════════════════════════ */
 
 /// 우리 동네 유가 상세 — 다른 리포트 상세와 같은 패턴(전용 화면).
@@ -2597,7 +2676,8 @@ class LocalFuelBriefDetailScreen extends StatelessWidget {
             sectionCard(Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                sectionHead(Icons.format_list_bulleted_rounded, '유종별 $label 평균'),
+                sectionHead(
+                    Icons.format_list_bulleted_rounded, '유종별 $label 평균'),
                 for (final raw in (data['fuels'] as List))
                   if (raw is Map)
                     Builder(builder: (_) {
@@ -2693,8 +2773,7 @@ class LocalFuelBriefDetailScreen extends StatelessWidget {
               else
                 for (var i = 0; i < stations.length; i++)
                   Builder(builder: (ctx) {
-                    final st =
-                        Map<String, dynamic>.from(stations[i] as Map);
+                    final st = Map<String, dynamic>.from(stations[i] as Map);
                     final dist = (st['distance_m'] as num?)?.toDouble();
                     final top = i == 0;
                     final stId = (st['id'] ?? '').toString();
@@ -2713,65 +2792,65 @@ class LocalFuelBriefDetailScreen extends StatelessWidget {
                               lng: stLng,
                               name: (st['name'] ?? '').toString()),
                       child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 9),
-                      margin: EdgeInsets.only(
-                          bottom: i == stations.length - 1 ? 0 : 6),
-                      decoration: BoxDecoration(
-                        color: top
-                            ? accent.withValues(alpha: isDark ? 0.10 : 0.06)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 22,
-                            height: 22,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: top
-                                  ? accent
-                                  : muted.withValues(alpha: 0.15),
-                              shape: BoxShape.circle,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 9),
+                        margin: EdgeInsets.only(
+                            bottom: i == stations.length - 1 ? 0 : 6),
+                        decoration: BoxDecoration(
+                          color: top
+                              ? accent.withValues(alpha: isDark ? 0.10 : 0.06)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 22,
+                              height: 22,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: top
+                                    ? accent
+                                    : muted.withValues(alpha: 0.15),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text('${i + 1}',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      color: top ? Colors.white : muted)),
                             ),
-                            child: Text('${i + 1}',
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    color: top ? Colors.white : muted)),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text((st['name'] ?? '').toString(),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                        fontSize: 13.5,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: -0.2,
-                                        color: primary)),
-                                if (dist != null)
-                                  Text(
-                                      '${(dist / 1000).toStringAsFixed(1)}km',
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text((st['name'] ?? '').toString(),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
-                                          fontSize: 11.5, color: muted)),
-                              ],
+                                          fontSize: 13.5,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: -0.2,
+                                          color: primary)),
+                                  if (dist != null)
+                                    Text(
+                                        '${(dist / 1000).toStringAsFixed(1)}km',
+                                        style: TextStyle(
+                                            fontSize: 11.5, color: muted)),
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                              '${_comma((st['price_won_per_liter'] as num).round())}원',
-                              style: TextStyle(
-                                  fontSize: 14.5,
-                                  fontWeight: FontWeight.w800,
-                                  color: top ? accent : secondary)),
-                        ],
+                            const SizedBox(width: 10),
+                            Text(
+                                '${_comma((st['price_won_per_liter'] as num).round())}원',
+                                style: TextStyle(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: top ? accent : secondary)),
+                          ],
+                        ),
                       ),
-                    ),
                     );
                   }),
               if (saveWon != null && saveWon > 0) ...[
@@ -2908,8 +2987,7 @@ class _FuelReportArchiveScreenState extends State<FuelReportArchiveScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final accent =
-        widget.topic == 'ev' ? AppColors.evGreen : AppColors.gasBlue;
+    final accent = widget.topic == 'ev' ? AppColors.evGreen : AppColors.gasBlue;
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     final primary =
         isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
@@ -2942,9 +3020,7 @@ class _FuelReportArchiveScreenState extends State<FuelReportArchiveScreen> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 2),
               child: Text('$m월',
                   style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: muted)),
+                      fontSize: 12, fontWeight: FontWeight.w800, color: muted)),
             ),
             for (var i = 0; i < list.length; i++) ...[
               if (i > 0)
@@ -2987,12 +3063,11 @@ class _FuelReportArchiveScreenState extends State<FuelReportArchiveScreen> {
     flushMonth();
 
     return Scaffold(
-      appBar: AppBar(
-          title: Text(widget.topic == 'ev' ? '지난 충전 리포트' : '지난 유가 리포트')),
+      appBar:
+          AppBar(title: Text(widget.topic == 'ev' ? '지난 충전 리포트' : '지난 유가 리포트')),
       body: _loading
           ? Center(
-              child:
-                  CircularProgressIndicator(strokeWidth: 2, color: accent))
+              child: CircularProgressIndicator(strokeWidth: 2, color: accent))
           : (_items.isEmpty
               ? Center(
                   child: Text(_error ?? '아직 쌓인 리포트가 없어요',
