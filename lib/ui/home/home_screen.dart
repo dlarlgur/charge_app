@@ -2216,7 +2216,7 @@ class _RouteEngineTileEmbedState extends State<_RouteEngineTileEmbed> {
   }
 }
 
-/// 홈 리포트 바로가기 버튼 on/off
+/// 홈 퀵메뉴 버튼 on/off (기본 켜짐)
 class _ReportFabTile extends StatefulWidget {
   final bool isDark;
   const _ReportFabTile({required this.isDark});
@@ -2249,12 +2249,12 @@ class _ReportFabTileState extends State<_ReportFabTile> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
       secondary: SettingsScreenEmbed.settingsIconChip(
           Icons.insights_rounded, widget.isDark),
-      title: Text('홈에 리포트 바로가기',
+      title: Text('홈 퀵메뉴',
           style: Theme.of(context)
               .textTheme
               .titleSmall
               ?.copyWith(fontWeight: FontWeight.w600)),
-      subtitle: Text('홈 화면 왼쪽 아래 버튼으로 유가·충전 리포트를 바로 열어요',
+      subtitle: Text('홈 오른쪽 아래 버튼 — 유가·충전 리포트 등 바로가기 메뉴',
           style: TextStyle(fontSize: 11.5, color: muted)),
       value: ReportFabPref.get(),
       activeThumbColor: AppColors.gasBlue,

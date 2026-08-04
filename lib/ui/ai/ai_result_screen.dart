@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/helpers.dart';
@@ -195,6 +196,8 @@ class AiResultBody extends StatefulWidget {
   final double originLng;
   final ScrollController? scrollController;
   final String? fuelLabel;
+  final double? avgPrice; // 주변 평균가 (원/L)
+  final double? goalLiters; // 주유량 (L)
 
   /// 대안 "확인" 탭 시 지도 업데이트 (서버 `via_route` 포함 시 그대로 사용)
   final void Function(Map<String, dynamic> altItem)? onAltRouteView;
@@ -436,6 +439,8 @@ class _AiResultBodyState extends State<AiResultBody> {
     final destLat = _d(dest?['lat']);
     final destLng = _d(dest?['lng']);
     final goalL = _d(computed?['goal_liters']);
+    // 주변 평균가 — 새 추천 카드의 '평균 대비 N원 절약' 헤드라인 재료 (형 시안).
+    final avgPrice = _d(computed?['avg_price_won_per_liter_used']);
 
     // on_route 데이터
     final orLat = _d(onRouteSt?['lat']);
@@ -758,6 +763,8 @@ class _AiResultBodyState extends State<AiResultBody> {
           dtSavings: dtSavings,
           dtDetourMins: dtTimeMinsBanner,
           fuelLabel: widget.fuelLabel,
+          avgPrice: avgPrice,
+          goalLiters: goalL,
           destLat: destLat,
           destLng: destLng,
           destinationName: widget.destinationName,
@@ -1404,6 +1411,8 @@ class _StationComparisonSection extends StatelessWidget {
     required this.wonFmt,
     this.onViewOnMapRoute,
     this.onViewOnMapDetour,
+    this.avgPrice,
+    this.goalLiters,
   });
 
   String _detourLabel(int detourM, num? detourTimeMin) {
@@ -1460,6 +1469,9 @@ class _StationComparisonSection extends StatelessWidget {
           isDetour: recIsDetour,
           wonFmt: wonFmt,
           onViewOnMap: onViewRec,
+          avgPrice: avgPrice,
+          goalLiters: goalLiters,
+          fuelLabel: fuelLabel,
         ),
 
         // ── 비교 테이블 (한쪽만 있어도 추천 정보 표 형태로 표시) ──
@@ -1509,6 +1521,9 @@ class _StationComparisonSection extends StatelessWidget {
 
 // ── 추천 주유소 카드 ──────────────────────────────────────────────────────────
 
+/// AI 추천 카드 (형 시안 2026-08-04) — '주변 평균 대비 N원 절약' 헤드라인이 주인공.
+/// 주유 결과라 파랑(gasBlue) 계열 — 충전 추천은 초록 계열(형 확인), EV 화면에서 별도.
+/// 블링: _ShimmerSweep 이 AI 추천 pill 과 절약 헤드라인 위를 주기적으로 쓸고 지나간다.
 class _RecommendedCard extends StatelessWidget {
   final String name;
   final String? brand;
@@ -1522,6 +1537,9 @@ class _RecommendedCard extends StatelessWidget {
   final bool isDetour;
   final NumberFormat wonFmt;
   final VoidCallback? onViewOnMap;
+  final double? avgPrice; // 주변 평균가 (원/L)
+  final double? goalLiters; // 주유량 (L)
+  final String? fuelLabel; // '휘발유' 등
 
   const _RecommendedCard({
     required this.name,
@@ -1540,235 +1558,401 @@ class _RecommendedCard extends StatelessWidget {
     required this.isDetour,
     required this.wonFmt,
     this.onViewOnMap,
+    this.avgPrice,
+    this.goalLiters,
+    this.fuelLabel,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    const accent = AppColors.gasBlue;
     final canNav =
         stLat != null && stLng != null && destLat != null && destLng != null;
     final isNegligible =
         _detourIsNegligible(detourM: detourM, detourTimeMin: detourTimeMin);
     final detourMins = _meaningfulDetourMinutes(detourTimeMin);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    // 다크: 주황 14% 프리블렌드 카드 + 밝은 주황 보더 — '라이트 카드 그대로' 인상 제거.
-    final subBadgeBg = isDark ? const Color(0x1FFFFFFF) : Colors.white;
-    final subBadgeBorder =
-        isDark ? AppColors.darkCardBorder : const Color(0xFFCCEEDE);
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final primary =
+        isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A1A);
+    final secondary =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final tileBg = isDark ? AppColors.darkSurface2 : const Color(0xFFF6F8FB);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF2B2014) : _kMarkerRecommendLight,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-            color: isDark ? AppColors.darkOrangeBright : _kMarkerRecommend,
-            width: 2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 헤더
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-            child: Row(
+    // 주변 평균 대비 절약 — 헤드라인. 평균·가격·주유량 셋 다 있어야 계산.
+    final int? savings = (avgPrice != null &&
+            price != null &&
+            goalLiters != null &&
+            goalLiters! > 0)
+        ? ((avgPrice! - price!) * goalLiters!).round()
+        : null;
+    final showSavings = savings != null && savings > 0;
+    final int? diffPerL = (avgPrice != null && price != null)
+        ? (avgPrice! - price!).round()
+        : null;
+
+    Widget tile(String value, String label) => Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: tileBg,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
               children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                      color: _kMarkerRecommend,
-                      borderRadius: BorderRadius.circular(5)),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.auto_awesome_rounded,
-                          size: 11, color: Colors.white),
-                      SizedBox(width: 4),
-                      Text('추천',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700)),
-                    ],
-                  ),
+                FittedBox(
+                  child: Text(value,
+                      style: TextStyle(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.4,
+                          color: primary)),
                 ),
-                const SizedBox(width: 6),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: subBadgeBg,
-                    borderRadius: BorderRadius.circular(5),
-                    border: Border.all(color: subBadgeBorder),
-                  ),
-                  child: Text(
-                    isDetour ? '우회 최저가' : '경로상 최저가',
+                const SizedBox(height: 3),
+                Text(label,
                     style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: isDark
-                            ? AppColors.darkTextSecondary
-                            : const Color(0xFF444444)),
-                  ),
-                ),
-                const Spacer(),
-                if (onViewOnMap != null)
-                  GestureDetector(
-                    onTap: onViewOnMap,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: subBadgeBg,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: subBadgeBorder),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.map_outlined,
-                              size: 13,
-                              color: isDark
-                                  ? AppColors.darkGreenBright
-                                  : _kPrimary),
-                          const SizedBox(width: 3),
-                          Text('지도',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: isDark
-                                      ? AppColors.darkGreenBright
-                                      : _kPrimary)),
-                        ],
-                      ),
-                    ),
-                  ),
+                        color: muted)),
               ],
             ),
           ),
+        );
 
-          // 브랜드 로고 + 주유소명
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-            child: Row(
-              children: [
-                if (brand != null && brand!.isNotEmpty) ...[
-                  BrandLogo(brand: brand!, stationName: name),
-                  const SizedBox(width: 10),
-                ],
-                Expanded(
-                  child: Text(name,
-                      style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: isDark
-                              ? AppColors.darkTextPrimary
-                              : const Color(0xFF1a1a1a))),
-                ),
-              ],
-            ),
+    Widget infoRow(String label, Widget value) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 7),
+          child: Row(
+            children: [
+              Text(label,
+                  style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: muted)),
+              const Spacer(),
+              value,
+            ],
           ),
+        );
 
-          const SizedBox(height: 12),
-
-          // 핵심 수치 3개
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.darkSurface2 : Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: subBadgeBorder),
-              ),
-              child: IntrinsicHeight(
-                child: Row(
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface1 : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+            color:
+                isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 14,
+                    offset: const Offset(0, 4)),
+              ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // ── AI 추천 pill (가운데, 블링) ──
+          Center(
+            child: _ShimmerSweep(
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                      colors: [AppColors.gasBlue, Color(0xFF2563EB)]),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    _RecStatCell(
-                      icon: Icons.local_gas_station_rounded,
-                      iconColor: isDark
-                          ? AppColors.darkOrangeBright
-                          : _kMarkerRecommend,
-                      value: price != null
-                          ? '${wonFmt.format(price!.round())}원'
-                          : '—',
-                      label: '리터당 가격',
-                      darkAdaptive: true,
-                    ),
-                    VerticalDivider(
-                        width: 1,
-                        color: isDark
-                            ? AppColors.darkCardBorder
-                            : const Color(0xFFDDDDDD)),
-                    _RecStatCell(
-                      icon: Icons.access_time_rounded,
-                      iconColor: isNegligible
-                          ? (isDark
-                              ? AppColors.darkOrangeBright
-                              : _kMarkerRecommend)
-                          : const Color(0xFFE07B1D),
-                      value: isNegligible
-                          ? '우회 없음'
-                          : (detourMins != null ? '+${detourMins}분' : '조금 우회'),
-                      label: '직행 대비',
-                      darkAdaptive: true,
-                    ),
-                    VerticalDivider(
-                        width: 1,
-                        color: isDark
-                            ? AppColors.darkCardBorder
-                            : const Color(0xFFDDDDDD)),
-                    _RecStatCell(
-                      icon: Icons.payments_outlined,
-                      iconColor: isDark
-                          ? AppColors.darkOrangeBright
-                          : _kMarkerRecommend,
-                      value: cost > 0 ? '${wonFmt.format(cost)}원' : '—',
-                      label: '예상 주유비',
-                      darkAdaptive: true,
-                    ),
+                    Icon(Icons.auto_awesome_rounded,
+                        size: 12, color: Colors.white),
+                    SizedBox(width: 5),
+                    Text('AI 추천',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.2,
+                            color: Colors.white)),
                   ],
                 ),
               ),
             ),
           ),
-
-          // 길안내 버튼
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-            child: SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: ElevatedButton.icon(
-                onPressed: canNav
-                    ? () => showViaWaypointNavigationSheet(
-                          context,
-                          originLat: originLat,
-                          originLng: originLng,
-                          waypointLat: stLat!,
-                          waypointLng: stLng!,
-                          waypointName: name,
-                          destinationLat: destLat!,
-                          destinationLng: destLng!,
-                          destinationName: destinationName,
-                          stopKind: '주유소',
-                        )
-                    : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _kMarkerRecommend,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                  elevation: 0,
+          const SizedBox(height: 12),
+          // ── 헤드라인 — 평균 대비 절약 (블링) ──
+          if (showSavings) ...[
+            Text('주변 평균 대비',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: secondary)),
+            const SizedBox(height: 2),
+            Center(
+              child: _ShimmerSweep(
+                child: Text.rich(
+                  TextSpan(children: [
+                    TextSpan(
+                        text: wonFmt.format(savings),
+                        style: const TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -1,
+                            height: 1.1,
+                            color: accent)),
+                    TextSpan(
+                        text: ' 원 절약',
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.4,
+                            color: primary)),
+                  ]),
                 ),
-                icon: const Icon(Icons.route_rounded, size: 16),
-                label: const Text('경유 길안내',
-                    style:
-                        TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ] else
+            Text(isDetour ? '우회 최저가 추천' : '경로상 최저가 추천',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
+                    color: primary)),
+          const SizedBox(height: 14),
+          // ── 주유소 칩 (탭 → 지도) ──
+          Material(
+            color: isDark
+                ? AppColors.darkGasActiveCard
+                : AppColors.lightGasActiveCard,
+            borderRadius: BorderRadius.circular(14),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: onViewOnMap,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+                child: Row(
+                  children: [
+                    if (brand != null && brand!.isNotEmpty)
+                      BrandLogo(brand: brand!, stationName: name)
+                    else
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.local_gas_station_rounded,
+                            size: 19, color: accent),
+                      ),
+                    const SizedBox(width: 11),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.3,
+                                  color: primary)),
+                          const SizedBox(height: 2),
+                          Text(
+                            [
+                              if (fuelLabel != null && fuelLabel!.isNotEmpty)
+                                fuelLabel!,
+                              isNegligible
+                                  ? '경로상'
+                                  : '경로에서 ${(detourM / 1000).toStringAsFixed(1)}km',
+                            ].join(' · '),
+                            style: TextStyle(fontSize: 11.5, color: muted),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (onViewOnMap != null)
+                      Icon(Icons.map_outlined, size: 17, color: muted),
+                  ],
+                ),
               ),
             ),
           ),
+          const SizedBox(height: 12),
+          // ── 핵심 수치 타일 3개 ──
+          Row(
+            children: [
+              tile(price != null ? wonFmt.format(price!.round()) : '—', '리터당'),
+              const SizedBox(width: 8),
+              tile(
+                  isNegligible
+                      ? '우회 없음'
+                      : (detourMins != null ? '+$detourMins분' : '조금 우회'),
+                  '추가 시간'),
+              const SizedBox(width: 8),
+              tile(cost > 0 ? wonFmt.format(cost) : '—', '예상 주유비'),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // ── 평균가 · 주유량 ──
+          if (avgPrice != null)
+            infoRow(
+              '주변 평균가',
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('${wonFmt.format(avgPrice!.round())}원/L',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: primary)),
+                  if (diffPerL != null && diffPerL != 0) ...[
+                    const SizedBox(width: 6),
+                    Text(
+                      diffPerL > 0 ? '▼$diffPerL' : '▲${-diffPerL}',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: diffPerL > 0
+                              ? accent
+                              : const Color(0xFFEF4444)),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          if (goalLiters != null && goalLiters! > 0)
+            infoRow(
+              '주유량',
+              Text('${goalLiters!.toStringAsFixed(1)}L',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: primary)),
+            ),
+          const SizedBox(height: 6),
+          // ── 공유 + 길안내 ──
+          Row(
+            children: [
+              SizedBox(
+                width: 46,
+                height: 46,
+                child: OutlinedButton(
+                  onPressed: () {
+                    final lines = [
+                      '전기차 기름차 AI 추천',
+                      '$name — 리터당 ${price != null ? wonFmt.format(price!.round()) : '-'}원',
+                      if (showSavings) '주변 평균 대비 ${wonFmt.format(savings)}원 절약!',
+                      'https://play.google.com/store/apps/details?id=com.dksw.charge',
+                    ];
+                    Share.share(lines.join('\n'));
+                  },
+                  style: OutlinedButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    side: BorderSide(
+                        color: isDark
+                            ? AppColors.darkCardBorder
+                            : AppColors.lightCardBorder),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Icon(Icons.ios_share_rounded,
+                      size: 18, color: secondary),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: SizedBox(
+                  height: 46,
+                  child: ElevatedButton.icon(
+                    onPressed: canNav
+                        ? () => showViaWaypointNavigationSheet(
+                              context,
+                              originLat: originLat,
+                              originLng: originLng,
+                              waypointLat: stLat!,
+                              waypointLng: stLng!,
+                              waypointName: name,
+                              destinationLat: destLat!,
+                              destinationLng: destLng!,
+                              destinationName: destinationName,
+                              stopKind: '주유소',
+                            )
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accent,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                    icon: const Icon(Icons.route_rounded, size: 16),
+                    label: const Text('경유 길안내',
+                        style: TextStyle(
+                            fontSize: 14.5, fontWeight: FontWeight.w800)),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
+    );
+  }
+}
+
+/// 블링블링 — 자식 위를 밝은 띠가 주기적으로 쓸고 지나가는 shimmer (형 요청 ㅋㅋ).
+/// srcATop 이라 자식이 그려진 픽셀 위에만 얹힌다(배경 오염 없음).
+class _ShimmerSweep extends StatefulWidget {
+  const _ShimmerSweep({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_ShimmerSweep> createState() => _ShimmerSweepState();
+}
+
+class _ShimmerSweepState extends State<_ShimmerSweep>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 2600))
+    ..repeat();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (_, child) {
+        // 앞 60% 동안 왼→오로 쓸고, 나머지 40% 은 쉼 — 계속 번쩍이면 정신없다.
+        final t = (_c.value / 0.6).clamp(0.0, 1.0);
+        return ShaderMask(
+          blendMode: BlendMode.srcATop,
+          shaderCallback: (r) {
+            final x = (t * 2 - 0.5) * r.width;
+            return LinearGradient(
+              colors: [
+                Colors.white.withValues(alpha: 0),
+                Colors.white.withValues(alpha: 0.55),
+                Colors.white.withValues(alpha: 0),
+              ],
+            ).createShader(Rect.fromLTWH(x, 0, r.width * 0.55, r.height));
+          },
+          child: child,
+        );
+      },
+      child: widget.child,
     );
   }
 }
