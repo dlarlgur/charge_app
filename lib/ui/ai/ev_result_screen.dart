@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/helpers.dart';
@@ -8,23 +7,6 @@ import '../../data/services/station_alias_service.dart';
 import '../../data/services/watch_service.dart';
 import '../detail/ev_detail_screen.dart';
 import '../widgets/watch_switch_dialog.dart';
-
-// CommonMark: 닫는 ** 앞이 문장부호(%,/ 등)이고 바로 뒤가 한글이면 볼드 파싱 실패(**25%**로).
-// 닫는 ** "앞"에 ZWSP 삽입해 부호 플랭킹 회피. (비표시 → 잘 되던 케이스 영향 없음)
-String _normalizeMarkdownForKoreanEv(String src) {
-  final zwsp = String.fromCharCode(0x200B);
-  // 1) "** 텍스트 **" 안쪽 공백 제거 (CommonMark 가 볼드로 안 봐 ** 노출되는 케이스)
-  var s = src.replaceAllMapped(
-    RegExp(r'\*\*[ \t]*([^*\n]+?)[ \t]*\*\*'),
-    (m) => '**${m.group(1)!}**',
-  );
-  // 2) 닫는 ** 앞 부호 + 뒤 한글 케이스(**25%**로) → 닫는 ** 앞에 ZWSP
-  s = s.replaceAllMapped(
-    RegExp(r'\*\*([^\n*][^\n*]*?)\*\*(?=[가-힣])'),
-    (m) => '**${m.group(1)!}$zwsp**',
-  );
-  return s;
-}
 
 const _kBlue = Color(0xFF1D6FE0);
 const _kGreen = Color(0xFF1D9E75);
@@ -313,7 +295,7 @@ class EvResultBodyState extends State<EvResultBody> {
                     ),
                   ),
                   if (alternatives.isNotEmpty) ...[
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 18),
                     // ── 다른 후보 — 9a 아코디언 (형 확정): 접힌 행 = 이름·요금·차액,
                     //    탭하면 1순위와 동일한 상세가 펼쳐진다. 한 번에 하나만.
                     Row(
@@ -334,7 +316,7 @@ class EvResultBodyState extends State<EvResultBody> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     ...List.generate(alternatives.length, (i) {
                       final alt = alternatives[i];
                       final altLabel = alt['recommendation_label']?.toString();
@@ -2719,14 +2701,35 @@ class _EvAiMessageBanner extends StatelessWidget {
   final String message;
   const _EvAiMessageBanner({required this.message});
 
+  /// `**볼드**` 만 직접 파싱 — 시안대로 숫자 볼드는 초록, 이름 볼드는 잉크로
+  /// 나눠 칠한다. MarkdownBody 는 강조색이 한 가지뿐이고, 한글 플랭킹 때문에
+  /// ** 가 그대로 노출되는 케이스도 있었는데 직접 파싱이라 그 문제도 사라진다.
+  List<InlineSpan> _spans(String src, Color ink, Color green) {
+    final out = <InlineSpan>[];
+    int last = 0;
+    for (final m in RegExp(r'\*\*(.+?)\*\*').allMatches(src)) {
+      if (m.start > last) out.add(TextSpan(text: src.substring(last, m.start)));
+      final t = m.group(1)!.trim();
+      out.add(TextSpan(
+        text: t,
+        style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: RegExp(r'\d').hasMatch(t) ? green : ink),
+      ));
+      last = m.end;
+    }
+    if (last < src.length) out.add(TextSpan(text: src.substring(last)));
+    return out;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (message.isEmpty) return const SizedBox.shrink();
-    final normalized =
-        _normalizeMarkdownForKoreanEv(message.replaceAll(r'\n', '\n'));
+    final normalized = message.replaceAll(r'\n', '\n');
     final isDark = Theme.of(context).brightness == Brightness.dark;
     // 9a: 초록 그라디언트 요약 박스 (ev-summary-grad) — 아이콘 + 본문, 타이틀 없음
     final greenD = isDark ? _kEvGreen : _kEvGreenDark;
+    final ink = isDark ? AppColors.darkTextPrimary : const Color(0xFF0F172A);
     final secondary =
         isDark ? AppColors.darkTextSecondary : const Color(0xFF64748B);
     return Container(
@@ -2750,18 +2753,11 @@ class _EvAiMessageBanner extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: MarkdownBody(
-              data: normalized,
-              shrinkWrap: true,
-              styleSheet:
-                  MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
-                p: TextStyle(fontSize: 12.5, height: 1.6, color: secondary),
-                strong: TextStyle(
-                  fontSize: 12.5,
-                  height: 1.6,
-                  fontWeight: FontWeight.w700,
-                  color: greenD,
-                ),
+            child: Text.rich(
+              TextSpan(
+                style:
+                    TextStyle(fontSize: 12.5, height: 1.6, color: secondary),
+                children: _spans(normalized, ink, greenD),
               ),
             ),
           ),
