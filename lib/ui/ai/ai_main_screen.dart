@@ -395,8 +395,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final avail = rec is Map && rec['available_count'] is num
         ? (rec['available_count'] as num).round()
         : null;
-    final evVerdict =
-        (avail != null && avail > 0) ? '대기 없이 바로 충전 가능' : null;
+    final evVerdict = (avail != null && avail > 0) ? '대기 없이 바로 충전 가능' : null;
 
     if (recCost != null && alts is List) {
       final altCosts = alts
@@ -551,7 +550,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   /// 본문 스크롤이 꼬여, '지도에서 경로 보기' 후 살짝 올리면 리스트만 보이는 것처럼 느껴질 수 있음)
   Future<void> _collapseResultSheetForMapFocus() async {
     if (!_sheetController.isAttached) return;
-    final targetSize = max(0.12, _sheetMinFrac);
+    const targetSize = 0.12;
     if ((_sheetController.size - targetSize).abs() < 0.01) {
       if (mounted) _resetResultSheetScrollToTop();
       return;
@@ -565,9 +564,6 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     } catch (_) {}
     if (mounted) _resetResultSheetScrollToTop();
   }
-
-  /// 시트 최소 높이(화면 비율) — build 에서 갱신. animateTo 는 이 아래로 못 간다.
-  double _sheetMinFrac = 0.14;
 
   // ── AI 추천 복원용 원본 파라미터 ──
   List<Map<String, dynamic>> _lastRecPathPoints = [];
@@ -1816,7 +1812,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             boxShadow: onMap
                 ? [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.08),
+                      color:
+                          Colors.black.withValues(alpha: isDark ? 0.18 : 0.08),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     )
@@ -1828,9 +1825,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 ? Icons.keyboard_arrow_up_rounded
                 : Icons.keyboard_arrow_down_rounded,
             size: 19,
-            color: isDark
-                ? AppColors.darkTextSecondary
-                : const Color(0xFF64748B),
+            color:
+                isDark ? AppColors.darkTextSecondary : const Color(0xFF64748B),
           ),
         ),
       ),
@@ -2902,8 +2898,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           ? '${_wonFmt.format(st2Price)}원'
           : st2Name;
       final st2IsTop = !_lastRecIsDetour; // 추천이 경로상이면 st2 가 1순위
-      final c2 =
-          st2IsTop ? const Color(0xFF3B82F6) : const Color(0xFF64748B);
+      final c2 = st2IsTop ? const Color(0xFF3B82F6) : const Color(0xFF64748B);
       final st2Marker = NMarker(
         id: 'result_station2',
         position: NLatLng(st2Lat, st2Lng),
@@ -3597,8 +3592,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             color: accentBlue)),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      side: BorderSide(
-                          color: accentBlue.withValues(alpha: 0.45)),
+                      side:
+                          BorderSide(color: accentBlue.withValues(alpha: 0.45)),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
                     ),
@@ -4141,7 +4136,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       try {
         if (_sheetController.isAttached) {
           await _sheetController.animateTo(
-            max(0.18, _sheetMinFrac),
+            0.18,
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeOutCubic,
           );
@@ -5272,16 +5267,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    // 접힌 시트가 플로팅 알약 바(가운데 AI 원 포함) 뒤에 깔려 드래그로 못 올리던 문제
-    // → 핸들·헤더가 바 위로 나오도록 최소 높이에 바 높이를 더한다(형 제보).
-    final double sheetMinFrac = () {
-      final h = MediaQuery.of(context).size.height;
-      if (h <= 0) return 0.20;
-      return ((floatingNavOverlayPx(context) + 56.0) / h).clamp(0.14, 0.42);
-    }();
-    // animateTo 대상들이 이 값보다 작으면 컨트롤러가 예외를 던지고 시트가 멈춘다
-    // (형 제보: 고친 뒤 위아래로 안 움직임) → 필드로 보관해 호출부에서 clamp.
-    _sheetMinFrac = sheetMinFrac;
+    // 플로팅 알약 바가 가리는 높이 — 시트를 Padding 으로 바 위에 올린다.
+    // (최소높이를 키우는 방식은 기존 animateTo 값들과 계속 충돌해 시트가 멎었다 → 폐기)
+    final double navPad = floatingNavOverlayPx(context);
     final settings = ref.watch(settingsProvider);
     final canGasAnalysis = settings.vehicleType != VehicleType.ev;
     final canEvAnalysis = settings.vehicleType != VehicleType.gas;
@@ -6288,98 +6276,104 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             // ── 결과 모드: 드래그 가능한 분석 결과 패널 ──
             if ((_isResultMode || _isCompareResultMode || _isEvResultMode) &&
                 _lastResultData != null)
-              DraggableScrollableSheet(
-                controller: _sheetController,
-                initialChildSize: 0.45,
-                minChildSize: sheetMinFrac,
-                maxChildSize: 0.9,
-                snap: true,
-                snapSizes: [sheetMinFrac, 0.45, 0.9],
-                builder: (_, sc) {
-                  _resultSheetScrollController = sc;
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: isDark ? AppColors.darkBg : Colors.white,
-                      borderRadius:
-                          const BorderRadius.vertical(top: Radius.circular(20)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: 20,
-                          offset: const Offset(0, -2),
-                        ),
-                      ],
-                    ),
-                    child: _isEvResultMode
-                        ? EvResultBody(
-                            key: _evResultBodyKey,
-                            data: _lastResultData!,
-                            scrollController: sc,
-                            onStationMapTap: _showEvStationRouteOnMap,
-                            originLat: _lastStartLat,
-                            originLng: _lastStartLng,
-                            destLat: _destLat,
-                            destLng: _destLng,
-                            destName: _destName ?? '목적지',
-                          )
-                        : _isCompareResultMode
-                            ? CompareResultBody(
-                                data: _lastResultData!,
-                                destinationName: _destName ?? '목적지',
-                                scrollController: sc,
-                                wonFmt: _wonFmt,
-                                fuelLabel: fuelLabel,
-                                originLat: _lastStartLat,
-                                originLng: _lastStartLng,
-                                destLat: _destLat,
-                                destLng: _destLng,
-                                onCardTap: _showCompareCardRouteOnMap,
-                              )
-                            : AiResultBody(
-                                data: _lastResultData!,
-                                destinationName: _destName ?? '목적지',
-                                originLat: _lastStartLat,
-                                originLng: _lastStartLng,
-                                scrollController: sc,
-                                onAltRouteView: _showAltRouteOnMap,
-                                onResetToAiRec: _resetToAiRec,
-                              ),
-                  );
-                },
+              Padding(
+                padding: EdgeInsets.only(bottom: navPad),
+                child: DraggableScrollableSheet(
+                  controller: _sheetController,
+                  initialChildSize: 0.45,
+                  minChildSize: 0.12,
+                  maxChildSize: 0.9,
+                  snap: true,
+                  snapSizes: const [0.12, 0.45, 0.9],
+                  builder: (_, sc) {
+                    _resultSheetScrollController = sc;
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.darkBg : Colors.white,
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(20)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 20,
+                            offset: const Offset(0, -2),
+                          ),
+                        ],
+                      ),
+                      child: _isEvResultMode
+                          ? EvResultBody(
+                              key: _evResultBodyKey,
+                              data: _lastResultData!,
+                              scrollController: sc,
+                              onStationMapTap: _showEvStationRouteOnMap,
+                              originLat: _lastStartLat,
+                              originLng: _lastStartLng,
+                              destLat: _destLat,
+                              destLng: _destLng,
+                              destName: _destName ?? '목적지',
+                            )
+                          : _isCompareResultMode
+                              ? CompareResultBody(
+                                  data: _lastResultData!,
+                                  destinationName: _destName ?? '목적지',
+                                  scrollController: sc,
+                                  wonFmt: _wonFmt,
+                                  fuelLabel: fuelLabel,
+                                  originLat: _lastStartLat,
+                                  originLng: _lastStartLng,
+                                  destLat: _destLat,
+                                  destLng: _destLng,
+                                  onCardTap: _showCompareCardRouteOnMap,
+                                )
+                              : AiResultBody(
+                                  data: _lastResultData!,
+                                  destinationName: _destName ?? '목적지',
+                                  originLat: _lastStartLat,
+                                  originLng: _lastStartLng,
+                                  scrollController: sc,
+                                  onAltRouteView: _showAltRouteOnMap,
+                                  onResetToAiRec: _resetToAiRec,
+                                ),
+                    );
+                  },
+                ),
               ),
 
             // ── EV 충전소 선택 모드: 하단 리스트 시트 ──
             if (_isEvSelectMode && _evSelectCandidates.isNotEmpty)
-              DraggableScrollableSheet(
-                controller: _sheetController,
-                initialChildSize: 0.45,
-                minChildSize: sheetMinFrac,
-                maxChildSize: 0.9,
-                snap: true,
-                snapSizes: [sheetMinFrac, 0.45, 0.9],
-                builder: (_, sc) {
-                  _resultSheetScrollController = sc;
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: isDark ? AppColors.darkBg : Colors.white,
-                      borderRadius:
-                          const BorderRadius.vertical(top: Radius.circular(20)),
-                      boxShadow: [
-                        BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.15),
-                            blurRadius: 20,
-                            offset: const Offset(0, -2))
-                      ],
-                    ),
-                    child: EvSelectList(
-                      candidates: _evSelectCandidates,
-                      chargerType: _evChargerType,
-                      speedRelaxed: _evSelectSpeedRelaxed,
-                      scrollController: sc,
-                      onSelect: _openEvStationDetail,
-                    ),
-                  );
-                },
+              Padding(
+                padding: EdgeInsets.only(bottom: navPad),
+                child: DraggableScrollableSheet(
+                  controller: _sheetController,
+                  initialChildSize: 0.45,
+                  minChildSize: 0.12,
+                  maxChildSize: 0.9,
+                  snap: true,
+                  snapSizes: const [0.12, 0.45, 0.9],
+                  builder: (_, sc) {
+                    _resultSheetScrollController = sc;
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.darkBg : Colors.white,
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(20)),
+                        boxShadow: [
+                          BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.15),
+                              blurRadius: 20,
+                              offset: const Offset(0, -2))
+                        ],
+                      ),
+                      child: EvSelectList(
+                        candidates: _evSelectCandidates,
+                        chargerType: _evChargerType,
+                        speedRelaxed: _evSelectSpeedRelaxed,
+                        scrollController: sc,
+                        onSelect: _openEvStationDetail,
+                      ),
+                    );
+                  },
+                ),
               ),
 
             // ── 현재위치 버튼 (결과 모드: 시트 위에 붙어 이동) ──
@@ -6437,44 +6431,47 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             if (_isSelectMode &&
                 _isSelectSheetVisible &&
                 _selectableStations != null)
-              DraggableScrollableSheet(
-                controller: _selectSheetCtrl,
-                initialChildSize: 0.45,
-                minChildSize: sheetMinFrac,
-                maxChildSize: 0.88,
-                snap: true,
-                snapSizes: [sheetMinFrac, 0.45, 0.88],
-                builder: (_, sc) => StationSelectInlineSheet(
-                  sheetScrollCtrl: sc,
-                  stations: _selectableStations!,
-                  selectedAId: _selectedStationAId,
-                  selectedBId: _selectedStationBId,
-                  wonFmt: _wonFmt,
-                  isComparing: _userSelecting,
-                  onStationTap: (stId) {
-                    setState(() {
-                      final isA = _selectedStationAId == stId;
-                      final isB = _selectedStationBId == stId;
-                      if (isA) {
-                        _selectedStationAId = null;
-                      } else if (isB) {
-                        _selectedStationBId = null;
-                      } else if (_selectedStationAId == null) {
-                        _selectedStationAId = stId;
-                      } else if (_selectedStationBId == null) {
-                        _selectedStationBId = stId;
-                      } else {
-                        _selectedStationAId = stId;
-                      }
-                    });
-                    unawaited(_drawSelectModeMap());
-                  },
-                  onCompare: _runCompare,
-                  onClose: _closeSelectSheet,
-                  onHighwayFilterChanged: (v) {
-                    setState(() => _highwayFilterActive = v);
-                    unawaited(_drawSelectModeMap());
-                  },
+              Padding(
+                padding: EdgeInsets.only(bottom: navPad),
+                child: DraggableScrollableSheet(
+                  controller: _selectSheetCtrl,
+                  initialChildSize: 0.45,
+                  minChildSize: 0.14,
+                  maxChildSize: 0.88,
+                  snap: true,
+                  snapSizes: const [0.14, 0.45, 0.88],
+                  builder: (_, sc) => StationSelectInlineSheet(
+                    sheetScrollCtrl: sc,
+                    stations: _selectableStations!,
+                    selectedAId: _selectedStationAId,
+                    selectedBId: _selectedStationBId,
+                    wonFmt: _wonFmt,
+                    isComparing: _userSelecting,
+                    onStationTap: (stId) {
+                      setState(() {
+                        final isA = _selectedStationAId == stId;
+                        final isB = _selectedStationBId == stId;
+                        if (isA) {
+                          _selectedStationAId = null;
+                        } else if (isB) {
+                          _selectedStationBId = null;
+                        } else if (_selectedStationAId == null) {
+                          _selectedStationAId = stId;
+                        } else if (_selectedStationBId == null) {
+                          _selectedStationBId = stId;
+                        } else {
+                          _selectedStationAId = stId;
+                        }
+                      });
+                      unawaited(_drawSelectModeMap());
+                    },
+                    onCompare: _runCompare,
+                    onClose: _closeSelectSheet,
+                    onHighwayFilterChanged: (v) {
+                      setState(() => _highwayFilterActive = v);
+                      unawaited(_drawSelectModeMap());
+                    },
+                  ),
                 ),
               ),
 
