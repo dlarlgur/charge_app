@@ -26,6 +26,7 @@ class ExitAdService {
   NativeAd? _ad;
   bool _loaded = false;
   bool _loading = false;
+  DateTime? _loadedAt; // 네이티브 광고 만료(~1시간) 판정용
 
   /// 광고 미리 로드 (앱 시작 시 1회 + 다이얼로그 소비 후 재호출).
   /// AdMob 모드 → AdMob 네이티브, AdFit 모드 → AdFit 종료 팝업(SDK 다이얼로그),
@@ -68,6 +69,7 @@ class ExitAdService {
         onAdLoaded: (_) {
           _loaded = true;
           _loading = false;
+          _loadedAt = DateTime.now();
         },
         onAdFailedToLoad: (ad, error) {
           if (kDebugMode) {
@@ -85,7 +87,35 @@ class ExitAdService {
     ad.load();
   }
 
-  NativeAd? takeIfLoaded() => _loaded ? _ad : null;
+  /// 로드돼 있으면 광고를 **가져간다(소유권 이전)** — 반환 즉시 내부 참조를 비워
+  /// 같은 광고가 두 다이얼로그에 동시에 붙는 걸 차단한다. 뒤로가기 연타로
+  /// 다이얼로그가 겹치면 첫 쪽이 dispose 한 광고를 둘째 쪽이 그리려다
+  /// "Ad with id could not be found" 빨간 에러 박스가 떴다(형 제보).
+  /// 가져간 쪽이 노출 후 [recycle] 로 폐기+재로드까지 책임진다.
+  NativeAd? takeIfLoaded() {
+    if (!_loaded || _ad == null) return null;
+    // 네이티브 광고는 ~1시간 뒤 만료 — 오래된 광고는 빈/에러 슬롯으로 뜨므로 버린다.
+    if (_loadedAt != null &&
+        DateTime.now().difference(_loadedAt!) > const Duration(minutes: 50)) {
+      _ad!.dispose();
+      _ad = null;
+      _loaded = false;
+      _loading = false;
+      preload();
+      return null;
+    }
+    final ad = _ad;
+    _ad = null;
+    _loaded = false;
+    _loading = false;
+    return ad;
+  }
+
+  /// [takeIfLoaded] 로 가져간 광고를 노출 후 반납 — 폐기하고 다음 노출용 재로드.
+  void recycle(NativeAd ad) {
+    ad.dispose();
+    preload();
+  }
 
   /// AdFit 종료 팝업 표시 시도 (adfit 모드 전용).
   /// true = SDK 팝업이 종료 플로우를 처리함(종료 확정 시 여기서 앱 종료까지).
@@ -117,18 +147,23 @@ class ExitAdService {
     }
   }
 
-  /// 다이얼로그에서 광고를 소비(노출)한 뒤 호출 — 폐기하고 다음 노출용 재로드.
-  void consumeAndReload() {
-    _ad?.dispose();
-    _ad = null;
-    _loaded = false;
-    _loading = false;
-    preload();
-  }
 }
+
+// 다이얼로그 재진입 가드 — 뒤로가기 연타로 겹쳐 뜨는 것 자체를 막는다.
+bool _exitDialogOpen = false;
 
 /// 종료 확인 다이얼로그 — [취소] 는 닫기만, [종료] 는 앱 종료.
 Future<void> showExitConfirmDialog(BuildContext context) async {
+  if (_exitDialogOpen) return;
+  _exitDialogOpen = true;
+  try {
+    await _showExitConfirmDialog(context);
+  } finally {
+    _exitDialogOpen = false;
+  }
+}
+
+Future<void> _showExitConfirmDialog(BuildContext context) async {
   // AdFit 모드 — SDK 종료 팝업(광고+취소/앱 종료 버튼 일체형)이 플로우를 대신함.
   // 미로드/실패 시에만 아래 기본 다이얼로그(광고 없음)로 폴백.
   if (AdNetworkConfig.current == AdNetwork.adfit) {
@@ -243,7 +278,7 @@ Future<void> showExitConfirmDialog(BuildContext context) async {
     ),
   );
 
-  // 광고를 노출했으면(다이얼로그에 표시됨) 소비 처리 — 다음 종료 시도용 재로드.
-  if (ad != null) ExitAdService.instance.consumeAndReload();
+  // 광고를 노출했으면(다이얼로그에 표시됨) 반납 — 폐기 + 다음 종료 시도용 재로드.
+  if (ad != null) ExitAdService.instance.recycle(ad);
   if (exit == true) SystemNavigator.pop();
 }

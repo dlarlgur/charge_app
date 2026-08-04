@@ -2049,6 +2049,9 @@ class _StationCardState extends State<_StationCard> {
                     SizedBox(
                       height: 46,
                       child: Row(
+                        // stretch 필수 — 없으면 CTA Material 이 내용 높이로
+                        // 쪼그라들어 옆 지도 버튼보다 납작해진다(형 제보).
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           if (widget.onMapTap != null)
                             Expanded(
