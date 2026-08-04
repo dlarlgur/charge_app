@@ -5,8 +5,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../widgets/shared_widgets.dart';
 import '../ai_constants.dart';
 
-// A/B 선택 색 — 지도 마커와 동일하게 유지 (A=주황, B=파랑).
-const _kSelectA = Color(0xFFE8700A);
+// A/B 선택 색 — 지도 마커와 동일하게 유지 (A=보라, B=파랑. 주황 폐기 — 6a 축).
+const _kSelectA = Color(0xFF7B5EA7);
 const _kSelectB = kCompareBlue;
 
 class StationSelectInlineSheet extends StatefulWidget {

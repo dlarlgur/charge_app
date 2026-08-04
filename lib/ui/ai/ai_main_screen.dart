@@ -3159,7 +3159,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       if (lat == null || lng == null) continue;
       final avail = (alt['available_count'] as num?)?.toInt() ?? 0;
       final total = (alt['total_count'] as num?)?.toInt() ?? 0;
-      const color = Color(0xFFE8700A);
+      const color = Color(0xFF64748B); // 대안 = 슬레이트 (주황 폐기 — 6a 마커 규칙)
       final altStatId = alt['statId']?.toString();
       final marker = NMarker(
         id: 'ev_res_alt_$i',
@@ -4040,18 +4040,23 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final stLng = (station['lng'] as num?)?.toDouble();
     if (stLat == null || stLng == null) return;
 
-    // 형 확정: 다른 마커를 다 지우지 말 것 — 탭한 충전소만 강조(recommended 슬롯)하고
-    // 나머지 결과 충전소들은 대안 마커로 유지한다.
+    // 형 확정: 다른 마커를 다 지우지 말 것 — 탭한 곳만 강조(recommended 슬롯)하고
+    // 나머지는 전부 대안 마커로 유지한다. 주유소처럼 "사라지지 않고 확대만".
+    // 직접선택 모드도 동일 — 후보 리스트 전체를 유지해야 한다(형 제보: 다 사라짐).
     final tappedId = station['statId']?.toString();
     final others = <Map<String, dynamic>>[];
-    if (!_isEvSelectMode && _lastResultData != null) {
-      void addOther(dynamic m) {
-        if (m is! Map) return;
-        final mm = Map<String, dynamic>.from(m);
-        if (tappedId != null && mm['statId']?.toString() == tappedId) return;
-        others.add(mm);
-      }
+    void addOther(dynamic m) {
+      if (m is! Map) return;
+      final mm = Map<String, dynamic>.from(m);
+      if (tappedId != null && mm['statId']?.toString() == tappedId) return;
+      others.add(mm);
+    }
 
+    if (_isEvSelectMode) {
+      for (final c in _evSelectCandidates) {
+        addOther(c);
+      }
+    } else if (_lastResultData != null) {
       addOther(_lastResultData!['recommended']);
       final alts = _lastResultData!['alternatives'];
       if (alts is List) alts.forEach(addOther);
@@ -4122,7 +4127,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           'charger_type': _evChargerType,
           'reachable_distance_km': 0.0,
           'recommended': station,
-          'alternatives': <dynamic>[],
+          // 나머지 후보 유지 — 비우면 다음 redraw 에서 마커가 통째로 사라진다(형 제보).
+          'alternatives': others,
           'total_candidates': null,
           'filtered_out_count': 0,
         };
@@ -4761,8 +4767,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         final String? brand = st['brand']?.toString();
         if (isA) {
           label = price != null ? 'A ${_wonFmt.format(price)}원' : 'A';
-          borderColor = const Color(0xFFE8700A);
-          textColor = const Color(0xFFE8700A);
+          borderColor = const Color(0xFF7B5EA7); // 선택 시트와 동일 (A=보라)
+          textColor = const Color(0xFF7B5EA7);
           emphasize = true;
         } else if (isB) {
           label = price != null ? 'B ${_wonFmt.format(price)}원' : 'B';
@@ -5024,7 +5030,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       final lat = st['lat'] is num ? (st['lat'] as num).toDouble() : null;
       final lng = st['lng'] is num ? (st['lng'] as num).toDouble() : null;
       if (lat == null || lng == null) return;
-      final color = isWin ? const Color(0xFFE8700A) : const Color(0xFF1D6FE0);
+      final color = isWin ? const Color(0xFF3B82F6) : const Color(0xFF64748B);
       final p = st['price_won_per_liter'] is num
           ? (st['price_won_per_liter'] as num).round()
           : null;

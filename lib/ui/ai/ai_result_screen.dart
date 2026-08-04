@@ -2817,7 +2817,10 @@ Widget _costVerdictBox(Map<String, dynamic> ca, NumberFormat wonFmt, Color ink,
   }
   // 다크에선 밝은 변형 — 라이트 원색은 어두운 배경에서 대비 미달.
   final green = isDark ? AppColors.darkBlueBright : const Color(0xFF3B82F6);
-  final orange = isDark ? AppColors.darkBlueBright : const Color(0xFFE8700A);
+  // '이득 아님' 판정 — 다크는 이미 파랑이었고 라이트만 주황으로 어긋나 있었다
+  // → 중립 슬레이트로 통일 (주황 폐기).
+  final orange =
+      isDark ? AppColors.darkTextSecondary : const Color(0xFF64748B);
   final red = isDark ? AppColors.darkRedBright : const Color(0xFFE24B4A);
   final c = worth ? green : orange; // 헤더/판정 색
   final bC = fuelBenefit >= 0 ? green : red; // 이득/손해 색
