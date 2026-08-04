@@ -86,8 +86,23 @@ class EvResultBodyState extends State<EvResultBody> {
   // 충전소별 카드 키 (지도 마커 탭 → 해당 카드로 스크롤 이동용)
   final Map<String, GlobalKey> _stationKeys = {};
 
+  // 9a 아코디언 — 펼쳐진 후보 인덱스 (한 번에 하나만, 기본 전부 접힘)
+  int? _openAlt;
+
   /// 외부에서 호출 — 해당 statId 의 카드를 화면에 보이도록 스크롤.
   Future<void> scrollToStation(String statId) async {
+    // 접힌 후보를 가리키면 먼저 펼친다 — 접힌 한 줄로는 마커 탭의 응답이 안 보인다.
+    final alts = widget.data['alternatives'];
+    if (alts is List) {
+      final idx = alts
+          .whereType<Map<String, dynamic>>()
+          .toList()
+          .indexWhere((a) => a['statId']?.toString() == statId);
+      if (idx >= 0 && _openAlt != idx) {
+        setState(() => _openAlt = idx);
+        await WidgetsBinding.instance.endOfFrame;
+      }
+    }
     final key = _stationKeys[statId];
     final ctx = key?.currentContext;
     if (ctx == null) return;
@@ -102,6 +117,13 @@ class EvResultBodyState extends State<EvResultBody> {
   GlobalKey _keyFor(String? statId) {
     if (statId == null || statId.isEmpty) return GlobalKey();
     return _stationKeys.putIfAbsent(statId, () => GlobalKey());
+  }
+
+  /// 추천 카드의 예상 충전요금 — 접힌 후보 행 '추천 대비 차액'의 기준값.
+  static int? _recCostOf(Map<String, dynamic>? rec) {
+    if (rec == null) return null;
+    final v = rec['est_cost_member'] ?? rec['est_cost'];
+    return v is num ? v.round() : null;
   }
 
   @override
@@ -287,15 +309,27 @@ class EvResultBodyState extends State<EvResultBody> {
                   ),
                   if (alternatives.isNotEmpty) ...[
                     const SizedBox(height: 20),
-                    Text(
-                      '다른 후보',
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: mutedColor),
+                    // ── 다른 후보 — 9a 아코디언 (형 확정): 접힌 행 = 이름·요금·차액,
+                    //    탭하면 1순위와 동일한 상세가 펼쳐진다. 한 번에 하나만.
+                    Row(
+                      children: [
+                        Text(
+                          '다른 후보',
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: mutedColor),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '탭하면 상세가 열려요',
+                          style: TextStyle(fontSize: 11, color: mutedColor),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 8),
-                    ...alternatives.map((alt) {
+                    ...List.generate(alternatives.length, (i) {
+                      final alt = alternatives[i];
                       final altLabel = alt['recommendation_label']?.toString();
                       final (_, altColor) = _labelInfo(altLabel, _kOrange);
                       final altLight =
@@ -305,14 +339,18 @@ class EvResultBodyState extends State<EvResultBody> {
                         padding: const EdgeInsets.only(bottom: 10),
                         child: KeyedSubtree(
                           key: _keyFor(alt['statId']?.toString()),
-                          child: _StationCard(
+                          child: _AltAccordion(
                             station: alt,
-                            isRecommended: false,
+                            rank: i + 2,
+                            open: _openAlt == i,
+                            onToggle: () => setState(
+                                () => _openAlt = _openAlt == i ? null : i),
+                            recommendedCost: _recCostOf(recommended),
                             chargerType: chargerType,
                             accentColor: altColor,
                             accentLight: altLight,
                             onMapTap: onStationMapTap != null
-                                ? () => onStationMapTap!(alt)
+                                ? () => onStationMapTap(alt)
                                 : null,
                             originLat: originLat,
                             originLng: originLng,
@@ -339,6 +377,283 @@ class EvResultBodyState extends State<EvResultBody> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// 9a 아코디언 후보 (형 확정 시안) — 접힌 행: [순위] 이름(+태그) · 가용/단가/우회 meta
+/// / 우측 예상요금 + 추천 대비 차액. 탭하면 기존 후보 카드 본문(_StationCard bare)이
+/// 그대로 펼쳐진다 — 운영사별 요금표·워치·올리기 미리보기 등 기능 손실 없음.
+class _AltAccordion extends StatelessWidget {
+  final Map<String, dynamic> station;
+  final int rank;
+  final bool open;
+  final VoidCallback onToggle;
+  final int? recommendedCost;
+  final String chargerType;
+  final Color accentColor;
+  final Color accentLight;
+  final VoidCallback? onMapTap;
+  final double? originLat;
+  final double? originLng;
+  final double? destLat;
+  final double? destLng;
+  final String? destName;
+  final String? recommendationLabel;
+
+  const _AltAccordion({
+    required this.station,
+    required this.rank,
+    required this.open,
+    required this.onToggle,
+    required this.recommendedCost,
+    required this.chargerType,
+    required this.accentColor,
+    required this.accentLight,
+    this.onMapTap,
+    this.originLat,
+    this.originLng,
+    this.destLat,
+    this.destLng,
+    this.destName,
+    this.recommendationLabel,
+  });
+
+  /// 이 후보(대표 또는 통합 sub-station)가 워치 중인지 — 접힌 행에도 벨 표시.
+  bool _watching() {
+    final sessionId = WatchService().session?.statId;
+    if (sessionId == null) return false;
+    if (station['statId']?.toString() == sessionId) return true;
+    final grouped = station['grouped_stations'];
+    if (grouped is List) {
+      for (final gs in grouped) {
+        if (gs is Map && gs['statId']?.toString() == sessionId) return true;
+      }
+    }
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? AppColors.darkCard : Colors.white;
+    final cardBorder =
+        isDark ? AppColors.darkCardBorder : const Color(0xFFE5E5E5);
+    final titleColor =
+        isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A1A);
+    final muted = isDark ? AppColors.darkTextSecondary : _kGrey;
+    final dividerColor =
+        isDark ? AppColors.darkCardBorder : const Color(0xFFEEEEEE);
+
+    final avail = (station['available_count'] as num?)?.toInt() ?? 0;
+    final total = (station['total_count'] as num?)?.toInt() ?? 0;
+    final unitPrice = (station['unit_price_member'] as num?)?.toInt() ??
+        (station['unit_price'] as num?)?.toInt();
+    final detourMin = (station['detour_time_min'] as num?)?.toInt();
+    final costRaw = station['est_cost_member'] ?? station['est_cost'];
+    final cost = costRaw is num ? costRaw.round() : null;
+
+    // meta — 가용은 EV 에서 요금보다 결정적일 때가 많아 접힌 줄에 꼭 넣는다.
+    final metaParts = <String>[
+      if (total > 0) (avail > 0 ? '$avail/$total 여유' : '만석'),
+      if (unitPrice != null) '${_wonFmt.format(unitPrice)}원/kWh',
+      if (detourMin != null && detourMin > 0) '+${fmtMin(detourMin)} 우회',
+      if (detourMin != null && detourMin == 0) '우회 없음',
+    ];
+
+    // 추천 대비 차액 — 싸면 초록 '저렴', 비싸면 주황 '비쌈'. 계산 불가 시 생략.
+    String? diffText;
+    Color diffColor = _kGreen;
+    if (cost != null && recommendedCost != null && cost != recommendedCost) {
+      final diff = recommendedCost! - cost;
+      diffText = diff > 0
+          ? '${_wonFmt.format(diff)}원 저렴'
+          : '${_wonFmt.format(-diff)}원 비쌈';
+      diffColor = diff > 0 ? _kGreen : _kOrange;
+    }
+
+    // 태그 칩 — 가성비/빠른 도착 등 라벨이 있을 때만 (기본 AI 추천 문구는 후보에 무의미)
+    final hasTag = recommendationLabel != null &&
+        recommendationLabel != 'optimal' &&
+        recommendationLabel!.isNotEmpty;
+    final (tagText, tagColor) = _labelInfo(recommendationLabel, accentColor);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: cardBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ── 접힌 행 (탭 = 토글) ──
+            InkWell(
+              onTap: onToggle,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 13, 10, 13),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 24,
+                      child: Text('$rank',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: muted)),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  station['name']?.toString() ?? '-',
+                                  style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: titleColor),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (hasTag) ...[
+                                const SizedBox(width: 5),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 5, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: tagColor.withValues(
+                                        alpha: isDark ? 0.22 : 0.12),
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
+                                  child: Text(tagText,
+                                      style: TextStyle(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: tagColor)),
+                                ),
+                              ],
+                              if (_watching()) ...[
+                                const SizedBox(width: 5),
+                                Icon(Icons.notifications_active_rounded,
+                                    size: 13, color: accentColor),
+                              ],
+                            ],
+                          ),
+                          if (metaParts.isNotEmpty) ...[
+                            const SizedBox(height: 3),
+                            Row(
+                              children: [
+                                if (total > 0) ...[
+                                  Container(
+                                    width: 7,
+                                    height: 7,
+                                    decoration: BoxDecoration(
+                                      color: avail > 0 ? _kGreen : _kOrange,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                ],
+                                Flexible(
+                                  child: Text(
+                                    metaParts.join(' · '),
+                                    style:
+                                        TextStyle(fontSize: 11, color: muted),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          cost != null
+                              ? '${_wonFmt.format(cost)}원'
+                              : (unitPrice != null
+                                  ? '${_wonFmt.format(unitPrice)}원/kWh'
+                                  : '—'),
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: titleColor),
+                        ),
+                        if (diffText != null) ...[
+                          const SizedBox(height: 2),
+                          Text(diffText,
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: diffColor)),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(width: 2),
+                    Icon(
+                      open
+                          ? Icons.expand_less_rounded
+                          : Icons.expand_more_rounded,
+                      size: 20,
+                      color: muted,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // ── 펼침 — 기존 후보 카드 본문 그대로 (bare) ──
+            AnimatedSize(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeInOut,
+              alignment: Alignment.topCenter,
+              child: open
+                  ? Column(
+                      children: [
+                        Divider(height: 1, color: dividerColor),
+                        _StationCard(
+                          station: station,
+                          isRecommended: false,
+                          chargerType: chargerType,
+                          accentColor: accentColor,
+                          accentLight: accentLight,
+                          onMapTap: onMapTap,
+                          originLat: originLat,
+                          originLng: originLng,
+                          destLat: destLat,
+                          destLng: destLng,
+                          destName: destName,
+                          recommendationLabel: recommendationLabel,
+                          bare: true,
+                        ),
+                      ],
+                    )
+                  : const SizedBox(width: double.infinity),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -399,6 +714,10 @@ class _StationCard extends StatefulWidget {
   final String? destName;
   final String? recommendationLabel;
 
+  /// 아코디언 펼침용(9a) — 외곽 테두리·상단 배너·이름 없이 본문만.
+  /// 접힌 행이 이름·가용을 이미 보여주므로 펼침에선 중복 없이 상세만 나온다.
+  final bool bare;
+
   const _StationCard({
     required this.station,
     required this.isRecommended,
@@ -412,6 +731,7 @@ class _StationCard extends StatefulWidget {
     this.destLng,
     this.destName,
     this.recommendationLabel,
+    this.bare = false,
   });
 
   @override
@@ -1427,25 +1747,28 @@ class _StationCardState extends State<_StationCard> {
     final headerBg = isDark ? accentColor.withValues(alpha: 0.16) : accentLight;
 
     return Container(
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: widget.isRecommended ? accentColor : cardBorder,
-          width: widget.isRecommended ? 1.5 : 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      decoration: widget.bare
+          ? null
+          : BoxDecoration(
+              color: cardBg,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: widget.isRecommended ? accentColor : cardBorder,
+                width: widget.isRecommended ? 1.5 : 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── 상단 배너 (추천 배지 + 상태) ──
+          if (!widget.bare)
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -1513,6 +1836,7 @@ class _StationCardState extends State<_StationCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (!widget.bare)
                 Text(
                   name,
                   style: TextStyle(
