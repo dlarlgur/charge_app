@@ -253,28 +253,138 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
             : '매주 기름값 흐름과 정책 소식을 정리해 알려드려요',
       );
     }
+    // 같은 카드가 끝없이 반복되면 스캔이 힘들다(형 제보) — 최신 리포트만 큰 카드로
+    // 강조하고, 지난 것들은 월별 그룹 카드 안의 슬림 행(주차 배지 + 제목 한 줄)으로.
+    final rows = <Widget>[...extras];
+    if (items.isEmpty) {
+      final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+      rows.add(Padding(
+        padding: const EdgeInsets.fromLTRB(4, 14, 4, 0),
+        child: Text('주간 · 월간 분석 리포트는 매주 월요일에 올라와요',
+            style: TextStyle(fontSize: 12.5, color: muted)),
+      ));
+    } else {
+      rows.add(_card(items.first, isDark));
+      if (items.length > 1) {
+        String? cur;
+        var group = <Map<String, dynamic>>[];
+        void flush() {
+          if (group.isNotEmpty) {
+            rows.add(_monthGroup(cur ?? '', group, isDark, topic));
+          }
+          group = [];
+        }
+
+        for (final r in items.skip(1)) {
+          final d = (r['date'] ?? '').toString();
+          final m = d.length >= 7 ? d.substring(0, 7) : '';
+          if (m != cur) {
+            flush();
+            cur = m;
+          }
+          group.add(Map<String, dynamic>.from(r));
+        }
+        flush();
+      }
+    }
     return RefreshIndicator(
       onRefresh: () => _load(topic, force: true),
       color: _accent(topic),
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
-        itemCount: items.length +
-            extras.length +
-            (items.isEmpty && extras.isNotEmpty ? 1 : 0),
+        itemCount: rows.length,
         separatorBuilder: (_, __) => const SizedBox(height: 10),
-        itemBuilder: (_, i) {
-          if (i < extras.length) return extras[i];
-          if (items.isEmpty) {
-            final muted =
-                isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(4, 14, 4, 0),
-              child: Text('주간 · 월간 분석 리포트는 매주 월요일에 올라와요',
-                  style: TextStyle(fontSize: 12.5, color: muted)),
-            );
-          }
-          return _card(items[i - extras.length], isDark);
-        },
+        itemBuilder: (_, i) => rows[i],
+      ),
+    );
+  }
+
+  /// 지난 리포트 월 그룹 — 카드 하나 안에 [월 헤더 + 슬림 행들] (퀵메뉴 카드와 같은 문법).
+  Widget _monthGroup(
+      String month, List<Map<String, dynamic>> list, bool isDark, String topic) {
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final line = isDark ? AppColors.darkCardBorder : const Color(0xFFF0F3F6);
+    String label = month;
+    if (month.length >= 7) {
+      final y = month.substring(0, 4);
+      final m = int.tryParse(month.substring(5, 7)) ?? 0;
+      label = y == DateTime.now().year.toString() ? '$m월' : '$y년 $m월';
+    }
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface1 : AppColors.lightCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+            color:
+                isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 2),
+            child: Text('$label 지난 리포트',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
+                    color: muted)),
+          ),
+          for (var i = 0; i < list.length; i++) ...[
+            if (i > 0)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Divider(height: 1, thickness: 1, color: line),
+              ),
+            _slimRow(list[i], isDark, topic),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _slimRow(Map<String, dynamic> r, bool isDark, String topic) {
+    final accent = _accent((r['topic'] ?? topic).toString());
+    final monthly = r['kind'] == 'monthly';
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final primary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    // 주차 배지 — "1주차". 월간은 "월간".
+    String badge = monthly ? '월간' : '주간';
+    final d = (r['date'] ?? '').toString();
+    if (!monthly && d.length >= 10) {
+      final dt = DateTime.tryParse(d.substring(0, 10));
+      if (dt != null) badge = '${((dt.day - 1) ~/ 7) + 1}주차';
+    }
+    return InkWell(
+      onTap: () {
+        final id = int.tryParse(r['id']?.toString() ?? '');
+        if (id == null) return;
+        Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => FuelReportDetailScreen(reportId: id)));
+      },
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
+        child: Row(
+          children: [
+            SizedBox(width: 44, child: _pill(badge, accent, isDark)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                (r['title'] ?? '').toString(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.2,
+                    color: primary),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Icon(Icons.chevron_right_rounded, size: 18, color: muted),
+          ],
+        ),
       ),
     );
   }
@@ -677,7 +787,7 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
                 children: [
                   _pill(monthly ? '월간 종합' : '주간', accent, isDark),
                   const SizedBox(width: 6),
-                  Text(date,
+                  Text(!monthly ? (_weeklyPeriod(r['date']) ?? date) : date,
                       style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -733,6 +843,19 @@ Widget _pill(String text, Color accent, bool isDark) => Container(
           style: TextStyle(
               fontSize: 11, fontWeight: FontWeight.w800, color: accent)),
     );
+
+/// 주간 리포트 기간 라벨 — "8월 1주차 · 7.28 ~ 8.3".
+/// brief_date(생성일)가 끝날이고, 데이터 창은 그날 포함 최근 7일이다.
+String? _weeklyPeriod(dynamic raw) {
+  final t = (raw ?? '').toString();
+  if (t.length < 10) return null;
+  final end = DateTime.tryParse(t.substring(0, 10));
+  if (end == null) return null;
+  final start = end.subtract(const Duration(days: 6));
+  final week = ((end.day - 1) ~/ 7) + 1;
+  String md(DateTime x) => '${x.month}.${x.day}';
+  return '${end.month}월 $week주차 · ${md(start)} ~ ${md(end)}';
+}
 
 String _fmtDate(dynamic raw, {bool monthly = false}) {
   final s = (raw ?? '').toString();
@@ -867,7 +990,11 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                       children: [
                         _pill(kindLabel, accent, isDark),
                         const SizedBox(width: 6),
-                        Text(_fmtDate(r['date'], monthly: monthly),
+                        Text(
+                            kind == 'weekly'
+                                ? (_weeklyPeriod(r['date']) ??
+                                    _fmtDate(r['date']))
+                                : _fmtDate(r['date'], monthly: monthly),
                             style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
