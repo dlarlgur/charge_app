@@ -6273,6 +6273,23 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 ),
               ),
 
+            // ── 시트 하단 틈 메움 — 시트가 바 위에서 끝나 그 아래로 지도가
+            //    비쳐 보였다(형 제보). 시트 배경색 스트립으로 바닥까지 이어 보이게.
+            if (((_isResultMode || _isCompareResultMode || _isEvResultMode) &&
+                    _lastResultData != null) ||
+                (_isEvSelectMode && _evSelectCandidates.isNotEmpty) ||
+                (_isSelectMode &&
+                    _isSelectSheetVisible &&
+                    _selectableStations != null))
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: navPad,
+                child: ColoredBox(
+                    color: isDark ? AppColors.darkBg : Colors.white),
+              ),
+
             // ── 결과 모드: 드래그 가능한 분석 결과 패널 ──
             if ((_isResultMode || _isCompareResultMode || _isEvResultMode) &&
                 _lastResultData != null)

@@ -17,7 +17,7 @@ final ValueNotifier<int> stationAliasVersion = ValueNotifier<int>(0);
 /// 명시적으로 분리해 미래 확장(타사 station 등) 안전.
 class StationAliasService {
   static const String _boxName = 'station_aliases';
-  static const int _maxLength = 20;
+  static const int _maxLength = 34; // 형 확정 (서버 컬럼은 40 — 여유 있음)
 
   static Box get _box => Hive.box(_boxName);
 
