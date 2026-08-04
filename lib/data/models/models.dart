@@ -245,7 +245,11 @@ class EvStation {
     return null;
   }
 
-  bool get hasPriceInfo => unitPriceFast != null || unitPriceSlow != null;
+  bool get hasPriceInfo =>
+      unitPriceFast != null ||
+      unitPriceSlow != null ||
+      unitPriceFastMember != null ||
+      unitPriceSlowMember != null;
 
   String get distanceText {
     if (distance == null) return '';

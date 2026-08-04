@@ -968,7 +968,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
             if (s.kecoRoamFast != null || s.kecoRoamSlow != null) ...[
               const SizedBox(height: 8),
               _priceRow(
-                  '환경부 카드',
+                  '환경부',
                   isDark
                       ? AppColors.darkBlueBright
                       : const Color(0xFF2563EB),
@@ -979,7 +979,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
             const SizedBox(height: 10),
             Text(
               s.kecoRoamFast != null || s.kecoRoamSlow != null
-                  ? '환경부 카드는 로밍 가능 충전기 기준 · 실제 충전소 요금과 다를 수 있습니다'
+                  ? '환경부 = 환경부 회원카드(로밍) 결제 시 · 실제 충전소 요금과 다를 수 있습니다'
                   : '실제 충전소 요금과 다를 수 있습니다',
               style: TextStyle(
                   fontSize: 11,
