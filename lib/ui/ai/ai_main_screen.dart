@@ -45,6 +45,7 @@ import 'ai_vehicle_list_screen.dart';
 import 'ai_vehicle_setup_screen.dart';
 import 'ev_result_screen.dart';
 import '../detail/gas_detail_screen.dart';
+import '../detail/ev_detail_screen.dart';
 import '../widgets/gas_station_map_badge.dart';
 import 'ai_constants.dart';
 import '../../data/services/rating_prompt_service.dart';
@@ -170,8 +171,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     String? verdict,
     int? myUnitWon,
     int? avgUnitWon,
-    double? stLat,
-    double? stLng,
+    String? stId,
   }) {
     setState(() {
       _savingsRevealSeq++;
@@ -184,15 +184,14 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       _revealVerdict = verdict;
       _revealMyUnitWon = myUnitWon;
       _revealAvgUnitWon = avgUnitWon;
-      _revealStLat = stLat;
-      _revealStLng = stLng;
+      _revealStId = stId;
     });
   }
 
   String? _revealVerdict;
   int? _revealMyUnitWon;
   int? _revealAvgUnitWon;
-  double? _revealStLat, _revealStLng; // '경유 길안내' CTA 용 (시안 5a)
+  String? _revealStId; // [확인] → 상세화면 이동용 (형 확정: 경유 길안내 아님)
 
   /// 주유 추천 — 절약 포인트 + 추천 상세(주유소명/단가/예상비용/추가시간)를 카드로.
   /// ① 우회 실질 절감(비교 데이터) 있으면 "N분 더 걸리지만 / M원 절감!"
@@ -303,8 +302,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         verdict: extraMin > 0 ? '+$extraMin분 우회해도 이득' : '우회 없이 가는 길이 최적',
         myUnitWon: recPrice?.round(),
         avgUnitWon: avgPrice?.round(),
-        stLat: recSt is Map ? d(recSt['lat']) : null,
-        stLng: recSt is Map ? d(recSt['lng']) : null,
+        stId: recSt is Map ? recSt['id']?.toString() : null,
       );
       return;
     }
@@ -332,8 +330,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           // 이 분기 조건에서 recPrice/avgPrice 는 non-null 로 승격됨
           myUnitWon: recPrice.round(),
           avgUnitWon: avgPrice.round(),
-          stLat: recSt is Map ? d(recSt['lat']) : null,
-          stLng: recSt is Map ? d(recSt['lng']) : null,
+          stId: recSt is Map ? recSt['id']?.toString() : null,
         );
         return;
       }
@@ -348,8 +345,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       verdict: '우회 없이 가는 길이 최적',
       myUnitWon: recPrice?.round(),
       avgUnitWon: avgPrice?.round(),
-      stLat: recSt is Map ? d(recSt['lat']) : null,
-      stLng: recSt is Map ? d(recSt['lng']) : null,
+      stId: recSt is Map ? recSt['id']?.toString() : null,
     );
   }
 
@@ -428,12 +424,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             verdict: evVerdict,
             myUnitWon: unit,
             avgUnitWon: avgUnit,
-            stLat: rec is Map && rec['lat'] is num
-                ? (rec['lat'] as num).toDouble()
-                : null,
-            stLng: rec is Map && rec['lng'] is num
-                ? (rec['lng'] as num).toDouble()
-                : null,
+            stId: rec is Map ? rec['id']?.toString() : null,
           );
           return;
         }
@@ -449,12 +440,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       verdict: evVerdict,
       myUnitWon: unit,
       avgUnitWon: avgUnit,
-      stLat: rec is Map && rec['lat'] is num
-          ? (rec['lat'] as num).toDouble()
-          : null,
-      stLng: rec is Map && rec['lng'] is num
-          ? (rec['lng'] as num).toDouble()
-          : null,
+      stId: rec is Map ? rec['id']?.toString() : null,
     );
   }
 
@@ -6532,30 +6518,18 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 destName: _destName,
                 myUnitWon: _revealMyUnitWon,
                 avgUnitWon: _revealAvgUnitWon,
-                // '경유 길안내' CTA — 좌표가 다 있을 때만 (없으면 '확인' 폴백)
-                // _lastStart* 는 non-null(기본 0) — 0,0 은 유효 좌표가 아니므로 0 체크
-                onNavigate: (_revealStLat != null &&
-                        _revealStLng != null &&
-                        _lastStartLat != 0 &&
-                        _lastStartLng != 0 &&
-                        _destLat != null &&
-                        _destLng != null)
-                    ? () => showViaWaypointNavigationSheet(
-                          context,
-                          originLat: _lastStartLat,
-                          originLng: _lastStartLng,
-                          waypointLat: _revealStLat!,
-                          waypointLng: _revealStLng!,
-                          waypointName: _revealStationName ?? '',
-                          destinationLat: _destLat!,
-                          destinationLng: _destLng!,
-                          destinationName: _destName ?? '목적지',
-                          stopKind: _revealStationIcon ==
-                                  Icons.ev_station_rounded
-                              ? '충전소'
-                              : '주유소',
-                        )
-                    : null,
+                // [확인] → 추천 스테이션 상세화면 (형 확정: 팝업에서 바로 길안내 아님)
+                onConfirm: _revealStId == null
+                    ? null
+                    : () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                _revealStationIcon == Icons.ev_station_rounded
+                                    ? EvDetailScreen(stationId: _revealStId!)
+                                    : GasDetailScreen(
+                                        stationId: _revealStId!),
+                          ),
+                        ),
               ),
           ],
         ),

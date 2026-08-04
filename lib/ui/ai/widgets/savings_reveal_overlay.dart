@@ -35,11 +35,12 @@ class SavingsRevealOverlay extends StatefulWidget {
     this.destName,
     this.myUnitWon,
     this.avgUnitWon,
-    this.onNavigate,
+    this.onConfirm,
   });
 
-  /// '경유 길안내' CTA (시안 5a) — null 이면 '확인' 버튼으로 폴백.
-  final VoidCallback? onNavigate;
+  /// [확인] 탭 시 실행 — 팝업을 닫고 추천 스테이션 상세화면으로 이동한다(형 확정).
+  /// null 이면 닫기만 한다.
+  final VoidCallback? onConfirm;
 
   /// 공유 카드(시안 7a/7b)로 그대로 전달되는 부가 데이터 — 없으면 해당 조각 숨김.
   final String? verdict;
@@ -418,9 +419,6 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
         : Colors.black.withValues(alpha: 0.06);
     final captionColor =
         isDark ? Colors.white70 : const Color(0xFF64748B); // slate-500
-    // 숫자는 유종 색 딥→라이트로 아주 살짝만 흘린다(무지개 금지).
-    final headlineColors =
-        isDark ? [Colors.white, _accent] : [_accentDeep, _accent];
     final badgeFg = isDark ? _accent : _accentDeep;
     final panelBg = isDark
         ? Colors.white.withValues(alpha: 0.05)
@@ -801,7 +799,7 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                               );
                             }),
                             const SizedBox(height: 14),
-                            // ── 공유(사각) + 경유 길안내 CTA (시안 5a) ──
+                            // ── 공유(사각) + 확인 → 상세화면 (형 확정: 경유 길안내 아님) ──
                             Row(
                               children: [
                                 SizedBox(
@@ -829,13 +827,11 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                                 Expanded(
                                   child: SizedBox(
                                     height: 46,
-                                    child: FilledButton.icon(
-                                      onPressed: widget.onNavigate != null
-                                          ? () {
-                                              _dismiss();
-                                              widget.onNavigate!();
-                                            }
-                                          : _dismiss,
+                                    child: FilledButton(
+                                      onPressed: () {
+                                        _dismiss();
+                                        widget.onConfirm?.call();
+                                      },
                                       style: FilledButton.styleFrom(
                                         backgroundColor:
                                             isDark ? _accent : _accentDeep,
@@ -845,15 +841,8 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                                             borderRadius:
                                                 BorderRadius.circular(13)),
                                       ),
-                                      icon: widget.onNavigate != null
-                                          ? const Icon(Icons.route_rounded,
-                                              size: 16)
-                                          : const SizedBox.shrink(),
-                                      label: Text(
-                                          widget.onNavigate != null
-                                              ? '경유 길안내'
-                                              : '확인',
-                                          style: const TextStyle(
+                                      child: const Text('확인',
+                                          style: TextStyle(
                                               fontSize: 15,
                                               fontWeight: FontWeight.w800)),
                                     ),

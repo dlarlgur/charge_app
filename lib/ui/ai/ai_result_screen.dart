@@ -2061,7 +2061,9 @@ class _CompareCards extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
+        // 카드 높이는 IntrinsicHeight+stretch 로 두 카드가 같아지는데, 내용 줄 수가
+        // 다르면(절약문구 유무 등) 버튼 행이 카드마다 다른 높이에서 떠 있었다(형 제보) →
+        // min 대신 채우고 버튼 위에 Spacer 로 하단 고정.
         children: [
           Wrap(
             spacing: 4,
@@ -2150,6 +2152,7 @@ class _CompareCards extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis),
           ],
+          const Spacer(),
           const SizedBox(height: 10),
           Row(
             children: [
