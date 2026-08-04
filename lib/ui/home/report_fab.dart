@@ -24,25 +24,27 @@ class ReportFabPref {
   static void notifyChanged() => version.value++;
 }
 
-/// 퀵메뉴 항목 — 이모지 + 라벨 + 색. 항목 추가는 홈(home_screen)의 리스트에 한 줄.
+/// 퀵메뉴 항목 — 아이콘 + 라벨 + 그라데이션(밝은색→짙은색). 이모지 금지(형 확정) —
+/// 유종 컬러 그라데이션 원 + Material rounded 아이콘으로 앱 톤에 맞게 그린다.
+/// 항목 추가는 홈(home_screen)의 리스트에 한 줄.
 class QuickMenuItem {
   const QuickMenuItem({
-    required this.emoji,
+    required this.icon,
     required this.label,
-    required this.color,
+    required this.gradient,
     required this.onTap,
   });
 
-  final String emoji;
+  final IconData icon;
   final String label;
-  final Color color;
+  final List<Color> gradient; // [base, deep]
   final VoidCallback onTap;
 }
 
-/// 홈 우측 하단 퀵메뉴 FAB (형 확정: 라벨 붙은 pill → 이모지 스피드다이얼).
+/// 홈 우측 하단 퀵메뉴 FAB (형 확정: 라벨 pill → 스피드다이얼, 이모지 금지).
 ///
-/// 접힘: 📊 원형 버튼 하나. 탭하면 항목들이 위로 차례로 펼쳐진다(stagger).
-/// 항목마다 [라벨 칩 + 이모지 원] — 원들이 메인 버튼과 세로로 정렬돼 손이 안 흔들린다.
+/// 접힘: 그라데이션 원형 버튼 하나. 탭하면 항목들이 위로 차례로 펼쳐진다(stagger).
+/// 항목마다 [라벨 칩 + 그라데이션 아이콘 원] — 원들이 메인 버튼과 세로 정렬.
 /// 지금은 유가·충전 리포트뿐이지만, 나중에 다른 바로가기를 items 에 추가만 하면 된다.
 class HomeQuickFab extends StatefulWidget {
   const HomeQuickFab({super.key, required this.items});
@@ -169,22 +171,29 @@ class _HomeQuickFabState extends State<HomeQuickFab>
                 ),
               ),
               const SizedBox(width: 9),
-              // 이모지 원 — 메인 버튼과 세로 정렬
+              // 그라데이션 아이콘 원 — 메인 버튼과 세로 정렬 (기존 리포트 pill 과 같은
+              // base→deep 그라데이션 + 흰 테두리 하이라이트)
               Container(
                 width: 42,
                 height: 42,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: item.color,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: item.gradient,
+                  ),
                   shape: BoxShape.circle,
+                  border:
+                      Border.all(color: Colors.white.withValues(alpha: 0.25)),
                   boxShadow: [
                     BoxShadow(
-                        color: item.color.withValues(alpha: 0.4),
-                        blurRadius: 8,
+                        color: item.gradient.last.withValues(alpha: 0.42),
+                        blurRadius: 9,
                         offset: const Offset(0, 3)),
                   ],
                 ),
-                child: Text(item.emoji, style: const TextStyle(fontSize: 19)),
+                child: Icon(item.icon, size: 20, color: Colors.white),
               ),
             ],
           ),
@@ -194,6 +203,12 @@ class _HomeQuickFabState extends State<HomeQuickFab>
   }
 
   Widget _mainButton(bool isDark, bool single) {
+    // 항목이 1개면 그 항목의 유종 색, 여러 개면 리포트 브랜드 색(파랑) — 기존
+    // 리포트 pill 과 같은 base→deep 그라데이션이라 홈 톤에서 안 튄다.
+    final colors = single
+        ? widget.items.first.gradient
+        : const [Color(0xFF3B82F6), Color(0xFF2563EB)];
+    final icon = single ? widget.items.first.icon : Icons.insights_rounded;
     return GestureDetector(
       onTap: single ? widget.items.first.onTap : _toggle,
       child: Container(
@@ -201,31 +216,31 @@ class _HomeQuickFabState extends State<HomeQuickFab>
         height: 50,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF232B36) : Colors.white,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: colors,
+          ),
           shape: BoxShape.circle,
-          border: Border.all(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.10)
-                  : const Color(0xFFE5EAF0)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.16),
+                color: colors.last.withValues(alpha: 0.45),
                 blurRadius: 12,
                 offset: const Offset(0, 4)),
           ],
         ),
-        // 열림 ↔ 닫힘 크로스페이드: 📊 ↔ ✕
+        // 열림 ↔ 닫힘 크로스페이드 (아이콘 회전 느낌의 스케일 전환)
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 160),
           transitionBuilder: (child, a) =>
               ScaleTransition(scale: a, child: child),
-          child: _open
-              ? Icon(Icons.close_rounded,
-                  key: const ValueKey('x'),
-                  size: 22,
-                  color: isDark ? Colors.white : const Color(0xFF475569))
-              : const Text('📊',
-                  key: ValueKey('emoji'), style: TextStyle(fontSize: 21)),
+          child: Icon(
+            _open ? Icons.close_rounded : icon,
+            key: ValueKey(_open),
+            size: 22,
+            color: Colors.white,
+          ),
         ),
       ),
     );

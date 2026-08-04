@@ -666,16 +666,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     return HomeQuickFab(items: [
                       if (vt != VehicleType.ev)
                         QuickMenuItem(
-                          emoji: '⛽',
+                          icon: Icons.local_gas_station_rounded,
                           label: '유가 리포트',
-                          color: AppColors.gasBlue,
+                          gradient: const [
+                            AppColors.gasBlue,
+                            AppColors.gasBlueDark
+                          ],
                           onTap: () => openReport('fuel'),
                         ),
                       if (vt != VehicleType.gas)
                         QuickMenuItem(
-                          emoji: '⚡',
+                          icon: Icons.ev_station_rounded,
                           label: '충전 리포트',
-                          color: AppColors.evGreen,
+                          gradient: const [
+                            AppColors.evGreen,
+                            AppColors.evGreenDark
+                          ],
                           onTap: () => openReport('ev'),
                         ),
                     ]);
