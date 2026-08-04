@@ -167,6 +167,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     String? stationSub,
     IconData stationIcon = Icons.local_gas_station_rounded,
     List<RevealFact> facts = const [],
+    String? verdict,
+    int? myUnitWon,
+    int? avgUnitWon,
   }) {
     setState(() {
       _savingsRevealSeq++;
@@ -176,8 +179,15 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       _revealStationSub = stationSub;
       _revealStationIcon = stationIcon;
       _revealFacts = facts;
+      _revealVerdict = verdict;
+      _revealMyUnitWon = myUnitWon;
+      _revealAvgUnitWon = avgUnitWon;
     });
   }
+
+  String? _revealVerdict;
+  int? _revealMyUnitWon;
+  int? _revealAvgUnitWon;
 
   /// 주유 추천 — 절약 포인트 + 추천 상세(주유소명/단가/예상비용/추가시간)를 카드로.
   /// ① 우회 실질 절감(비교 데이터) 있으면 "N분 더 걸리지만 / M원 절감!"
@@ -285,6 +295,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         stationSub: _stationSub,
         stationIcon: Icons.local_gas_station_rounded,
         facts: facts,
+        verdict: extraMin > 0 ? '+$extraMin분 우회해도 이득' : '우회 없이 가는 길이 최적',
+        myUnitWon: recPrice?.round(),
+        avgUnitWon: avgPrice?.round(),
       );
       return;
     }
@@ -308,6 +321,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           stationSub: _stationSub,
           stationIcon: Icons.local_gas_station_rounded,
           facts: facts,
+          verdict: detourMin > 0 ? '+$detourMin분 우회해도 이득' : '우회 없이 가는 길이 최적',
+          // 이 분기 조건에서 recPrice/avgPrice 는 non-null 로 승격됨
+          myUnitWon: recPrice.round(),
+          avgUnitWon: avgPrice.round(),
         );
         return;
       }
@@ -319,6 +336,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       stationSub: _stationSub,
       stationIcon: Icons.local_gas_station_rounded,
       facts: facts,
+      verdict: '우회 없이 가는 길이 최적',
+      myUnitWon: recPrice?.round(),
+      avgUnitWon: avgPrice?.round(),
     );
   }
 
@@ -6453,6 +6473,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 facts: _revealFacts,
                 // 충전 추천이면 초록, 주유면 파랑 (아이콘으로 판정 — 호출부 공통)
                 isEv: _revealStationIcon == Icons.ev_station_rounded,
+                verdict: _revealVerdict,
+                originName: _originName ?? _currentLocationAddress,
+                destName: _destName,
+                myUnitWon: _revealMyUnitWon,
+                avgUnitWon: _revealAvgUnitWon,
               ),
           ],
         ),

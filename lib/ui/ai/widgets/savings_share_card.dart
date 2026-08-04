@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart' show NumberFormat;
 import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -39,6 +40,11 @@ class SavingsShareCard extends StatelessWidget {
     this.facts = const [],
     this.story = false,
     this.style = ShareCardStyle.savings,
+    this.verdict,
+    this.originName,
+    this.destName,
+    this.myUnitWon,
+    this.avgUnitWon,
   });
 
   final String caption;
@@ -51,6 +57,17 @@ class SavingsShareCard extends StatelessWidget {
   final List<RevealFact> facts;
   final bool story; // true=9:16 스토리 / false=4:5 피드
   final ShareCardStyle style;
+
+  /// AI 판단 한 줄 (시안 7a 하단: '✨ AI 판단 · 우회 없이 가는 길이 최적').
+  final String? verdict;
+
+  /// 경로 스트립 양끝 라벨 — 없으면 '출발'/'도착' (시안 7b: 충무로/대전역).
+  final String? originName;
+  final String? destName;
+
+  /// 단가 비교 바(추천 vs 주변 평균, 시안 7a) — 둘 다 있을 때만 그린다.
+  final int? myUnitWon;
+  final int? avgUnitWon;
 
   /// 공유 규격 — 피드 4:5(1080×1350), 스토리·릴스 9:16(1080×1920).
   static const double side = 360; // width
@@ -267,14 +284,26 @@ class SavingsShareCard extends StatelessWidget {
   // ── 스타일 1 : 절약액 ──────────────────────────────────────────────────────
 
   Widget _savingsBody() {
-    // 레퍼런스 레이아웃: 라벨 → 큰 금액(숫자 흰색 + '절약!' 액센트) → 경로 스트립 → 수치 3칸
-    final m = RegExp(r'^(.*?)\s*(절약|아낌)(!?)$').firstMatch(headline.trim());
+    // 시안 7a: 라벨 → 큰 금액(숫자=액센트, '원 절약'=흰색) → 스테이션 행 →
+    // 단가 타일 3칸 → 추천 vs 평균 비교 바 → AI 판단 한 줄.
+    final m = RegExp(r'^(.*?)\s*(절약|아낌|절감)(!?)\$').firstMatch(headline.trim());
     final amount = m?.group(1) ?? headline;
-    final tail = m == null ? null : '${m.group(2)}${m.group(3)}';
+    final tailText = m == null ? null : '\${m.group(2)}\${m.group(3)}';
     final isAmount = m != null;
 
-    // 남는 세로를 Spacer 하나가 통째로 먹으면 문구와 경로 스트립 사이만 휑해진다.
-    // 문구 / 경로 / 수치 세 덩어리로 묶고 spaceBetween 으로 간격을 균등 분배한다.
+    // 부제 — '주변 평균가 대비 · 30.8L 기준' (있는 재료로만 조립)
+    String? liters;
+    String extraTime = '+0분';
+    for (final f in facts) {
+      if (f.label == '주유량' || f.label == '충전량') liters = f.value;
+      if (f.label == '추가 시간') extraTime = f.value;
+    }
+    final subParts = <String>[
+      if (avgUnitWon != null) isEv ? '주변 평균 단가 대비' : '주변 평균가 대비',
+      if (liters != null) '\$liters 기준',
+    ];
+    final hasUnits = myUnitWon != null && avgUnitWon != null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -283,55 +312,260 @@ class SavingsShareCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-        if (caption.trim().isNotEmpty) ...[
-          Text(caption,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  fontSize: sc(13),
-                  fontWeight: FontWeight.w700,
-                  color: _fgMuted)),
-          SizedBox(height: sc(8)),
-        ],
-        // 금액은 흰색, '절약!' 만 액센트 — 숫자가 주인공이고 액센트는 포인트로만.
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(amount,
+            if (caption.trim().isNotEmpty) ...[
+              Text(caption,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: sc(isAmount ? 44 : 40),
-                    fontWeight: FontWeight.w800,
-                    color: isAmount ? _fg : _accentFg,
-                    height: 1.02,
-                    letterSpacing: -2,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  )),
-              if (tail != null) ...[
-                SizedBox(width: sc(8)),
-                Text(tail,
-                    style: TextStyle(
-                      fontSize: sc(44),
-                      fontWeight: FontWeight.w800,
-                      color: _accentFg,
-                      height: 1.02,
-                      letterSpacing: -2,
-                    )),
-              ],
+                      fontSize: sc(13),
+                      fontWeight: FontWeight.w700,
+                      color: _fgMuted)),
+              SizedBox(height: sc(7)),
             ],
-          ),
-        ),
+            // 시안: 숫자가 액센트(빛나는 쪽), '원 절약' 이 흰색.
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(amount,
+                      style: TextStyle(
+                        fontSize: sc(isAmount ? 46 : 40),
+                        fontWeight: FontWeight.w800,
+                        color: isAmount ? _accentFg : _fg,
+                        height: 1.02,
+                        letterSpacing: -2,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      )),
+                  if (tailText != null) ...[
+                    SizedBox(width: sc(7)),
+                    Text(tailText,
+                        style: TextStyle(
+                          fontSize: sc(26),
+                          fontWeight: FontWeight.w800,
+                          color: _fg,
+                          height: 1.02,
+                          letterSpacing: -1,
+                        )),
+                  ],
+                ],
+              ),
+            ),
+            if (subParts.isNotEmpty) ...[
+              SizedBox(height: sc(5)),
+              Text(subParts.join(' · '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: sc(11.5), color: _fgMuted)),
+            ],
           ],
         ),
-        if ((stationName ?? '').trim().isNotEmpty) _routeStrip(),
-        if (facts.isNotEmpty) _factStrip(),
+        if ((stationName ?? '').trim().isNotEmpty) _stationRowCard(),
+        if (hasUnits) _unitTiles(extraTime) else if (facts.isNotEmpty) _factStrip(),
+        if (hasUnits) _compareBars(),
+        if ((verdict ?? '').trim().isNotEmpty) _verdictLine(),
       ],
     );
   }
+
+  /// 시안 7a 스테이션 행 — 액센트 사각 아이콘 + 이름 + 보조줄.
+  Widget _stationRowCard() => Container(
+        padding: EdgeInsets.fromLTRB(sc(13), sc(12), sc(13), sc(12)),
+        decoration: BoxDecoration(
+          color: _dCard,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: sc(36),
+              height: sc(36),
+              decoration: BoxDecoration(
+                color: isEv ? AppColors.evGreen : AppColors.gasBlue,
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: Icon(
+                isEv ? Icons.ev_station_rounded : Icons.local_gas_station_rounded,
+                size: sc(19),
+                color: Colors.white,
+              ),
+            ),
+            SizedBox(width: sc(10)),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(stationName!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: sc(14),
+                          fontWeight: FontWeight.w700,
+                          color: _fg)),
+                  if ((stationSub ?? '').trim().isNotEmpty) ...[
+                    SizedBox(height: sc(2)),
+                    Text(stationSub!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            TextStyle(fontSize: sc(10.5), color: _fgMuted)),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+
+  /// 시안 7a 타일 — [단가 / 주변 평균 / 추가 시간(액센트 틴트)].
+  Widget _unitTiles(String extraTime) {
+    final f = NumberFormat('#,###');
+    Widget cell(String label, String big, String small,
+        {bool tinted = false}) {
+      return Expanded(
+        child: Container(
+          padding: EdgeInsets.fromLTRB(sc(11), sc(10), sc(9), sc(10)),
+          decoration: BoxDecoration(
+            color: tinted ? _accentFg.withValues(alpha: 0.15) : _dCard,
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: sc(9.5),
+                      fontWeight: FontWeight.w600,
+                      color: tinted
+                          ? _accentFg.withValues(alpha: 0.85)
+                          : _fgMuted)),
+              SizedBox(height: sc(4)),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(big,
+                        style: TextStyle(
+                          fontSize: sc(16),
+                          fontWeight: FontWeight.w700,
+                          color: tinted ? _accentFg : _fg,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        )),
+                    if (small.isNotEmpty) ...[
+                      SizedBox(width: sc(2)),
+                      Text(small,
+                          style: TextStyle(
+                              fontSize: sc(9.5),
+                              fontWeight: FontWeight.w500,
+                              color: tinted
+                                  ? _accentFg.withValues(alpha: 0.8)
+                                  : _fgMuted)),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Row(children: [
+      cell(isEv ? 'kWh당 단가' : '리터당 단가', f.format(myUnitWon), '원'),
+      SizedBox(width: sc(8)),
+      cell('주변 평균', f.format(avgUnitWon), '원'),
+      SizedBox(width: sc(8)),
+      cell('추가 시간', extraTime, '', tinted: true),
+    ]);
+  }
+
+  /// 시안 7a 비교 바 — 추천(액센트) vs 주변 평균(흰 14%).
+  Widget _compareBars() {
+    final f = NumberFormat('#,###');
+    final my = myUnitWon!;
+    final avg = avgUnitWon!;
+    final hi = my > avg ? my : avg;
+    double frac(int v) => hi <= 0 ? 1 : (0.55 + 0.45 * (v / hi)).clamp(0.3, 1.0);
+    Widget row(String label, int v, {required bool accentBar}) => Row(
+          children: [
+            SizedBox(
+              width: sc(56),
+              child: Text(label,
+                  maxLines: 1,
+                  style: TextStyle(
+                      fontSize: sc(10),
+                      fontWeight:
+                          accentBar ? FontWeight.w700 : FontWeight.w500,
+                      color: accentBar ? _accentFg : _fgMuted)),
+            ),
+            SizedBox(width: sc(6)),
+            Expanded(
+              child: FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: frac(v),
+                child: Container(
+                  height: sc(7),
+                  decoration: BoxDecoration(
+                    color: accentBar
+                        ? (isEv ? AppColors.evGreen : AppColors.gasBlue)
+                        : Colors.white.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(width: sc(8)),
+            Text(f.format(v),
+                style: TextStyle(
+                  fontSize: sc(10),
+                  fontWeight: accentBar ? FontWeight.w700 : FontWeight.w600,
+                  color: accentBar ? _fg : _fgMuted,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                )),
+          ],
+        );
+    return Container(
+      padding: EdgeInsets.fromLTRB(sc(13), sc(12), sc(13), sc(12)),
+      decoration: BoxDecoration(
+        color: _dCard,
+        borderRadius: BorderRadius.circular(13),
+      ),
+      child: Column(children: [
+        row(isEv ? '추천 충전소' : '추천 주유소', my, accentBar: true),
+        SizedBox(height: sc(7)),
+        row('주변 평균', avg, accentBar: false),
+      ]),
+    );
+  }
+
+  /// 시안 7a AI 판단 줄 — '✨ AI 판단 · 우회 없이 가는 길이 최적'.
+  Widget _verdictLine() => Row(
+        children: [
+          Icon(Icons.auto_awesome_rounded, size: sc(13), color: _accentFg),
+          SizedBox(width: sc(6)),
+          Text('AI 판단 · ',
+              style: TextStyle(fontSize: sc(11), color: _fgMuted)),
+          Expanded(
+            child: Text(verdict!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: sc(11),
+                    fontWeight: FontWeight.w700,
+                    color: _fg)),
+          ),
+        ],
+      );
 
   /// 출발 ─── ● 주유소 ─── 도착. 경로 위에 들렀다는 걸 한눈에 보여주는 조각.
   Widget _routeStrip() => Container(
@@ -352,11 +586,16 @@ class SavingsShareCard extends StatelessWidget {
             ]),
             SizedBox(height: sc(10)),
             Row(children: [
-              Text('출발',
-                  style: TextStyle(
-                      fontSize: sc(10.5),
-                      fontWeight: FontWeight.w600,
-                      color: _fgMuted)),
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: sc(76)),
+                child: Text((originName ?? '').trim().isNotEmpty ? originName! : '출발',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: sc(10.5),
+                        fontWeight: FontWeight.w600,
+                        color: _fgMuted)),
+              ),
               Expanded(
                 child: Text(
                   stationName!,
@@ -369,11 +608,16 @@ class SavingsShareCard extends StatelessWidget {
                       color: _fg),
                 ),
               ),
-              Text('도착',
-                  style: TextStyle(
-                      fontSize: sc(10.5),
-                      fontWeight: FontWeight.w600,
-                      color: _fgMuted)),
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: sc(76)),
+                child: Text((destName ?? '').trim().isNotEmpty ? destName! : '도착',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: sc(10.5),
+                        fontWeight: FontWeight.w600,
+                        color: _fgMuted)),
+              ),
             ]),
           ],
         ),
@@ -510,6 +754,8 @@ class SavingsShareCard extends StatelessWidget {
                 fontSize: 12, fontWeight: FontWeight.w600, color: _muted),
           ),
         ]),
+        // 시안 7b: 헤드라인 → 경로 스트립(출발 ─ ● ─ 도착) → 수치 타일 순.
+        if ((stationName ?? '').trim().isNotEmpty) _routeStrip(),
         if (f.isNotEmpty)
           // ⚠ Column 은 자식에게 세로 무한 제약을 준다 → stretch 만 쓰면 빌드가 터진다.
           //   (추천 카드 미리보기가 통째로 안 뜨던 원인) IntrinsicHeight 로 높이를 확정한다.

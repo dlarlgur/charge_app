@@ -30,7 +30,19 @@ class SavingsRevealOverlay extends StatefulWidget {
     this.facts = const [],
     this.stationSub,
     this.isEv = false,
+    this.verdict,
+    this.originName,
+    this.destName,
+    this.myUnitWon,
+    this.avgUnitWon,
   });
+
+  /// 공유 카드(시안 7a/7b)로 그대로 전달되는 부가 데이터 — 없으면 해당 조각 숨김.
+  final String? verdict;
+  final String? originName;
+  final String? destName;
+  final int? myUnitWon;
+  final int? avgUnitWon;
 
   /// 절감액 헤드라인 포맷 헬퍼
   static String won(int v) => '${NumberFormat('#,###').format(v)}원';
@@ -316,6 +328,11 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                         facts: widget.facts,
                         story: story,
                         style: st,
+                        verdict: widget.verdict,
+                        originName: widget.originName,
+                        destName: widget.destName,
+                        myUnitWon: widget.myUnitWon,
+                        avgUnitWon: widget.avgUnitWon,
                       ),
                     ),
                   ),
