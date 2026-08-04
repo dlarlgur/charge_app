@@ -3099,12 +3099,14 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     required double destLng,
     required Map<String, dynamic>? recommended,
     required List<Map<String, dynamic>> alternatives,
+    bool fitCamera = true, // '지도에서 보기'는 false — 충전소로 이동한 카메라 유지
   }) async {
     if (_mapController == null) return;
     await _mapController!.clearOverlays();
 
     // 경로선 + 출발/도착 마커는 _drawResultOnMap 재사용 (stLat=null로 충전소 마커 생략)
     await _drawResultOnMap(
+      fitCamera: fitCamera,
       pathPoints: pathPoints ?? [],
       pathSegments: pathSegments,
       originLat: originLat,
@@ -3640,9 +3642,15 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       );
 
   // ── 다른 후보 경로보기 ──
+  // 지도 그리기 세대 — 후보를 연달아 누르면 앞선 draw 의 남은 await 가 뒤에 끼어들어
+  // 경로선/마커가 섞였다(형 제보 '경로 표시가 다 꼬여버림'). 최신 요청만 반영한다.
+  int _mapDrawGen = 0;
+
   Future<void> _showAltRouteOnMap(Map<String, dynamic> altItem) async {
     if (_destLat == null || _destLng == null) return;
+    final gen = ++_mapDrawGen;
     await _collapseResultSheetForMapFocus();
+    if (gen != _mapDrawGen) return;
     final st = altItem['station'] is Map ? altItem['station'] as Map : null;
     if (st == null) return;
     final stLat = _asDouble(st['lat']);
@@ -3655,6 +3663,22 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     // 보라색 강조용 stationId — _drawResultOnMap 안 (await chain) 내부에서 사용되므로
     // 가장 빨리 설정. await 후 set 하면 그 사이 다른 redraw 가 끼어들면 blue 로 그려진다.
     _selectedAltStationId = (st['id'] ?? '').toString();
+
+    // 형 확정 v2: 탭 즉시 카메라부터 — 경로 확정(OSRM 교차검증/폴백 조회)을 기다렸다
+    // 그리고 나서 이동하면 "한참 있다 한 번 더 그리고 이동"이 된다. 카메라 완료 후
+    // 경로를 확정해 오버레이만 갱신 (draw·카메라 동시 실행은 네이티브 팅김 이력).
+    if (!mounted || _mapController == null) return;
+    try {
+      await _mapController!.updateCamera(
+        NCameraUpdate.scrollAndZoomTo(
+          target: NLatLng(stLat, stLng),
+          zoom: 14,
+        )..setAnimation(
+            animation: NCameraAnimation.easing,
+            duration: const Duration(milliseconds: 500)),
+      );
+    } catch (_) {}
+    if (gen != _mapDrawGen) return;
 
     var pathPoints = _lastPathPoints;
     List<Map<String, dynamic>>? pathSegments;
@@ -3715,6 +3739,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     // 다른 후보로 선택 → 해당 station id 보라색 강조 (이미 함수 시작 시 설정함)
     // ★ await 로 순차화 — draw(오버레이 clear/add)와 카메라 애니메이션이 동시에 돌면
     //   NaverMap 네이티브에서 충돌해 '지도 가다가 팅김'(크래시) 발생. 그려진 뒤 카메라 이동.
+    if (gen != _mapDrawGen) return; // 더 최근 탭이 들어옴 → 이 draw 는 버린다
     try {
       await _drawResultOnMap(
         fitCamera: false, // 아래 scrollAndZoomTo 가 카메라 담당 — fit→이동 이중 점프 방지
@@ -3740,27 +3765,16 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       if (kDebugMode) debugPrint('[alt] _drawResultOnMap 실패: $e');
     }
 
-    // 사용자 의도: 다른 후보 '확인' 누르면 해당 좌표로 카메라 이동 → 보라 마커 즉시 보임.
-    if (!mounted || _mapController == null) return;
-    try {
-      await _mapController!.updateCamera(
-        NCameraUpdate.scrollAndZoomTo(
-          target: NLatLng(stLat, stLng),
-          zoom: 14,
-        )..setAnimation(
-            animation: NCameraAnimation.easing,
-            duration: const Duration(milliseconds: 500)),
-      );
-    } catch (e) {
-      if (kDebugMode) debugPrint('[alt] 카메라 이동 실패: $e');
-    }
+    // 카메라는 함수 초입에서 이미 이동 — 여기서 또 움직이면 이중 점프.
   }
 
   // ── 비교 카드 탭 시 해당 경유 경로 지도에 그리기 ──
   Future<void> _showCompareCardRouteOnMap(
       Map<String, dynamic> stationData) async {
     if (_destLat == null || _destLng == null) return;
+    final gen = ++_mapDrawGen;
     await _collapseResultSheetForMapFocus();
+    if (gen != _mapDrawGen) return;
     final st =
         stationData['station'] is Map ? stationData['station'] as Map : null;
     if (st == null) return;
@@ -3771,6 +3785,20 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final priceL = st['price_won_per_liter'] is num
         ? (st['price_won_per_liter'] as num).round()
         : 0;
+
+    // 탭 즉시 카메라부터 (주유·충전 공통 규칙 — 형 확정 v2)
+    if (!mounted || _mapController == null) return;
+    try {
+      await _mapController!.updateCamera(
+        NCameraUpdate.scrollAndZoomTo(
+          target: NLatLng(stLat, stLng),
+          zoom: 14,
+        )..setAnimation(
+            animation: NCameraAnimation.easing,
+            duration: const Duration(milliseconds: 500)),
+      );
+    } catch (_) {}
+    if (gen != _mapDrawGen) return;
 
     var pathPoints = _lastPathPoints;
     List<Map<String, dynamic>>? pathSegments;
@@ -3814,7 +3842,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       }
     }
 
+    if (!mounted || gen != _mapDrawGen) return;
     _drawResultOnMap(
+      fitCamera: false, // 카메라는 이미 해당 주유소에 — 경로 fit 으로 뺏지 말 것
       pathPoints: pathPoints,
       pathSegments: pathSegments,
       originLat: _lastStartLat,
@@ -4002,7 +4032,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   // EV 카드 "지도에서 경로 보기" 탭
   Future<void> _showEvStationRouteOnMap(Map<String, dynamic> station) async {
     if (_destLat == null || _destLng == null) return;
+    final gen = ++_mapDrawGen;
     await _collapseResultSheetForMapFocus();
+    if (gen != _mapDrawGen) return;
 
     final stLat = (station['lat'] as num?)?.toDouble();
     final stLng = (station['lng'] as num?)?.toDouble();
@@ -4025,41 +4057,20 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       if (alts is List) alts.forEach(addOther);
     }
 
-    var pathPoints = _lastPathPoints;
-    List<Map<String, dynamic>>? pathSegments;
-    try {
-      final vr = await ApiService().getDrivingRoute(
-        startLat: _lastStartLat,
-        startLng: _lastStartLng,
-        goalLat: _destLat!,
-        goalLng: _destLng!,
-        waypointLat: stLat,
-        waypointLng: stLng,
-        vias: _viaCoords,
-        engine: RouteEnginePref.get(),
-      );
-      if (vr['success'] == true) {
-        final parsed = _pathPointsFromServerJson(vr['path_points']);
-        if (parsed != null) pathPoints = parsed;
-        pathSegments = _segmentsFromPayload(vr);
-      }
-    } catch (e) {
-      if (kDebugMode) debugPrint('[ev-route] getDrivingRoute 실패: $e');
-    }
-
-    await _drawEvResultOnMap(
-      pathPoints: pathPoints,
-      pathSegments: pathSegments,
-      originLat: _lastStartLat,
-      originLng: _lastStartLng,
-      destLat: _destLat!,
-      destLng: _destLng!,
-      recommended: station,
-      alternatives: others,
+    // 형 확정 v2: 탭 즉시 카메라부터 — 경로 조회를 기다렸다 "한참 있다 지도 한 번 더
+    // 그리고 이동"하는 건 없으니만 못하다. 조회는 백그라운드로 먼저 던져두고,
+    // 카메라 애니메이션이 끝난 뒤 도착한 경로로 오버레이만 갱신한다
+    // (draw 와 카메라 동시 실행은 네이티브 팅김 이력 — 순차 유지).
+    final routeFuture = ApiService().getDrivingRoute(
+      startLat: _lastStartLat,
+      startLng: _lastStartLng,
+      goalLat: _destLat!,
+      goalLng: _destLng!,
+      waypointLat: stLat,
+      waypointLng: stLng,
+      vias: _viaCoords,
+      engine: RouteEnginePref.get(),
     );
-    if (!mounted) return;
-
-    // 형 확정: 해당 충전소로 카메라 이동+확대 (경로 전체 fit 이 덮어쓰지 않게 마지막에)
     try {
       await _mapController?.updateCamera(
         NCameraUpdate.scrollAndZoomTo(
@@ -4070,6 +4081,33 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             duration: const Duration(milliseconds: 500)),
       );
     } catch (_) {}
+
+    var pathPoints = _lastPathPoints;
+    List<Map<String, dynamic>>? pathSegments;
+    try {
+      final vr = await routeFuture;
+      if (vr['success'] == true) {
+        final parsed = _pathPointsFromServerJson(vr['path_points']);
+        if (parsed != null) pathPoints = parsed;
+        pathSegments = _segmentsFromPayload(vr);
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('[ev-route] getDrivingRoute 실패: $e');
+    }
+
+    if (!mounted || gen != _mapDrawGen) return; // 더 최근 탭이 들어옴
+    await _drawEvResultOnMap(
+      fitCamera: false, // 카메라는 이미 충전소에 가 있다 — 경로 fit 으로 뺏지 말 것
+      pathPoints: pathPoints,
+      pathSegments: pathSegments,
+      originLat: _lastStartLat,
+      originLng: _lastStartLng,
+      destLat: _destLat!,
+      destLng: _destLng!,
+      recommended: station,
+      alternatives: others,
+    );
+    if (!mounted || gen != _mapDrawGen) return;
 
     if (_isEvSelectMode) {
       // 직접선택 리스트에서 호출 → 결과 모드의 단일 카드로 전환.
