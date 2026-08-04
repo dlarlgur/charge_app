@@ -170,6 +170,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     String? verdict,
     int? myUnitWon,
     int? avgUnitWon,
+    double? stLat,
+    double? stLng,
   }) {
     setState(() {
       _savingsRevealSeq++;
@@ -182,12 +184,15 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       _revealVerdict = verdict;
       _revealMyUnitWon = myUnitWon;
       _revealAvgUnitWon = avgUnitWon;
+      _revealStLat = stLat;
+      _revealStLng = stLng;
     });
   }
 
   String? _revealVerdict;
   int? _revealMyUnitWon;
   int? _revealAvgUnitWon;
+  double? _revealStLat, _revealStLng; // '경유 길안내' CTA 용 (시안 5a)
 
   /// 주유 추천 — 절약 포인트 + 추천 상세(주유소명/단가/예상비용/추가시간)를 카드로.
   /// ① 우회 실질 절감(비교 데이터) 있으면 "N분 더 걸리지만 / M원 절감!"
@@ -298,6 +303,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         verdict: extraMin > 0 ? '+$extraMin분 우회해도 이득' : '우회 없이 가는 길이 최적',
         myUnitWon: recPrice?.round(),
         avgUnitWon: avgPrice?.round(),
+        stLat: recSt is Map ? d(recSt['lat']) : null,
+        stLng: recSt is Map ? d(recSt['lng']) : null,
       );
       return;
     }
@@ -325,6 +332,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           // 이 분기 조건에서 recPrice/avgPrice 는 non-null 로 승격됨
           myUnitWon: recPrice.round(),
           avgUnitWon: avgPrice.round(),
+          stLat: recSt is Map ? d(recSt['lat']) : null,
+          stLng: recSt is Map ? d(recSt['lng']) : null,
         );
         return;
       }
@@ -339,6 +348,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       verdict: '우회 없이 가는 길이 최적',
       myUnitWon: recPrice?.round(),
       avgUnitWon: avgPrice?.round(),
+      stLat: recSt is Map ? d(recSt['lat']) : null,
+      stLng: recSt is Map ? d(recSt['lng']) : null,
     );
   }
 
@@ -353,13 +364,14 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     String name = '';
     final facts = <RevealFact>[];
     int? recCost;
+    int? unit; // 추천 단가 — 블록 밖(공유 카드 배선)에서도 쓴다
     _stationSub = null;
     if (rec is Map) {
       name = rec['name']?.toString() ?? '';
       final m = Map<String, dynamic>.from(rec);
       recCost = cost(m);
       _stationSub = _joinMeta([m['operator'], m['address']]);
-      final unit = m['unit_price_member'] is num
+      unit = m['unit_price_member'] is num
           ? (m['unit_price_member'] as num).round()
           : (m['unit_price'] is num ? (m['unit_price'] as num).round() : null);
       final kwh = m['est_charge_kwh'] is num
@@ -375,6 +387,27 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         facts.add((label: '충전량', value: '${kwh.toStringAsFixed(1)}kWh'));
       }
     }
+    // 주변 평균 단가 — 서버에 지역 평균 개념이 없어 '대안 후보 단가 평균' 으로 (시안 7e).
+    int? avgUnit;
+    if (alts is List) {
+      final units = alts
+          .whereType<Map>()
+          .map((m) {
+            final u = m['unit_price_member'] ?? m['unit_price'];
+            return u is num ? u.round() : null;
+          })
+          .whereType<int>()
+          .toList();
+      if (units.isNotEmpty) {
+        avgUnit = (units.reduce((a, b) => a + b) / units.length).round();
+      }
+    }
+    final avail = rec is Map && rec['available_count'] is num
+        ? (rec['available_count'] as num).round()
+        : null;
+    final evVerdict =
+        (avail != null && avail > 0) ? '대기 없이 바로 충전 가능' : null;
+
     if (recCost != null && alts is List) {
       final altCosts = alts
           .whereType<Map>()
@@ -392,6 +425,15 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             stationSub: _stationSub,
             stationIcon: Icons.ev_station_rounded,
             facts: facts,
+            verdict: evVerdict,
+            myUnitWon: unit,
+            avgUnitWon: avgUnit,
+            stLat: rec is Map && rec['lat'] is num
+                ? (rec['lat'] as num).toDouble()
+                : null,
+            stLng: rec is Map && rec['lng'] is num
+                ? (rec['lng'] as num).toDouble()
+                : null,
           );
           return;
         }
@@ -404,6 +446,15 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       stationSub: _stationSub,
       stationIcon: Icons.ev_station_rounded,
       facts: facts,
+      verdict: evVerdict,
+      myUnitWon: unit,
+      avgUnitWon: avgUnit,
+      stLat: rec is Map && rec['lat'] is num
+          ? (rec['lat'] as num).toDouble()
+          : null,
+      stLng: rec is Map && rec['lng'] is num
+          ? (rec['lng'] as num).toDouble()
+          : null,
     );
   }
 
@@ -1019,6 +1070,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         locationButtonEnable: false,
         consumeSymbolTapEvents: _isSelectMode,
         tiltGesturesEnable: false,
+        // 대각선 핀치가 회전으로 인식돼 화면이 튀던 문제(형 재현: 3-9시 방향은 정상,
+        // 대각선만 팅김) — 지도 탭·미니맵과 동일하게 회전도 끈다.
+        rotationGesturesEnable: false,
       ),
       // forceHybridComposition 제거 → 기본 TLHC(텍스처) 경로. 과거 Flutter 3.24.3
       // 엔진 회귀(flutter#157463) 우회용이었으나 3.38.5 에서 해소. 강제 HC 가
@@ -6478,6 +6532,30 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 destName: _destName,
                 myUnitWon: _revealMyUnitWon,
                 avgUnitWon: _revealAvgUnitWon,
+                // '경유 길안내' CTA — 좌표가 다 있을 때만 (없으면 '확인' 폴백)
+                // _lastStart* 는 non-null(기본 0) — 0,0 은 유효 좌표가 아니므로 0 체크
+                onNavigate: (_revealStLat != null &&
+                        _revealStLng != null &&
+                        _lastStartLat != 0 &&
+                        _lastStartLng != 0 &&
+                        _destLat != null &&
+                        _destLng != null)
+                    ? () => showViaWaypointNavigationSheet(
+                          context,
+                          originLat: _lastStartLat,
+                          originLng: _lastStartLng,
+                          waypointLat: _revealStLat!,
+                          waypointLng: _revealStLng!,
+                          waypointName: _revealStationName ?? '',
+                          destinationLat: _destLat!,
+                          destinationLng: _destLng!,
+                          destinationName: _destName ?? '목적지',
+                          stopKind: _revealStationIcon ==
+                                  Icons.ev_station_rounded
+                              ? '충전소'
+                              : '주유소',
+                        )
+                    : null,
               ),
           ],
         ),

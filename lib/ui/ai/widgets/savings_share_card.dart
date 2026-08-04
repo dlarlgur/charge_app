@@ -569,7 +569,7 @@ class SavingsShareCard extends StatelessWidget {
 
   /// 출발 ─── ● 주유소 ─── 도착. 경로 위에 들렀다는 걸 한눈에 보여주는 조각.
   Widget _routeStrip() => Container(
-        padding: EdgeInsets.fromLTRB(sc(16), sc(18), sc(16), sc(15)),
+        padding: EdgeInsets.fromLTRB(sc(16), sc(14), sc(16), sc(12)),
         decoration: BoxDecoration(
           color: _dark ? _dCard : Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -737,8 +737,9 @@ class SavingsShareCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             isEv ? '최적 충전소\n추천!' : '최저가 주유소\n추천!',
+            // 31 → 27: 블록들이 카드 높이를 꽉 채워 위아래 숨이 없었다(형 제보 '빡빡').
             style: TextStyle(
-              fontSize: 31,
+              fontSize: 27,
               fontWeight: FontWeight.w800,
               color: _accentInk,
               height: 1.18,
@@ -767,7 +768,7 @@ class SavingsShareCard extends StatelessWidget {
                 if (i > 0) const SizedBox(width: 7),
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.fromLTRB(9, 9, 8, 10),
+                    padding: const EdgeInsets.fromLTRB(9, 8, 8, 9),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(11),
@@ -832,7 +833,7 @@ class SavingsShareCard extends StatelessWidget {
   }
 
   Widget _stationBar() => Container(
-        padding: const EdgeInsets.fromLTRB(10, 10, 12, 10),
+        padding: const EdgeInsets.fromLTRB(10, 9, 12, 9),
         decoration: BoxDecoration(
           color: _accentDeep,
           borderRadius: BorderRadius.circular(13),

@@ -232,7 +232,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     label: '카카오로 시작하기',
                                     bg: const Color(0xFFFEE500),
                                     fg: const Color(0xFF191600),
-                                    icon: Icons.chat_bubble_rounded,
+                                    // 공식 심볼 — 카카오 로그인 버튼 리소스에서 추출
+                                    iconChild: Image.asset(
+                                        'assets/social/kakao_symbol.png',
+                                        width: 19,
+                                        height: 19),
                                     onTap: () => _onProvider('kakao'),
                                   ),
                                   const SizedBox(height: 10),
@@ -257,11 +261,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     bg: Colors.white,
                                     fg: const Color(0xFF1F1F1F),
                                     border: const Color(0xFFDADCE0),
-                                    iconChild: const Text('G',
-                                        style: TextStyle(
-                                            fontSize: 19,
-                                            fontWeight: FontWeight.w800,
-                                            color: Color(0xFF4285F4))),
+                                    // 공식 4색 G 로고 (Google Identity 배포 에셋)
+                                    iconChild: Image.asset(
+                                        'assets/social/google_g.png',
+                                        width: 19,
+                                        height: 19),
                                     onTap: () => _onProvider('google'),
                                   ),
                               ],

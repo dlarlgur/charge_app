@@ -35,7 +35,11 @@ class SavingsRevealOverlay extends StatefulWidget {
     this.destName,
     this.myUnitWon,
     this.avgUnitWon,
+    this.onNavigate,
   });
+
+  /// '경유 길안내' CTA (시안 5a) — null 이면 '확인' 버튼으로 폴백.
+  final VoidCallback? onNavigate;
 
   /// 공유 카드(시안 7a/7b)로 그대로 전달되는 부가 데이터 — 없으면 해당 조각 숨김.
   final String? verdict;
@@ -522,131 +526,293 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // 'AI 추천' 뱃지
+                            // ── 시안 5a/5g: ✨ AI 추천 pill (가운데) ──
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 5),
+                                  horizontal: 11, vertical: 5),
                               decoration: BoxDecoration(
                                 color: _accent.withValues(alpha: 0.14),
                                 borderRadius: BorderRadius.circular(999),
-                                border: Border.all(
-                                    color: _accent.withValues(alpha: 0.32)),
                               ),
-                              child: Text('AI 추천',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w800,
-                                      color: badgeFg,
-                                      letterSpacing: 1)),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.auto_awesome_rounded,
+                                      size: 12, color: badgeFg),
+                                  const SizedBox(width: 4),
+                                  Text('AI 추천',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w800,
+                                          color: badgeFg)),
+                                ],
+                              ),
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 12),
                             Text(
                               widget.caption,
                               style: TextStyle(
-                                fontSize: 15.5,
-                                fontWeight: FontWeight.w700,
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
                                 color: captionColor,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            // 헤드라인 — 골드→그린 그라데이션
-                            ShaderMask(
-                              shaderCallback: (rect) => LinearGradient(
-                                colors: headlineColors,
-                              ).createShader(rect),
-                              child: Text(
-                                widget.headline,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  fontSize: 34,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
-                                  height: 1.15,
+                            const SizedBox(height: 3),
+                            // 헤드라인 — 숫자=유종 액센트, '원 절약'=잉크 (시안 5a)
+                            Builder(builder: (_) {
+                              final m = RegExp(r'^([\d,]+)\s*원?\s*(.*)\$')
+                                  .firstMatch(widget.headline.trim());
+                              final numText = m?.group(1);
+                              final tail = m == null
+                                  ? null
+                                  : '원 ${m.group(2)!.isEmpty ? '절약' : m.group(2)}';
+                              if (numText == null) {
+                                return Text(widget.headline,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                        fontSize: 30,
+                                        fontWeight: FontWeight.w900,
+                                        height: 1.15,
+                                        color:
+                                            isDark ? _accent : _accentDeep));
+                              }
+                              return FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.baseline,
+                                  textBaseline: TextBaseline.alphabetic,
+                                  children: [
+                                    Text(numText,
+                                        style: TextStyle(
+                                          fontSize: 42,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: -1.5,
+                                          height: 1.05,
+                                          color:
+                                              isDark ? _accent : _accentDeep,
+                                        )),
+                                    const SizedBox(width: 5),
+                                    Text(tail!,
+                                        style: TextStyle(
+                                          fontSize: 21,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: -0.5,
+                                          color: nameColor,
+                                        )),
+                                  ],
                                 ),
-                              ),
-                            ),
-                            // ── 추천 스테이션 + 상세 수치 ──
+                              );
+                            }),
+                            // ── 스테이션 칩 (틴트 배경) ──
                             if (widget.stationName != null &&
                                 widget.stationName!.isNotEmpty) ...[
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 14),
                               Container(
                                 width: double.infinity,
                                 padding:
-                                    const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                                    const EdgeInsets.fromLTRB(12, 11, 12, 11),
                                 decoration: BoxDecoration(
-                                  color: panelBg,
+                                  color: _accent.withValues(
+                                      alpha: isDark ? 0.12 : 0.09),
                                   borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(color: panelBorder),
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                child: Row(
                                   children: [
-                                    Row(
-                                      children: [
-                                        Icon(widget.stationIcon,
-                                            size: 16,
-                                            color:
-                                                isDark ? _accent : _accentDeep),
-                                        const SizedBox(width: 6),
-                                        Expanded(
-                                          child: Text(
-                                            widget.stationName!,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                                fontSize: 15,
-                                                fontWeight: FontWeight.w800,
-                                                color: nameColor),
-                                          ),
-                                        ),
-                                      ],
+                                    Container(
+                                      width: 36,
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        color:
+                                            isDark ? _accent : _accentDeep,
+                                        borderRadius:
+                                            BorderRadius.circular(11),
+                                      ),
+                                      child: Icon(widget.stationIcon,
+                                          size: 19,
+                                          color: isDark
+                                              ? _accentFg
+                                              : Colors.white),
                                     ),
-                                    if (widget.facts.isNotEmpty) ...[
-                                      const SizedBox(height: 10),
-                                      for (final f in widget.facts)
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              vertical: 3),
-                                          child: Row(
-                                            children: [
-                                              Text(f.label,
-                                                  style: TextStyle(
-                                                      fontSize: 12.5,
-                                                      color: factLabelColor)),
-                                              const Spacer(),
-                                              Text(f.value,
-                                                  style: TextStyle(
-                                                      fontSize: 13.5,
-                                                      fontWeight:
-                                                          FontWeight.w700,
-                                                      color: factValueColor)),
-                                            ],
-                                          ),
-                                        ),
-                                    ],
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(widget.stationName!,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                  fontSize: 14.5,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: nameColor)),
+                                          if ((widget.stationSub ?? '')
+                                              .trim()
+                                              .isNotEmpty) ...[
+                                            const SizedBox(height: 2),
+                                            Text(widget.stationSub!,
+                                                maxLines: 1,
+                                                overflow:
+                                                    TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: factLabelColor)),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
                             ],
-                            const SizedBox(height: 16),
+                            // ── 수치 타일 3칸 (시안 5a: 리터당·추가 시간·예상 주유비) ──
+                            Builder(builder: (_) {
+                              final fmt = NumberFormat('#,###');
+                              final tiles = <(String, String)>[];
+                              if (widget.myUnitWon != null) {
+                                tiles.add((fmt.format(widget.myUnitWon),
+                                    widget.isEv ? 'kWh당' : '리터당'));
+                              }
+                              for (final f in widget.facts) {
+                                if (tiles.length >= 3) break;
+                                if (f.label == '추가 시간') {
+                                  tiles.add((f.value, '추가 시간'));
+                                } else if (f.label == '예상 주유비') {
+                                  tiles.add((f.value.replaceAll('원', ''),
+                                      '예상 주유비'));
+                                } else if (f.label == '예상 충전요금') {
+                                  tiles.add((f.value.replaceAll('원', ''),
+                                      '예상 충전비'));
+                                } else if (f.label == '충전량') {
+                                  tiles.add((f.value, '충전량'));
+                                }
+                              }
+                              if (tiles.isEmpty) return const SizedBox.shrink();
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 10),
+                                child: Row(
+                                  children: [
+                                    for (var i = 0; i < tiles.length; i++) ...[
+                                      if (i > 0) const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Container(
+                                          padding:
+                                              const EdgeInsets.symmetric(
+                                                  vertical: 11),
+                                          decoration: BoxDecoration(
+                                            color: panelBg,
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            border: Border.all(
+                                                color: panelBorder),
+                                          ),
+                                          child: Column(
+                                            children: [
+                                              FittedBox(
+                                                child: Text(tiles[i].$1,
+                                                    style: TextStyle(
+                                                        fontSize: 15.5,
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                        letterSpacing: -0.4,
+                                                        color:
+                                                            factValueColor)),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(tiles[i].$2,
+                                                  style: TextStyle(
+                                                      fontSize: 10.5,
+                                                      color:
+                                                          factLabelColor)),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              );
+                            }),
+                            // ── 주변 평균가 · 주유량/충전량 행 (시안 5a) ──
+                            Builder(builder: (_) {
+                              final fmt = NumberFormat('#,###');
+                              final rows = <Widget>[];
+                              if (widget.avgUnitWon != null) {
+                                final diff = widget.myUnitWon != null
+                                    ? widget.avgUnitWon! - widget.myUnitWon!
+                                    : null;
+                                rows.add(Row(children: [
+                                  Text('주변 평균가',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: factLabelColor)),
+                                  const Spacer(),
+                                  Text(
+                                      '${fmt.format(widget.avgUnitWon)}원/${widget.isEv ? 'kWh' : 'L'}',
+                                      style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: factValueColor)),
+                                  if (diff != null && diff != 0) ...[
+                                    const SizedBox(width: 5),
+                                    Text(
+                                        diff > 0
+                                            ? '▼${fmt.format(diff)}'
+                                            : '▲${fmt.format(-diff)}',
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w800,
+                                            color: diff > 0
+                                                ? (isDark
+                                                    ? _accent
+                                                    : _accentDeep)
+                                                : const Color(0xFFEF4444))),
+                                  ],
+                                ]));
+                              }
+                              for (final f in widget.facts) {
+                                if (f.label == '주유량' || f.label == '충전량') {
+                                  rows.add(Padding(
+                                    padding: const EdgeInsets.only(top: 6),
+                                    child: Row(children: [
+                                      Text(f.label,
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              color: factLabelColor)),
+                                      const Spacer(),
+                                      Text(f.value,
+                                          style: TextStyle(
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: factValueColor)),
+                                    ]),
+                                  ));
+                                  break;
+                                }
+                              }
+                              if (rows.isEmpty) return const SizedBox.shrink();
+                              return Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(2, 12, 2, 0),
+                                child: Column(children: rows),
+                              );
+                            }),
+                            const SizedBox(height: 14),
+                            // ── 공유(사각) + 경유 길안내 CTA (시안 5a) ──
                             Row(
                               children: [
-                                // 인스타 피드 규격(1:1) 이미지로 만들어 공유
                                 SizedBox(
+                                  width: 46,
                                   height: 46,
-                                  child: OutlinedButton.icon(
+                                  child: OutlinedButton(
                                     onPressed: _share,
-                                    icon: const Icon(Icons.ios_share_rounded,
-                                        size: 17),
-                                    label: const Text('공유',
-                                        style: TextStyle(
-                                            fontSize: 14.5,
-                                            fontWeight: FontWeight.w700)),
                                     style: OutlinedButton.styleFrom(
+                                      padding: EdgeInsets.zero,
                                       foregroundColor:
                                           isDark ? _accent : _accentDeep,
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 16),
                                       side: BorderSide(
                                           color:
                                               (isDark ? _accent : _accentDeep)
@@ -655,14 +821,21 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                                           borderRadius:
                                               BorderRadius.circular(13)),
                                     ),
+                                    child: const Icon(Icons.ios_share_rounded,
+                                        size: 18),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: SizedBox(
                                     height: 46,
-                                    child: FilledButton(
-                                      onPressed: _dismiss,
+                                    child: FilledButton.icon(
+                                      onPressed: widget.onNavigate != null
+                                          ? () {
+                                              _dismiss();
+                                              widget.onNavigate!();
+                                            }
+                                          : _dismiss,
                                       style: FilledButton.styleFrom(
                                         backgroundColor:
                                             isDark ? _accent : _accentDeep,
@@ -672,9 +845,16 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                                             borderRadius:
                                                 BorderRadius.circular(13)),
                                       ),
-                                      child: const Text('확인',
-                                          style: TextStyle(
-                                              fontSize: 15.5,
+                                      icon: widget.onNavigate != null
+                                          ? const Icon(Icons.route_rounded,
+                                              size: 16)
+                                          : const SizedBox.shrink(),
+                                      label: Text(
+                                          widget.onNavigate != null
+                                              ? '경유 길안내'
+                                              : '확인',
+                                          style: const TextStyle(
+                                              fontSize: 15,
                                               fontWeight: FontWeight.w800)),
                                     ),
                                   ),

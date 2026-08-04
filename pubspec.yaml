@@ -131,6 +131,7 @@ flutter:
     - assets/ev_operators/
     - assets/connectors/
     - assets/nav/
+    - assets/social/
     - assets/logo/oil/
 
   # Pretendard — 한글/영문 통일감을 위해 5단계 weight 번들 (안드로이드 기기간
