@@ -646,28 +646,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 ],
               ),
             ),
-            // 유가·충전 리포트 바로가기 — 설정에만 두면 못 찾는 기능이라 홈에 상시 진입점.
-            // 좌측 하단 고정(목록 스크롤과 무관), 자리변동 바보다 살짝 위에 앉힌다.
+            // 퀵메뉴 FAB — 설정에만 두면 못 찾는 기능이라 홈에 상시 진입점.
+            // 우측 하단 고정(형 확정: 좌→우 이동), 자리변동 바보다 살짝 위.
+            // 탭하면 이모지 항목들이 위로 펼쳐진다. 새 바로가기는 items 에 한 줄 추가.
             if (bottomIndex == 0)
               Positioned(
-                left: 0,
+                right: 0,
                 bottom: _watchDragDy + 4,
                 child: SafeArea(
                   top: false,
                   child: Builder(builder: (_) {
-                    // 홈에서 보고 있는 탭(주유/충전)에 맞춰 라벨·색이 바뀌고,
-                    // 눌렀을 때 리포트도 그 주제 탭으로 바로 열린다.
+                    // 차종에 맞는 항목만 — 주유만 쓰는 사용자에게 충전 리포트 노출 X.
                     final vt = ref.watch(settingsProvider).vehicleType;
-                    final isEv = vt == VehicleType.ev ||
-                        (vt == VehicleType.both &&
-                            ref.watch(activeTabProvider) == 1);
-                    return ReportFab(
-                      isEv: isEv,
-                      onTap: () => Navigator.of(context, rootNavigator: true)
-                          .push(MaterialPageRoute(
-                              builder: (_) => FuelReportScreen(
-                                  initialTopic: isEv ? 'ev' : 'fuel'))),
-                    );
+                    void openReport(String topic) =>
+                        Navigator.of(context, rootNavigator: true).push(
+                            MaterialPageRoute(
+                                builder: (_) =>
+                                    FuelReportScreen(initialTopic: topic)));
+                    return HomeQuickFab(items: [
+                      if (vt != VehicleType.ev)
+                        QuickMenuItem(
+                          emoji: '⛽',
+                          label: '유가 리포트',
+                          color: AppColors.gasBlue,
+                          onTap: () => openReport('fuel'),
+                        ),
+                      if (vt != VehicleType.gas)
+                        QuickMenuItem(
+                          emoji: '⚡',
+                          label: '충전 리포트',
+                          color: AppColors.evGreen,
+                          onTap: () => openReport('ev'),
+                        ),
+                    ]);
                   }),
                 ),
               ),
