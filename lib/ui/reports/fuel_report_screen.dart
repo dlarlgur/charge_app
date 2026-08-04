@@ -13,7 +13,9 @@ import '../../core/theme/app_colors.dart';
 import '../../data/models/models.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/place_service.dart';
+import '../../core/utils/navigation_util.dart';
 import '../../providers/providers.dart';
+import '../detail/gas_detail_screen.dart';
 import '../favorites/place_picker_screen.dart';
 
 /// 유가 · 충전 리포트 — 주간/월간 리포트 목록과 상세.
@@ -595,9 +597,35 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
               style: TextStyle(fontSize: 12.5, height: 1.5, color: secondary),
             ),
           ],
+          // 나머지 유종 요약 한 줄 (형 확정: 선택 유종만 → 전 유종). 상세엔 표로.
+          if (_otherFuelsLine(d) != null) ...[
+            const SizedBox(height: 5),
+            Text(
+              _otherFuelsLine(d)!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 11.5, color: muted),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  /// "고급 2,096 · 경유 1,742 · LPG 998" — 대표 유종을 뺀 나머지. 없으면 null.
+  String? _otherFuelsLine(Map<String, dynamic> d) {
+    final fuels = (d['fuels'] as List?) ?? const [];
+    final primaryCode = (d['fuel_type'] ?? '').toString();
+    final parts = <String>[];
+    for (final raw in fuels) {
+      if (raw is! Map) continue;
+      if (raw['code'] == primaryCode) continue;
+      final avg = (raw['avg_won_per_liter'] as num?)?.round();
+      if (avg == null) continue;
+      final label = (raw['label'] ?? '').toString().replaceAll('고급휘발유', '고급');
+      parts.add('$label ${_comma(avg)}');
+    }
+    return parts.isEmpty ? null : parts.join(' · ');
   }
 
   /// 전국 대비 델타 — 상세화면 `_deltaChip` 과 같은 표기(▲빨강/▼초록).
@@ -1884,6 +1912,75 @@ class LocalFuelBriefDetailScreen extends StatelessWidget {
             ],
           )),
 
+          // ── 유종별 동네 평균 (형 확정: 휘발유·고급·경유·LPG 전부) ──
+          if (((data['fuels'] as List?) ?? const []).length > 1)
+            sectionCard(Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                sectionHead(Icons.format_list_bulleted_rounded, '유종별 $label 평균'),
+                for (final raw in (data['fuels'] as List))
+                  if (raw is Map)
+                    Builder(builder: (_) {
+                      final f = Map<String, dynamic>.from(raw);
+                      final fAvg = (f['avg_won_per_liter'] as num?)?.round();
+                      final fVs = (f['vs_nation_won'] as num?)?.round();
+                      final isPrimary = f['code'] == data['fuel_type'];
+                      if (fAvg == null) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Row(
+                          children: [
+                            Text((f['label'] ?? '').toString(),
+                                style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: isPrimary
+                                        ? FontWeight.w800
+                                        : FontWeight.w500,
+                                    color: isPrimary ? primary : muted)),
+                            if (isPrimary) ...[
+                              const SizedBox(width: 5),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: accent.withValues(
+                                      alpha: isDark ? 0.2 : 0.1),
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                                child: const Text('내 유종',
+                                    style: TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: accent)),
+                              ),
+                            ],
+                            const Spacer(),
+                            if (fVs != null && fVs != 0) ...[
+                              Text(
+                                '전국 ${fVs > 0 ? '+' : '−'}${_comma(fVs.abs())}',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: fVs > 0
+                                        ? const Color(0xFFEF4444)
+                                        : AppColors.evGreen),
+                              ),
+                              const SizedBox(width: 10),
+                            ],
+                            Text('${_comma(fAvg)}원',
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: isPrimary
+                                        ? FontWeight.w800
+                                        : FontWeight.w600,
+                                    color: isPrimary ? primary : secondary)),
+                          ],
+                        ),
+                      );
+                    }),
+              ],
+            )),
+
           // ── AI 서술 ──
           if (narrative.isNotEmpty)
             sectionCard(Column(
@@ -1915,12 +2012,27 @@ class LocalFuelBriefDetailScreen extends StatelessWidget {
                     style: TextStyle(fontSize: 12.5, color: muted))
               else
                 for (var i = 0; i < stations.length; i++)
-                  Builder(builder: (_) {
+                  Builder(builder: (ctx) {
                     final st =
                         Map<String, dynamic>.from(stations[i] as Map);
                     final dist = (st['distance_m'] as num?)?.toDouble();
                     final top = i == 0;
-                    return Container(
+                    final stId = (st['id'] ?? '').toString();
+                    final stLat = (st['lat'] as num?)?.toDouble();
+                    final stLng = (st['lng'] as num?)?.toDouble();
+                    return _NearRow(
+                      onTap: stId.isEmpty
+                          ? null
+                          : () => Navigator.of(ctx).push(MaterialPageRoute(
+                              builder: (_) =>
+                                  GasDetailScreen(stationId: stId))),
+                      onNavigate: (stLat == null || stLng == null)
+                          ? null
+                          : () => showNavigationSheet(ctx,
+                              lat: stLat,
+                              lng: stLng,
+                              name: (st['name'] ?? '').toString()),
+                      child: Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 9),
                       margin: EdgeInsets.only(
@@ -1979,6 +2091,7 @@ class LocalFuelBriefDetailScreen extends StatelessWidget {
                                   color: top ? accent : secondary)),
                         ],
                       ),
+                    ),
                     );
                   }),
               if (saveWon != null && saveWon > 0) ...[
@@ -2019,6 +2132,52 @@ class LocalFuelBriefDetailScreen extends StatelessWidget {
               style: TextStyle(fontSize: 11.5, color: muted)),
         ],
       ),
+    );
+  }
+}
+
+/// 반경 최저가 행 래퍼 — 탭=상세, 우측 길안내 버튼 (형 확정: 링크 추가).
+class _NearRow extends StatelessWidget {
+  const _NearRow({required this.child, this.onTap, this.onNavigate});
+
+  final Widget child;
+  final VoidCallback? onTap;
+  final VoidCallback? onNavigate;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Row(
+      children: [
+        Expanded(
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: onTap,
+              child: child,
+            ),
+          ),
+        ),
+        if (onNavigate != null) ...[
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: onNavigate,
+            child: Container(
+              width: 34,
+              height: 34,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.gasBlue.withValues(alpha: isDark ? 0.2 : 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.navigation_rounded,
+                  size: 17, color: AppColors.gasBlue),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

@@ -3993,7 +3993,6 @@ class _FuelChipsHeaderDelegate extends SliverPersistentHeaderDelegate {
       oldDelegate.signature != signature;
 }
 
-
 /// 하단 탭바 — 가운데 AI 만 바 위로 떠 있는 그라데이션 원형 버튼 (형 시안 2026-08-04).
 ///
 /// NavigationBar 를 버리고 커스텀으로 그린 이유: 표준 위젯으론 특정 탭만 바 밖으로
@@ -4016,90 +4015,105 @@ class _AiBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final barBg = isDark ? AppColors.darkBg : AppColors.lightBg;
-    final line = isDark ? const Color(0x14FFFFFF) : const Color(0xFFE9EDF2);
+    // 플로팅 알약형 (형 시안 v2) — 화면 가장자리에서 띄우고 전체 라운드.
+    final barBg = isDark ? AppColors.darkSurface1 : Colors.white;
     final bottomInset = MediaQuery.of(context).padding.bottom;
 
-    return SizedBox(
-      height: _overhang + _barH + bottomInset,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          // ── 바 본체 (하단 고정, 상단 22px 는 투명 — 원이 떠 있을 자리) ──
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: _barH + bottomInset,
-            child: Container(
-              padding: EdgeInsets.only(bottom: bottomInset),
-              decoration: BoxDecoration(
-                color: barBg,
-                border: Border(top: BorderSide(color: line, width: 1)),
-              ),
-              child: Row(
-                children: [
-                  _tab(0, Icons.dashboard_outlined, Icons.dashboard_rounded, '홈'),
-                  _tab(1, Icons.map_outlined, Icons.map_rounded, '지도'),
-                  // 가운데는 원형 버튼 자리 — 빈 슬롯으로 폭만 확보
-                  const Expanded(child: SizedBox.shrink()),
-                  _tab(3, Icons.favorite_outline_rounded,
-                      Icons.favorite_rounded, '즐겨찾기'),
-                  _tab(4, Icons.person_outline_rounded, Icons.person_rounded,
-                      '마이페이지'),
-                ],
+    return Padding(
+      padding:
+          EdgeInsets.fromLTRB(12, 0, 12, bottomInset > 0 ? bottomInset : 10),
+      child: SizedBox(
+        height: _overhang + _barH,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // ── 바 본체 (하단 고정, 상단 22px 는 투명 — 원이 떠 있을 자리) ──
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: _barH,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: barBg,
+                  borderRadius: BorderRadius.circular(29),
+                  border: isDark
+                      ? Border.all(color: Colors.white.withValues(alpha: 0.08))
+                      : null,
+                  boxShadow: [
+                    BoxShadow(
+                      color:
+                          Colors.black.withValues(alpha: isDark ? 0.42 : 0.12),
+                      blurRadius: 18,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    _tab(0, Icons.dashboard_outlined, Icons.dashboard_rounded,
+                        '홈'),
+                    _tab(1, Icons.map_outlined, Icons.map_rounded, '지도'),
+                    // 가운데는 원형 버튼 자리 — 빈 슬롯으로 폭만 확보
+                    const Expanded(child: SizedBox.shrink()),
+                    _tab(3, Icons.favorite_outline_rounded,
+                        Icons.favorite_rounded, '즐겨찾기'),
+                    _tab(4, Icons.person_outline_rounded, Icons.person_rounded,
+                        '마이페이지'),
+                  ],
+                ),
               ),
             ),
-          ),
-          // ── AI 원형 버튼 — 바 상단에 걸쳐 떠 있음 ──
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: GestureDetector(
-                onTap: () => onSelect(2),
-                child: Container(
-                  width: _circle,
-                  height: _circle,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF2563EB), Color(0xFF10B981)],
-                    ),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                        color: barBg, width: 3), // 바와 겹치는 경계를 깔끔하게
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF2563EB)
-                            .withValues(alpha: index == 2 ? 0.5 : 0.32),
-                        blurRadius: 14,
-                        offset: const Offset(0, 5),
+            // ── AI 원형 버튼 — 바 상단에 걸쳐 떠 있음 ──
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: GestureDetector(
+                  onTap: () => onSelect(2),
+                  child: Container(
+                    width: _circle,
+                    height: _circle,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF2563EB), Color(0xFF10B981)],
                       ),
-                    ],
-                  ),
-                  child: const Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.auto_awesome_rounded,
-                          size: 19, color: Colors.white),
-                      SizedBox(height: 2),
-                      Text('AI 추천',
-                          style: TextStyle(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.2,
-                              height: 1,
-                              color: Colors.white)),
-                    ],
+                      shape: BoxShape.circle,
+                      border:
+                          Border.all(color: barBg, width: 3), // 바와 겹치는 경계를 깔끔하게
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF2563EB)
+                              .withValues(alpha: index == 2 ? 0.5 : 0.32),
+                          blurRadius: 14,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.auto_awesome_rounded,
+                            size: 19, color: Colors.white),
+                        SizedBox(height: 2),
+                        Text('AI 추천',
+                            style: TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.2,
+                                height: 1,
+                                color: Colors.white)),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
