@@ -525,7 +525,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   int? _lastRecSt2Price;
   String? _lastRecStBrand;
   String? _lastRecSt2Brand;
-  // 추천이 우회(st)인지 경로상(st2)인지 — 지도 마커 색(추천=주황) 결정용.
+  // 추천이 우회(st)인지 경로상(st2)인지 — 지도 마커 순위(1·2위) 결정용.
   bool _lastRecIsDetour = false;
   List<dynamic>? _lastRecAlternatives;
 
@@ -2275,7 +2275,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
         // 지도 표시는 타입 기준으로 고정:
         // - 경로상 최저가(on_route) = 파랑
-        // - 우회 최저가(best_detour) = 주황
+        // - 우회 최저가(best_detour) = 1·2순위 배지로 구분
         // 추천 여부는 색이 아니라 라벨(배지)로만 표시
         final isRecDetour = choice == 'best_detour';
 
@@ -2297,7 +2297,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           stPrice = p is num ? p.round() : null;
         }
 
-        // st2 = 경로상 최저가 (분석 UI·지도 모두 주황 #E8700A)
+        // st2 = 경로상 최저가 (순위 배지로 표시)
         if (onRouteSt != null) {
           st2Lat = onRouteSt['lat'] is num
               ? (onRouteSt['lat'] as num).toDouble()
@@ -2442,7 +2442,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         _lastRecSt2Price = st2Price;
         _lastRecStBrand = detourSt?['brand']?.toString();
         _lastRecSt2Brand = onRouteSt?['brand']?.toString();
-        _lastRecIsDetour = isRecDetour; // 추천이 우회(st)면 st=주황, 아니면 st2(경로상)=주황
+        _lastRecIsDetour = isRecDetour; // 추천이 우회(st)면 st=1순위, 아니면 st2=1순위
         _lastRecAlternatives = recAlts;
         _selectedAltStationId = null; // 새 분석 결과 그릴 때 이전 선택 초기화
 
@@ -2808,14 +2808,14 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       final stLabel = stPrice != null && stPrice > 0
           ? '${_wonFmt.format(stPrice)}원'
           : stName;
-      // st=우회. 추천이 우회면 주황(추천색), 아니면 파랑(비교).
-      final c =
-          _lastRecIsDetour ? const Color(0xFFE8700A) : const Color(0xFF1D6FE0);
-      // 사용자가 대안 선택 시 primary 마커를 보라색으로 (선택 강조)
+      // 색으로 역할(주황=추천/파랑=비교/보라=선택) 구분하던 것 폐기(형 확정: 짜침) —
+      // 후보는 전부 같은 톤, 1·2순위만 '추천 N위' 메달 배지 + 1순위 볼드 강조.
+      final stIsTop = _lastRecIsDetour; // 추천이 우회면 st 가 1순위
+      final c = stIsTop ? const Color(0xFF3B82F6) : const Color(0xFF64748B);
+      // 사용자가 대안 선택 시 primary 강조는 짙은 파랑 (보라 폐기 — 파랑 단일 축)
       final isAltSelected =
           _selectedAltStationId != null && _selectedAltStationId!.isNotEmpty;
-      const _kSelectedPurple = Color(0xFF7C3AED);
-      final markerColor = isAltSelected ? _kSelectedPurple : c;
+      final markerColor = isAltSelected ? const Color(0xFF2563EB) : c;
       final stMarker = NMarker(
         id: 'result_station',
         position: NLatLng(stLat, stLng),
@@ -2826,7 +2826,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           stationName: stName,
           borderColor: markerColor,
           textColor: markerColor,
-          emphasizeBorder: true,
+          emphasizeBorder: stIsTop && !isAltSelected,
+          recommendRank: isAltSelected ? null : (stIsTop ? 1 : 2),
         ),
         anchor: const NPoint(0.5, 1.0),
       );
@@ -2838,8 +2839,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       final st2Label = st2Price != null && st2Price > 0
           ? '${_wonFmt.format(st2Price)}원'
           : st2Name;
+      final st2IsTop = !_lastRecIsDetour; // 추천이 경로상이면 st2 가 1순위
       final c2 =
-          _lastRecIsDetour ? const Color(0xFF1D6FE0) : const Color(0xFFE8700A);
+          st2IsTop ? const Color(0xFF3B82F6) : const Color(0xFF64748B);
       final st2Marker = NMarker(
         id: 'result_station2',
         position: NLatLng(st2Lat, st2Lng),
@@ -2850,7 +2852,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           stationName: st2Name,
           borderColor: c2,
           textColor: c2,
-          emphasizeBorder: true,
+          emphasizeBorder: st2IsTop,
+          recommendRank: st2IsTop ? 1 : 2,
         ),
         anchor: const NPoint(0.5, 1.0),
       );
@@ -2868,7 +2871,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
     // 대안 후보 마커 — 선택된 stationId 면 보라색 강조, 아니면 회색.
     // 마커 탭 시 미니 sheet 표시 (이름·가격·우회·"이걸로 선택" 버튼).
-    const _kSelectedPurple = Color(0xFF7C3AED); // 보라 강조 (사용자 선택 표시)
+    const _kSelectedPurple = Color(0xFF2563EB); // 선택 강조 — 파랑 단일 축(보라 폐기)
     final altLats = <double>[];
     final altLngs = <double>[];
     if (alternatives != null) {
