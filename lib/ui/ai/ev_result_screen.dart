@@ -1574,9 +1574,10 @@ class _StationCardState extends State<_StationCard> {
           ],
         );
 
-    Widget outlineBtn(IconData icon, String label, VoidCallback? onTap) =>
+    Widget outlineBtn(IconData icon, String label, VoidCallback? onTap,
+            {double height = 42}) =>
         SizedBox(
-          height: 42,
+          height: height,
           child: Material(
             color: cardBg,
             shape: RoundedRectangleBorder(
@@ -2037,10 +2038,64 @@ class _StationCardState extends State<_StationCard> {
                   ),
                 ],
 
-                // ── 버튼 — 1순위: [지도][상세] + 길안내 시작 / 펼친 후보: 사각 2 + 안내 ──
-                if (!widget.bare) ...[
+                // ── 액션 버튼 — 형 확정 통일안 (1순위·펼친 후보 동일):
+                //    단일 운영사: [지도에서 보기][충전소 상세] + 풀너비 [길안내 시작]
+                //    통합: 위에 운영사별 보기가 있으니 [지도에서 보기][길안내 시작]
+                //    가로 한 줄 — 상세 자리가 비어 지도가 혼자 풀너비로 뜨던 것 해소.
+                if (isGrouped) ...[
                   if (widget.onMapTap != null ||
-                      (statId != null && !isGrouped)) ...[
+                      (widget.originLat != null && widget.destLat != null)) ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 46,
+                      child: Row(
+                        children: [
+                          if (widget.onMapTap != null)
+                            Expanded(
+                                child: outlineBtn(Icons.map_outlined,
+                                    '지도에서 보기', widget.onMapTap,
+                                    height: 46)),
+                          if (widget.onMapTap != null &&
+                              widget.originLat != null &&
+                              widget.destLat != null)
+                            const SizedBox(width: 8),
+                          if (widget.originLat != null &&
+                              widget.destLat != null)
+                            Expanded(
+                              child: Material(
+                                color: _kEvGreen,
+                                borderRadius: BorderRadius.circular(10),
+                                child: Builder(
+                                  builder: (ctx) => InkWell(
+                                    onTap: () => _startNavigation(ctx,
+                                        statId: statId,
+                                        availCount: availCount,
+                                        originEtaMin: originEtaMin),
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: const Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.navigation_rounded,
+                                            size: 18, color: Colors.white),
+                                        SizedBox(width: 5),
+                                        Text('길안내 시작',
+                                            style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w700,
+                                                color: Colors.white)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ] else ...[
+                  if (widget.onMapTap != null || statId != null) ...[
                     const SizedBox(height: 12),
                     Row(
                       children: [
@@ -2048,11 +2103,9 @@ class _StationCardState extends State<_StationCard> {
                           Expanded(
                               child: outlineBtn(Icons.map_outlined,
                                   '지도에서 보기', widget.onMapTap)),
-                        if (widget.onMapTap != null &&
-                            statId != null &&
-                            !isGrouped)
+                        if (widget.onMapTap != null && statId != null)
                           const SizedBox(width: 8),
-                        if (statId != null && !isGrouped)
+                        if (statId != null)
                           Expanded(
                             child: outlineBtn(
                                 Icons.info_outline_rounded, '충전소 상세', () {
@@ -2093,74 +2146,6 @@ class _StationCardState extends State<_StationCard> {
                                         fontSize: 15,
                                         fontWeight: FontWeight.w700,
                                         color: Colors.white)),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ] else ...[
-                  // 펼친 후보도 1순위와 동일한 버튼 구성 (형 확정 — 아이콘 사각 X):
-                  // [지도에서 보기][충전소 상세] + 풀너비 안내 CTA(아웃라인 초록)
-                  if (widget.onMapTap != null ||
-                      (statId != null && !isGrouped)) ...[
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        if (widget.onMapTap != null)
-                          Expanded(
-                              child: outlineBtn(Icons.map_outlined,
-                                  '지도에서 보기', widget.onMapTap)),
-                        if (widget.onMapTap != null &&
-                            statId != null &&
-                            !isGrouped)
-                          const SizedBox(width: 8),
-                        if (statId != null && !isGrouped)
-                          Expanded(
-                            child: outlineBtn(
-                                Icons.info_outline_rounded, '충전소 상세', () {
-                              Navigator.of(context, rootNavigator: true).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) =>
-                                      EvDetailScreen(stationId: statId),
-                                ),
-                              );
-                            }),
-                          ),
-                      ],
-                    ),
-                  ],
-                  if (widget.originLat != null && widget.destLat != null) ...[
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      height: 42,
-                      width: double.infinity,
-                      child: Material(
-                        color: cardBg,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          side:
-                              const BorderSide(color: _kEvGreen, width: 1.5),
-                        ),
-                        child: Builder(
-                          builder: (ctx) => InkWell(
-                            onTap: () => _startNavigation(ctx,
-                                statId: statId,
-                                availCount: availCount,
-                                originEtaMin: originEtaMin),
-                            borderRadius: BorderRadius.circular(10),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.navigation_rounded,
-                                    size: 18, color: greenD),
-                                const SizedBox(width: 5),
-                                Text('이 충전소로 안내',
-                                    style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w700,
-                                        color: greenD)),
                               ],
                             ),
                           ),
