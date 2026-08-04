@@ -646,44 +646,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 ],
               ),
             ),
-            // 퀵메뉴 FAB — 설정에만 두면 못 찾는 기능이라 홈에 상시 진입점.
-            // 우측 하단 고정(형 확정: 좌→우 이동), 자리변동 바보다 살짝 위.
-            // 탭하면 이모지 항목들이 위로 펼쳐진다. 새 바로가기는 items 에 한 줄 추가.
-            if (bottomIndex == 0)
-              Positioned(
-                right: 0,
-                bottom: _watchDragDy,
-                child: SafeArea(
-                  top: false,
-                  child: Builder(builder: (_) {
-                    // 차종에 맞는 항목만 — 주유만 쓰는 사용자에게 충전 리포트 노출 X.
-                    final vt = ref.watch(settingsProvider).vehicleType;
-                    void openReport(String topic) =>
-                        Navigator.of(context, rootNavigator: true).push(
-                            MaterialPageRoute(
-                                builder: (_) =>
-                                    FuelReportScreen(initialTopic: topic)));
-                    // 형 시안(2026-08-04) 순서·아이콘: 유가=파랑 차트, 충전=초록 충전기.
-                    // 이후 가격 알림(badge)·주변 재검색·내 차량 설정도 여기 한 줄씩.
-                    return HomeQuickFab(items: [
-                      if (vt != VehicleType.ev)
-                        QuickMenuItem(
-                          icon: Icons.bar_chart_rounded,
-                          label: '유가 리포트',
-                          color: AppColors.gasBlue,
-                          onTap: () => openReport('fuel'),
-                        ),
-                      if (vt != VehicleType.gas)
-                        QuickMenuItem(
-                          icon: Icons.ev_station_rounded,
-                          label: '충전 리포트',
-                          color: AppColors.evGreen,
-                          onTap: () => openReport('ev'),
-                        ),
-                    ]);
-                  }),
-                ),
-              ),
             // 자리변동알림 — 홈 탭에서 하단 플로팅 (스크롤해도 항상 보임, content 안 밀림)
             if (bottomIndex == 0)
               Positioned(
@@ -702,6 +664,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               ),
           ],
         ),
+        // 퀵메뉴 — body 안에서는 하단 바 위로 못 내려가서(형 요청: 더 아래로)
+        // docked FAB 슬롯 사용: 바 상단에 걸쳐 앉고 히트테스트도 Scaffold 가 보장.
+        floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
+        floatingActionButton: bottomIndex == 0
+            ? Builder(builder: (_) {
+                final vt = ref.watch(settingsProvider).vehicleType;
+                void openReport(String topic) =>
+                    Navigator.of(context, rootNavigator: true).push(
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                FuelReportScreen(initialTopic: topic)));
+                return HomeQuickFab(items: [
+                  if (vt != VehicleType.ev)
+                    QuickMenuItem(
+                      icon: Icons.bar_chart_rounded,
+                      label: '유가 리포트',
+                      color: AppColors.gasBlue,
+                      onTap: () => openReport('fuel'),
+                    ),
+                  if (vt != VehicleType.gas)
+                    QuickMenuItem(
+                      icon: Icons.ev_station_rounded,
+                      label: '충전 리포트',
+                      color: AppColors.evGreen,
+                      onTap: () => openReport('ev'),
+                    ),
+                ]);
+              })
+            : null,
         // 하단 탭바 — 가운데 AI 를 바 위로 띄운 그라데이션 원형 버튼으로 (형 시안 2026-08-04).
         bottomNavigationBar: _AiBottomNav(
           index: bottomIndex,

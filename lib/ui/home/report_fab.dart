@@ -151,9 +151,9 @@ class _HomeQuickFabState extends State<HomeQuickFab>
     final single = widget.items.length == 1;
 
     return Padding(
-      // 우측 여백 10 — 2 는 모서리에 너무 붙어 쏠려 보임(형 확인). 아래는 body 끝이
-      // 하단 바 위라 이게 최저 위치(더 내리려면 바 영역과 겹치는 구조 변경 필요).
-      padding: const EdgeInsets.only(right: 10, bottom: 0),
+      // docked FAB 슬롯이 좌우 16 마진을 주므로 자체 여백은 없앰 (형 확정 위치:
+      // 하단 바에 걸쳐 앉기 — body 한계 밖까지 내려간다)
+      padding: EdgeInsets.zero,
       child: CompositedTransformTarget(
         link: _link,
         child: _mainButton(isDark, single),
