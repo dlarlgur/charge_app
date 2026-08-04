@@ -702,72 +702,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               ),
           ],
         ),
-        bottomNavigationBar: NavigationBarTheme(
-          data: NavigationBarThemeData(
-            height: 64,
-            backgroundColor: isDark ? AppColors.darkBg : AppColors.lightBg,
-            surfaceTintColor: Colors.transparent,
-            indicatorColor: (isDark ? AppColors.gasBlue : AppColors.gasBlueDark)
-                .withValues(alpha: 0.18),
-            labelTextStyle: WidgetStateProperty.resolveWith((states) {
-              final isSelected = states.contains(WidgetState.selected);
-              return TextStyle(
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected
-                    ? (isDark ? AppColors.gasBlue : AppColors.gasBlueDark)
-                    : (isDark
-                        ? AppColors.darkTextMuted
-                        : AppColors.lightTextMuted),
-              );
-            }),
-            iconTheme: WidgetStateProperty.resolveWith((states) {
-              final isSelected = states.contains(WidgetState.selected);
-              return IconThemeData(
-                size: 24,
-                color: isSelected
-                    ? (isDark ? AppColors.gasBlue : AppColors.gasBlueDark)
-                    : (isDark
-                        ? AppColors.darkTextMuted
-                        : AppColors.lightTextMuted),
-              );
-            }),
-            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          ),
-          child: NavigationBar(
-            selectedIndex: bottomIndex,
-            onDestinationSelected: (i) {
-              HapticFeedback.selectionClick();
-              ref.read(bottomNavIndexProvider.notifier).state = i;
-            },
-            destinations: const [
-              NavigationDestination(
-                icon: Icon(Icons.dashboard_outlined),
-                selectedIcon: Icon(Icons.dashboard_rounded),
-                label: '홈',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.map_outlined),
-                selectedIcon: Icon(Icons.map_rounded),
-                label: '지도',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.auto_awesome_outlined),
-                selectedIcon: Icon(Icons.auto_awesome_rounded),
-                label: 'AI',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.favorite_outline_rounded),
-                selectedIcon: Icon(Icons.favorite_rounded),
-                label: '즐겨찾기',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.person_outline_rounded),
-                selectedIcon: Icon(Icons.person_rounded),
-                label: '마이페이지',
-              ),
-            ],
-          ),
+        // 하단 탭바 — 가운데 AI 를 바 위로 띄운 그라데이션 원형 버튼으로 (형 시안 2026-08-04).
+        bottomNavigationBar: _AiBottomNav(
+          index: bottomIndex,
+          isDark: isDark,
+          onSelect: (i) {
+            HapticFeedback.selectionClick();
+            ref.read(bottomNavIndexProvider.notifier).state = i;
+          },
         ),
       ),
     );
@@ -4049,4 +3991,146 @@ class _FuelChipsHeaderDelegate extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(covariant _FuelChipsHeaderDelegate oldDelegate) =>
       oldDelegate.signature != signature;
+}
+
+
+/// 하단 탭바 — 가운데 AI 만 바 위로 떠 있는 그라데이션 원형 버튼 (형 시안 2026-08-04).
+///
+/// NavigationBar 를 버리고 커스텀으로 그린 이유: 표준 위젯으론 특정 탭만 바 밖으로
+/// 띄울 수 없다. 원이 바 위로 나가는 부분까지 탭이 먹히려면 hit-test 영역 안에 있어야
+/// 해서, 바 전체 높이를 (투명 상단 22 + 실제 바 58) 로 잡고 원을 그 안에 배치한다.
+class _AiBottomNav extends StatelessWidget {
+  const _AiBottomNav({
+    required this.index,
+    required this.isDark,
+    required this.onSelect,
+  });
+
+  final int index;
+  final bool isDark;
+  final ValueChanged<int> onSelect;
+
+  static const _overhang = 22.0; // 원이 바 위로 튀어나오는 높이 (투명 영역)
+  static const _barH = 58.0;
+  static const _circle = 62.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final barBg = isDark ? AppColors.darkBg : AppColors.lightBg;
+    final line = isDark ? const Color(0x14FFFFFF) : const Color(0xFFE9EDF2);
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+
+    return SizedBox(
+      height: _overhang + _barH + bottomInset,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // ── 바 본체 (하단 고정, 상단 22px 는 투명 — 원이 떠 있을 자리) ──
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: _barH + bottomInset,
+            child: Container(
+              padding: EdgeInsets.only(bottom: bottomInset),
+              decoration: BoxDecoration(
+                color: barBg,
+                border: Border(top: BorderSide(color: line, width: 1)),
+              ),
+              child: Row(
+                children: [
+                  _tab(0, Icons.dashboard_outlined, Icons.dashboard_rounded, '홈'),
+                  _tab(1, Icons.map_outlined, Icons.map_rounded, '지도'),
+                  // 가운데는 원형 버튼 자리 — 빈 슬롯으로 폭만 확보
+                  const Expanded(child: SizedBox.shrink()),
+                  _tab(3, Icons.favorite_outline_rounded,
+                      Icons.favorite_rounded, '즐겨찾기'),
+                  _tab(4, Icons.person_outline_rounded, Icons.person_rounded,
+                      '마이페이지'),
+                ],
+              ),
+            ),
+          ),
+          // ── AI 원형 버튼 — 바 상단에 걸쳐 떠 있음 ──
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: GestureDetector(
+                onTap: () => onSelect(2),
+                child: Container(
+                  width: _circle,
+                  height: _circle,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF2563EB), Color(0xFF10B981)],
+                    ),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                        color: barBg, width: 3), // 바와 겹치는 경계를 깔끔하게
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF2563EB)
+                            .withValues(alpha: index == 2 ? 0.5 : 0.32),
+                        blurRadius: 14,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.auto_awesome_rounded,
+                          size: 19, color: Colors.white),
+                      SizedBox(height: 2),
+                      Text('AI 추천',
+                          style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.2,
+                              height: 1,
+                              color: Colors.white)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tab(int i, IconData icon, IconData selectedIcon, String label) {
+    final selected = index == i;
+    final color = selected
+        ? (isDark ? AppColors.gasBlue : AppColors.gasBlueDark)
+        : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted);
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => onSelect(i),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(selected ? selectedIcon : icon, size: 23, color: color),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
