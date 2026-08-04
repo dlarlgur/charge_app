@@ -25,20 +25,24 @@ class ReportFabPref {
   static void notifyChanged() => version.value++;
 }
 
-/// 퀵메뉴 항목 — 아이콘 + 라벨 + 그라데이션(밝은색→짙은색). 이모지 금지(형 확정).
-/// 항목 추가는 홈(home_screen)의 리스트에 한 줄.
+/// 퀵메뉴 항목 — 작은 컬러 아이콘 + 라벨 (+ 우측 배지). 이모지 금지(형 확정).
+/// 형 시안(2026-08-04) 스타일: 타일·화살표 없이 담백한 행. 항목 추가는 홈에 한 줄.
 class QuickMenuItem {
   const QuickMenuItem({
     required this.icon,
     required this.label,
-    required this.gradient,
+    required this.color,
     required this.onTap,
+    this.badge,
   });
 
   final IconData icon;
   final String label;
-  final List<Color> gradient; // [base, deep]
+  final Color color;
   final VoidCallback onTap;
+
+  /// 우측 회색 칩에 표시할 개수 (예: 가격 알림 3). null 이면 표시 안 함.
+  final int? badge;
 }
 
 /// 홈 우측 하단 퀵메뉴 (형 확정 v3: 카드 한 장에 행 분할 팝업 메뉴).
@@ -178,7 +182,7 @@ class _HomeQuickFabState extends State<HomeQuickFab>
         );
       },
       child: Container(
-        constraints: const BoxConstraints(minWidth: 196),
+        constraints: const BoxConstraints(minWidth: 208),
         decoration: BoxDecoration(
           color: cardBg,
           borderRadius: BorderRadius.circular(18),
@@ -203,7 +207,7 @@ class _HomeQuickFabState extends State<HomeQuickFab>
               for (var i = 0; i < widget.items.length; i++) ...[
                 if (i > 0)
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Divider(height: 1, thickness: 1, color: line),
                   ),
                 _menuRow(widget.items[i], isDark),
@@ -217,42 +221,48 @@ class _HomeQuickFabState extends State<HomeQuickFab>
 
   Widget _menuRow(QuickMenuItem item, bool isDark) {
     final primary =
-        isDark ? AppColors.darkTextPrimary : const Color(0xFF1F2937);
-    final muted = isDark ? AppColors.darkTextMuted : const Color(0xFFB6C0CC);
+        isDark ? AppColors.darkTextPrimary : const Color(0xFF26313D);
     return InkWell(
       onTap: () => _select(item),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 11, 12, 11),
+        // 형 시안: 타일·화살표 없이 [컬러 아이콘 + 라벨 (+ 배지)] 담백한 행
+        padding: const EdgeInsets.fromLTRB(18, 13, 16, 13),
         child: Row(
           children: [
-            // 그라데이션 아이콘 타일 — 리스트 안이라 원 대신 라운드 사각(요즘 메뉴 문법)
-            Container(
-              width: 34,
-              height: 34,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: item.gradient,
-                ),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(item.icon, size: 18, color: Colors.white),
-            ),
-            const SizedBox(width: 11),
+            Icon(item.icon, size: 21, color: item.color),
+            const SizedBox(width: 13),
             Text(
               item.label,
               style: TextStyle(
-                fontSize: 13.5,
+                fontSize: 14,
                 fontWeight: FontWeight.w700,
                 letterSpacing: -0.2,
                 color: primary,
               ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 20),
             const Spacer(),
-            Icon(Icons.chevron_right_rounded, size: 18, color: muted),
+            if (item.badge != null)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.10)
+                      : const Color(0xFFF1F3F6),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: Text(
+                  '${item.badge}',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : const Color(0xFF64748B),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -262,8 +272,9 @@ class _HomeQuickFabState extends State<HomeQuickFab>
   Widget _mainButton(bool isDark, bool single) {
     // 항목 1개: 그 유종 그라데이션 + 아이콘, 바로 실행.
     // 여러 개: '메뉴' 임이 읽히게 grid 아이콘 (형: 메뉴 표시였으면 좋겠다).
+    final base = widget.items.first.color;
     final colors = single
-        ? widget.items.first.gradient
+        ? [base, Color.lerp(base, Colors.black, 0.22)!]
         : const [Color(0xFF3B82F6), Color(0xFF2563EB)];
     final icon = single ? widget.items.first.icon : Icons.grid_view_rounded;
     return GestureDetector(

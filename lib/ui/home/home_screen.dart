@@ -663,25 +663,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                             MaterialPageRoute(
                                 builder: (_) =>
                                     FuelReportScreen(initialTopic: topic)));
+                    // 형 시안(2026-08-04) 순서·아이콘: 유가=파랑 차트, 충전=초록 충전기.
+                    // 이후 가격 알림(badge)·주변 재검색·내 차량 설정도 여기 한 줄씩.
                     return HomeQuickFab(items: [
                       if (vt != VehicleType.ev)
                         QuickMenuItem(
-                          icon: Icons.local_gas_station_rounded,
+                          icon: Icons.bar_chart_rounded,
                           label: '유가 리포트',
-                          gradient: const [
-                            AppColors.gasBlue,
-                            AppColors.gasBlueDark
-                          ],
+                          color: AppColors.gasBlue,
                           onTap: () => openReport('fuel'),
                         ),
                       if (vt != VehicleType.gas)
                         QuickMenuItem(
                           icon: Icons.ev_station_rounded,
                           label: '충전 리포트',
-                          gradient: const [
-                            AppColors.evGreen,
-                            AppColors.evGreenDark
-                          ],
+                          color: AppColors.evGreen,
                           onTap: () => openReport('ev'),
                         ),
                     ]);
