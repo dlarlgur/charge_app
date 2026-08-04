@@ -1034,14 +1034,11 @@ class _StationCardState extends State<_StationCard> {
     final orange =
         isDark ? AppColors.darkOrangeBright : const Color(0xFFEA580C);
     final red = isDark ? AppColors.darkRedBright : const Color(0xFFDC2626);
-    // 시안: 볼드는 상태색이 아니라 잉크색 — 상태는 아이콘·배경 틴트가 말해준다.
-    final ink = isDark ? AppColors.darkTextPrimary : const Color(0xFF0F172A);
-
-    // 상태별 색/아이콘/문구.
+    // 형 확정: 볼드는 잉크 말고 찐한 상태색 그대로 (여유=진초록) — 숫자가 살아야 읽힌다.
     final Color c;
     final IconData icon;
     final List<InlineSpan> spans;
-    final pct = TextStyle(fontWeight: FontWeight.w700, color: ink);
+    const pct = TextStyle(fontWeight: FontWeight.w700);
     final ct = comfortTarget ?? 100;
 
     switch (status) {
@@ -1054,10 +1051,10 @@ class _StationCardState extends State<_StationCard> {
             comfortTarget <= targetNow - 5;
         spans = [
           const TextSpan(text: '충전 후 목적지 도착 시 '),
-          TextSpan(text: '약 $destSoc%', style: pct),
+          TextSpan(text: '약 $destSoc%', style: pct.copyWith(color: c)),
           TextSpan(text: canLower ? ' 남아요. 급하면 ' : ' 남아 여유 있게 도착해요'),
           if (canLower) ...[
-            TextSpan(text: '$ct%', style: pct),
+            TextSpan(text: '$ct%', style: pct.copyWith(color: c)),
             const TextSpan(text: '만 충전해도 충분해서 시간 아껴요'),
           ],
         ];
@@ -1072,9 +1069,9 @@ class _StationCardState extends State<_StationCard> {
             const TextSpan(text: '로는 도착 시 '),
           ] else
             const TextSpan(text: '현재 목표로는 도착 시 '),
-          TextSpan(text: '약 $destSoc%', style: pct),
+          TextSpan(text: '약 $destSoc%', style: pct.copyWith(color: c)),
           const TextSpan(text: ' — 여기서 '),
-          TextSpan(text: '$ct%까지 충전', style: pct),
+          TextSpan(text: '$ct%까지 충전', style: pct.copyWith(color: c)),
           const TextSpan(text: '하면 여유 있게 도착해요'),
         ];
         break;
@@ -1083,10 +1080,10 @@ class _StationCardState extends State<_StationCard> {
         icon = Icons.info_rounded;
         spans = [
           const TextSpan(text: '여기선 '),
-          TextSpan(text: '100% 충전', style: pct),
+          TextSpan(text: '100% 충전', style: pct.copyWith(color: c)),
           TextSpan(text: maxSoc != null ? '해도 도착 약 ' : '해도 목적지까지 빠듯해요'),
           if (maxSoc != null) ...[
-            TextSpan(text: '$maxSoc%', style: pct),
+            TextSpan(text: '$maxSoc%', style: pct.copyWith(color: c)),
             const TextSpan(text: '로 빠듯 — 중간이나 목적지 근처에서 한 번 더 충전 권장'),
           ],
         ];
@@ -1098,7 +1095,7 @@ class _StationCardState extends State<_StationCard> {
         final altTail = betterAltName != null
             ? [
                 const TextSpan(text: ' — 아래 '),
-                TextSpan(text: betterAltName, style: pct),
+                TextSpan(text: betterAltName, style: pct.copyWith(color: c)),
                 const TextSpan(text: '이 더 여유롭게 도착해요'),
               ]
             : <InlineSpan>[
@@ -1110,13 +1107,13 @@ class _StationCardState extends State<_StationCard> {
         spans = [
           if (maxSoc != null && maxSoc > 0) ...[
             const TextSpan(text: '여기선 '),
-            TextSpan(text: '100% 충전', style: pct),
+            TextSpan(text: '100% 충전', style: pct.copyWith(color: c)),
             const TextSpan(text: '해도 도착 약 '),
-            TextSpan(text: '$maxSoc%', style: pct),
+            TextSpan(text: '$maxSoc%', style: pct.copyWith(color: c)),
             const TextSpan(text: '로 부족'),
           ] else ...[
             const TextSpan(text: '여기 충전만으론 목적지까지 '),
-            TextSpan(text: '부족', style: pct),
+            TextSpan(text: '부족', style: pct.copyWith(color: c)),
           ],
           ...altTail,
         ];
@@ -1605,23 +1602,6 @@ class _StationCardState extends State<_StationCard> {
           ),
         );
 
-    Widget sqBtn(IconData icon, VoidCallback? onTap) => SizedBox(
-          width: 42,
-          height: 42,
-          child: Material(
-            color: cardBg,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-              side: BorderSide(color: borderStrong),
-            ),
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(10),
-              child: Icon(icon, size: 19, color: secondary),
-            ),
-          ),
-        );
-
     // ── 병합 블록 — 배터리(도착→충전 후) + 바 + 헤어라인 + 요금 히어로 ──
     Widget mergedBlock() {
       final rows = <Widget>[];
@@ -1998,33 +1978,47 @@ class _StationCardState extends State<_StationCard> {
                   const SizedBox(height: 12),
                   Wrap(spacing: 12, runSpacing: 6, children: metaChips),
                 ],
-                // ── 그룹 운영사 펼치기 (기능 유지) ──
+                // ── 그룹 운영사 펼치기 — 인라인 링크가 안 보인다(형 제보) →
+                //    풀너비 토널 버튼(40px)으로 키워 명확한 탭 타깃으로.
                 if (isGrouped) ...[
-                  const SizedBox(height: 10),
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => setState(() => _isExpanded = !_isExpanded),
-                    child: Row(
-                      children: [
-                        Text(
-                          _isExpanded
-                              ? '운영사 접기'
-                              : '${groupedCount ?? groupedStations!.length}개 운영사별 길안내',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: greenD,
-                          ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 40,
+                    width: double.infinity,
+                    child: Material(
+                      color: _kEvGreen.withValues(alpha: isDark ? 0.16 : 0.10),
+                      borderRadius: BorderRadius.circular(10),
+                      child: InkWell(
+                        onTap: () =>
+                            setState(() => _isExpanded = !_isExpanded),
+                        borderRadius: BorderRadius.circular(10),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.storefront_rounded,
+                                size: 15, color: greenD),
+                            const SizedBox(width: 6),
+                            Text(
+                              _isExpanded
+                                  ? '운영사 접기'
+                                  : '${groupedCount ?? groupedStations!.length}개 운영사별 길안내 보기',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: greenD,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              _isExpanded
+                                  ? Icons.keyboard_arrow_up_rounded
+                                  : Icons.keyboard_arrow_down_rounded,
+                              size: 18,
+                              color: greenD,
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 3),
-                        Icon(
-                          _isExpanded
-                              ? Icons.keyboard_arrow_up_rounded
-                              : Icons.keyboard_arrow_down_rounded,
-                          size: 16,
-                          color: greenD,
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                   AnimatedSize(
@@ -2107,62 +2101,73 @@ class _StationCardState extends State<_StationCard> {
                     ),
                   ],
                 ] else ...[
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      if (widget.onMapTap != null) ...[
-                        sqBtn(Icons.map_outlined, widget.onMapTap),
-                        const SizedBox(width: 8),
-                      ],
-                      if (statId != null && !isGrouped) ...[
-                        sqBtn(Icons.info_outline_rounded, () {
-                          Navigator.of(context, rootNavigator: true).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => EvDetailScreen(stationId: statId),
-                            ),
-                          );
-                        }),
-                        const SizedBox(width: 8),
-                      ],
-                      if (widget.originLat != null && widget.destLat != null)
-                        Expanded(
-                          child: SizedBox(
-                            height: 42,
-                            child: Material(
-                              color: cardBg,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                side: const BorderSide(
-                                    color: _kEvGreen, width: 1.5),
-                              ),
-                              child: Builder(
-                                builder: (ctx) => InkWell(
-                                  onTap: () => _startNavigation(ctx,
-                                      statId: statId,
-                                      availCount: availCount,
-                                      originEtaMin: originEtaMin),
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.navigation_rounded,
-                                          size: 18, color: greenD),
-                                      const SizedBox(width: 5),
-                                      Text('이 충전소로 안내',
-                                          style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w700,
-                                              color: greenD)),
-                                    ],
-                                  ),
+                  // 펼친 후보도 1순위와 동일한 버튼 구성 (형 확정 — 아이콘 사각 X):
+                  // [지도에서 보기][충전소 상세] + 풀너비 안내 CTA(아웃라인 초록)
+                  if (widget.onMapTap != null ||
+                      (statId != null && !isGrouped)) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        if (widget.onMapTap != null)
+                          Expanded(
+                              child: outlineBtn(Icons.map_outlined,
+                                  '지도에서 보기', widget.onMapTap)),
+                        if (widget.onMapTap != null &&
+                            statId != null &&
+                            !isGrouped)
+                          const SizedBox(width: 8),
+                        if (statId != null && !isGrouped)
+                          Expanded(
+                            child: outlineBtn(
+                                Icons.info_outline_rounded, '충전소 상세', () {
+                              Navigator.of(context, rootNavigator: true).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) =>
+                                      EvDetailScreen(stationId: statId),
                                 ),
-                              ),
+                              );
+                            }),
+                          ),
+                      ],
+                    ),
+                  ],
+                  if (widget.originLat != null && widget.destLat != null) ...[
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 42,
+                      width: double.infinity,
+                      child: Material(
+                        color: cardBg,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          side:
+                              const BorderSide(color: _kEvGreen, width: 1.5),
+                        ),
+                        child: Builder(
+                          builder: (ctx) => InkWell(
+                            onTap: () => _startNavigation(ctx,
+                                statId: statId,
+                                availCount: availCount,
+                                originEtaMin: originEtaMin),
+                            borderRadius: BorderRadius.circular(10),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.navigation_rounded,
+                                    size: 18, color: greenD),
+                                const SizedBox(width: 5),
+                                Text('이 충전소로 안내',
+                                    style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: greenD)),
+                              ],
                             ),
                           ),
                         ),
-                    ],
-                  ),
+                      ),
+                    ),
+                  ],
                 ],
               ],
             ),

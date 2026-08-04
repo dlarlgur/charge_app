@@ -491,8 +491,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   bool _isEvResultMapView = false;
   String _aiAnalysisType = 'gas'; // gas | ev
   String _evChargerType = 'FAST'; // FAST | SLOW
-  bool _evHighwayOnly = false; // 고속도로 충전소만
-  bool _gasHighwayOnly = false; // 고속도로 휴게소 주유소만
+  // 고속도로 필터 — 형 확정: 디폴트 ON, 마지막 설정은 Hive 로 유지.
+  static const _kEvHighwayKey = 'ai_highway_only_ev';
+  static const _kGasHighwayKey = 'ai_highway_only_gas';
+  bool _evHighwayOnly = true; // 고속도로 충전소만
+  bool _gasHighwayOnly = true; // 고속도로 휴게소 주유소만
   final Set<String> _preferredGasBrands =
       {}; // 선호 브랜드(OPINET pollDivCo 키). 빈 set = 전체.
 
@@ -769,6 +772,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
   void _loadSaved() {
     final box = Hive.box(AppConstants.settingsBox);
+
+    // 고속도로 필터 — 마지막 설정 복원 (없으면 ON)
+    _evHighwayOnly = box.get(_kEvHighwayKey, defaultValue: true) == true;
+    _gasHighwayOnly = box.get(_kGasHighwayKey, defaultValue: true) == true;
 
     // 선택된 차량 프로필 기준으로 로드
     final vehicle = _readSelectedVehicle(box);
@@ -5951,10 +5958,13 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                               if (mounted) setState(() {});
                             },
                             onToggleHighway: () => setState(() {
+                              final box = Hive.box(AppConstants.settingsBox);
                               if (isEvVehicle) {
                                 _evHighwayOnly = !_evHighwayOnly;
+                                box.put(_kEvHighwayKey, _evHighwayOnly);
                               } else {
                                 _gasHighwayOnly = !_gasHighwayOnly;
+                                box.put(_kGasHighwayKey, _gasHighwayOnly);
                               }
                             }),
                             onChangeChargerMode: isEvVehicle
