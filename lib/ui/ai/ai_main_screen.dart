@@ -45,6 +45,7 @@ import 'ai_vehicle_list_screen.dart';
 import 'ai_vehicle_setup_screen.dart';
 import 'ev_result_screen.dart';
 import '../detail/gas_detail_screen.dart';
+import '../home/home_screen.dart' show floatingNavOverlayPx;
 import '../widgets/gas_station_map_badge.dart';
 import 'ai_constants.dart';
 import '../../data/services/rating_prompt_service.dart';
@@ -5268,6 +5269,13 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    // 접힌 시트가 플로팅 알약 바(가운데 AI 원 포함) 뒤에 깔려 드래그로 못 올리던 문제
+    // → 핸들·헤더가 바 위로 나오도록 최소 높이에 바 높이를 더한다(형 제보).
+    final double sheetMinFrac = () {
+      final h = MediaQuery.of(context).size.height;
+      if (h <= 0) return 0.20;
+      return ((floatingNavOverlayPx(context) + 56.0) / h).clamp(0.14, 0.42);
+    }();
     final settings = ref.watch(settingsProvider);
     final canGasAnalysis = settings.vehicleType != VehicleType.ev;
     final canEvAnalysis = settings.vehicleType != VehicleType.gas;
@@ -6277,10 +6285,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
               DraggableScrollableSheet(
                 controller: _sheetController,
                 initialChildSize: 0.45,
-                minChildSize: 0.12,
+                minChildSize: sheetMinFrac,
                 maxChildSize: 0.9,
                 snap: true,
-                snapSizes: const [0.12, 0.45, 0.9],
+                snapSizes: [sheetMinFrac, 0.45, 0.9],
                 builder: (_, sc) {
                   _resultSheetScrollController = sc;
                   return Container(
@@ -6339,10 +6347,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
               DraggableScrollableSheet(
                 controller: _sheetController,
                 initialChildSize: 0.45,
-                minChildSize: 0.12,
+                minChildSize: sheetMinFrac,
                 maxChildSize: 0.9,
                 snap: true,
-                snapSizes: const [0.12, 0.45, 0.9],
+                snapSizes: [sheetMinFrac, 0.45, 0.9],
                 builder: (_, sc) {
                   _resultSheetScrollController = sc;
                   return Container(
@@ -6426,10 +6434,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
               DraggableScrollableSheet(
                 controller: _selectSheetCtrl,
                 initialChildSize: 0.45,
-                minChildSize: 0.14,
+                minChildSize: sheetMinFrac,
                 maxChildSize: 0.88,
                 snap: true,
-                snapSizes: const [0.14, 0.45, 0.88],
+                snapSizes: [sheetMinFrac, 0.45, 0.88],
                 builder: (_, sc) => StationSelectInlineSheet(
                   sheetScrollCtrl: sc,
                   stations: _selectableStations!,

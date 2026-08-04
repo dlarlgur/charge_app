@@ -3993,6 +3993,18 @@ class _FuelChipsHeaderDelegate extends SliverPersistentHeaderDelegate {
       oldDelegate.signature != signature;
 }
 
+/// 플로팅 알약 바가 화면 하단에서 실제로 가리는 높이 (AI 원형 오버행 포함).
+///
+/// extendBody:true 라 body 는 바 뒤까지 흐른다 — 지도/AI 시트처럼 화면 바닥에
+/// 붙는 UI 는 이 값만큼 띄워야 핸들·헤더가 바(특히 가운데 AI 원)에 안 가린다.
+/// 형 제보: "AI 추천 때문에 드래그해서 위로 올리기 힘들다".
+double floatingNavOverlayPx(BuildContext context) {
+  final inset = MediaQuery.of(context).viewPadding.bottom;
+  return _AiBottomNav.overhang +
+      _AiBottomNav.barH +
+      (inset > 0 ? inset : 10);
+}
+
 /// 하단 탭바 — 가운데 AI 만 바 위로 떠 있는 그라데이션 원형 버튼 (형 시안 2026-08-04).
 ///
 /// NavigationBar 를 버리고 커스텀으로 그린 이유: 표준 위젯으론 특정 탭만 바 밖으로
@@ -4009,9 +4021,9 @@ class _AiBottomNav extends StatelessWidget {
   final bool isDark;
   final ValueChanged<int> onSelect;
 
-  static const _overhang = 22.0; // 원이 바 위로 튀어나오는 높이 (투명 영역)
+  static const overhang = 22.0; // 원이 바 위로 튀어나오는 높이 (투명 영역)
   // 58 은 아이콘+라벨이 꽉 차 보였다(형 확인) — 위아래 여백을 줘 알약형이 살게.
-  static const _barH = 66.0;
+  static const barH = 66.0;
   static const _circle = 62.0;
 
   @override
@@ -4024,7 +4036,7 @@ class _AiBottomNav extends StatelessWidget {
       padding:
           EdgeInsets.fromLTRB(12, 0, 12, bottomInset > 0 ? bottomInset : 10),
       child: SizedBox(
-        height: _overhang + _barH,
+        height: overhang + barH,
         child: Stack(
           clipBehavior: Clip.none,
           children: [
@@ -4033,7 +4045,7 @@ class _AiBottomNav extends StatelessWidget {
               left: 0,
               right: 0,
               bottom: 0,
-              height: _barH,
+              height: barH,
               child: Container(
                 decoration: BoxDecoration(
                   color: barBg,

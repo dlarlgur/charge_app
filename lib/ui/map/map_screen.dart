@@ -10,6 +10,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/utils/helpers.dart';
 import '../../core/theme/app_colors.dart';
+import '../home/home_screen.dart' show floatingNavOverlayPx;
 import '../../data/models/models.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/location_service.dart';
@@ -2215,9 +2216,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
     // 최소화 높이를 헤더 픽셀 기준으로 환산 — 기종(화면 높이) 달라도 헤더가 안 잘리고
     // 오버플로(BOTTOM OVERFLOWED) 안 나게. 둘 다 모드면 세그먼트 탭만큼 더 확보.
-    final double headerPx = (showGasList && showEvList) ? 130.0 : 78.0;
+    // + 플로팅 알약 바(가운데 AI 원 포함)가 가리는 높이를 더해 헤더·핸들이 바 위로
+    //   올라오게 한다 — 안 그러면 접힌 시트가 통째로 바 뒤에 깔려 드래그가 안 잡힌다(형 제보).
+    final double headerPx = ((showGasList && showEvList) ? 130.0 : 78.0) +
+        floatingNavOverlayPx(context);
     final double screenH = MediaQuery.of(context).size.height;
-    _listCollapsed = (headerPx / (screenH <= 0 ? 720.0 : screenH)).clamp(0.12, 0.30);
+    _listCollapsed = (headerPx / (screenH <= 0 ? 720.0 : screenH)).clamp(0.12, 0.42);
 
     return DraggableScrollableSheet(
       controller: _listSheetController,
