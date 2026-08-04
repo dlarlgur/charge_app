@@ -551,7 +551,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   /// 본문 스크롤이 꼬여, '지도에서 경로 보기' 후 살짝 올리면 리스트만 보이는 것처럼 느껴질 수 있음)
   Future<void> _collapseResultSheetForMapFocus() async {
     if (!_sheetController.isAttached) return;
-    const targetSize = 0.12;
+    final targetSize = max(0.12, _sheetMinFrac);
     if ((_sheetController.size - targetSize).abs() < 0.01) {
       if (mounted) _resetResultSheetScrollToTop();
       return;
@@ -565,6 +565,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     } catch (_) {}
     if (mounted) _resetResultSheetScrollToTop();
   }
+
+  /// 시트 최소 높이(화면 비율) — build 에서 갱신. animateTo 는 이 아래로 못 간다.
+  double _sheetMinFrac = 0.14;
 
   // ── AI 추천 복원용 원본 파라미터 ──
   List<Map<String, dynamic>> _lastRecPathPoints = [];
@@ -4138,7 +4141,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       try {
         if (_sheetController.isAttached) {
           await _sheetController.animateTo(
-            0.18,
+            max(0.18, _sheetMinFrac),
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeOutCubic,
           );
@@ -5276,6 +5279,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       if (h <= 0) return 0.20;
       return ((floatingNavOverlayPx(context) + 56.0) / h).clamp(0.14, 0.42);
     }();
+    // animateTo 대상들이 이 값보다 작으면 컨트롤러가 예외를 던지고 시트가 멈춘다
+    // (형 제보: 고친 뒤 위아래로 안 움직임) → 필드로 보관해 호출부에서 clamp.
+    _sheetMinFrac = sheetMinFrac;
     final settings = ref.watch(settingsProvider);
     final canGasAnalysis = settings.vehicleType != VehicleType.ev;
     final canEvAnalysis = settings.vehicleType != VehicleType.gas;
