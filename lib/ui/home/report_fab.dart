@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../core/constants/api_constants.dart';
+import '../../core/theme/app_colors.dart';
 import '../../data/services/user_sync_service.dart';
 
 /// 홈 리포트 바로가기 버튼 표시 여부 — 기본 ON, 설정에서 끌 수 있다.
@@ -24,8 +25,7 @@ class ReportFabPref {
   static void notifyChanged() => version.value++;
 }
 
-/// 퀵메뉴 항목 — 아이콘 + 라벨 + 그라데이션(밝은색→짙은색). 이모지 금지(형 확정) —
-/// 유종 컬러 그라데이션 원 + Material rounded 아이콘으로 앱 톤에 맞게 그린다.
+/// 퀵메뉴 항목 — 아이콘 + 라벨 + 그라데이션(밝은색→짙은색). 이모지 금지(형 확정).
 /// 항목 추가는 홈(home_screen)의 리스트에 한 줄.
 class QuickMenuItem {
   const QuickMenuItem({
@@ -41,11 +41,11 @@ class QuickMenuItem {
   final VoidCallback onTap;
 }
 
-/// 홈 우측 하단 퀵메뉴 FAB (형 확정: 라벨 pill → 스피드다이얼, 이모지 금지).
+/// 홈 우측 하단 퀵메뉴 (형 확정 v3).
 ///
-/// 접힘: 그라데이션 원형 버튼 하나. 탭하면 항목들이 위로 차례로 펼쳐진다(stagger).
-/// 항목마다 [라벨 칩 + 그라데이션 아이콘 원] — 원들이 메인 버튼과 세로 정렬.
-/// 지금은 유가·충전 리포트뿐이지만, 나중에 다른 바로가기를 items 에 추가만 하면 된다.
+/// 떠 있는 칩 여러 개는 서로 따로 놀아 보여서 폐기 — 메뉴 버튼을 누르면 버튼 위로
+/// **카드 한 장**이 펼쳐지고, 그 안이 구분선으로 행 분할되는 팝업 메뉴 형태.
+/// 행 = [그라데이션 아이콘 타일 + 라벨 + ›]. 항목이 1개면 메뉴 없이 바로 실행.
 class HomeQuickFab extends StatefulWidget {
   const HomeQuickFab({super.key, required this.items});
 
@@ -58,7 +58,9 @@ class HomeQuickFab extends StatefulWidget {
 class _HomeQuickFabState extends State<HomeQuickFab>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 260));
+      vsync: this, duration: const Duration(milliseconds: 200));
+  late final CurvedAnimation _anim = CurvedAnimation(
+      parent: _ctrl, curve: Curves.easeOutCubic, reverseCurve: Curves.easeIn);
   bool _open = false;
 
   @override
@@ -84,7 +86,7 @@ class _HomeQuickFabState extends State<HomeQuickFab>
   }
 
   void _select(QuickMenuItem item) {
-    _toggle(); // 항목을 골랐으면 접는다 — 다음에 열 때 다시 깔끔하게.
+    _toggle(); // 골랐으면 접는다
     item.onTap();
   }
 
@@ -92,8 +94,6 @@ class _HomeQuickFabState extends State<HomeQuickFab>
   Widget build(BuildContext context) {
     if (!ReportFabPref.get()) return const SizedBox.shrink();
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    // 항목이 하나면 스피드다이얼이 과하다 — 바로 실행.
     final single = widget.items.length == 1;
 
     return Padding(
@@ -102,99 +102,68 @@ class _HomeQuickFabState extends State<HomeQuickFab>
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          // ── 펼침 항목 (아래→위 stagger, 뒤 항목이 먼저 나타나 위로 쌓이는 느낌) ──
-          if (!single)
-            for (var i = widget.items.length - 1; i >= 0; i--)
-              _itemRow(widget.items[i], i, isDark),
-          // ── 메인 버튼 ──
+          if (!single) _menuCard(isDark),
           _mainButton(isDark, single),
         ],
       ),
     );
   }
 
-  Widget _itemRow(QuickMenuItem item, int index, bool isDark) {
-    // stagger — 메인 버튼에서 가까운 항목부터 등장.
-    final n = widget.items.length;
-    final start = (n - 1 - index) * 0.12;
-    final anim = CurvedAnimation(
-      parent: _ctrl,
-      curve: Interval(start.clamp(0.0, 0.6), (start + 0.5).clamp(0.0, 1.0),
-          curve: Curves.easeOutBack),
-    );
+  // ── 메뉴 카드 — 버튼 위에서 한 장으로 펼쳐지고 안에서 행이 나뉜다 ──
+  Widget _menuCard(bool isDark) {
+    final cardBg = isDark ? const Color(0xFF212A35) : Colors.white;
+    final line = isDark ? const Color(0x1AFFFFFF) : const Color(0xFFF0F3F6);
+
     return AnimatedBuilder(
       animation: _ctrl,
       builder: (_, child) {
-        final v = anim.value.clamp(0.0, 1.0);
-        if (_ctrl.value == 0) return const SizedBox.shrink();
+        final v = _anim.value;
+        if (_ctrl.isDismissed) return const SizedBox.shrink();
+        // 버튼(우하단)에서 자라나는 느낌 — scale + 살짝 위로.
         return Opacity(
           opacity: v,
           child: Transform.translate(
-            offset: Offset(0, (1 - v) * 14),
+            offset: Offset(0, (1 - v) * 10),
             child: Transform.scale(
-                scale: 0.85 + 0.15 * v,
-                alignment: Alignment.centerRight,
-                child: child),
+              scale: 0.92 + 0.08 * v,
+              alignment: Alignment.bottomRight,
+              child: child,
+            ),
           ),
         );
       },
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: GestureDetector(
-          onTap: () => _select(item),
-          behavior: HitTestBehavior.opaque,
-          child: Row(
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        constraints: const BoxConstraints(minWidth: 196),
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(18),
+          border: isDark
+              ? Border.all(color: Colors.white.withValues(alpha: 0.08))
+              : null,
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.14),
+                blurRadius: 22,
+                offset: const Offset(0, 8)),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(18),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 라벨 칩
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF232B36) : Colors.white,
-                  borderRadius: BorderRadius.circular(9),
-                  boxShadow: [
-                    BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.14),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2)),
-                  ],
-                ),
-                child: Text(
-                  item.label,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.2,
-                    color: isDark ? Colors.white : const Color(0xFF1F2937),
+              for (var i = 0; i < widget.items.length; i++) ...[
+                if (i > 0)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    child: Divider(height: 1, thickness: 1, color: line),
                   ),
-                ),
-              ),
-              const SizedBox(width: 9),
-              // 그라데이션 아이콘 원 — 메인 버튼과 세로 정렬 (기존 리포트 pill 과 같은
-              // base→deep 그라데이션 + 흰 테두리 하이라이트)
-              Container(
-                width: 42,
-                height: 42,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: item.gradient,
-                  ),
-                  shape: BoxShape.circle,
-                  border:
-                      Border.all(color: Colors.white.withValues(alpha: 0.25)),
-                  boxShadow: [
-                    BoxShadow(
-                        color: item.gradient.last.withValues(alpha: 0.42),
-                        blurRadius: 9,
-                        offset: const Offset(0, 3)),
-                  ],
-                ),
-                child: Icon(item.icon, size: 20, color: Colors.white),
-              ),
+                _menuRow(widget.items[i], isDark),
+              ],
             ],
           ),
         ),
@@ -202,13 +171,57 @@ class _HomeQuickFabState extends State<HomeQuickFab>
     );
   }
 
+  Widget _menuRow(QuickMenuItem item, bool isDark) {
+    final primary =
+        isDark ? AppColors.darkTextPrimary : const Color(0xFF1F2937);
+    final muted = isDark ? AppColors.darkTextMuted : const Color(0xFFB6C0CC);
+    return InkWell(
+      onTap: () => _select(item),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 11, 12, 11),
+        child: Row(
+          children: [
+            // 그라데이션 아이콘 타일 — 리스트 안이라 원 대신 라운드 사각(요즘 메뉴 문법)
+            Container(
+              width: 34,
+              height: 34,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: item.gradient,
+                ),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(item.icon, size: 18, color: Colors.white),
+            ),
+            const SizedBox(width: 11),
+            Text(
+              item.label,
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.2,
+                color: primary,
+              ),
+            ),
+            const SizedBox(width: 14),
+            const Spacer(),
+            Icon(Icons.chevron_right_rounded, size: 18, color: muted),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _mainButton(bool isDark, bool single) {
-    // 항목이 1개면 그 항목의 유종 색, 여러 개면 리포트 브랜드 색(파랑) — 기존
-    // 리포트 pill 과 같은 base→deep 그라데이션이라 홈 톤에서 안 튄다.
+    // 항목 1개: 그 유종 그라데이션 + 아이콘, 바로 실행.
+    // 여러 개: '메뉴' 임이 읽히게 grid 아이콘 (형: 메뉴 표시였으면 좋겠다).
     final colors = single
         ? widget.items.first.gradient
         : const [Color(0xFF3B82F6), Color(0xFF2563EB)];
-    final icon = single ? widget.items.first.icon : Icons.insights_rounded;
+    final icon = single ? widget.items.first.icon : Icons.grid_view_rounded;
     return GestureDetector(
       onTap: single ? widget.items.first.onTap : _toggle,
       child: Container(
@@ -230,15 +243,14 @@ class _HomeQuickFabState extends State<HomeQuickFab>
                 offset: const Offset(0, 4)),
           ],
         ),
-        // 열림 ↔ 닫힘 크로스페이드 (아이콘 회전 느낌의 스케일 전환)
         child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 160),
+          duration: const Duration(milliseconds: 150),
           transitionBuilder: (child, a) =>
               ScaleTransition(scale: a, child: child),
           child: Icon(
             _open ? Icons.close_rounded : icon,
             key: ValueKey(_open),
-            size: 22,
+            size: _open ? 22 : 20,
             color: Colors.white,
           ),
         ),
