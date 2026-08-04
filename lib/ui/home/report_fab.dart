@@ -295,12 +295,13 @@ class _HomeQuickFabState extends State<HomeQuickFab>
             colors: colors,
           ),
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+          // 색 글로우(파란 그림자 α0.45·blur12) + 반투명 테두리가 지도 위에서
+          // 안개처럼 번져 보였다(형 제보 '뿌옇다') → 검정 그림자 + 테두리 제거로 또렷하게.
           boxShadow: [
             BoxShadow(
-                color: colors.last.withValues(alpha: 0.45),
-                blurRadius: 12,
-                offset: const Offset(0, 4)),
+                color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.22),
+                blurRadius: 9,
+                offset: const Offset(0, 3)),
           ],
         ),
         child: AnimatedSwitcher(
