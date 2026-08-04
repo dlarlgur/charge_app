@@ -971,7 +971,9 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
             children: [
               Row(
                 children: [
-                  _pill('이번 주', accent, isDark),
+                  // 주간 리포트는 '지난 7일' 분석 — '이번 주' 라고 쓰면 아직 안 온
+                  // 이번 주를 분석한 걸로 읽힌다(형 지적).
+                  _pill('지난주', accent, isDark),
                   const SizedBox(width: 6),
                   Flexible(
                     child: Text(
