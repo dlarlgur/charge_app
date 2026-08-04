@@ -963,9 +963,24 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
               _priceRow('회원', AppColors.evGreen, s.unitPriceFastMember,
                   s.unitPriceSlowMember, isDark),
             ],
+            // 환경부 회원카드(로밍) 참고가 — 협약 민간 충전기에서 환경부 카드 결제 시
+            // 적용되는 공공 출력구간별 요금 (형 확정 B안, 제보 대응).
+            if (s.kecoRoamFast != null || s.kecoRoamSlow != null) ...[
+              const SizedBox(height: 8),
+              _priceRow(
+                  '환경부 카드',
+                  isDark
+                      ? AppColors.darkBlueBright
+                      : const Color(0xFF2563EB),
+                  s.kecoRoamFast,
+                  s.kecoRoamSlow,
+                  isDark),
+            ],
             const SizedBox(height: 10),
             Text(
-              '실제 충전소 요금과 다를 수 있습니다',
+              s.kecoRoamFast != null || s.kecoRoamSlow != null
+                  ? '환경부 카드는 로밍 가능 충전기 기준 · 실제 충전소 요금과 다를 수 있습니다'
+                  : '실제 충전소 요금과 다를 수 있습니다',
               style: TextStyle(
                   fontSize: 11,
                   color: isDark ? AppColors.darkTextMuted : Colors.black45),

@@ -132,6 +132,8 @@ class EvStation {
   final int? unitPriceSlow;       // 완속 비회원
   final int? unitPriceFastMember; // 급속 회원
   final int? unitPriceSlowMember; // 완속 회원
+  final int? kecoRoamFast; // 환경부 회원카드(로밍) 급속 — 상세만 제공
+  final int? kecoRoamSlow; // 환경부 회원카드(로밍) 완속
   final String? kind;
   final String? kindDetail;
   final bool isTesla;
@@ -159,6 +161,8 @@ class EvStation {
     this.unitPriceSlow,
     this.unitPriceFastMember,
     this.unitPriceSlowMember,
+    this.kecoRoamFast,
+    this.kecoRoamSlow,
     this.kind,
     this.kindDetail,
     this.isTesla = false,
@@ -194,6 +198,8 @@ class EvStation {
       unitPriceSlow: json['unitPriceSlow'] != null ? (json['unitPriceSlow'] as num).toInt() : null,
       unitPriceFastMember: json['unitPriceFastMember'] != null ? (json['unitPriceFastMember'] as num).toInt() : null,
       unitPriceSlowMember: json['unitPriceSlowMember'] != null ? (json['unitPriceSlowMember'] as num).toInt() : null,
+      kecoRoamFast: json['kecoRoamFast'] != null ? (json['kecoRoamFast'] as num).round() : null,
+      kecoRoamSlow: json['kecoRoamSlow'] != null ? (json['kecoRoamSlow'] as num).round() : null,
       kind: json['kind'],
       kindDetail: json['kindDetail'],
       isTesla: json['isTesla'] == true,
