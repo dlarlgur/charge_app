@@ -27,14 +27,17 @@ String _normalizeMarkdownForKoreanEv(String src) {
 }
 
 const _kBlue = Color(0xFF1D6FE0);
-const _kBlueLight = Color(0xFFEEF4FF);
 const _kGreen = Color(0xFF1D9E75);
-const _kGreenLight = Color(0xFFE1F5EE);
 const _kOrange = Color(0xFFE8700A);
-const _kOrangeLight = Color(0xFFFFF3E0);
 const _kGrey = Color(0xFF888888);
 const _kPurple = Color(0xFF7B5EA7);
 const _kTeal = Color(0xFF00897B);
+
+// ── 9a 시안 토큰 (형 확정) — 충전은 EV 초록 단일 축, 도착 잔량은 앰버 ──
+const _kEvGreen = Color(0xFF10B981);
+const _kEvGreenDark = Color(0xFF059669);
+const _kEvActiveCard = Color(0xFFECFDF5);
+const _kAmber = Color(0xFFF59E0B);
 
 /// recommendation_label → (배지 텍스트, 색상)
 (String, Color) _labelInfo(String? label, Color defaultColor) {
@@ -151,14 +154,15 @@ class EvResultBodyState extends State<EvResultBody> {
     final filteredOut = (data['filtered_out_count'] as num?)?.toInt() ?? 0;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final mutedColor = isDark ? AppColors.darkTextSecondary : _kGrey;
-    // 다크: 칩 텍스트/아이콘은 밝은 변형 (라이트 파랑 #1D6FE0 은 다크에서 ~3.5:1)
+    // 9a: 급속 칩은 파랑 pill (badge-fast-bg), 완속은 초록 pill — 다크는 밝은 변형
     final chipFg = chargerType == 'FAST'
-        ? (isDark ? AppColors.darkBlueBright : _kBlue)
-        : (isDark ? AppColors.darkGreenBright : _kGreen);
-    // FAST/SLOW 칩의 light 배경은 다크에서 너무 밝게 튀므로 accent 16% alpha 로 lift.
+        ? (isDark ? AppColors.darkBlueBright : const Color(0xFF3B82F6))
+        : (isDark ? AppColors.darkGreenBright : _kEvGreenDark);
     final chipBg = isDark
         ? chipFg.withValues(alpha: 0.16)
-        : (chargerType == 'FAST' ? _kBlueLight : _kGreenLight);
+        : (chargerType == 'FAST'
+            ? const Color(0xFFDBEAFE)
+            : _kEvActiveCard);
 
     return CustomScrollView(
       controller: scrollController,
@@ -173,15 +177,15 @@ class EvResultBodyState extends State<EvResultBody> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── 헤더 ──
+                // ── 헤더 (9a) — [bolt 급속 pill] 주행 가능 127km · 후보 638개 ──
                 Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
+                          horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
                         color: chipBg,
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(99),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -190,38 +194,37 @@ class EvResultBodyState extends State<EvResultBody> {
                             chargerType == 'FAST'
                                 ? Icons.bolt_rounded
                                 : Icons.electrical_services_rounded,
-                            size: 13,
+                            size: 14,
                             color: chipFg,
                           ),
                           const SizedBox(width: 3),
                           Text(
                             chargerType == 'FAST' ? '급속' : '완속',
                             style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
                               color: chipFg,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    if (reachableKm > 0) ...[
-                      const SizedBox(width: 8),
-                      Text(
-                        '주행 가능 ${reachableKm.toStringAsFixed(0)}km',
-                        style: TextStyle(fontSize: 13, color: mutedColor),
-                      ),
-                    ],
-                    if (totalCandidates != null) ...[
-                      const SizedBox(width: 6),
-                      Text(
-                        '· 후보 $totalCandidates개',
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        [
+                          if (reachableKm > 0)
+                            '주행 가능 ${reachableKm.toStringAsFixed(0)}km',
+                          if (totalCandidates != null) '후보 $totalCandidates개',
+                        ].join(' · '),
                         style: TextStyle(fontSize: 12, color: mutedColor),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ],
+                    ),
                   ],
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
 
                 // ── 속도 필터 완화 안내 — 선택 kW 구간 충전소가 없어 전체 급속으로 추천됨 ──
                 if (data['speed_relaxed'] == true) ...[
@@ -282,19 +285,21 @@ class EvResultBodyState extends State<EvResultBody> {
                     'AI 추천 충전소',
                     style: TextStyle(
                         fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: mutedColor),
+                        fontWeight: FontWeight.w700,
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : const Color(0xFF0F172A)),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   KeyedSubtree(
                     key: _keyFor(recommended['statId']?.toString()),
                     child: _StationCard(
                       station: recommended,
                       isRecommended: true,
                       chargerType: chargerType,
-                      accentColor: chargerType == 'FAST' ? _kBlue : _kGreen,
-                      accentLight:
-                          chargerType == 'FAST' ? _kBlueLight : _kGreenLight,
+                      // 9a: 충전은 초록 단일 축 — 급속/완속 구분은 상단 pill 이 담당
+                      accentColor: _kEvGreen,
+                      accentLight: _kEvActiveCard,
                       onMapTap: onStationMapTap != null
                           ? () => onStationMapTap!(recommended)
                           : null,
@@ -317,8 +322,10 @@ class EvResultBodyState extends State<EvResultBody> {
                           '다른 후보',
                           style: TextStyle(
                               fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: mutedColor),
+                              fontWeight: FontWeight.w700,
+                              color: isDark
+                                  ? AppColors.darkTextPrimary
+                                  : const Color(0xFF0F172A)),
                         ),
                         const Spacer(),
                         Text(
@@ -331,10 +338,6 @@ class EvResultBodyState extends State<EvResultBody> {
                     ...List.generate(alternatives.length, (i) {
                       final alt = alternatives[i];
                       final altLabel = alt['recommendation_label']?.toString();
-                      final (_, altColor) = _labelInfo(altLabel, _kOrange);
-                      final altLight =
-                          Color.lerp(altColor, Colors.white, 0.92) ??
-                              _kOrangeLight;
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 10),
                         child: KeyedSubtree(
@@ -347,8 +350,9 @@ class EvResultBodyState extends State<EvResultBody> {
                                 () => _openAlt = _openAlt == i ? null : i),
                             recommendedCost: _recCostOf(recommended),
                             chargerType: chargerType,
-                            accentColor: altColor,
-                            accentLight: altLight,
+                            // 9a: 후보도 초록 단일 축 (오렌지/보라 카드 폐기)
+                            accentColor: _kEvGreen,
+                            accentLight: _kEvActiveCard,
                             onMapTap: onStationMapTap != null
                                 ? () => onStationMapTap(alt)
                                 : null,
@@ -363,14 +367,18 @@ class EvResultBodyState extends State<EvResultBody> {
                       );
                     }),
                   ],
-                  if (filteredOut > 0)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        '* 이용제한 $filteredOut개소 제외됨',
-                        style: TextStyle(fontSize: 11, color: mutedColor),
-                      ),
+                  // 9a 풋노트 — 데이터 기준 안내 (+ 이용제한 제외 수)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      [
+                        '충전기 상태는 5분 전 기준 · 요금은 회원가 기준이에요.',
+                        if (filteredOut > 0) '이용제한 $filteredOut개소 제외됨',
+                      ].join(' '),
+                      style: TextStyle(
+                          fontSize: 10.5, height: 1.5, color: mutedColor),
                     ),
+                  ),
                 ],
               ],
             ),
@@ -438,12 +446,13 @@ class _AltAccordion extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = isDark ? AppColors.darkCard : Colors.white;
     final cardBorder =
-        isDark ? AppColors.darkCardBorder : const Color(0xFFE5E5E5);
+        isDark ? AppColors.darkCardBorder : const Color(0xFFE8ECF0);
     final titleColor =
-        isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A1A);
-    final muted = isDark ? AppColors.darkTextSecondary : _kGrey;
+        isDark ? AppColors.darkTextPrimary : const Color(0xFF0F172A);
+    final muted = isDark ? AppColors.darkTextMuted : const Color(0xFF94A3B8);
+    final greenD = isDark ? _kEvGreen : _kEvGreenDark;
     final dividerColor =
-        isDark ? AppColors.darkCardBorder : const Color(0xFFEEEEEE);
+        isDark ? AppColors.darkCardBorder : const Color(0xFFE8ECF0);
 
     final avail = (station['available_count'] as num?)?.toInt() ?? 0;
     final total = (station['total_count'] as num?)?.toInt() ?? 0;
@@ -461,22 +470,26 @@ class _AltAccordion extends StatelessWidget {
       if (detourMin != null && detourMin == 0) '우회 없음',
     ];
 
-    // 추천 대비 차액 — 싸면 초록 '저렴', 비싸면 주황 '비쌈'. 계산 불가 시 생략.
+    // 추천 대비 차액 (시안) — 싸면 초록 '저렴', 비싸면 앰버 '비쌈'. 계산 불가 시 생략.
     String? diffText;
-    Color diffColor = _kGreen;
+    Color diffColor = greenD;
     if (cost != null && recommendedCost != null && cost != recommendedCost) {
       final diff = recommendedCost! - cost;
       diffText = diff > 0
           ? '${_wonFmt.format(diff)}원 저렴'
           : '${_wonFmt.format(-diff)}원 비쌈';
-      diffColor = diff > 0 ? _kGreen : _kOrange;
+      diffColor = diff > 0 ? greenD : _kAmber;
     }
 
     // 태그 칩 — 가성비/빠른 도착 등 라벨이 있을 때만 (기본 AI 추천 문구는 후보에 무의미)
     final hasTag = recommendationLabel != null &&
         recommendationLabel != 'optimal' &&
         recommendationLabel!.isNotEmpty;
-    final (tagText, tagColor) = _labelInfo(recommendationLabel, accentColor);
+    final (tagText, _) = _labelInfo(recommendationLabel, accentColor);
+    final tagFg = isDark ? AppColors.darkBlueBright : const Color(0xFF3B82F6);
+    final tagBg = isDark
+        ? const Color(0xFF3B82F6).withValues(alpha: 0.12)
+        : const Color(0xFFDBEAFE);
 
     return Container(
       decoration: BoxDecoration(
@@ -526,7 +539,7 @@ class _AltAccordion extends StatelessWidget {
                                   station['name']?.toString() ?? '-',
                                   style: TextStyle(
                                       fontSize: 14,
-                                      fontWeight: FontWeight.w700,
+                                      fontWeight: FontWeight.w600,
                                       color: titleColor),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -538,15 +551,14 @@ class _AltAccordion extends StatelessWidget {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 5, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: tagColor.withValues(
-                                        alpha: isDark ? 0.22 : 0.12),
-                                    borderRadius: BorderRadius.circular(5),
+                                    color: tagBg,
+                                    borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(tagText,
                                       style: TextStyle(
                                           fontSize: 9.5,
                                           fontWeight: FontWeight.w700,
-                                          color: tagColor)),
+                                          color: tagFg)),
                                 ),
                               ],
                               if (_watching()) ...[
@@ -565,7 +577,8 @@ class _AltAccordion extends StatelessWidget {
                                     width: 7,
                                     height: 7,
                                     decoration: BoxDecoration(
-                                      color: avail > 0 ? _kGreen : _kOrange,
+                                      color:
+                                          avail > 0 ? _kEvGreen : _kAmber,
                                       shape: BoxShape.circle,
                                     ),
                                   ),
@@ -776,202 +789,6 @@ class _StationCardState extends State<_StationCard> {
       }
     }
     return false;
-  }
-
-  String _buildStatusText(int availCount, int? detourMin, int? oldestMin) {
-    String detourText = '';
-    if (detourMin != null) {
-      if (detourMin == 0) {
-        detourText = '경로 이탈 없이 들를 수 있고, ';
-      } else {
-        detourText = '${fmtMin(detourMin)} 우회 후, ';
-      }
-    }
-    if (availCount > 1) return '${detourText}${availCount}자리의 여유가 있어요';
-    if (availCount == 1) return '${detourText}자리 1개 남았어요. 서두르세요!';
-    if (oldestMin != null) return '만석이지만 ${oldestMin}분째 충전 중인 차량이 있어요';
-    return '현재 만석이에요';
-  }
-
-  // 도착 시 배터리 잔량 → 충전 후 잔량 예측. 각 숫자에 라벨(도착 시 / 충전 후)을 붙여 명확하게.
-  Widget _socBar(int arrival, int? afterCharge, int? chargeMin, Color accent,
-      Color mutedColor, bool isDark,
-      {int? destSoc,
-      String? destStatus,
-      int? destTargetNow,
-      int? destComfortTarget,
-      int? destMaxSoc,
-      String? betterAltName,
-      int? estCostMember,
-      int? estCostNonMember,
-      double? estChargeKwh,
-      int? unitPriceWon,
-      List<Map<String, dynamic>>? estOperators,
-      bool canRaise = false,
-      bool isRaised = false,
-      VoidCallback? onToggleRaise}) {
-    final after =
-        (afterCharge != null && afterCharge > arrival) ? afterCharge : arrival;
-    final hasCharge = after > arrival;
-    final trackBg = isDark ? const Color(0x22FFFFFF) : const Color(0xFFE8ECF1);
-    final labelColor =
-        isDark ? AppColors.darkTextSecondary : const Color(0xFF64748B);
-    // 도착=주황(낮음) → 충전 후=초록(회복) 그라디언트 — 카드 accent 무관 고정 의미색.
-    const socLow = Color(0xFFE8964B);
-    const socHigh = Color(0xFF2FBE71);
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(13, 11, 13, 12),
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: isDark ? 0.12 : 0.06),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: accent.withValues(alpha: 0.18)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              // 도착 시
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('도착 시',
-                      style: TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w600,
-                          color: labelColor)),
-                  const SizedBox(height: 3),
-                  Text.rich(TextSpan(children: [
-                    TextSpan(
-                        text: '$arrival',
-                        style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w900,
-                            height: 1,
-                            color: socLow)),
-                    const TextSpan(
-                        text: '%',
-                        style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: socLow)),
-                  ])),
-                ],
-              ),
-              if (hasCharge) ...[
-                // 가운데 — 이번 충전으로 넣는 양(kWh). 충전 '시간'은 차량 수용속도 편차로 미표기.
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 3),
-                    child: Text(
-                      estChargeKwh != null && estChargeKwh > 0
-                          ? '약 ${estChargeKwh.toStringAsFixed(estChargeKwh < 10 ? 1 : 0)}kWh 충전'
-                          : '충전',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: labelColor),
-                    ),
-                  ),
-                ),
-                // 충전 후
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text('충전 후',
-                        style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w600,
-                            color: labelColor)),
-                    const SizedBox(height: 3),
-                    Text.rich(TextSpan(children: [
-                      TextSpan(
-                          text: '$after',
-                          style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w900,
-                              height: 1,
-                              color: socHigh)),
-                      const TextSpan(
-                          text: '%',
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                              color: socHigh)),
-                    ])),
-                  ],
-                ),
-              ] else
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 10, bottom: 2),
-                    child: Text('목표 충전량 이상 — 바로 출발 가능',
-                        style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w600,
-                            color: labelColor)),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 9),
-          // 바 — 도착 지점까지 주황, 충전 구간은 주황→초록 그라디언트로 회복감.
-          SizedBox(
-            height: 7,
-            child: LayoutBuilder(builder: (context, c) {
-              final w = c.maxWidth;
-              return Stack(
-                children: [
-                  Container(
-                      width: w,
-                      height: 7,
-                      decoration: BoxDecoration(
-                          color: trackBg,
-                          borderRadius: BorderRadius.circular(99))),
-                  Container(
-                      width: w *
-                          ((hasCharge ? after : arrival) / 100).clamp(0.0, 1.0),
-                      height: 7,
-                      decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                              colors: [socLow, socLow, socHigh]),
-                          borderRadius: BorderRadius.circular(99))),
-                ],
-              );
-            }),
-          ),
-          // 예상 충전량·금액 (도착 잔량 → 목표). 통합 충전소면 운영사별로 각각.
-          if (hasCharge &&
-              (estCostMember != null ||
-                  estCostNonMember != null ||
-                  (estOperators != null && estOperators.isNotEmpty))) ...[
-            const SizedBox(height: 9),
-            _estCostLine(estChargeKwh, estCostMember, estCostNonMember,
-                unitPriceWon, estOperators, labelColor, isDark),
-          ],
-          // 충전 후 목적지 도착 예상 잔량 — 4단계(여유/목표상향/빠듯/부족) 색·아이콘 안내
-          if (destSoc != null && destStatus != null) ...[
-            const SizedBox(height: 10),
-            _destAfterChargeLine(
-                destSoc,
-                destStatus,
-                destTargetNow,
-                destComfortTarget,
-                destMaxSoc,
-                betterAltName,
-                accent,
-                labelColor,
-                isDark,
-                canRaise: canRaise,
-                isRaised: isRaised,
-                onToggleRaise: onToggleRaise),
-          ],
-        ],
-      ),
-    );
   }
 
   // 예상 충전 금액 — 도착 시 배터리에서 목표까지 채울 때.
@@ -1246,7 +1063,6 @@ class _StationCardState extends State<_StationCard> {
     final Color c;
     final IconData icon;
     final List<InlineSpan> spans;
-    final String tag; // 좌측 상태 뱃지 라벨
     const pct = TextStyle(fontWeight: FontWeight.w900);
     final ct = comfortTarget ?? 100;
 
@@ -1254,7 +1070,6 @@ class _StationCardState extends State<_StationCard> {
       case 'safe':
         c = green;
         icon = Icons.check_circle_rounded;
-        tag = '여유';
         // 크게 남으면(=목표를 낮춰도 여유) 시간 절약 팁을 덧붙임.
         final canLower = targetNow != null &&
             comfortTarget != null &&
@@ -1273,7 +1088,6 @@ class _StationCardState extends State<_StationCard> {
         // 여기서 목표를 올리면 여유롭게 도착 — 실행 가능한 조언.
         c = orange;
         icon = Icons.trending_up_rounded;
-        tag = '목표 상향';
         spans = [
           if (targetNow != null) ...[
             TextSpan(text: '지금 목표 $targetNow%'),
@@ -1289,7 +1103,6 @@ class _StationCardState extends State<_StationCard> {
       case 'tight':
         c = orange;
         icon = Icons.info_rounded;
-        tag = '빠듯';
         spans = [
           const TextSpan(text: '여기선 '),
           TextSpan(text: '100% 충전', style: pct.copyWith(color: c)),
@@ -1303,7 +1116,6 @@ class _StationCardState extends State<_StationCard> {
       default: // 'over'
         c = red;
         icon = Icons.warning_amber_rounded;
-        tag = '부족';
         // 목적지에 더 가까운 여유 대안이 있으면 그 이름을 콕 집어 안내(도착해서 자리 지키기).
         final altTail = betterAltName != null
             ? [
@@ -1332,12 +1144,13 @@ class _StationCardState extends State<_StationCard> {
         ];
     }
 
+    // 9a 시안 노트 박스 — 틴트 배경(테두리 X) + 아이콘 + 본문. 상태 뱃지는 색·아이콘이
+    // 대신하므로 제거 (safe 는 시안의 check_circle 초록 박스와 동일해진다).
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
       decoration: BoxDecoration(
-        color: c.withValues(alpha: isDark ? 0.15 : 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: c.withValues(alpha: isDark ? 0.35 : 0.22)),
+        color: c.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1346,32 +1159,15 @@ class _StationCardState extends State<_StationCard> {
             padding: const EdgeInsets.only(top: 1),
             child: Icon(icon, size: 16, color: c),
           ),
-          const SizedBox(width: 7),
-          // 상태 뱃지 — 한눈에 색/글자로 구분
-          Padding(
-            padding: const EdgeInsets.only(top: 0.5, right: 7),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-              decoration: BoxDecoration(
-                color: c.withValues(alpha: isDark ? 0.22 : 0.14),
-                borderRadius: BorderRadius.circular(5),
-              ),
-              child: Text(tag,
-                  style: TextStyle(
-                      fontSize: 10.5,
-                      height: 1.2,
-                      color: c,
-                      fontWeight: FontWeight.w900)),
-            ),
-          ),
+          const SizedBox(width: 8),
           Expanded(
             child: RichText(
               text: TextSpan(
                 style: TextStyle(
-                    fontSize: 12,
-                    height: 1.38,
+                    fontSize: 11.5,
+                    height: 1.55,
                     color: labelColor,
-                    fontWeight: FontWeight.w600),
+                    fontWeight: FontWeight.w500),
                 children: spans,
               ),
             ),
@@ -1671,7 +1467,6 @@ class _StationCardState extends State<_StationCard> {
     final estCostMember = (station['est_cost_member'] as num?)?.toInt();
     final estCostNonMember = (station['est_cost_nonmember'] as num?)?.toInt();
     final estChargeKwh = (station['est_charge_kwh'] as num?)?.toDouble();
-    final chargingMin = (station['charging_time_min'] as num?)?.toInt();
     final statId = station['statId']?.toString();
     final groupedStations = station['grouped_stations'] is List
         ? (station['grouped_stations'] as List)
@@ -1725,26 +1520,328 @@ class _StationCardState extends State<_StationCard> {
             .toList()
         : (operator.isNotEmpty ? <String>[operator] : <String>[]);
 
-    String? originDistLabel;
+    // ── 9a 시안 (형 확정) — 초록 단일 축 + 병합 블록. 수치·기능은 기존 그대로 ──
+    String? distLabel; // 시안은 '10km' 단독 표기 (아이콘이 출발지 기준임을 말해줌)
     if (originDistM != null && originDistM > 0) {
-      originDistLabel = originDistM >= 1000
-          ? '출발지에서 ${(originDistM / 1000).toStringAsFixed(0)}km'
-          : '출발지에서 ${originDistM}m';
+      distLabel = originDistM >= 1000
+          ? '${(originDistM / 1000).toStringAsFixed(0)}km'
+          : '${originDistM}m';
     }
 
-    final accentColor = widget.accentColor;
-    final accentLight = widget.accentLight;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final greenD = isDark ? _kEvGreen : _kEvGreenDark; // 다크는 밝은 변형
     final cardBg = isDark ? AppColors.darkCard : Colors.white;
     final cardBorder =
-        isDark ? AppColors.darkCardBorder : const Color(0xFFE5E5E5);
+        isDark ? AppColors.darkCardBorder : const Color(0xFFE8ECF0);
+    final borderStrong =
+        isDark ? AppColors.darkCardBorder : const Color(0xFFDDE3EC);
     final titleColor =
-        isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A1A);
-    final mutedTextColor = isDark ? AppColors.darkTextSecondary : _kGrey;
-    final dividerColor =
-        isDark ? AppColors.darkCardBorder : const Color(0xFFEEEEEE);
-    // 다크 모드에서는 accentLight (Color.lerp white) 가 너무 밝게 튀므로 accent 16% alpha 로 부드럽게.
-    final headerBg = isDark ? accentColor.withValues(alpha: 0.16) : accentLight;
+        isDark ? AppColors.darkTextPrimary : const Color(0xFF0F172A);
+    final secondary =
+        isDark ? AppColors.darkTextSecondary : const Color(0xFF64748B);
+    final mutedC = isDark ? AppColors.darkTextMuted : const Color(0xFF94A3B8);
+    final blockBg = isDark
+        ? Colors.black.withValues(alpha: 0.22)
+        : const Color(0xFFF8FAFB);
+    final chipBlueFg =
+        isDark ? AppColors.darkBlueBright : const Color(0xFF3B82F6);
+    final chipBlueBg = isDark
+        ? const Color(0xFF3B82F6).withValues(alpha: 0.12)
+        : const Color(0xFFDBEAFE);
+
+    final hasCharge = effAfterCharge != null &&
+        arrivalSoc != null &&
+        effAfterCharge > arrivalSoc;
+    final costMain = effCostMember ?? effCostNonMember;
+
+    // 헤더 상태 요약 — 시안 "6분 우회 · 5자리 여유"
+    final statusParts = <String>[
+      if (detourMin != null && detourMin > 0)
+        '${fmtMin(detourMin)} 우회'
+      else if (detourMin != null && detourMin == 0)
+        '경로 이탈 없음',
+      if (availCount > 1)
+        '$availCount자리 여유'
+      else if (availCount == 1)
+        '1자리 — 서두르세요'
+      else if (oldestMin != null)
+        '만석 · $oldestMin분째 충전 중'
+      else
+        '현재 만석',
+    ];
+
+    // ── 시안 공통 조각 ──
+    Widget opChip(String op) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: chipBlueBg,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(op,
+              style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  color: chipBlueFg)),
+        );
+
+    Widget metaChip(IconData icon, String label,
+            {Color? color, FontWeight? weight}) =>
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 15, color: color ?? mutedC),
+            const SizedBox(width: 4),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: weight ?? FontWeight.w400,
+                    color: color ?? secondary)),
+          ],
+        );
+
+    Widget outlineBtn(IconData icon, String label, VoidCallback? onTap) =>
+        SizedBox(
+          height: 42,
+          child: Material(
+            color: cardBg,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: BorderSide(color: borderStrong),
+            ),
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 16, color: secondary),
+                  const SizedBox(width: 5),
+                  Text(label,
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: secondary)),
+                ],
+              ),
+            ),
+          ),
+        );
+
+    Widget sqBtn(IconData icon, VoidCallback? onTap) => SizedBox(
+          width: 42,
+          height: 42,
+          child: Material(
+            color: cardBg,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: BorderSide(color: borderStrong),
+            ),
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(10),
+              child: Icon(icon, size: 19, color: secondary),
+            ),
+          ),
+        );
+
+    // ── 병합 블록 — 배터리(도착→충전 후) + 바 + 헤어라인 + 요금 히어로 ──
+    Widget mergedBlock() {
+      final rows = <Widget>[];
+      if (arrivalSoc != null) {
+        final after = hasCharge ? effAfterCharge : arrivalSoc;
+        rows.add(Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('도착 시',
+                    style: TextStyle(fontSize: 10.5, color: mutedC)),
+                const SizedBox(height: 2),
+                Text.rich(TextSpan(children: [
+                  TextSpan(
+                      text: '$arrivalSoc',
+                      style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          height: 1,
+                          letterSpacing: -0.4,
+                          color: _kAmber)),
+                  const TextSpan(
+                      text: '%',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: _kAmber)),
+                ])),
+              ],
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 3),
+                child: Text(
+                  hasCharge
+                      ? (effKwh != null && effKwh > 0
+                          ? '약 ${effKwh.toStringAsFixed(effKwh < 10 ? 1 : 0)}kWh 충전'
+                          : '충전')
+                      : '목표 충전량 이상 — 바로 출발 가능',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: secondary),
+                ),
+              ),
+            ),
+            if (hasCharge)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('충전 후',
+                      style: TextStyle(fontSize: 10.5, color: mutedC)),
+                  const SizedBox(height: 2),
+                  Text.rich(TextSpan(children: [
+                    TextSpan(
+                        text: '$after',
+                        style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            height: 1,
+                            letterSpacing: -0.4,
+                            color: greenD)),
+                    TextSpan(
+                        text: '%',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: greenD)),
+                  ])),
+                ],
+              ),
+          ],
+        ));
+        rows.add(const SizedBox(height: 11));
+        rows.add(ClipRRect(
+          borderRadius: BorderRadius.circular(99),
+          child: SizedBox(
+            height: 7,
+            child: Row(
+              children: [
+                if (arrivalSoc > 0)
+                  Expanded(
+                      flex: arrivalSoc,
+                      child: const ColoredBox(color: _kAmber)),
+                if (after > arrivalSoc)
+                  Expanded(
+                      flex: after - arrivalSoc,
+                      child: const ColoredBox(color: _kEvGreen)),
+                if (after < 100)
+                  Expanded(
+                      flex: 100 - after,
+                      child: ColoredBox(
+                          color: isDark
+                              ? const Color(0x22FFFFFF)
+                              : const Color(0xFFE2E8F0))),
+              ],
+            ),
+          ),
+        ));
+      }
+
+      // 요금 — 단일 운영사: 히어로 행 / 통합: 운영사별 요금 테이블(기능 유지)
+      Widget? costW;
+      if (isGrouped && estOperators.isNotEmpty) {
+        costW =
+            _estCostLine(effKwh, null, null, null, estOperators, secondary, isDark);
+      } else if (costMain != null) {
+        costW = Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                    effCostMember != null
+                        ? '예상 충전요금 · 회원가'
+                        : '예상 충전요금 · 비회원가',
+                    style: TextStyle(fontSize: 10.5, color: mutedC)),
+                const SizedBox(height: 3),
+                Text.rich(TextSpan(children: [
+                  TextSpan(
+                      text: _wonFmt.format(costMain),
+                      style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                          height: 1,
+                          letterSpacing: -0.7,
+                          color: titleColor)),
+                  TextSpan(
+                      text: '원',
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: titleColor)),
+                ])),
+              ],
+            ),
+            const Spacer(),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (unitPriceMember != null)
+                  Text('${_wonFmt.format(unitPriceMember)}원/kWh',
+                      style: TextStyle(
+                          fontSize: 11, height: 1.5, color: mutedC)),
+                if (effCostNonMember != null &&
+                    effCostMember != null &&
+                    effCostNonMember != effCostMember)
+                  Text('비회원 ${_wonFmt.format(effCostNonMember)}원',
+                      style: TextStyle(
+                          fontSize: 11, height: 1.5, color: mutedC)),
+              ],
+            ),
+          ],
+        );
+      }
+      if (costW != null) {
+        if (rows.isNotEmpty) {
+          rows.add(const SizedBox(height: 12));
+          rows.add(Container(height: 1, color: cardBorder));
+          rows.add(const SizedBox(height: 12));
+        }
+        rows.add(costW);
+      }
+      if (rows.isEmpty) return const SizedBox.shrink();
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+        decoration: BoxDecoration(
+          color: blockBg,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start, children: rows),
+      );
+    }
+
+    final mergedW = mergedBlock();
+    final hasMerged = mergedW is! SizedBox;
+
+    // ── 메타 칩 행 — near_me 10km · schedule 약 8분 · turn_right +6분 우회 ──
+    final metaChips = <Widget>[
+      if (distLabel != null) metaChip(Icons.near_me_rounded, distLabel),
+      if (originEtaMin != null && originEtaMin > 0)
+        metaChip(Icons.schedule_rounded, '약 ${fmtMin(originEtaMin)}'),
+      if (detourMin != null && detourMin > 0)
+        // 시안: 1순위는 초록, 펼친 후보는 앰버
+        metaChip(Icons.turn_right_rounded, '+${fmtMin(detourMin)} 우회',
+            color: widget.bare ? _kAmber : greenD, weight: FontWeight.w600),
+      if (detourMin != null && detourMin == 0)
+        metaChip(Icons.check_circle_rounded, '경로 이탈 없음',
+            color: greenD, weight: FontWeight.w600),
+      if (unitPriceMember == null && unitPriceNonMember == null)
+        metaChip(Icons.bolt_rounded, '가격 미공개'),
+    ];
 
     return Container(
       decoration: widget.bare
@@ -1753,250 +1850,173 @@ class _StationCardState extends State<_StationCard> {
               color: cardBg,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: widget.isRecommended ? accentColor : cardBorder,
+                color: widget.isRecommended ? _kEvGreen : cardBorder,
                 width: widget.isRecommended ? 1.5 : 1,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
             ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── 상단 배너 (추천 배지 + 상태) ──
+          // ── 헤더 — [AI 추천] 6분 우회 · 5자리 여유 ──────── ● 5/5 가용 ──
           if (!widget.bare)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: headerBg,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(13)),
-            ),
-            child: Row(
-              children: [
-                if (widget.isRecommended ||
-                    widget.recommendationLabel != null) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? _kEvGreen.withValues(alpha: 0.07)
+                    : widget.accentLight,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(12.5)),
+              ),
+              child: Row(
+                children: [
                   Builder(builder: (_) {
-                    final (badgeText, badgeColor) =
-                        _labelInfo(widget.recommendationLabel, accentColor);
+                    final (badgeText, _) =
+                        _labelInfo(widget.recommendationLabel, _kEvGreen);
                     return Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 7, vertical: 2),
+                          horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: badgeColor,
-                        borderRadius: BorderRadius.circular(5),
+                        color: _kEvGreen,
+                        borderRadius: BorderRadius.circular(4),
                       ),
-                      child: Text(
-                        badgeText,
-                        style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white),
-                      ),
+                      child: Text(badgeText,
+                          style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white)),
                     );
                   }),
                   const SizedBox(width: 8),
-                ],
-                Expanded(
-                  child: Text(
-                    _buildStatusText(availCount, detourMin, oldestMin),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: accentColor,
+                  Expanded(
+                    child: Text(
+                      statusParts.join(' · '),
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: titleColor),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                ),
-                // 워치 벨 아이콘 — 글로벌 세션이 이 카드의 대표 statId 또는 어느 sub-station 을 가리키면 표시
-                if (_anyWatchingInThisCard()) ...[
-                  Icon(
-                    Icons.notifications_active_rounded,
-                    size: 15,
-                    color: accentColor,
+                  if (_anyWatchingInThisCard()) ...[
+                    Icon(Icons.notifications_active_rounded,
+                        size: 14, color: greenD),
+                    const SizedBox(width: 6),
+                  ],
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: availCount > 0 ? _kEvGreen : _kAmber,
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 4),
+                  Text('$availCount/$totalCount 가용',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: greenD)),
                 ],
-                // 충전기 현황
-                _ChargerDot(
-                    avail: availCount,
-                    total: totalCount,
-                    accentColor: accentColor),
-              ],
+              ),
             ),
-          ),
 
           // ── 본문 ──
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+            padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (!widget.bare)
-                Text(
-                  name,
-                  style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: titleColor),
-                ),
-                // 운영사 배지 — 단일 1개 / 그룹은 여러 운영사 나열(보기 좋게 칩으로).
-                if (opNames.isNotEmpty) ...[
+                if (!widget.bare) ...[
+                  Text(
+                    name,
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        height: 1.3,
+                        letterSpacing: -0.3,
+                        color: titleColor),
+                  ),
                   const SizedBox(height: 5),
+                ],
+                // 운영사 칩(파랑) + 주소 — 통합이면 칩 여러 개 + 통합 표기
+                if (!isGrouped)
+                  Row(
+                    children: [
+                      if (opNames.isNotEmpty) ...[
+                        opChip(opNames.first),
+                        const SizedBox(width: 6),
+                      ],
+                      Expanded(
+                        child: Text(
+                          address,
+                          style: TextStyle(fontSize: 11.5, color: mutedC),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  )
+                else ...[
                   Wrap(
                     spacing: 5,
                     runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      for (final op in opNames)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: accentColor.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(5),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.ev_station_rounded,
-                                  size: 12, color: accentColor),
-                              const SizedBox(width: 3),
-                              Text(op,
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      color: accentColor)),
-                            ],
-                          ),
-                        ),
+                      for (final op in opNames) opChip(op),
+                      Text(
+                          '${groupedCount ?? groupedStations!.length}개 운영사 통합',
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: mutedC)),
                     ],
                   ),
+                  if (address.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      address,
+                      style: TextStyle(fontSize: 11.5, color: mutedC),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ],
-                if (isGrouped) ...[
-                  const SizedBox(height: 4),
-                  Text('${groupedCount ?? groupedStations!.length}개 운영사 통합',
-                      style: TextStyle(
-                          fontSize: 11,
-                          color: mutedTextColor,
-                          fontWeight: FontWeight.w600)),
+                if (hasMerged) ...[
+                  const SizedBox(height: 12),
+                  mergedW,
                 ],
-                if (address.isNotEmpty) ...[
-                  const SizedBox(height: 3),
-                  Text(
-                    address,
-                    style: TextStyle(fontSize: 12, color: mutedTextColor),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-                // 도착 시 배터리 잔량 → 충전 후 예측
-                if (arrivalSoc != null) ...[
-                  const SizedBox(height: 11),
-                  _socBar(arrivalSoc, effAfterCharge, chargingMin, accentColor,
-                      mutedTextColor, isDark,
-                      destSoc: effDestSoc,
-                      destStatus: effDestStatus,
-                      destTargetNow: destTargetNow,
-                      destComfortTarget: destComfortTarget,
-                      destMaxSoc: destMaxSoc,
-                      betterAltName: betterAltName,
-                      estCostMember: effCostMember,
-                      estCostNonMember: effCostNonMember,
-                      estChargeKwh: effKwh,
-                      unitPriceWon: unitPriceMember,
-                      estOperators: estOperators,
+                // 충전 후 목적지 잔량 안내 — 4단계 판정 + 올리기 미리보기 (기능 유지)
+                if (effDestSoc != null && effDestStatus != null) ...[
+                  const SizedBox(height: 12),
+                  _destAfterChargeLine(
+                      effDestSoc,
+                      effDestStatus,
+                      destTargetNow,
+                      destComfortTarget,
+                      destMaxSoc,
+                      betterAltName,
+                      _kEvGreen,
+                      secondary,
+                      isDark,
                       canRaise: canRaise,
                       isRaised: _raised,
                       onToggleRaise: canRaise
                           ? () => setState(() => _raised = !_raised)
                           : null),
                 ],
-                const SizedBox(height: 10),
                 if (headingCount > 0) ...[
+                  const SizedBox(height: 12),
                   _HeadingBadge(
                       headingCount: headingCount, availCount: availCount),
-                  const SizedBox(height: 8),
                 ],
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  children: [
-                    // 회원가 = 실결제가 → accent 채움 칩으로 도드라지게.
-                    if (unitPriceMember != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 9, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: accentColor.withValues(
-                              alpha: isDark ? 0.22 : 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                              color: accentColor.withValues(alpha: 0.45)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.bolt_rounded,
-                                size: 14, color: accentColor),
-                            const SizedBox(width: 3),
-                            Text('회원 ',
-                                style: TextStyle(
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: accentColor)),
-                            Text('${_wonFmt.format(unitPriceMember)}원/kWh',
-                                style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w800,
-                                    color: accentColor)),
-                          ],
-                        ),
-                      ),
-                    if (unitPriceNonMember != null)
-                      _InfoChip(
-                        icon: Icons.person_outline_rounded,
-                        label: '비회원 ${_wonFmt.format(unitPriceNonMember)}원/kWh',
-                        color: _kGrey,
-                      ),
-                    if (unitPriceMember == null && unitPriceNonMember == null)
-                      _InfoChip(
-                        icon: Icons.bolt_rounded,
-                        label: '가격 미공개',
-                        color: isDark
-                            ? AppColors.darkTextPrimary
-                            : const Color(0xFF444444),
-                      ),
-                    if (originDistLabel != null)
-                      _InfoChip(
-                        icon: Icons.near_me_rounded,
-                        label: originDistLabel,
-                        color: _kGrey,
-                      ),
-                    if (originEtaMin != null && originEtaMin > 0)
-                      _InfoChip(
-                        icon: Icons.schedule_rounded,
-                        label: '약 ${fmtMin(originEtaMin)} 소요',
-                        color: _kGrey,
-                      ),
-                    if (detourMin != null && detourMin > 0)
-                      _InfoChip(
-                        icon: Icons.u_turn_right_rounded,
-                        label: '+${fmtMin(detourMin)} 우회',
-                        color: _kOrange,
-                      ),
-                    if (detourMin != null && detourMin == 0)
-                      const _InfoChip(
-                        icon: Icons.check_circle_rounded,
-                        label: '경로 이탈 없음',
-                        color: _kGreen,
-                      ),
-                  ],
-                ),
-                // ── 그룹 운영사 펼치기 ──
+                if (metaChips.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Wrap(spacing: 12, runSpacing: 6, children: metaChips),
+                ],
+                // ── 그룹 운영사 펼치기 (기능 유지) ──
                 if (isGrouped) ...[
                   const SizedBox(height: 10),
                   GestureDetector(
@@ -2011,7 +2031,7 @@ class _StationCardState extends State<_StationCard> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: widget.accentColor,
+                            color: greenD,
                           ),
                         ),
                         const SizedBox(width: 3),
@@ -2020,7 +2040,7 @@ class _StationCardState extends State<_StationCard> {
                               ? Icons.keyboard_arrow_up_rounded
                               : Icons.keyboard_arrow_down_rounded,
                           size: 16,
-                          color: widget.accentColor,
+                          color: greenD,
                         ),
                       ],
                     ),
@@ -2040,131 +2060,195 @@ class _StationCardState extends State<_StationCard> {
                         : const SizedBox.shrink(),
                   ),
                 ],
-                if (widget.onMapTap != null ||
-                    (widget.originLat != null && widget.destLat != null) ||
-                    statId != null) ...[
-                  const SizedBox(height: 4),
-                  Divider(height: 1, color: dividerColor),
-                  const SizedBox(height: 12),
-                  // ── 보조 액션 (지도 / 상세) — 50:50 또는 단독 ──
+
+                // ── 버튼 — 1순위: [지도][상세] + 길안내 시작 / 펼친 후보: 사각 2 + 안내 ──
+                if (!widget.bare) ...[
                   if (widget.onMapTap != null ||
                       (statId != null && !isGrouped)) ...[
+                    const SizedBox(height: 12),
                     Row(
                       children: [
                         if (widget.onMapTap != null)
                           Expanded(
-                            child: _ActionBtn(
-                              icon: Icons.map_rounded,
-                              label: '지도에서 보기',
-                              color: accentColor,
-                              primary: false,
-                              onTap: widget.onMapTap,
-                            ),
-                          ),
+                              child: outlineBtn(Icons.map_outlined,
+                                  '지도에서 보기', widget.onMapTap)),
                         if (widget.onMapTap != null &&
                             statId != null &&
                             !isGrouped)
                           const SizedBox(width: 8),
                         if (statId != null && !isGrouped)
                           Expanded(
-                            child: _ActionBtn(
-                              icon: Icons.info_outline_rounded,
-                              label: '충전소 상세',
-                              color: accentColor,
-                              primary: false,
-                              onTap: () {
-                                Navigator.of(context, rootNavigator: true).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) =>
-                                        EvDetailScreen(stationId: statId),
-                                  ),
-                                );
-                              },
-                            ),
+                            child: outlineBtn(
+                                Icons.info_outline_rounded, '충전소 상세', () {
+                              Navigator.of(context, rootNavigator: true).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) =>
+                                      EvDetailScreen(stationId: statId),
+                                ),
+                              );
+                            }),
                           ),
                       ],
                     ),
-                    const SizedBox(height: 8),
                   ],
-                  // ── Primary CTA: 길안내 (가로 풀너비, filled) ──
-                  if (widget.originLat != null && widget.destLat != null)
-                    Builder(
-                        builder: (ctx) => _ActionBtn(
-                              icon: Icons.navigation_rounded,
-                              label: '길안내 시작',
-                              color: accentColor,
-                              primary: true,
-                              fullWidth: true,
-                              onTap: () async {
-                                final stLat =
-                                    (station['lat'] as num?)?.toDouble();
-                                final stLng =
-                                    (station['lng'] as num?)?.toDouble();
-                                final stName =
-                                    station['name']?.toString() ?? '충전소';
-                                if (stLat == null || stLng == null) return;
-                                // 워치 제안 다이얼로그
-                                if (statId != null && ctx.mounted) {
-                                  final existingSession =
-                                      WatchService().session;
-                                  // 이미 이 충전소면 알람 그대로 두고 길안내만 진행
-                                  if (existingSession != null &&
-                                      existingSession.statId != statId) {
-                                    // 다른 충전소 → 전환 확인 후 즉시 전환
-                                    final switchOk =
-                                        await showWatchSwitchDialog(
-                                      ctx,
-                                      currentStationName:
-                                          existingSession.stationName,
-                                    );
-                                    if (!switchOk || !ctx.mounted) return;
-                                    await WatchService().stop();
-                                    await WatchService().start(
+                  if (widget.originLat != null && widget.destLat != null) ...[
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 50,
+                      width: double.infinity,
+                      child: Material(
+                        color: _kEvGreen,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Builder(
+                          builder: (ctx) => InkWell(
+                            onTap: () => _startNavigation(ctx,
+                                statId: statId,
+                                availCount: availCount,
+                                originEtaMin: originEtaMin),
+                            borderRadius: BorderRadius.circular(12),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.navigation_rounded,
+                                    size: 19, color: Colors.white),
+                                SizedBox(width: 6),
+                                Text('길안내 시작',
+                                    style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ] else ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      if (widget.onMapTap != null) ...[
+                        sqBtn(Icons.map_outlined, widget.onMapTap),
+                        const SizedBox(width: 8),
+                      ],
+                      if (statId != null && !isGrouped) ...[
+                        sqBtn(Icons.info_outline_rounded, () {
+                          Navigator.of(context, rootNavigator: true).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => EvDetailScreen(stationId: statId),
+                            ),
+                          );
+                        }),
+                        const SizedBox(width: 8),
+                      ],
+                      if (widget.originLat != null && widget.destLat != null)
+                        Expanded(
+                          child: SizedBox(
+                            height: 42,
+                            child: Material(
+                              color: cardBg,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                side: const BorderSide(
+                                    color: _kEvGreen, width: 1.5),
+                              ),
+                              child: Builder(
+                                builder: (ctx) => InkWell(
+                                  onTap: () => _startNavigation(ctx,
                                       statId: statId,
-                                      stationName: stName,
-                                      etaMin: originEtaMin ?? 0,
-                                      currentAvail: availCount,
-                                    );
-                                  } else if (existingSession == null) {
-                                    // 새 알림 받을지 확인
-                                    final accepted = await showDialog<bool>(
-                                      context: ctx,
-                                      builder: (dCtx) => _WatchDialog(
-                                        etaMin: originEtaMin,
-                                        accentColor: accentColor,
-                                      ),
-                                    );
-                                    if (accepted == true) {
-                                      await WatchService().start(
-                                        statId: statId,
-                                        stationName: stName,
-                                        etaMin: originEtaMin ?? 0,
-                                        currentAvail: availCount,
-                                      );
-                                    }
-                                  }
-                                }
-                                if (!ctx.mounted) return;
-                                showViaWaypointNavigationSheet(
-                                  ctx,
-                                  originLat: widget.originLat!,
-                                  originLng: widget.originLng!,
-                                  waypointLat: stLat,
-                                  waypointLng: stLng,
-                                  waypointName: stName,
-                                  destinationLat: widget.destLat!,
-                                  destinationLng: widget.destLng!,
-                                  destinationName: widget.destName ?? '목적지',
-                                  stopKind: '충전소',
-                                );
-                              },
-                            )),
+                                      availCount: availCount,
+                                      originEtaMin: originEtaMin),
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.navigation_rounded,
+                                          size: 18, color: greenD),
+                                      const SizedBox(width: 5),
+                                      Text('이 충전소로 안내',
+                                          style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w700,
+                                              color: greenD)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ],
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  /// 길안내 시작 — 워치(빈자리 알림) 제안/전환 확인 후 경유 길안내 시트 (기존 로직 그대로).
+  Future<void> _startNavigation(BuildContext ctx,
+      {required String? statId,
+      required int availCount,
+      int? originEtaMin}) async {
+    final station = widget.station;
+    final stLat = (station['lat'] as num?)?.toDouble();
+    final stLng = (station['lng'] as num?)?.toDouble();
+    final stName = station['name']?.toString() ?? '충전소';
+    if (stLat == null || stLng == null) return;
+    if (widget.originLat == null || widget.destLat == null) return;
+    if (statId != null && ctx.mounted) {
+      final existingSession = WatchService().session;
+      // 이미 이 충전소면 알람 그대로 두고 길안내만 진행
+      if (existingSession != null && existingSession.statId != statId) {
+        // 다른 충전소 → 전환 확인 후 즉시 전환
+        final switchOk = await showWatchSwitchDialog(
+          ctx,
+          currentStationName: existingSession.stationName,
+        );
+        if (!switchOk || !ctx.mounted) return;
+        await WatchService().stop();
+        await WatchService().start(
+          statId: statId,
+          stationName: stName,
+          etaMin: originEtaMin ?? 0,
+          currentAvail: availCount,
+        );
+      } else if (existingSession == null) {
+        // 새 알림 받을지 확인
+        final accepted = await showDialog<bool>(
+          context: ctx,
+          builder: (dCtx) => _WatchDialog(
+            etaMin: originEtaMin,
+            accentColor: _kEvGreen,
+          ),
+        );
+        if (accepted == true) {
+          await WatchService().start(
+            statId: statId,
+            stationName: stName,
+            etaMin: originEtaMin ?? 0,
+            currentAvail: availCount,
+          );
+        }
+      }
+    }
+    if (!ctx.mounted) return;
+    showViaWaypointNavigationSheet(
+      ctx,
+      originLat: widget.originLat!,
+      originLng: widget.originLng!,
+      waypointLat: stLat,
+      waypointLng: stLng,
+      waypointName: stName,
+      destinationLat: widget.destLat!,
+      destinationLng: widget.destLng!,
+      destinationName: widget.destName ?? '목적지',
+      stopKind: '충전소',
     );
   }
 }
@@ -2179,7 +2263,6 @@ class _ActionBtn extends StatelessWidget {
   final Color color;
   final VoidCallback? onTap;
   final bool primary;
-  final bool fullWidth;
 
   const _ActionBtn({
     required this.icon,
@@ -2187,7 +2270,6 @@ class _ActionBtn extends StatelessWidget {
     required this.color,
     this.onTap,
     this.primary = false,
-    this.fullWidth = false,
   });
 
   @override
@@ -2228,7 +2310,7 @@ class _ActionBtn extends StatelessWidget {
         ),
       ),
     );
-    return fullWidth ? SizedBox(width: double.infinity, child: btn) : btn;
+    return btn;
   }
 }
 
@@ -2260,65 +2342,6 @@ class _ActionIconBtn extends StatelessWidget {
           child: Center(child: Icon(icon, size: 18, color: iconColor)),
         ),
       ),
-    );
-  }
-}
-
-class _ChargerDot extends StatelessWidget {
-  final int avail;
-  final int total;
-  final Color accentColor;
-
-  const _ChargerDot(
-      {required this.avail, required this.total, required this.accentColor});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(
-            color: avail > 0 ? _kGreen : _kOrange,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 4),
-        Text(
-          '$avail/$total',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: avail > 0 ? _kGreen : _kOrange,
-          ),
-        ),
-        const Text(' 가용', style: TextStyle(fontSize: 11, color: _kGrey)),
-      ],
-    );
-  }
-}
-
-class _InfoChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-
-  const _InfoChip(
-      {required this.icon, required this.label, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 13, color: color),
-        const SizedBox(width: 3),
-        Text(label,
-            style: TextStyle(
-                fontSize: 12, color: color, fontWeight: FontWeight.w500)),
-      ],
     );
   }
 }
@@ -2702,61 +2725,44 @@ class _EvAiMessageBanner extends StatelessWidget {
     final normalized =
         _normalizeMarkdownForKoreanEv(message.replaceAll(r'\n', '\n'));
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final blue = isDark ? AppColors.darkBlueBright : _kBlue;
-    final bg = isDark ? blue.withValues(alpha: 0.12) : const Color(0xFFEEF4FF);
-    final border =
-        isDark ? blue.withValues(alpha: 0.35) : const Color(0xFFB8D0FF);
-    final iconBg =
-        isDark ? blue.withValues(alpha: 0.22) : const Color(0xFFD0E3FF);
-    final bodyTextColor =
-        isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a);
+    // 9a: 초록 그라디언트 요약 박스 (ev-summary-grad) — 아이콘 + 본문, 타이틀 없음
+    final greenD = isDark ? _kEvGreen : _kEvGreenDark;
+    final secondary =
+        isDark ? AppColors.darkTextSecondary : const Color(0xFF64748B);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: border),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isDark
+              ? const [Color(0xFF064E3B), Color(0xFF111827)]
+              : const [Color(0xFFECFDF5), Color(0xFFD1FAE5)],
+        ),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 20,
-            height: 20,
-            margin: const EdgeInsets.only(top: 1),
-            decoration: BoxDecoration(
-              color: iconBg,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Icon(Icons.auto_awesome_rounded, size: 12, color: blue),
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(Icons.auto_awesome_rounded, size: 19, color: greenD),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('AI 충전소 추천',
-                    style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: blue)),
-                const SizedBox(height: 6),
-                MarkdownBody(
-                  data: normalized,
-                  shrinkWrap: true,
-                  styleSheet:
-                      MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
-                    p: TextStyle(
-                        fontSize: 13, height: 1.5, color: bodyTextColor),
-                    strong: TextStyle(
-                      fontSize: 13,
-                      height: 1.5,
-                      fontWeight: FontWeight.w700,
-                      color: isDark ? AppColors.darkGreenBright : _kGreen,
-                    ),
-                  ),
+            child: MarkdownBody(
+              data: normalized,
+              shrinkWrap: true,
+              styleSheet:
+                  MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+                p: TextStyle(fontSize: 12.5, height: 1.6, color: secondary),
+                strong: TextStyle(
+                  fontSize: 12.5,
+                  height: 1.6,
+                  fontWeight: FontWeight.w700,
+                  color: greenD,
                 ),
-              ],
+              ),
             ),
           ),
         ],
