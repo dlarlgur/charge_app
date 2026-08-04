@@ -540,7 +540,7 @@ class _AiResultBodyState extends State<AiResultBody> {
         detourTimeMin: orDetourTimeMin,
         savings: 0,
         tag: onRouteLabel,
-        tagColor: const Color(0xFFE8700A), // 주황
+        tagColor: const Color(0xFF3B82F6), // 파랑 (주황 폐기)
         isAiRec: true,
         isUserSelected: false,
         rawData: onRoute,
@@ -598,7 +598,7 @@ class _AiResultBodyState extends State<AiResultBody> {
         savings: 0,
         tag: isDualDetour ? '차선' : onRouteLabel,
         tagColor:
-            isDualDetour ? const Color(0xFF888888) : const Color(0xFFE8700A),
+            isDualDetour ? const Color(0xFF888888) : const Color(0xFF3B82F6),
         isAiRec: false,
         isUserSelected: false,
         rawData: onRoute,
@@ -2744,7 +2744,7 @@ class _ComparisonDetailSheet extends StatelessWidget {
     final role = c['role'] as String? ?? '';
     final brand = (c['brand'] as String?) ?? '';
     final roleColor = (role == '경로상' || role == '추천')
-        ? (isDark ? AppColors.darkBlueBright : const Color(0xFFE8700A))
+        ? (isDark ? AppColors.darkBlueBright : const Color(0xFF2563EB))
         : (isDark ? AppColors.darkBlueBright : const Color(0xFF1D6FE0));
     return Column(children: [
       if (brand.isNotEmpty)
@@ -3344,7 +3344,7 @@ class _NumCell extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // 통일된 색상 체계
-const _kCompareWinner = Color(0xFFE8700A); // 추천 (주황)
+const _kCompareWinner = Color(0xFF3B82F6); // 추천 (파랑 — 6a 단일 축, 주황 폐기)
 
 class CompareResultBody extends StatelessWidget {
   final Map<String, dynamic> data;
