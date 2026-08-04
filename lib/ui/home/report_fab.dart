@@ -181,38 +181,43 @@ class _HomeQuickFabState extends State<HomeQuickFab>
           ),
         );
       },
-      child: Container(
-        constraints: const BoxConstraints(minWidth: 208),
-        decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(18),
-          border: isDark
-              ? Border.all(color: Colors.white.withValues(alpha: 0.08))
-              : null,
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.14),
-                blurRadius: 22,
-                offset: const Offset(0, 8)),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(18),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (var i = 0; i < widget.items.length; i++) ...[
-                if (i > 0)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Divider(height: 1, thickness: 1, color: line),
-                  ),
-                _menuRow(widget.items[i], isDark),
-              ],
+      // ★ IntrinsicWidth 필수 — Overlay 의 Stack 자식은 화면 전체 폭의 느슨한 제약을
+      //   받는데, 행 안의 Spacer + Column stretch 가 그 폭을 다 먹어 카드가 가로를
+      //   꽉 채웠다(형 제보). 내용물(라벨) 기준 폭 + minWidth 208 로 고정.
+      child: IntrinsicWidth(
+        child: Container(
+          constraints: const BoxConstraints(minWidth: 208),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(18),
+            border: isDark
+                ? Border.all(color: Colors.white.withValues(alpha: 0.08))
+                : null,
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.14),
+                  blurRadius: 22,
+                  offset: const Offset(0, 8)),
             ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(18),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < widget.items.length; i++) ...[
+                  if (i > 0)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Divider(height: 1, thickness: 1, color: line),
+                    ),
+                  _menuRow(widget.items[i], isDark),
+                ],
+              ],
+            ),
           ),
         ),
       ),
@@ -244,8 +249,7 @@ class _HomeQuickFabState extends State<HomeQuickFab>
             const Spacer(),
             if (item.badge != null)
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: isDark
                       ? Colors.white.withValues(alpha: 0.10)
@@ -278,9 +282,8 @@ class _HomeQuickFabState extends State<HomeQuickFab>
         : const [Color(0xFF3B82F6), Color(0xFF2563EB)];
     final icon = single ? widget.items.first.icon : Icons.grid_view_rounded;
     return GestureDetector(
-      onTap: single
-          ? widget.items.first.onTap
-          : (_open ? _closeMenu : _openMenu),
+      onTap:
+          single ? widget.items.first.onTap : (_open ? _closeMenu : _openMenu),
       child: Container(
         width: 50,
         height: 50,
