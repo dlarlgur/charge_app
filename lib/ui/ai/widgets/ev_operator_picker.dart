@@ -317,13 +317,25 @@ class _EvOperatorPickerSheetState extends State<_EvOperatorPickerSheet> {
                     const SizedBox(height: 10),
                     Wrap(
                       children: evBrands.map((b) {
-                        final on = _selBrands.contains(b.code);
+                        // 형 확정: 디폴트(전체)는 사업자처럼 모두 켜짐으로 표현.
+                        // 전체에서 탭 = 그 브랜드만(핵심 시나리오 'BMW만' 한 탭),
+                        // 부분에선 추가/해제, 5개 다 켜지면 전체(빈 저장)로 환원.
+                        final isAllBrands = _selBrands.isEmpty;
+                        final on =
+                            isAllBrands || _selBrands.contains(b.code);
                         return GestureDetector(
                           onTap: () => setState(() {
-                            if (on) {
-                              _selBrands.remove(b.code);
+                            if (isAllBrands) {
+                              _selBrands
+                                ..clear()
+                                ..add(b.code); // 전체 → 이것만
+                            } else if (_selBrands.contains(b.code)) {
+                              _selBrands.remove(b.code); // 비면 전체 복귀
                             } else {
                               _selBrands.add(b.code);
+                              if (_selBrands.length >= evBrands.length) {
+                                _selBrands.clear(); // 전부 선택 = 전체
+                              }
                             }
                           }),
                           child: Container(
