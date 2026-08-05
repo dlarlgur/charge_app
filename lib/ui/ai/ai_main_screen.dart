@@ -3976,9 +3976,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'highwayOnly': _evHighwayOnly,
         if (_preferredEvOperators.isNotEmpty)
           'operators': _preferredEvOperators.toList(),
-          // 브랜드 충전소 필터 — EV 필터 시트 선택을 추천에도 동일 적용
-          // (지도·홈 로컬 필터와 같은 규칙, 서버 evBrand.js 판정)
-          'brands': ref.read(evFilterProvider).brands,
+          // 브랜드 필터는 지도·홈 전용 (형 확정: 지도에서 켜둔 걸 잊고 추천 돌리면
+          // AI 탭 표시 없이 조용히 좁혀지는 함정 — 사업자 필터를 AI 탭 자체 선택으로
+          // 분리해둔 기존 전례와 동일하게 AI 는 브랜드 무시. 서버 brands 파라미터는
+          // 유지 — 추후 AI 탭 사업자 시트에 브랜드 섹션 넣을 때 그대로 사용).
         if (_evChargerType == 'FAST' && _evFastOutputs.isNotEmpty)
           'fastOutputs': _evFastOutputs.toList(),
         'ai_text': AiConsent.value == true, // 서드파티 AI 문구 동의
@@ -4249,9 +4250,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'highwayOnly': _evHighwayOnly,
         if (_preferredEvOperators.isNotEmpty)
           'operators': _preferredEvOperators.toList(),
-          // 브랜드 충전소 필터 — EV 필터 시트 선택을 추천에도 동일 적용
-          // (지도·홈 로컬 필터와 같은 규칙, 서버 evBrand.js 판정)
-          'brands': ref.read(evFilterProvider).brands,
+          // 브랜드 필터는 지도·홈 전용 (형 확정: 지도에서 켜둔 걸 잊고 추천 돌리면
+          // AI 탭 표시 없이 조용히 좁혀지는 함정 — 사업자 필터를 AI 탭 자체 선택으로
+          // 분리해둔 기존 전례와 동일하게 AI 는 브랜드 무시. 서버 brands 파라미터는
+          // 유지 — 추후 AI 탭 사업자 시트에 브랜드 섹션 넣을 때 그대로 사용).
         if (_evChargerType == 'FAST' && _evFastOutputs.isNotEmpty)
           'fastOutputs': _evFastOutputs.toList(),
         'ai_text': AiConsent.value == true, // 서드파티 AI 문구 동의
