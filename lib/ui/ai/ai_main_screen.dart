@@ -486,6 +486,22 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   // 고속도로 필터 — 형 확정: 디폴트 ON, 마지막 설정은 Hive 로 유지.
   static const _kEvHighwayKey = 'ai_highway_only_ev';
   static const _kGasHighwayKey = 'ai_highway_only_gas';
+  // AI 탭 필터 마지막 사용값 유지 (형 확정 — 정렬 유지 제보와 같은 결)
+  static const _kEvOperatorsKey = 'ai_ev_operators';
+  static const _kEvBrandsKey = 'ai_ev_brands';
+  static const _kEvChargerTypeKey = 'ai_ev_charger_type';
+  static const _kEvFastOutputsKey = 'ai_ev_fast_outputs';
+  static const _kGasPrefBrandsKey = 'ai_gas_pref_brands';
+
+  /// AI 탭 필터 상태를 Hive 에 저장 — 각 토글/시트 적용 지점에서 호출.
+  void _saveAiFilters() {
+    final box = Hive.box(AppConstants.settingsBox);
+    box.put(_kEvOperatorsKey, _preferredEvOperators.toList());
+    box.put(_kEvBrandsKey, _preferredEvBrands.toList());
+    box.put(_kEvChargerTypeKey, _evChargerType);
+    box.put(_kEvFastOutputsKey, _evFastOutputs.toList());
+    box.put(_kGasPrefBrandsKey, _preferredGasBrands.toList());
+  }
   bool _evHighwayOnly = true; // 고속도로 충전소만
   bool _gasHighwayOnly = true; // 고속도로 휴게소 주유소만
   final Set<String> _preferredGasBrands =
@@ -517,6 +533,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         }
       }
     });
+    _saveAiFilters();
   }
 
   // EV 결과 시트의 카드 스크롤 제어용 (지도 마커 탭 → 해당 카드로 이동)
@@ -771,6 +788,28 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     // 고속도로 필터 — 마지막 설정 복원 (없으면 ON)
     _evHighwayOnly = box.get(_kEvHighwayKey, defaultValue: true) == true;
     _gasHighwayOnly = box.get(_kGasHighwayKey, defaultValue: true) == true;
+
+    // AI 탭 필터 — 마지막 사용값 복원 (없으면 기존 기본: 전체/급속)
+    _preferredEvOperators
+      ..clear()
+      ..addAll(List<String>.from(
+          box.get(_kEvOperatorsKey, defaultValue: const <String>[])));
+    _preferredEvBrands
+      ..clear()
+      ..addAll(List<String>.from(
+          box.get(_kEvBrandsKey, defaultValue: const <String>[])));
+    _evChargerType =
+        box.get(_kEvChargerTypeKey, defaultValue: 'FAST') == 'SLOW'
+            ? 'SLOW'
+            : 'FAST';
+    _evFastOutputs
+      ..clear()
+      ..addAll(List<String>.from(
+          box.get(_kEvFastOutputsKey, defaultValue: const <String>[])));
+    _preferredGasBrands
+      ..clear()
+      ..addAll(List<String>.from(
+          box.get(_kGasPrefBrandsKey, defaultValue: const <String>[])));
 
     // 선택된 차량 프로필 기준으로 로드
     final vehicle = _readSelectedVehicle(box);
@@ -1920,6 +1959,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         ..clear()
         ..addAll(result.brands);
     });
+    _saveAiFilters();
   }
 
   Widget _buildRouteSelector({required bool isEv}) {
@@ -6055,17 +6095,23 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                               }
                             }),
                             onChangeChargerMode: isEvVehicle
-                                ? (m) => setState(() => _evChargerType = m)
+                                ? (m) {
+                                    setState(() => _evChargerType = m);
+                                    _saveAiFilters();
+                                  }
                                 : null,
                             fastOutputs: _evFastOutputs,
                             onToggleFastOutput:
                                 isEvVehicle ? _toggleEvFastOutput : null,
                             preferredBrands: _preferredGasBrands,
-                            onToggleBrand: (k) => setState(() {
-                              if (!_preferredGasBrands.remove(k)) {
-                                _preferredGasBrands.add(k);
-                              }
-                            }),
+                            onToggleBrand: (k) {
+                              setState(() {
+                                if (!_preferredGasBrands.remove(k)) {
+                                  _preferredGasBrands.add(k);
+                                }
+                              });
+                              _saveAiFilters();
+                            },
                             operatorCount: _preferredEvOperators.length +
                                 _preferredEvBrands.length,
                             operatorSummary: () {
@@ -6350,6 +6396,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                               onStationMapTap: _showEvStationRouteOnMap,
                             onClearBrandFilter: () {
                               setState(() => _preferredEvBrands.clear());
+                              _saveAiFilters();
                               _runEvAnalyze(); // 해제 즉시 재추천 — 한 탭 회복
                             },
                               originLat: _lastStartLat,
