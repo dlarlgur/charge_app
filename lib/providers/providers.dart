@@ -702,7 +702,7 @@ class GasFilterNotifier extends StateNotifier<GasFilterOptions> {
   }
 
   // 유종 고정 표시순서 — 고급휘발유 → 휘발유 → 경유 → LPG. (디폴트=첫번째)
-  static const _fuelOrder = ['B034', 'B027', 'D047', 'K015'];
+  static const _fuelOrder = ['B034', 'B027', 'D047', 'K015', 'C004'];
 
   void update(GasFilterOptions options) {
     final sortedFuels = [...options.fuelTypes]

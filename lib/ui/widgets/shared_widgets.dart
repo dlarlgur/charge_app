@@ -18,6 +18,7 @@ String _fuelTypeLabel(String code) {
     case 'B034': return '고급휘발유';
     case 'D047': return '경유';
     case 'K015': return 'LPG';
+    case 'C004': return '등유';
     default: return '휘발유';
   }
 }
@@ -395,6 +396,7 @@ Future<void> showFuelTypeAlertSheet(
     ('B034', '고급휘발유'),
     ('D047', '경유'),
     ('K015', 'LPG'),
+    ('C004', '등유'),
   ];
   final fuels = availableFuels == null
       ? allFuels

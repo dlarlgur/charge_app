@@ -44,6 +44,7 @@ class _GasFilterSheetState extends ConsumerState<GasFilterSheet> {
     ('B034', '고급휘발유'),
     ('D047', '경유'),
     ('K015', 'LPG'),
+    ('C004', '등유'), // 캠핑 수요 (카페 요청) — AI 추천 유종엔 미노출
   ];
 
   @override
@@ -198,7 +199,7 @@ class _GasFilterSheetState extends ConsumerState<GasFilterSheet> {
                           final selected = _options.fuelTypes.contains(item.$1);
                           return Expanded(
                             child: Padding(
-                              padding: EdgeInsets.only(right: item.$1 == 'K015' ? 0 : 8),
+                              padding: EdgeInsets.only(right: item.$1 == 'C004' ? 0 : 8),
                               child: GestureDetector(
                                 onTap: () => setState(() {
                                   // 멀티 선택 — 토글 add/remove, 최소 1개는 유지.
@@ -212,7 +213,9 @@ class _GasFilterSheetState extends ConsumerState<GasFilterSheet> {
                                 }),
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 150),
-                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  alignment: Alignment.center,
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 10, horizontal: 3),
                                   decoration: BoxDecoration(
                                     color: selected ? accent : (isDark ? const Color(0x08FFFFFF) : const Color(0xFFF5F6F8)),
                                     borderRadius: BorderRadius.circular(10),
@@ -221,10 +224,23 @@ class _GasFilterSheetState extends ConsumerState<GasFilterSheet> {
                                       width: selected ? 0 : 0.8,
                                     ),
                                   ),
-                                  child: Text(item.$2, textAlign: TextAlign.center,
-                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
-                                      color: selected ? Colors.white
-                                        : (isDark ? AppColors.darkTextSecondary : const Color(0xFF6C757D)))),
+                                  // 5칸(등유 추가)이라 '고급휘발유'가 좁은 폰에서 넘칠 수 있음
+                                  // → 필요할 때만 살짝 축소 (오버플로우 금지 — 형 규칙)
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(item.$2,
+                                        maxLines: 1,
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: selected
+                                                ? Colors.white
+                                                : (isDark
+                                                    ? AppColors
+                                                        .darkTextSecondary
+                                                    : const Color(
+                                                        0xFF6C757D)))),
+                                  ),
                                 ),
                               ),
                             ),

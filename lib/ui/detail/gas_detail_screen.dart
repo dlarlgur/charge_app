@@ -36,6 +36,7 @@ const _kFuelRegular = Color(0xFF2563EB); // 휘발유
 const _kFuelPremium = Color(0xFFF59E0B); // 고급휘발유
 const _kFuelDiesel  = Color(0xFF10B981); // 경유
 const _kFuelLpg     = Color(0xFF7C3AED); // LPG (HTML 외 추가)
+const _kFuelKerosene = Color(0xFF0D9488); // 등유 (teal — 기존 4색과 구분)
 const _kGreen = Color(0xFF047857);
 const _kGreenBg = Color(0xFFECFDF5);
 const _kRed = Color(0xFFB91C1C);
@@ -106,9 +107,10 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
   static const List<String> _tabLabels = ['요금', '주유소 정보'];
   List<GlobalKey> get _sectionKeys => [_kPrice, _kStation];
 
-  static const List<String> _fuelOrder = ['B027', 'B034', 'D047', 'K015'];
+  static const List<String> _fuelOrder = ['B027', 'B034', 'D047', 'K015', 'C004'];
   static const Map<String, String> _fuelLabel = {
     'B027': '휘발유', 'B034': '고급휘발유', 'D047': '경유', 'K015': 'LPG',
+    'C004': '등유',
   };
 
   // 유종별 색상 (HTML 양식)
@@ -118,6 +120,7 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
       case 'B034': return _kFuelPremium;
       case 'D047': return _kFuelDiesel;
       case 'K015': return _kFuelLpg;
+      case 'C004': return _kFuelKerosene;
       default:     return AppColors.gasBlue;
     }
   }
@@ -133,6 +136,7 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
       case 'B034': return const Color(0xFFFEF3C7);
       case 'D047': return const Color(0xFFECFDF5);
       case 'K015': return const Color(0xFFF3E8FF);
+      case 'C004': return const Color(0xFFCCFBF1);
       default:     return _kLineSoft;
     }
   }

@@ -148,7 +148,8 @@ class AlertService {
   }
 
   static const _fuelLabels = {
-    'B027': '휘발유', 'B034': '고급휘발유', 'D047': '경유', 'K015': 'LPG'
+    'B027': '휘발유', 'B034': '고급휘발유', 'D047': '경유', 'K015': 'LPG',
+    'C004': '등유',
   };
   static String fuelLabel(String code) => _fuelLabels[code] ?? code;
 

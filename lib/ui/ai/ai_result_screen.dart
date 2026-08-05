@@ -1168,6 +1168,8 @@ String _fuelCodeToLabel(String? code) {
       return '경유';
     case 'K015':
       return 'LPG';
+    case 'C004':
+      return '등유';
     default:
       return '';
   }
