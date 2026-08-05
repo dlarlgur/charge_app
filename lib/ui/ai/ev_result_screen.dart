@@ -593,11 +593,16 @@ class _AltAccordion extends StatelessWidget {
                               ? '${_wonFmt.format(cost)}원'
                               : (unitPrice != null
                                   ? '${_wonFmt.format(unitPrice)}원/kWh'
-                                  : '—'),
+                                  : '가격 미공개'),
                           style: TextStyle(
-                              fontSize: 14,
+                              fontSize: cost != null || unitPrice != null
+                                  ? 14
+                                  : 12,
                               fontWeight: FontWeight.w700,
-                              color: titleColor),
+                              // 미공개는 뮤트 — '—' 는 뭔지 알 수 없었음 (형 지적)
+                              color: cost != null || unitPrice != null
+                                  ? titleColor
+                                  : muted),
                         ),
                         if (diffText != null) ...[
                           const SizedBox(height: 2),
