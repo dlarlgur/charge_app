@@ -5457,6 +5457,18 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         if (ref.read(bottomNavIndexProvider) != 2) return;
         void markHandled() => _lastInScreenBackHandledAt = DateTime.now();
 
+        // 0. 절약 카드 팝업이 떠 있으면 그것부터 닫는다 (형 제보: 확인 안 누르고
+        //    뒤로가기 하면 팝업은 그대로인 채 뒤 화면이 닫혀버렸다).
+        //    가장 위에 뜬 UI 가 뒤로가기를 먼저 먹는 게 상식적인 동작.
+        if (_revealHeadline != null) {
+          markHandled();
+          setState(() {
+            _revealHeadline = null;
+            _revealCaption = null;
+          });
+          return;
+        }
+
         final recentlyHandled = _lastInScreenBackHandledAt != null &&
             DateTime.now().difference(_lastInScreenBackHandledAt!) <
                 const Duration(milliseconds: 700);
