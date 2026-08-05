@@ -314,28 +314,22 @@ class _EvOperatorPickerSheetState extends State<_EvOperatorPickerSheet> {
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
                             color: muted)),
+                    const SizedBox(height: 4),
+                    Text('켜면 그 브랜드 지점만 보여요 · 브랜드 선택 중엔 사업자 필터가 적용되지 않아요',
+                        style: TextStyle(fontSize: 11.5, color: muted)),
                     const SizedBox(height: 10),
                     Wrap(
                       children: evBrands.map((b) {
-                        // 형 확정: 디폴트(전체)는 사업자처럼 모두 켜짐으로 표현.
-                        // 전체에서 탭 = 그 브랜드만(핵심 시나리오 'BMW만' 한 탭),
-                        // 부분에선 추가/해제, 5개 다 켜지면 전체(빈 저장)로 환원.
-                        final isAllBrands = _selBrands.isEmpty;
-                        final on =
-                            isAllBrands || _selBrands.contains(b.code);
+                        // 디폴트 미선택 (형 확정): 브랜드는 '만' 필터라 켠 것만
+                        // 표시가 정직하다 — 다 켜져 있으면 '브랜드만 보는 중'으로
+                        // 오독됨(사업자와 달리 우주의 부분집합이라서).
+                        final on = _selBrands.contains(b.code);
                         return GestureDetector(
                           onTap: () => setState(() {
-                            if (isAllBrands) {
-                              _selBrands
-                                ..clear()
-                                ..add(b.code); // 전체 → 이것만
-                            } else if (_selBrands.contains(b.code)) {
-                              _selBrands.remove(b.code); // 비면 전체 복귀
+                            if (on) {
+                              _selBrands.remove(b.code);
                             } else {
                               _selBrands.add(b.code);
-                              if (_selBrands.length >= evBrands.length) {
-                                _selBrands.clear(); // 전부 선택 = 전체
-                              }
                             }
                           }),
                           child: Container(

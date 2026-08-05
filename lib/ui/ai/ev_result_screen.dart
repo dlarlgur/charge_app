@@ -45,6 +45,7 @@ class EvResultBody extends StatefulWidget {
   final Map<String, dynamic> data;
   final ScrollController scrollController;
   final void Function(Map<String, dynamic> station)? onStationMapTap;
+  final VoidCallback? onClearBrandFilter; // 브랜드 필터로 빈 결과 시 해제·재추천
   final double? originLat;
   final double? originLng;
   final double? destLat;
@@ -56,6 +57,7 @@ class EvResultBody extends StatefulWidget {
     required this.data,
     required this.scrollController,
     this.onStationMapTap,
+    this.onClearBrandFilter,
     this.originLat,
     this.originLng,
     this.destLat,
@@ -261,7 +263,12 @@ class EvResultBodyState extends State<EvResultBody> {
 
                 // ── 추천 충전소 ──
                 if (recommended == null)
-                  _NoStationCard(filteredOut: filteredOut)
+                  _NoStationCard(
+                    filteredOut: filteredOut,
+                    message: data['message']?.toString(),
+                    brandFilterEmpty: data['brand_filter_empty'] == true,
+                    onClearBrandFilter: widget.onClearBrandFilter,
+                  )
                 else ...[
                   Text(
                     'AI 추천 충전소',
@@ -651,7 +658,15 @@ class _AltAccordion extends StatelessWidget {
 
 class _NoStationCard extends StatelessWidget {
   final int filteredOut;
-  const _NoStationCard({required this.filteredOut});
+  final String? message; // 서버가 준 사유 (없으면 기본 문구)
+  final bool brandFilterEmpty; // 브랜드 필터가 원인 — 해제 버튼 노출
+  final VoidCallback? onClearBrandFilter;
+  const _NoStationCard({
+    required this.filteredOut,
+    this.message,
+    this.brandFilterEmpty = false,
+    this.onClearBrandFilter,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -674,10 +689,39 @@ class _NoStationCard extends StatelessWidget {
           Icon(Icons.ev_station_rounded, size: 36, color: mutedText),
           const SizedBox(height: 10),
           Text(
-            '주행 가능 거리 내에\n이용 가능한 충전소가 없어요',
+            message ?? '주행 가능 거리 내에\n이용 가능한 충전소가 없어요',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 14, color: primaryText, height: 1.4),
           ),
+          // 브랜드 필터가 원인이면 한 탭으로 풀리는 동선 (형 확정 — 편하게)
+          if (brandFilterEmpty && onClearBrandFilter != null) ...[
+            const SizedBox(height: 14),
+            SizedBox(
+              height: 42,
+              width: double.infinity,
+              child: Material(
+                color: _kEvGreen,
+                borderRadius: BorderRadius.circular(10),
+                child: InkWell(
+                  onTap: onClearBrandFilter,
+                  borderRadius: BorderRadius.circular(10),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.filter_alt_off_rounded,
+                          size: 17, color: Colors.white),
+                      SizedBox(width: 6),
+                      Text('브랜드 필터 해제하고 다시 추천',
+                          style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
           if (filteredOut > 0) ...[
             const SizedBox(height: 6),
             Text(

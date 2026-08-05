@@ -6348,6 +6348,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                               data: _lastResultData!,
                               scrollController: sc,
                               onStationMapTap: _showEvStationRouteOnMap,
+                            onClearBrandFilter: () {
+                              setState(() => _preferredEvBrands.clear());
+                              _runEvAnalyze(); // 해제 즉시 재추천 — 한 탭 회복
+                            },
                               originLat: _lastStartLat,
                               originLng: _lastStartLng,
                               destLat: _destLat,
