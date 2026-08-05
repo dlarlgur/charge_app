@@ -42,7 +42,11 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
   List<GasStation> _sortedGas(List<GasStation> l) {
     final c = [...l];
     if (_byPrice) {
-      c.sort((a, b) => a.price.compareTo(b.price));
+      // 동일 가격이면 가까운 곳 먼저 (사용자 제보)
+      c.sort((a, b) {
+        final r = a.price.compareTo(b.price);
+        return r != 0 ? r : a.distance.compareTo(b.distance);
+      });
     } else {
       c.sort((a, b) => a.distance.compareTo(b.distance));
     }
@@ -62,7 +66,11 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
         if (pa == null && pb == null) return 0;
         if (pa == null) return 1;
         if (pb == null) return -1;
-        return pa.compareTo(pb);
+        final r = pa.compareTo(pb);
+        if (r != 0) return r;
+        // 동일 가격이면 가까운 곳 먼저 (사용자 제보)
+        return (a.distance ?? double.infinity)
+            .compareTo(b.distance ?? double.infinity);
       });
     } else {
       c.sort((a, b) => (a.distance ?? double.infinity)

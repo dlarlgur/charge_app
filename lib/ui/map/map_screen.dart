@@ -2584,14 +2584,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final allEv = items.isNotEmpty && items.every((e) => e is EvStation);
     final byPriceMode =
         allEv ? (ref.read(evFilterProvider).sort != 1) : _listSortByPrice;
-    int byPrice(dynamic a, dynamic b) {
-      final pa = _itemPrice(a);
-      final pb = _itemPrice(b);
-      if (pa == null && pb == null) return 0;
-      if (pa == null) return 1;
-      if (pb == null) return -1;
-      return pa.compareTo(pb);
-    }
     int byDist(dynamic a, dynamic b) {
       final da = _itemDistance(a);
       final db = _itemDistance(b);
@@ -2599,6 +2591,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       if (da == null) return 1;
       if (db == null) return -1;
       return da.compareTo(db);
+    }
+    int byPrice(dynamic a, dynamic b) {
+      final pa = _itemPrice(a);
+      final pb = _itemPrice(b);
+      if (pa == null && pb == null) return byDist(a, b);
+      if (pa == null) return 1;
+      if (pb == null) return -1;
+      final r = pa.compareTo(pb);
+      // 동일 가격이면 가까운 곳 먼저 (사용자 제보: 같은 값인데 먼 곳이 위)
+      return r != 0 ? r : byDist(a, b);
     }
     items.sort(byPriceMode ? byPrice : byDist);
   }

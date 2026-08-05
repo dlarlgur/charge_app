@@ -457,7 +457,11 @@ final gasStationsProvider = Provider<AsyncValue<List<GasStation>>>((ref) {
             if (filter.sort == 2) {
               list.sort((a, b) => a.distance.compareTo(b.distance));
             } else {
-              list.sort((a, b) => a.price.compareTo(b.price));
+              // 동일 가격이면 가까운 곳 먼저 (사용자 제보: 같은 값인데 먼 곳이 위)
+              list.sort((a, b) {
+                final c = a.price.compareTo(b.price);
+                return c != 0 ? c : a.distance.compareTo(b.distance);
+              });
             }
           }
           // 즐겨찾기 블록도 선택한 정렬을 동일 적용 — 거리순 고정이라 "가격순인데
@@ -541,11 +545,24 @@ final evStationsProvider = Provider<AsyncValue<List<EvStation>>>((ref) {
             if (b == null) return -1;
             return a.compareTo(b);
           }
+          // 동일 가격이면 가까운 곳 먼저 (주유와 동일 규칙)
+          int cmpDist(EvStation a, EvStation b) =>
+              (a.distance ?? double.infinity)
+                  .compareTo(b.distance ?? double.infinity);
           void sortEv(List<EvStation> list) {
             if (filter.sort == 2) {
-              list.sort((a, b) => cmpPrice(a.unitPriceFast ?? a.unitPriceSlow, b.unitPriceFast ?? b.unitPriceSlow));
+              list.sort((a, b) {
+                final c = cmpPrice(a.unitPriceFast ?? a.unitPriceSlow,
+                    b.unitPriceFast ?? b.unitPriceSlow);
+                return c != 0 ? c : cmpDist(a, b);
+              });
             } else if (filter.sort == 3) {
-              list.sort((a, b) => cmpPrice(a.unitPriceFastMember ?? a.unitPriceSlowMember, b.unitPriceFastMember ?? b.unitPriceSlowMember));
+              list.sort((a, b) {
+                final c = cmpPrice(
+                    a.unitPriceFastMember ?? a.unitPriceSlowMember,
+                    b.unitPriceFastMember ?? b.unitPriceSlowMember);
+                return c != 0 ? c : cmpDist(a, b);
+              });
             }
           }
           // 즐겨찾기 블록도 선택 정렬 동일 적용 (sort=1 거리순은 위 기본 정렬 유지).
