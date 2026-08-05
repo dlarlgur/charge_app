@@ -81,8 +81,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   // 목록 시트가 최소화보다 올라와 있나(뒤로가기로 종료 대신 접기 위해 추적).
   bool _listExpanded = false;
   // 정렬: true=가격순, false=거리순. 기본값은 vehicleType 따라 _resetListSort 에서 결정.
+  // 마지막 선택은 Hive 로 유지 (형 전달 제보: 재실행하면 기본값으로 복귀).
   bool _listSortByPrice = true;
   bool _listSortInitialized = false;
+  static const _kListSortKey = 'map_list_sort_by_price';
   // 둘 다(_showGas && _showEv) 모드일 때 목록 시트 탭 — true=주유, false=충전.
   bool _listTabGas = true;
 
@@ -180,8 +182,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   void _ensureListSortDefault() {
     if (_listSortInitialized) return;
     _listSortInitialized = true;
-    // 충전만 보이는 모드면 거리순, 그 외(주유 포함)는 가격순.
-    _listSortByPrice = !(_showEv && !_showGas);
+    // 마지막 선택이 있으면 그걸 유지, 없으면 충전만=거리순 / 주유 포함=가격순.
+    final saved = Hive.box(AppConstants.settingsBox).get(_kListSortKey);
+    _listSortByPrice =
+        saved is bool ? saved : !(_showEv && !_showGas);
   }
 
   // 검색 핀 수명 — 지도 확대/이동엔 유지하고, 다른 스테이션 마커를 눌러
@@ -2370,11 +2374,19 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               // (카드 표시가 기준까지 지도에서 바로 선택).
               if (tabIsGas) ...[
                 _buildSortChip('가격순', _listSortByPrice, isDark, () {
-                  if (!_listSortByPrice) setState(() => _listSortByPrice = true);
+                  if (!_listSortByPrice) {
+                    setState(() => _listSortByPrice = true);
+                    Hive.box(AppConstants.settingsBox)
+                        .put(_kListSortKey, true);
+                  }
                 }),
                 const SizedBox(width: 6),
                 _buildSortChip('거리순', !_listSortByPrice, isDark, () {
-                  if (_listSortByPrice) setState(() => _listSortByPrice = false);
+                  if (_listSortByPrice) {
+                    setState(() => _listSortByPrice = false);
+                    Hive.box(AppConstants.settingsBox)
+                        .put(_kListSortKey, false);
+                  }
                 }),
               ] else
                 ..._buildEvSortChips(isDark),

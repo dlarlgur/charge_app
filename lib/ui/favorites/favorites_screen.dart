@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/constants/api_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/models.dart';
 import '../../providers/providers.dart'
@@ -28,7 +30,14 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
   late TabController _tabController;
 
   // 정렬 — 기본 거리순, 칩으로 가격순 전환 (제보: 즐겨찾기도 가격순 보고 싶다).
-  bool _byPrice = false;
+  // 마지막 정렬 유지 (형 전달 제보: 가격순 골라도 재실행하면 거리순으로 복귀)
+  bool _byPrice = Hive.box(AppConstants.settingsBox)
+      .get('fav_sort_by_price', defaultValue: false) as bool;
+
+  void _setByPrice(bool v) {
+    setState(() => _byPrice = v);
+    Hive.box(AppConstants.settingsBox).put('fav_sort_by_price', v);
+  }
 
   List<GasStation> _sortedGas(List<GasStation> l) {
     final c = [...l];
@@ -149,10 +158,10 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
             children: [
               const Spacer(),
               _sortChip('거리순', !_byPrice, isDark,
-                  () => setState(() => _byPrice = false)),
+                  () => _setByPrice(false)),
               const SizedBox(width: 6),
               _sortChip('가격순', _byPrice, isDark,
-                  () => setState(() => _byPrice = true)),
+                  () => _setByPrice(true)),
             ],
           ),
         ),
