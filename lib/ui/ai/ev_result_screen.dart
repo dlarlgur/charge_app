@@ -438,8 +438,8 @@ class _AltAccordion extends StatelessWidget {
 
     final avail = (station['available_count'] as num?)?.toInt() ?? 0;
     final total = (station['total_count'] as num?)?.toInt() ?? 0;
-    final unitPrice = (station['unit_price_member'] as num?)?.toInt() ??
-        (station['unit_price'] as num?)?.toInt();
+    final unitPrice = (station['unit_price_member'] as num?)?.round() ??
+        (station['unit_price'] as num?)?.round();
     final detourMin = (station['detour_time_min'] as num?)?.toInt();
     final costRaw = station['est_cost_member'] ?? station['est_cost'];
     final cost = costRaw is num ? costRaw.round() : null;
@@ -1185,8 +1185,8 @@ class _StationCardState extends State<_StationCard> {
     final gsOperator = gs['operator']?.toString() ?? '';
     final gsAvail = (gs['available_count'] as num?)?.toInt() ?? 0;
     final gsTotal = (gs['total_count'] as num?)?.toInt() ?? 0;
-    final gsUnitPrice = (gs['unit_price'] as num?)?.toInt();
-    final gsUnitPriceNonMember = (gs['unit_price_nonmember'] as num?)?.toInt();
+    final gsUnitPrice = (gs['unit_price'] as num?)?.round();
+    final gsUnitPriceNonMember = (gs['unit_price_nonmember'] as num?)?.round();
     final gsLat = (gs['lat'] as num?)?.toDouble();
     final gsLng = (gs['lng'] as num?)?.toDouble();
     final gsName = gs['name']?.toString() ?? '';
@@ -1422,12 +1422,12 @@ class _StationCardState extends State<_StationCard> {
     final availCount = (station['available_count'] as num?)?.toInt() ?? 0;
     final totalCount = (station['total_count'] as num?)?.toInt() ?? 0;
     final headingCount = (station['heading_count'] as num?)?.toInt() ?? 0;
-    final unitPrice = (station['unit_price'] as num?)?.toInt();
+    final unitPrice = (station['unit_price'] as num?)?.round();
     // 회원가 헤드라인 + 비회원가 별도. 구버전 서버(필드 없음) 대비 unit_price 폴백.
     final unitPriceMember =
-        (station['unit_price_member'] as num?)?.toInt() ?? unitPrice;
+        (station['unit_price_member'] as num?)?.round() ?? unitPrice;
     final unitPriceNonMember =
-        (station['unit_price_nonmember'] as num?)?.toInt();
+        (station['unit_price_nonmember'] as num?)?.round();
     final detourMin = (station['detour_time_min'] as num?)?.toInt();
     final oldestMin = (station['oldest_charging_min'] as num?)?.toInt();
     final originDistM = (station['origin_distance_m'] as num?)?.toInt();
@@ -1478,8 +1478,8 @@ class _StationCardState extends State<_StationCard> {
     final estOperators = <Map<String, dynamic>>[];
     if (isGrouped && effKwh != null && effKwh > 0) {
       for (final g in groupedStations!) {
-        final m = (g['unit_price'] as num?)?.toInt();
-        final n = (g['unit_price_nonmember'] as num?)?.toInt();
+        final m = (g['unit_price'] as num?)?.round();
+        final n = (g['unit_price_nonmember'] as num?)?.round();
         if (m == null && n == null) continue;
         estOperators.add({
           'op': (g['operator'] ?? '').toString(),
@@ -2552,11 +2552,11 @@ class EvSelectList extends StatelessWidget {
               final operator = s['operator']?.toString() ?? '';
               final avail = (s['available_count'] as num?)?.toInt() ?? 0;
               final total = (s['total_count'] as num?)?.toInt() ?? 0;
-              final unitPrice = (s['unit_price'] as num?)?.toInt();
+              final unitPrice = (s['unit_price'] as num?)?.round();
               final unitPriceMember =
-                  (s['unit_price_member'] as num?)?.toInt() ?? unitPrice;
+                  (s['unit_price_member'] as num?)?.round() ?? unitPrice;
               final unitPriceNonMember =
-                  (s['unit_price_nonmember'] as num?)?.toInt();
+                  (s['unit_price_nonmember'] as num?)?.round();
               final routeDistM = (s['route_distance_m'] as num?)?.toInt() ?? 0;
               final originDistM = (s['origin_distance_m'] as num?)?.toInt();
               final originEtaMin = (s['origin_eta_min'] as num?)?.toInt();
