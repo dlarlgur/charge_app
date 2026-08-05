@@ -433,6 +433,20 @@ enum FuelType {
   }
 }
 
+/// 조회 유종 코드 → 라벨. 차량 유종 enum(FuelType)과 별개 축 — 필터/홈 토글처럼
+/// '조회'만 하는 곳은 등유(C004) 등 enum 밖 코드도 다뤄야 해서 이걸 쓴다.
+/// (fromCode 는 미지 코드를 휘발유로 폴백 → 등유 켰는데 '휘발유' 탭이 생기던 버그)
+String fuelCodeLabel(String code) {
+  switch (code) {
+    case 'B027': return '휘발유';
+    case 'B034': return '고급휘발유';
+    case 'D047': return '경유';
+    case 'K015': return 'LPG';
+    case 'C004': return '등유';
+    default: return code;
+  }
+}
+
 // ─── 차량 타입 ───
 enum VehicleType {
   gas('gas', '내연기관차'),

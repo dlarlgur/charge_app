@@ -1113,7 +1113,7 @@ class _GasListViewState extends ConsumerState<_GasListView> {
                               ),
                             ),
                             child: Text(
-                              FuelType.fromCode(code).label,
+                              fuelCodeLabel(code),
                               style: TextStyle(
                                 fontSize: 12.5,
                                 fontWeight: FontWeight.w700,
@@ -1144,7 +1144,7 @@ class _GasListViewState extends ConsumerState<_GasListView> {
                 final avgAsync = ref.watch(gasAvgPriceProvider);
                 // 홈 표시는 활성 유종(토글)을 따라감 — 리스트/마커/평균 일관되게.
                 final fuelCode = ref.watch(effectiveGasFuelTypeProvider);
-                final fuelLabel = FuelType.fromCode(fuelCode).label;
+                final fuelLabel = fuelCodeLabel(fuelCode);
                 // 응답 우선순위: local(시도) > national(전국) > 레거시 m[fuelCode]
                 final m = avgAsync.maybeWhen<Map<String, dynamic>?>(
                     data: (v) => v, orElse: () => null);
@@ -2758,7 +2758,7 @@ class SettingsScreenEmbed extends ConsumerWidget {
     final fuelLabels = ref
         .watch(gasFilterProvider)
         .fuelTypes
-        .map((c) => FuelType.fromCode(c).label)
+        .map(fuelCodeLabel)
         .toList();
     final fuelSummary = fuelLabels.isEmpty
         ? '휘발유'

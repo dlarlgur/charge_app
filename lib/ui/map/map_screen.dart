@@ -1120,7 +1120,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         width: 0.8),
               ),
               child: Text(
-                FuelType.fromCode(code).label,
+                fuelCodeLabel(code),
                 style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w700,
