@@ -126,6 +126,7 @@ class EvStation {
   final String? phone;
   final String useTime;
   final bool parkingFree;
+  final String? busiId; // 사업자 코드 — 브랜드(E-pit) 판정용, 구서버 응답은 null
   final List<Charger> chargers;
   final double? distance;
   final int? unitPriceFast;       // 급속 비회원
@@ -155,6 +156,7 @@ class EvStation {
     this.phone,
     this.useTime = '24시간',
     this.parkingFree = false,
+    this.busiId,
     this.chargers = const [],
     this.distance,
     this.unitPriceFast,
@@ -192,6 +194,7 @@ class EvStation {
       phone: json['busiCall'] ?? json['phone'],
       useTime: json['useTime'] ?? '24시간',
       parkingFree: json['parkingFree'] == 'Y' || json['parkingFree'] == true,
+      busiId: json['busiId']?.toString(),
       chargers: chargerList,
       distance: json['distance']?.toDouble(),
       unitPriceFast: json['unitPriceFast'] != null ? (json['unitPriceFast'] as num).round() : null,
@@ -629,6 +632,7 @@ class EvFilterOptions {
   final List<String> kinds; // 빈 리스트 = 전체 (A0~J0)
   final List<String> accessLevels; // 'open'/'partial'/'restricted', 빈 리스트 = 전체
   final List<String> speeds; // kW 속도 구간 'slow'/'50'/'100'/'200'/'300', 빈 리스트 = 전체
+  final List<String> brands; // 브랜드 충전소 BMW/EPIT/PORSCHE/AUDI/BENZ, 빈 리스트 = 전체
 
   const EvFilterOptions({
     this.sort = 1,
@@ -639,12 +643,13 @@ class EvFilterOptions {
     this.kinds = const [],
     this.accessLevels = const [],
     this.speeds = const [],
+    this.brands = const [],
   });
 
   EvFilterOptions copyWith({
     int? sort, int? radius, List<String>? chargerTypes,
     bool? availableOnly, List<String>? operators, List<String>? kinds,
-    List<String>? accessLevels, List<String>? speeds,
+    List<String>? accessLevels, List<String>? speeds, List<String>? brands,
   }) {
     return EvFilterOptions(
       sort: sort ?? this.sort,
@@ -655,6 +660,7 @@ class EvFilterOptions {
       kinds: kinds ?? this.kinds,
       accessLevels: accessLevels ?? this.accessLevels,
       speeds: speeds ?? this.speeds,
+      brands: brands ?? this.brands,
     );
   }
 }

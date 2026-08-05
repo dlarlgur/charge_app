@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/ev_brand.dart';
 import '../../../core/utils/helpers.dart';
 import '../../../core/utils/navigation_util.dart';
 import '../../../data/services/watch_service.dart';
@@ -118,6 +119,27 @@ class _EvStationDetailSheetState extends State<EvStationDetailSheet> {
                   const SizedBox(height: 6),
                   Row(
                     children: [
+                      if (evBrandOf(s['name']?.toString(),
+                              s['busiId']?.toString()) !=
+                          null) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.evGreen.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: Text(
+                            evBrandLabel(evBrandOf(s['name']?.toString(),
+                                s['busiId']?.toString())!),
+                            style: const TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.evGreen),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
                       if (operator.isNotEmpty)
                         Flexible(
                           child: Text(operator,

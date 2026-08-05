@@ -8,6 +8,7 @@ import 'package:dksw_app_core/dksw_app_core.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/utils/navigation_util.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/ev_brand.dart';
 import '../../core/util/app_toast.dart';
 import '../../data/models/models.dart';
 import '../../data/services/api_service.dart';
@@ -478,6 +479,25 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
               children: [
                 EvOperatorLogo(operator: s.operator),
                 const SizedBox(width: 8),
+                // 브랜드 충전소 뱃지 — 텍스트만 (로고는 상표 이슈, 설계서 3번)
+                if (evBrandOf(s.name, s.busiId) != null) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.evGreen.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Text(
+                      evBrandLabel(evBrandOf(s.name, s.busiId)!),
+                      style: const TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.evGreen),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                ],
                 Expanded(
                   child: Text(
                     s.operator,

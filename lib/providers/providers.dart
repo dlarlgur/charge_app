@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../core/constants/api_constants.dart';
 import '../core/utils/ev_operator.dart';
+import '../core/utils/ev_brand.dart';
 import '../data/models/models.dart';
 import '../data/services/api_service.dart';
 import '../data/services/favorite_service.dart';
@@ -525,6 +526,8 @@ final evStationsProvider = Provider<AsyncValue<List<EvStation>>>((ref) {
               (filter.speeds.isEmpty ||
                   s.chargers.any((c) => filter.speeds.contains(c.speedBucket))) &&
               (opSel.isEmpty || opSel.contains(canonicalEvOperator(s.operator))) &&
+              (filter.brands.isEmpty ||
+                  filter.brands.contains(evBrandOf(s.name, s.busiId))) &&
               (filter.kinds.isEmpty || filter.kinds.contains(s.kind)) &&
               (filter.accessLevels.isEmpty || filter.accessLevels.contains(s.accessLevel));
           // 상세 API는 distance를 안 돌려주므로 현재 위치 기반으로 재계산
@@ -659,6 +662,12 @@ final mapEvStationsProvider = FutureProvider<List<EvStation>>((ref) async {
     stations =
         stations.where((s) => sel.contains(canonicalEvOperator(s.operator))).toList();
   }
+  if (filter.brands.isNotEmpty) {
+    // 브랜드 충전소 필터 — 서버 evBrand.js 와 동일 규칙 (빈 리스트=전체)
+    stations = stations
+        .where((s) => filter.brands.contains(evBrandOf(s.name, s.busiId)))
+        .toList();
+  }
   if (filter.kinds.isNotEmpty) {
     stations = stations.where((s) => filter.kinds.contains(s.kind)).toList();
   }
@@ -761,6 +770,7 @@ class EvFilterNotifier extends StateNotifier<EvFilterOptions> {
       kinds: List<String>.from(_box.get(AppConstants.keyEvFilterKinds, defaultValue: [])),
       accessLevels: List<String>.from(_box.get(AppConstants.keyEvFilterAccessLevels, defaultValue: [])),
       speeds: List<String>.from(_box.get(AppConstants.keyEvFilterSpeeds, defaultValue: [])),
+      brands: List<String>.from(_box.get(AppConstants.keyEvFilterBrands, defaultValue: [])),
     );
   }
 
@@ -774,5 +784,6 @@ class EvFilterNotifier extends StateNotifier<EvFilterOptions> {
     _box.put(AppConstants.keyEvFilterKinds, options.kinds);
     _box.put(AppConstants.keyEvFilterAccessLevels, options.accessLevels);
     _box.put(AppConstants.keyEvFilterSpeeds, options.speeds);
+    _box.put(AppConstants.keyEvFilterBrands, options.brands);
   }
 }

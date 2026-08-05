@@ -3976,6 +3976,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'highwayOnly': _evHighwayOnly,
         if (_preferredEvOperators.isNotEmpty)
           'operators': _preferredEvOperators.toList(),
+          // 브랜드 충전소 필터 — EV 필터 시트 선택을 추천에도 동일 적용
+          // (지도·홈 로컬 필터와 같은 규칙, 서버 evBrand.js 판정)
+          'brands': ref.read(evFilterProvider).brands,
         if (_evChargerType == 'FAST' && _evFastOutputs.isNotEmpty)
           'fastOutputs': _evFastOutputs.toList(),
         'ai_text': AiConsent.value == true, // 서드파티 AI 문구 동의
@@ -4246,6 +4249,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'highwayOnly': _evHighwayOnly,
         if (_preferredEvOperators.isNotEmpty)
           'operators': _preferredEvOperators.toList(),
+          // 브랜드 충전소 필터 — EV 필터 시트 선택을 추천에도 동일 적용
+          // (지도·홈 로컬 필터와 같은 규칙, 서버 evBrand.js 판정)
+          'brands': ref.read(evFilterProvider).brands,
         if (_evChargerType == 'FAST' && _evFastOutputs.isNotEmpty)
           'fastOutputs': _evFastOutputs.toList(),
         'ai_text': AiConsent.value == true, // 서드파티 AI 문구 동의

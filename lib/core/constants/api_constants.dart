@@ -118,6 +118,7 @@ class AppConstants {
   static const keyEvFilterOperators = 'ev_filter_operators';
   static const keyEvFilterKinds = 'ev_filter_kinds';
   static const keyEvFilterAccessLevels = 'ev_filter_access_levels';
+  static const keyEvFilterBrands = 'ev_filter_brands';
   static const keyEvFilterSpeeds = 'ev_filter_speeds';
   // 서드파티 AI(Gemini) 문구 생성 동의 — null=미선택, true/false (App Store 5.1.2)
   static const keyAiThirdPartyConsent = 'ai_third_party_consent';
