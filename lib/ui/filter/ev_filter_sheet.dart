@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/utils/ev_brand.dart';
 import '../../data/models/models.dart';
 import '../../providers/providers.dart';
 import '../ai/widgets/ev_operator_picker.dart';
@@ -81,13 +80,16 @@ class _EvFilterSheetState extends ConsumerState<EvFilterSheet> {
     final result = await showEvOperatorPicker(
       context,
       initial: _options.operators.toSet(),
+      initialBrands: _options.brands.toSet(),
       // 지도·홈은 Tesla 도 노출되므로 대표 칩에 Tesla 주입(/operators엔 없음).
       extraReps: [
         {'name': 'Tesla', 'count': 0}
       ],
     );
     if (result == null) return; // 취소
-    setState(() => _options = _options.copyWith(operators: result.toList()));
+    setState(() => _options = _options.copyWith(
+        operators: result.operators.toList(),
+        brands: result.brands.toList()));
   }
 
   static const _kindGroups = {
@@ -326,8 +328,6 @@ class _EvFilterSheetState extends ConsumerState<EvFilterSheet> {
                   const SizedBox(height: 10),
                   _card(isDark, child: _operatorSection(isDark, accent)),
                   const SizedBox(height: 10),
-                  _card(isDark, child: _brandSection(isDark, accent)),
-                  const SizedBox(height: 10),
                   _card(isDark, child: _kindSection(isDark, accent)),
                   const SizedBox(height: 8),
                 ],
@@ -519,123 +519,17 @@ class _EvFilterSheetState extends ConsumerState<EvFilterSheet> {
     );
   }
 
-  // 브랜드 충전소 — BMW 차징스테이션 등 5개 (사용자 문의 반영, 설계서 참고).
-  // 빈 선택 = 브랜드 제한 없음(모든 충전소). 선택 시 해당 브랜드 지점만.
-  Widget _brandSection(bool isDark, Color accent) {
-    void toggle(String code) {
-      setState(() {
-        final cur = List<String>.from(_options.brands);
-        if (cur.contains(code)) {
-          cur.remove(code);
-        } else {
-          cur.add(code);
-        }
-        _options = _options.copyWith(brands: cur);
-      });
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            _sectionHeader('브랜드 충전소', isDark),
-            const SizedBox(width: 10),
-            GestureDetector(
-              onTap: () =>
-                  setState(() => _options = _options.copyWith(brands: [])),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: _options.brands.isEmpty
-                      ? accent.withValues(alpha: 0.12)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text('전체',
-                    style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: _options.brands.isEmpty
-                            ? accent
-                            : (isDark
-                                ? AppColors.darkTextMuted
-                                : AppColors.lightTextMuted))),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: evBrands.map((b) {
-            final active = _options.brands.contains(b.code);
-            final isLast = b.code == evBrands.last.code;
-            // 칩 라벨은 짧게 — 'BMW 차징스테이션'은 칩에서 'BMW'로
-            final short = {
-              'BMW': 'BMW',
-              'EPIT': 'E-pit',
-              'PORSCHE': '포르쉐',
-              'AUDI': '아우디',
-              'BENZ': '벤츠',
-            }[b.code]!;
-            return Expanded(
-              child: Padding(
-                padding: EdgeInsets.only(right: isLast ? 0 : 7),
-                child: GestureDetector(
-                  onTap: () => toggle(b.code),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    alignment: Alignment.center,
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 10, horizontal: 3),
-                    decoration: BoxDecoration(
-                      color: active
-                          ? accent.withValues(alpha: 0.1)
-                          : (isDark
-                              ? const Color(0x08FFFFFF)
-                              : const Color(0xFFF5F6F8)),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: active
-                            ? accent
-                            : (isDark
-                                ? AppColors.darkCardBorder
-                                : const Color(0xFFDEE1E6)),
-                        width: active ? 1.5 : 0.8,
-                      ),
-                    ),
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(short,
-                          maxLines: 1,
-                          style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w600,
-                              color: active
-                                  ? accent
-                                  : (isDark
-                                      ? AppColors.darkTextSecondary
-                                      : const Color(0xFF6C757D)))),
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-
   Widget _operatorSection(bool isDark, Color accent) {
     final ops = _options.operators;
     final isAll = ops.isEmpty;
-    final summary = isAll
+    var summary = isAll
         ? '전체 사업자'
         : (ops.length <= 2
             ? ops.join(', ')
             : '${ops.take(2).join(', ')} 외 ${ops.length - 2}');
+    if (_options.brands.isNotEmpty) {
+      summary += ' · 브랜드 ${_options.brands.length}';
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

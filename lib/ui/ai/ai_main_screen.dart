@@ -50,6 +50,7 @@ import '../widgets/gas_station_map_badge.dart';
 import 'ai_constants.dart';
 import '../../data/services/rating_prompt_service.dart';
 import '../../core/utils/navigation_util.dart';
+import '../../core/utils/ev_brand.dart';
 
 class AiMainScreen extends ConsumerStatefulWidget {
   const AiMainScreen({super.key});
@@ -492,6 +493,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
   // EV 충전 사업자 필터 — 선택한 사업자 충전소만 추천. 빈 set = 전체.
   final Set<String> _preferredEvOperators = {};
+  // AI 탭 자체 브랜드 충전소 선택 — 사업자 시트에 통합된 브랜드 섹션에서 고름
+  // (지도·홈 필터의 brands 와 독립 — 형 확정: 지도 필터가 추천을 몰래 좁히지 않게)
+  final Set<String> _preferredEvBrands = {};
 
   // EV 급속 kW 구간 필터('50'/'100'/'200'/'300') — 급속 모드에서만 의미. 빈 set = 전체.
   // 800V 차주의 "200kW+ 만" 니즈용. 서버가 후보 전멸 시 완화하고 speed_relaxed 로 알림.
@@ -1905,12 +1909,16 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final result = await showEvOperatorPicker(
       context,
       initial: Set<String>.from(_preferredEvOperators),
+      initialBrands: Set<String>.from(_preferredEvBrands),
     );
     if (result == null) return; // 취소
     setState(() {
       _preferredEvOperators
         ..clear()
-        ..addAll(result);
+        ..addAll(result.operators);
+      _preferredEvBrands
+        ..clear()
+        ..addAll(result.brands);
     });
   }
 
@@ -3976,10 +3984,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'highwayOnly': _evHighwayOnly,
         if (_preferredEvOperators.isNotEmpty)
           'operators': _preferredEvOperators.toList(),
-          // 브랜드 필터는 지도·홈 전용 (형 확정: 지도에서 켜둔 걸 잊고 추천 돌리면
-          // AI 탭 표시 없이 조용히 좁혀지는 함정 — 사업자 필터를 AI 탭 자체 선택으로
-          // 분리해둔 기존 전례와 동일하게 AI 는 브랜드 무시. 서버 brands 파라미터는
-          // 유지 — 추후 AI 탭 사업자 시트에 브랜드 섹션 넣을 때 그대로 사용).
+        // 브랜드 충전소 — AI 탭 사업자·브랜드 시트의 '자체 선택'만 전달
+        // (지도·홈 필터의 brands 와 독립 — 몰래 좁혀지는 함정 방지, 형 확정)
+        if (_preferredEvBrands.isNotEmpty)
+          'brands': _preferredEvBrands.toList(),
         if (_evChargerType == 'FAST' && _evFastOutputs.isNotEmpty)
           'fastOutputs': _evFastOutputs.toList(),
         'ai_text': AiConsent.value == true, // 서드파티 AI 문구 동의
@@ -4250,10 +4258,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'highwayOnly': _evHighwayOnly,
         if (_preferredEvOperators.isNotEmpty)
           'operators': _preferredEvOperators.toList(),
-          // 브랜드 필터는 지도·홈 전용 (형 확정: 지도에서 켜둔 걸 잊고 추천 돌리면
-          // AI 탭 표시 없이 조용히 좁혀지는 함정 — 사업자 필터를 AI 탭 자체 선택으로
-          // 분리해둔 기존 전례와 동일하게 AI 는 브랜드 무시. 서버 brands 파라미터는
-          // 유지 — 추후 AI 탭 사업자 시트에 브랜드 섹션 넣을 때 그대로 사용).
+        // 브랜드 충전소 — AI 탭 사업자·브랜드 시트의 '자체 선택'만 전달
+        // (지도·홈 필터의 brands 와 독립 — 몰래 좁혀지는 함정 방지, 형 확정)
+        if (_preferredEvBrands.isNotEmpty)
+          'brands': _preferredEvBrands.toList(),
         if (_evChargerType == 'FAST' && _evFastOutputs.isNotEmpty)
           'fastOutputs': _evFastOutputs.toList(),
         'ai_text': AiConsent.value == true, // 서드파티 AI 문구 동의
@@ -6058,10 +6066,17 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                 _preferredGasBrands.add(k);
                               }
                             }),
-                            operatorCount: _preferredEvOperators.length,
-                            operatorSummary: _preferredEvOperators.length <= 2
-                                ? _preferredEvOperators.join(', ')
-                                : '${_preferredEvOperators.take(2).join(', ')} 외 ${_preferredEvOperators.length - 2}',
+                            operatorCount: _preferredEvOperators.length +
+                                _preferredEvBrands.length,
+                            operatorSummary: () {
+                              final tokens = <String>[
+                                ..._preferredEvOperators,
+                                ..._preferredEvBrands.map(evBrandLabel),
+                              ];
+                              return tokens.length <= 2
+                                  ? tokens.join(', ')
+                                  : '${tokens.take(2).join(', ')} 외 ${tokens.length - 2}';
+                            }(),
                             onTapOperators: _openEvOperatorSheet,
                           ),
                         _buildRouteSelector(isEv: isEvVehicle),
