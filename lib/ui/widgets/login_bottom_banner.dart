@@ -50,8 +50,17 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
   int _current = 0;
   Timer? _rotateTimer;
   bool _houseChecked = false;
-  // 노출 보고 — 장당 1회 (같은 광고가 순환으로 재등장해도 세션당 1번만)
+  // 인스턴스 내 dedup — 캐러셀 순환으로 같은 광고가 재등장해도 1회.
   final Set<int> _impressed = {};
+  // 인스턴스 간 dedup(5초 창) — 게이트 진입 시 화면 재마운트로 같은 노출이 2회
+  // 보고됐다(2026-08 실측). 재진입(게이트→설정→로그인)은 정당한 노출이라 시간창 방식.
+  static final Map<int, DateTime> _lastReportedAt = {};
+  static bool _reportedRecently(int id) {
+    final now = DateTime.now();
+    final last = _lastReportedAt[id];
+    _lastReportedAt[id] = now;
+    return last != null && now.difference(last).inSeconds < 5;
+  }
 
   NativeAd? _admob;
   bool _admobLoaded = false;
@@ -94,9 +103,9 @@ class _LoginBottomBannerState extends State<LoginBottomBanner> {
   }
 
   void _trackImpression(FallbackAd ad) {
-    if (_impressed.add(ad.id)) {
-      DkswCore.trackAdImpression(ad.id, variantId: ad.variantId);
-    }
+    if (!_impressed.add(ad.id)) return; // 인스턴스당 1회 (캐러셀 재등장 방지)
+    if (_reportedRecently(ad.id)) return; // 재마운트 이중 보고 방지 (5초 창)
+    DkswCore.trackAdImpression(ad.id, variantId: ad.variantId);
   }
 
   void _loadAdmob() {
