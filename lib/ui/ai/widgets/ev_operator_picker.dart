@@ -160,6 +160,12 @@ class _EvOperatorPickerSheetState extends State<_EvOperatorPickerSheet> {
             .take(30)
             .toList();
     final muted = isDark ? AppColors.darkTextMuted : const Color(0xFF9CA3AF);
+    // 섹션 헤더 — muted 12 로는 브랜드/사업자 구획이 안 읽힘(형 지적) → 잉크 볼드
+    final sectionHead = TextStyle(
+        fontSize: 13.5,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -0.2,
+        color: isDark ? AppColors.darkTextPrimary : const Color(0xFF111827));
 
     Widget chip(String name, int count, {bool fromSearch = false}) {
       final on = _sel.contains(name);
@@ -309,11 +315,7 @@ class _EvOperatorPickerSheetState extends State<_EvOperatorPickerSheet> {
                   if (q.isEmpty) ...[
                     // ── 브랜드 충전소 (BMW 차징스테이션 등 5개) — 형 확정: 별도
                     //    카드 없이 사업자 시트 안에 통합. 선택 시 그 브랜드 지점만.
-                    Text('브랜드 충전소',
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: muted)),
+                    Text('브랜드 충전소', style: sectionHead),
                     const SizedBox(height: 4),
                     Text('켜면 그 브랜드 지점만 보여요 · 브랜드 선택 중엔 사업자 필터가 적용되지 않아요',
                         style: TextStyle(fontSize: 11.5, color: muted)),
@@ -374,11 +376,7 @@ class _EvOperatorPickerSheetState extends State<_EvOperatorPickerSheet> {
                       }).toList(),
                     ),
                     const SizedBox(height: 20),
-                    Text('자주 쓰는 사업자',
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: muted)),
+                    Text('자주 쓰는 사업자', style: sectionHead),
                     const SizedBox(height: 10),
                     Wrap(
                         children: widget.rep
@@ -389,11 +387,7 @@ class _EvOperatorPickerSheetState extends State<_EvOperatorPickerSheet> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('전체 충전소 사업자',
-                            style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: muted)),
+                        Text('전체 충전소 사업자', style: sectionHead),
                         GestureDetector(
                           onTap: () => setState(() => isAll
                               ? _sel.clear()
