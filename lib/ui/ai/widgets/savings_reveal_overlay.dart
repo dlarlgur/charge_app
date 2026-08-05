@@ -304,7 +304,7 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
       barrierColor: Colors.black.withValues(alpha: 0.72),
       builder: (dctx) {
         final maxW = MediaQuery.of(dctx).size.width - 56;
-        final maxH = MediaQuery.of(dctx).size.height * 0.62;
+        final maxH = MediaQuery.of(dctx).size.height * 0.68;
         final scale = math.min(maxW / SavingsShareCard.side,
             maxH / SavingsShareCard.heightFor(story));
         return Padding(
@@ -346,6 +346,8 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
               const SizedBox(height: 18),
               Row(children: [
                 Expanded(
+                  // '다시 고르기'가 좁은 폭에서 두 줄로 깨졌다(형 재현 S24)
+                  // → '재선택' + 공유 버튼 2:1 폭 배분.
                   child: SizedBox(
                     height: 48,
                     child: OutlinedButton(
@@ -357,7 +359,7 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(13)),
                       ),
-                      child: const Text('다시 고르기',
+                      child: const Text('재선택',
                           style: TextStyle(
                               fontSize: 14.5, fontWeight: FontWeight.w700)),
                     ),
@@ -558,7 +560,7 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                             const SizedBox(height: 3),
                             // 헤드라인 — 숫자=유종 액센트, '원 절약'=잉크 (시안 5a)
                             Builder(builder: (_) {
-                              final m = RegExp(r'^([\d,]+)\s*원?\s*(.*)\$')
+                              final m = RegExp(r'^([\d,]+)\s*원?\s*(.*)$')
                                   .firstMatch(widget.headline.trim());
                               final numText = m?.group(1);
                               final tail = m == null

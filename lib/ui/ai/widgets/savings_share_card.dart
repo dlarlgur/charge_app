@@ -286,9 +286,9 @@ class SavingsShareCard extends StatelessWidget {
   Widget _savingsBody() {
     // 시안 7a: 라벨 → 큰 금액(숫자=액센트, '원 절약'=흰색) → 스테이션 행 →
     // 단가 타일 3칸 → 추천 vs 평균 비교 바 → AI 판단 한 줄.
-    final m = RegExp(r'^(.*?)\s*(절약|아낌|절감)(!?)\$').firstMatch(headline.trim());
+    final m = RegExp(r'^(.*?)\s*(절약|아낌|절감)(!?)$').firstMatch(headline.trim());
     final amount = m?.group(1) ?? headline;
-    final tailText = m == null ? null : '\${m.group(2)}\${m.group(3)}';
+    final tailText = m == null ? null : '${m.group(2)}${m.group(3)}';
     final isAmount = m != null;
 
     // 부제 — '주변 평균가 대비 · 30.8L 기준' (있는 재료로만 조립)
@@ -300,7 +300,7 @@ class SavingsShareCard extends StatelessWidget {
     }
     final subParts = <String>[
       if (avgUnitWon != null) isEv ? '주변 평균 단가 대비' : '주변 평균가 대비',
-      if (liters != null) '\$liters 기준',
+      if (liters != null) '$liters 기준',
     ];
     final hasUnits = myUnitWon != null && avgUnitWon != null;
 
