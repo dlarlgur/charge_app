@@ -952,13 +952,18 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                   }))
                 .map((c) => _chargerTile(c, isDark, s.statId)),
             const SizedBox(height: 6),
-            // 전 충전기가 미수신이면 '고장난 충전소'로 오해하기 쉽다 — 운영사 전송
-            // 문제임을 명시한다. 현장은 정상 운영 중인 경우가 대부분이다.
+            // 전 충전기가 미수신이면 '고장난 충전소'로 오해하기 쉽다.
+            // ⚠ 다만 '고장이 아니다'라고 단정하지 않는다 — 충전기 하나만 봐서는
+            //   운영사 미전송인지 실제 고장인지 구분할 수 없다. 앱이 아는 건
+            //   '상태를 못 받고 있다'와 '마지막 수신 시각'뿐이므로 딱 그것만 말한다.
+            //   (운영사 단위 동시 중단 판정은 서버가 내려주면 그때 문구를 좁힌다)
             if (!s.isTesla && s.unknownCount == s.totalCount && s.totalCount > 0)
               Padding(
                 padding: const EdgeInsets.only(bottom: 6),
                 child: Text(
-                    '운영사에서 실시간 상태를 보내지 않고 있습니다. 고장이 아니며 현장은 정상 운영 중일 수 있습니다.',
+                    _lastReceivedText(s) == null
+                        ? '이 충전소는 실시간 상태가 들어오지 않고 있습니다. 고장 여부는 확인되지 않습니다.'
+                        : '${_lastReceivedText(s)} 이후 실시간 상태가 들어오지 않고 있습니다. 고장 여부는 확인되지 않습니다.',
                     style: TextStyle(
                         fontSize: 11,
                         height: 1.4,
@@ -2289,6 +2294,18 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
         ],
       ),
     );
+  }
+
+  /// 충전소가 마지막으로 상태를 보낸 시각 — 미수신 안내에 쓴다.
+  /// 며칠 지난 건이 대부분이라 '3일 전'보다 날짜가 정보량이 크다.
+  String? _lastReceivedText(EvStation s) {
+    DateTime? latest;
+    for (final c in s.chargers) {
+      final d = c.lastStatusUpdate;
+      if (d != null && (latest == null || d.isAfter(latest))) latest = d;
+    }
+    if (latest == null) return null;
+    return '${latest.month}월 ${latest.day}일 ${latest.hour}시';
   }
 
   String _timeAgo(DateTime dt) {
