@@ -223,13 +223,17 @@ class _EvOperatorPickerSheetState extends State<_EvOperatorPickerSheet> {
           (a['name'] as String? ?? '').compareTo(b['name'] as String? ?? ''));
     }
 
+    final mq = MediaQuery.of(context);
     return Container(
+      // 다른 필터 시트(ev/gas)와 동일 규칙 — 최대 높이 85% + 하단 시스템 영역 확보.
+      // 이게 없어서 브랜드 섹션 추가 후 적용 버튼이 화면 밖으로 밀려 잘렸다(형 제보).
+      constraints: BoxConstraints(maxHeight: mq.size.height * 0.85),
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface1 : Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      padding: EdgeInsets.fromLTRB(
-          20, 12, 20, MediaQuery.of(context).viewInsets.bottom + 16),
+      padding: EdgeInsets.fromLTRB(20, 12, 20,
+          mq.viewInsets.bottom + mq.viewPadding.bottom + 16),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
