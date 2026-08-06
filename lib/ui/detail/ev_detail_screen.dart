@@ -79,6 +79,52 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
   }
 }
 
+/// 지도 bottom-sheet 용 래퍼 — EvDetailContent 는 상세 API 를 부르지 않고 받은
+/// station 을 그대로 그린다. 지도는 /around 목록 객체를 넘기는데 거기엔 상세에만
+/// 있는 값(환경부 로밍 요금 등)이 없어서, 지도로 연 충전소만 요금이 비어 보였다.
+/// 풀스크린 경로(EvDetailScreen)는 이미 같은 일을 한다 — 그 짝을 시트에도 맞춘다.
+///
+/// 목록 데이터를 먼저 그려 즉시 표시하고(스피너 없음), 상세가 오면 교체한다.
+class EvDetailSheetContent extends StatefulWidget {
+  final EvStation station;
+  final ScrollController? sheetController;
+  const EvDetailSheetContent({
+    super.key,
+    required this.station,
+    this.sheetController,
+  });
+
+  @override
+  State<EvDetailSheetContent> createState() => _EvDetailSheetContentState();
+}
+
+class _EvDetailSheetContentState extends State<EvDetailSheetContent> {
+  EvStation? _detail;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final d = await ApiService().getEvStationDetail(widget.station.statId);
+      if (mounted) setState(() => _detail = EvStation.fromJson(d));
+    } catch (_) {
+      // 실패해도 목록 데이터로 계속 표시 — 시트가 비어 보이지 않게
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => EvDetailContent(
+        station: _detail ?? widget.station,
+        sheetController: widget.sheetController,
+        sheetMode: true,
+        onSelectRoute: null,
+      );
+}
+
 /// 재사용 가능한 상세 컨텐츠. 풀스크린 라우트와 지도 bottom-sheet 양쪽에서 사용.
 class EvDetailContent extends ConsumerStatefulWidget {
   final EvStation station;

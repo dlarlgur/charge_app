@@ -2084,11 +2084,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           elevation: 12,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           clipBehavior: Clip.antiAlias,
-          child: EvDetailContent(
+          // 시트도 상세를 받아온다 — 목록 객체만 그리면 상세 전용 값(환경부 요금)이
+          // 비고 충전기 상태도 목록 조회 시점에 굳는다. EvDetailSheetContent 참조.
+          child: EvDetailSheetContent(
             station: s,
             sheetController: scrollCtrl,
-            sheetMode: true,
-            onSelectRoute: null,
           ),
         );
       },

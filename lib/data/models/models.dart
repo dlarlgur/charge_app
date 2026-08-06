@@ -250,11 +250,16 @@ class EvStation {
     return null;
   }
 
+  /// 요금 섹션을 그릴지 여부. 환경부 로밍가도 '아는 요금'이므로 포함한다 —
+  /// 빼놨더니 운영사 요금표가 없는 9,359개 충전소가 환경부가를 알면서도
+  /// "요금 정보가 제공되지 않아요"로 덮여 있었다.
   bool get hasPriceInfo =>
       unitPriceFast != null ||
       unitPriceSlow != null ||
       unitPriceFastMember != null ||
-      unitPriceSlowMember != null;
+      unitPriceSlowMember != null ||
+      kecoRoamFast != null ||
+      kecoRoamSlow != null;
 
   String get distanceText {
     if (distance == null) return '';
@@ -281,6 +286,9 @@ class EvStation {
     return types.join(' · ');
   }
 
+  // ⚠ 필드 추가 시 여기도 반드시 복사할 것 — 빠뜨리면 목록에 거리 붙이는 순간
+  //   조용히 null 이 된다. 실제로 busiId(브랜드 판정)·kecoRoam(환경부 요금)이
+  //   누락돼 있어 지도 경로로 연 충전소에서 값이 사라졌다.
   EvStation copyWithDistance(double newDistance) => EvStation(
     statId: statId,
     name: name,
@@ -291,12 +299,15 @@ class EvStation {
     phone: phone,
     useTime: useTime,
     parkingFree: parkingFree,
+    busiId: busiId,
     chargers: chargers,
     distance: newDistance,
     unitPriceFast: unitPriceFast,
     unitPriceSlow: unitPriceSlow,
     unitPriceFastMember: unitPriceFastMember,
     unitPriceSlowMember: unitPriceSlowMember,
+    kecoRoamFast: kecoRoamFast,
+    kecoRoamSlow: kecoRoamSlow,
     kind: kind,
     kindDetail: kindDetail,
     isTesla: isTesla,
