@@ -923,15 +923,10 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                 _statusCounter(
                     '충전중', s.chargingCount, AppColors.statusCharging, isDark),
                 const SizedBox(width: 8),
-                // ★ 예전엔 '고장'에 미수신(stat=9)까지 합산했다 — 정상 운영 중인
-                //   충전소가 '고장 3'으로 보였다. 미수신은 별도 칸으로 분리한다.
+                // 미수신(stat=9)도 '고장'에 합산한다 — 실제로 충전이 되더라도 우리는
+                // 알 수 없고, 사용자 입장에선 못 쓰는 것과 같다(형 판단).
                 _statusCounter(
-                    '고장', s.brokenCount, AppColors.statusOffline, isDark),
-                if (s.unknownCount > 0) ...[
-                  const SizedBox(width: 8),
-                  _statusCounter('미확인', s.unknownCount,
-                      isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted, isDark),
-                ],
+                    '고장', s.offlineCount, AppColors.statusOffline, isDark),
               ],
             ),
           if (s.chargers.isNotEmpty) ...[
@@ -952,25 +947,6 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                   }))
                 .map((c) => _chargerTile(c, isDark, s.statId)),
             const SizedBox(height: 6),
-            // 전 충전기가 미수신이면 '고장난 충전소'로 오해하기 쉽다.
-            // ⚠ 다만 '고장이 아니다'라고 단정하지 않는다 — 충전기 하나만 봐서는
-            //   운영사 미전송인지 실제 고장인지 구분할 수 없다. 앱이 아는 건
-            //   '상태를 못 받고 있다'와 '마지막 수신 시각'뿐이므로 딱 그것만 말한다.
-            //   (운영사 단위 동시 중단 판정은 서버가 내려주면 그때 문구를 좁힌다)
-            if (!s.isTesla && s.unknownCount == s.totalCount && s.totalCount > 0)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Text(
-                    _lastReceivedText(s) == null
-                        ? '이 충전소는 실시간 상태가 들어오지 않고 있습니다. 고장 여부는 확인되지 않습니다.'
-                        : '${_lastReceivedText(s)} 이후 실시간 상태가 들어오지 않고 있습니다. 고장 여부는 확인되지 않습니다.',
-                    style: TextStyle(
-                        fontSize: 11,
-                        height: 1.4,
-                        color: isDark
-                            ? AppColors.darkTextMuted
-                            : AppColors.lightTextMuted)),
-              ),
             Text('충전기 상태는 실시간과 다를 수 있습니다',
                 style: TextStyle(
                     fontSize: 11,
@@ -2030,24 +2006,22 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
         } else {
           statusColor = AppColors.statusOffline;
           statusText = '상태확인 불가';
-          // ★ 예전엔 '{N일 전} 고장'으로 적었다 — 근거 없는 단정이었다. stat=9 는
-          //   '고장'이 아니라 '운영사가 환경부로 상태를 안 보내는 중'이라는 뜻이고,
-          //   statUpdDt 는 고장 시각이 아니라 마지막으로 상태가 들어온 시각이다.
-          //   실사례: 일성경주보문콘도(매니지온) — 현장은 정상 운영인데 '1일 전 고장'
-          //   으로 표시돼 제보가 들어왔다. 운영사 194개소 709기가 동시에 끊긴 건이었다.
+          // ★ 예전엔 '{N일 전} 고장'으로 적었다 — statUpdDt 는 '고장 시각'이 아니라
+          //   '마지막으로 상태가 갱신된 시각'이다. 원천에 없는 단어를 만들지 않는다.
+          //   (일성경주보문콘도 제보 건 — 현장 정상인데 '1일 전 고장'으로 표시됐다)
           subText = charger.lastStatusUpdate != null
-              ? '${_timeAgo(charger.lastStatusUpdate!)}부터 상태 미수신'
+              ? '${_timeAgo(charger.lastStatusUpdate!)} 갱신'
               : null;
           subTextColor = AppColors.statusOffline;
         }
         break;
       default:
-        // 통신이상·운영중지·점검중 — 상태 자체는 운영사가 보낸 값이므로 라벨을 믿되,
-        // 시각은 '고장 시각'이 아니라 '그 상태로 바뀐 시각'이다.
+        // 통신이상·운영중지·점검중 — 라벨은 운영사가 보낸 상태 그대로 쓰고,
+        // 시각은 '고장 시각'이 아니라 '그 상태로 갱신된 시각'이다.
         statusColor = AppColors.statusOffline;
         statusText = charger.status.label;
         subText = charger.lastStatusUpdate != null
-            ? '${_timeAgo(charger.lastStatusUpdate!)}부터'
+            ? '${_timeAgo(charger.lastStatusUpdate!)} 갱신'
             : null;
     }
 
@@ -2294,18 +2268,6 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
         ],
       ),
     );
-  }
-
-  /// 충전소가 마지막으로 상태를 보낸 시각 — 미수신 안내에 쓴다.
-  /// 며칠 지난 건이 대부분이라 '3일 전'보다 날짜가 정보량이 크다.
-  String? _lastReceivedText(EvStation s) {
-    DateTime? latest;
-    for (final c in s.chargers) {
-      final d = c.lastStatusUpdate;
-      if (d != null && (latest == null || d.isAfter(latest))) latest = d;
-    }
-    if (latest == null) return null;
-    return '${latest.month}월 ${latest.day}일 ${latest.hour}시';
   }
 
   String _timeAgo(DateTime dt) {

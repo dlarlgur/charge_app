@@ -217,14 +217,9 @@ class EvStation {
 
   int get availableCount => chargers.where((c) => c.status == ChargerStatus.available).length;
   int get chargingCount => chargers.where((c) => c.status == ChargerStatus.charging).length;
-  /// 이용 불가로 보이는 수 (미수신 포함) — 위젯의 '전부 이용 불가' 판정용.
+  /// 이용 불가 수 — 미수신(stat=9)도 포함한다. 미수신 중에 실제로 충전이 되더라도
+  /// 우리는 알 수 없으므로 '확인 안 되면 못 쓰는 것'으로 보수적으로 센다.
   int get offlineCount => chargers.where((c) => c.status == ChargerStatus.commError || c.status == ChargerStatus.suspended || c.status == ChargerStatus.maintenance || c.status == ChargerStatus.unknown).length;
-  /// 상태 미수신(stat=9). 운영사가 환경부로 상태를 안 보내는 것이라 현장은 정상일 수
-  /// 있다 — '고장'과 절대 합치지 않는다(실사례: 매니지온 194개소 동시 미수신인데
-  /// 현장 정상 운영, 앱이 '고장 3'으로 표시해 제보가 들어왔다).
-  int get unknownCount => chargers.where((c) => c.status == ChargerStatus.unknown).length;
-  /// 실제 이용 불가 (통신이상·운영중지·점검중) — 미수신 제외.
-  int get brokenCount => offlineCount - unknownCount;
   int get totalCount => chargers.length;
 
   bool get hasAvailable => availableCount > 0;
