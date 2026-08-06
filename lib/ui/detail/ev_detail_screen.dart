@@ -923,10 +923,13 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                 _statusCounter(
                     '충전중', s.chargingCount, AppColors.statusCharging, isDark),
                 const SizedBox(width: 8),
-                // 미수신(stat=9)도 '고장'에 합산한다 — 실제로 충전이 되더라도 우리는
-                // 알 수 없고, 사용자 입장에선 못 쓰는 것과 같다(형 판단).
+                // 통신이상·운영중지·점검중·상태미확인(1·4·5·9)을 한 칸에 합산한다.
+                // '고장'은 환경부에 없는 코드라 우리가 지어낸 이름이었다 — 실제로는
+                // 상태를 못 받는 경우가 태반이다(전국 7,324개소가 전 충전기 미확인,
+                // 그중 4,970개소는 30일 이상). 원인을 단정하지 않는 이름으로 바꾼다.
+                // 코드별 정확한 상태는 바로 아래 충전기 목록에서 그대로 보여준다.
                 _statusCounter(
-                    '고장', s.offlineCount, AppColors.statusOffline, isDark),
+                    '확인불가', s.offlineCount, AppColors.statusOffline, isDark),
               ],
             ),
           if (s.chargers.isNotEmpty) ...[
@@ -2005,7 +2008,9 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
           subText = null;
         } else {
           statusColor = AppColors.statusOffline;
-          statusText = '상태확인 불가';
+          // 9 만 화면에서 따로 이름을 지어 쓰고 있었다(다른 코드는 모델 라벨 사용).
+          // 환경부 코드명 그대로 쓴다 — 9 = 상태미확인.
+          statusText = charger.status.label;
           // ★ 예전엔 '{N일 전} 고장'으로 적었다 — statUpdDt 는 '고장 시각'이 아니라
           //   '마지막으로 상태가 갱신된 시각'이다. 원천에 없는 단어를 만들지 않는다.
           //   (일성경주보문콘도 제보 건 — 현장 정상인데 '1일 전 고장'으로 표시됐다)
