@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../data/models/models.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/helpers.dart';
 import '../../core/utils/navigation_util.dart';
@@ -445,8 +446,8 @@ class _AltAccordion extends StatelessWidget {
 
     final avail = (station['available_count'] as num?)?.toInt() ?? 0;
     final total = (station['total_count'] as num?)?.toInt() ?? 0;
-    final unitPrice = (station['unit_price_member'] as num?)?.round() ??
-        (station['unit_price'] as num?)?.round();
+    final unitPrice = (station['unit_price_member'] as num?)?.toDouble() ??
+        (station['unit_price'] as num?)?.toDouble();
     final detourMin = (station['detour_time_min'] as num?)?.toInt();
     final costRaw = station['est_cost_member'] ?? station['est_cost'];
     final cost = costRaw is num ? costRaw.round() : null;
@@ -454,7 +455,7 @@ class _AltAccordion extends StatelessWidget {
     // meta — 가용은 EV 에서 요금보다 결정적일 때가 많아 접힌 줄에 꼭 넣는다.
     final metaParts = <String>[
       if (total > 0) (avail > 0 ? '$avail/$total 여유' : '만석'),
-      if (unitPrice != null) '${_wonFmt.format(unitPrice)}원/kWh',
+      if (unitPrice != null) '${evPriceText(unitPrice)}원/kWh',
       if (detourMin != null && detourMin > 0) '+${fmtMin(detourMin)} 우회',
       if (detourMin != null && detourMin == 0) '우회 없음',
       // 유료일 때만 — 무료까지 넣으면 접힌 줄이 길어진다
@@ -592,7 +593,7 @@ class _AltAccordion extends StatelessWidget {
                           cost != null
                               ? '${_wonFmt.format(cost)}원'
                               : (unitPrice != null
-                                  ? '${_wonFmt.format(unitPrice)}원/kWh'
+                                  ? '${evPriceText(unitPrice)}원/kWh'
                                   : '가격 미공개'),
                           style: TextStyle(
                               fontSize: cost != null || unitPrice != null
@@ -824,7 +825,7 @@ class _StationCardState extends State<_StationCard> {
       double? kwh,
       int? member,
       int? nonMember,
-      int? unitPriceWon,
+      double? unitPriceWon,
       List<Map<String, dynamic>>? operators,
       Color labelColor,
       bool isDark) {
@@ -1002,7 +1003,7 @@ class _StationCardState extends State<_StationCard> {
                       color: labelColor)),
               if (unitPriceWon != null) ...[
                 const SizedBox(width: 6),
-                Text('· ${won(unitPriceWon)}원/kWh',
+                Text('· ${evPriceText(unitPriceWon)}원/kWh',
                     style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
@@ -1234,8 +1235,8 @@ class _StationCardState extends State<_StationCard> {
     final gsOperator = gs['operator']?.toString() ?? '';
     final gsAvail = (gs['available_count'] as num?)?.toInt() ?? 0;
     final gsTotal = (gs['total_count'] as num?)?.toInt() ?? 0;
-    final gsUnitPrice = (gs['unit_price'] as num?)?.round();
-    final gsUnitPriceNonMember = (gs['unit_price_nonmember'] as num?)?.round();
+    final gsUnitPrice = (gs['unit_price'] as num?)?.toDouble();
+    final gsUnitPriceNonMember = (gs['unit_price_nonmember'] as num?)?.toDouble();
     final gsLat = (gs['lat'] as num?)?.toDouble();
     final gsLng = (gs['lng'] as num?)?.toDouble();
     final gsName = gs['name']?.toString() ?? '';
@@ -1302,8 +1303,8 @@ class _StationCardState extends State<_StationCard> {
                 const SizedBox(width: 6),
                 Text(
                   gsUnitPriceNonMember != null
-                      ? '회원 ${_wonFmt.format(gsUnitPrice)} · 비회원 ${_wonFmt.format(gsUnitPriceNonMember)}원'
-                      : '회원 ${_wonFmt.format(gsUnitPrice)}원',
+                      ? '회원 ${evPriceText(gsUnitPrice)} · 비회원 ${evPriceText(gsUnitPriceNonMember)}원'
+                      : '회원 ${evPriceText(gsUnitPrice)}원',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -1471,12 +1472,12 @@ class _StationCardState extends State<_StationCard> {
     final availCount = (station['available_count'] as num?)?.toInt() ?? 0;
     final totalCount = (station['total_count'] as num?)?.toInt() ?? 0;
     final headingCount = (station['heading_count'] as num?)?.toInt() ?? 0;
-    final unitPrice = (station['unit_price'] as num?)?.round();
+    final unitPrice = (station['unit_price'] as num?)?.toDouble();
     // 회원가 헤드라인 + 비회원가 별도. 구버전 서버(필드 없음) 대비 unit_price 폴백.
     final unitPriceMember =
-        (station['unit_price_member'] as num?)?.round() ?? unitPrice;
+        (station['unit_price_member'] as num?)?.toDouble() ?? unitPrice;
     final unitPriceNonMember =
-        (station['unit_price_nonmember'] as num?)?.round();
+        (station['unit_price_nonmember'] as num?)?.toDouble();
     final detourMin = (station['detour_time_min'] as num?)?.toInt();
     final oldestMin = (station['oldest_charging_min'] as num?)?.toInt();
     final originDistM = (station['origin_distance_m'] as num?)?.toInt();
@@ -1527,8 +1528,8 @@ class _StationCardState extends State<_StationCard> {
     final estOperators = <Map<String, dynamic>>[];
     if (isGrouped && effKwh != null && effKwh > 0) {
       for (final g in groupedStations!) {
-        final m = (g['unit_price'] as num?)?.round();
-        final n = (g['unit_price_nonmember'] as num?)?.round();
+        final m = (g['unit_price'] as num?)?.toDouble();
+        final n = (g['unit_price_nonmember'] as num?)?.toDouble();
         if (m == null && n == null) continue;
         estOperators.add({
           'op': (g['operator'] ?? '').toString(),
@@ -1801,7 +1802,7 @@ class _StationCardState extends State<_StationCard> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 if (unitPriceMember != null)
-                  Text('${_wonFmt.format(unitPriceMember)}원/kWh',
+                  Text('${evPriceText(unitPriceMember)}원/kWh',
                       style: TextStyle(
                           fontSize: 11, height: 1.5, color: mutedC)),
                 if (effCostNonMember != null &&
@@ -2601,11 +2602,11 @@ class EvSelectList extends StatelessWidget {
               final operator = s['operator']?.toString() ?? '';
               final avail = (s['available_count'] as num?)?.toInt() ?? 0;
               final total = (s['total_count'] as num?)?.toInt() ?? 0;
-              final unitPrice = (s['unit_price'] as num?)?.round();
+              final unitPrice = (s['unit_price'] as num?)?.toDouble();
               final unitPriceMember =
-                  (s['unit_price_member'] as num?)?.round() ?? unitPrice;
+                  (s['unit_price_member'] as num?)?.toDouble() ?? unitPrice;
               final unitPriceNonMember =
-                  (s['unit_price_nonmember'] as num?)?.round();
+                  (s['unit_price_nonmember'] as num?)?.toDouble();
               final routeDistM = (s['route_distance_m'] as num?)?.toInt() ?? 0;
               final originDistM = (s['origin_distance_m'] as num?)?.toInt();
               final originEtaMin = (s['origin_eta_min'] as num?)?.toInt();
@@ -2716,12 +2717,12 @@ class EvSelectList extends StatelessWidget {
                                           fontSize: 11, color: mutedColor)),
                                 if (unitPriceMember != null)
                                   Text(
-                                      '회원 ${_wonFmt.format(unitPriceMember)}원/kWh',
+                                      '회원 ${evPriceText(unitPriceMember)}원/kWh',
                                       style: TextStyle(
                                           fontSize: 11, color: priceColor)),
                                 if (unitPriceNonMember != null)
                                   Text(
-                                      '비회원 ${_wonFmt.format(unitPriceNonMember)}원/kWh',
+                                      '비회원 ${evPriceText(unitPriceNonMember)}원/kWh',
                                       style: TextStyle(
                                           fontSize: 11, color: mutedColor)),
                               ],

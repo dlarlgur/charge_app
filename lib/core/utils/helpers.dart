@@ -29,11 +29,6 @@ String formatPrice(double price) {
   )}원';
 }
 
-/// kWh 가격 포맷 (292원/kWh)
-String formatEvPrice(double price) {
-  return '${price.toInt()}원/kWh';
-}
-
 /// 거리 포맷 (800m / 1.2Km)
 String formatDistance(double meters) {
   if (meters < 1000) return '${meters.toInt()}m';

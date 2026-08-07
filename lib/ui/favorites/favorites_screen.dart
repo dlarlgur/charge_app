@@ -55,7 +55,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
 
   List<EvStation> _sortedEv(List<EvStation> l) {
     final c = [...l];
-    int? priceOf(EvStation s) =>
+    double? priceOf(EvStation s) =>
         s.unitPriceFast ??
         s.unitPriceSlow ??
         s.unitPriceFastMember ??

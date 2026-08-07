@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/ev_brand.dart';
@@ -10,6 +9,7 @@ import '../../detail/ev_detail_screen.dart';
 import '../../widgets/watch_switch_dialog.dart';
 import 'big_metric.dart';
 import 'watch_proposal_dialog.dart';
+import '../../../data/models/models.dart';
 
 /// EV 사용자 선택 모드 — 충전소 상세 바텀시트
 class EvStationDetailSheet extends StatefulWidget {
@@ -60,7 +60,7 @@ class _EvStationDetailSheetState extends State<EvStationDetailSheet> {
     final operator = s['operator']?.toString() ?? '';
     final availCount = (s['available_count'] as num?)?.toInt() ?? 0;
     final totalCount = (s['total_count'] as num?)?.toInt() ?? 0;
-    final unitPrice = (s['unit_price'] as num?)?.toInt();
+    final unitPrice = (s['unit_price'] as num?)?.toDouble();
     final detourMin = (s['detour_time_min'] as num?)?.toInt();
     final originDistM = (s['origin_distance_m'] as num?)?.toInt();
     final originEtaMin = (s['origin_eta_min'] as num?)?.toInt();
@@ -280,7 +280,7 @@ class _EvStationDetailSheetState extends State<EvStationDetailSheet> {
                                 ),
                               ),
                               child: Text(
-                                '${NumberFormat('#,###', 'ko_KR').format(unitPrice)}원/kWh',
+                                '${evPriceText(unitPrice)}원/kWh',
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w800,

@@ -900,7 +900,7 @@ class EvStationCard extends ConsumerWidget {
                               text: TextSpan(
                                 children: [
                                   TextSpan(
-                                    text: '$priceMain',
+                                    text: evPriceText(priceMain),
                                     style: TextStyle(
                                       fontSize: 17,
                                       fontWeight: FontWeight.w800,
@@ -935,7 +935,7 @@ class EvStationCard extends ConsumerWidget {
                             if (priceSub != null) ...[
                               const SizedBox(height: 3),
                               Text(
-                                '$priceSubLabel $priceSub원',
+                                '$priceSubLabel ${evPriceText(priceSub)}원',
                                 style: TextStyle(
                                   fontSize: 9.5,
                                   fontWeight: FontWeight.w500,

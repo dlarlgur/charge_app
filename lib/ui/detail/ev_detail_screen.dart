@@ -52,9 +52,13 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
   Future<void> _loadDetail() async {
     try {
       final detail = await ApiService().getEvStationDetail(widget.stationId);
+      // 상세엔 distance 가 없어 그대로 덮으면 거리 표시가 사라진다 — 목록에서
+      // 받아온 거리를 이어붙인다. (시트 경로 EvDetailSheetContent 와 동일)
+      final fresh = EvStation.fromJson(detail);
+      final dist = widget.station?.distance;
       if (mounted)
         setState(() {
-          _station = EvStation.fromJson(detail);
+          _station = dist == null ? fresh : fresh.copyWithDistance(dist);
           _loading = false;
         });
     } catch (e) {
@@ -104,13 +108,23 @@ class _EvDetailSheetContentState extends State<EvDetailSheetContent> {
   @override
   void initState() {
     super.initState();
-    _load();
+    // 테슬라는 statId 가 OCM UUID 라 EV 상세(/ev/:id)에 없다 — 무조건 404.
+    // 목록 객체가 곧 전부이므로 헛요청을 아예 보내지 않는다.
+    if (!widget.station.isTesla) _load();
   }
 
   Future<void> _load() async {
     try {
       final d = await ApiService().getEvStationDetail(widget.station.statId);
-      if (mounted) setState(() => _detail = EvStation.fromJson(d));
+      // 상세 응답엔 distance 가 없다(현재 위치 기준 값이라 목록에만 있음).
+      // 그대로 바꿔치우면 히어로의 거리 칩과 '길 안내 시작 (1.2Km)' 라벨이
+      // 시트 연 직후 사라진다 — 목록이 들고 있던 거리를 이어붙인다.
+      final fresh = EvStation.fromJson(d);
+      final dist = widget.station.distance;
+      if (mounted) {
+        setState(() =>
+            _detail = dist == null ? fresh : fresh.copyWithDistance(dist));
+      }
     } catch (_) {
       // 실패해도 목록 데이터로 계속 표시 — 시트가 비어 보이지 않게
     }
@@ -774,10 +788,14 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                     onPressed: () => showNavigationSheet(context,
                         lat: s.lat, lng: s.lng, name: s.name),
                     icon: const Icon(Icons.navigation_rounded, size: 18),
-                    label: Text(
-                      s.distanceText.isNotEmpty
-                          ? '길 안내 시작 (${s.distanceText})'
-                          : '길 안내 시작',
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        s.distanceText.isNotEmpty
+                            ? '길 안내 시작 (${s.distanceText})'
+                            : '길 안내 시작',
+                        maxLines: 1,
+                      ),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.evGreen,
@@ -1047,6 +1065,12 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                   s.kecoRoamSlow,
                   isDark),
             ],
+            // 출력 구간별 회원 요금 — 같은 충전소에서도 50kW 와 100kW 가 요금이 다르다.
+            // 위 회원 카드는 그중 낮은 값(대표)이라, 실제로 쓸 충전기 요금은 여기서 본다.
+            if (s.tierPrices.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              _tierPriceCard(s, isDark),
+            ],
             const SizedBox(height: 10),
             Text(
               s.kecoRoamFast != null || s.kecoRoamSlow != null
@@ -1057,6 +1081,107 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                   color: isDark ? AppColors.darkTextMuted : Colors.black45),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  // 출력 구간별 회원 요금. 서버가 그 충전소에 실제 있는 구간만, 2개 이상일 때만 보낸다.
+  // 작은 화면(320dp)·큰 글꼴에서도 안 깨지게 라벨은 Expanded + ellipsis, 금액은 고정폭 없이.
+  Widget _tierPriceCard(EvStation s, bool isDark) {
+    final border =
+        isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder;
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final ink = isDark ? Colors.white : Colors.black87;
+
+    Widget row(EvTierPrice t) {
+      final accent = t.fast
+          ? AppColors.evGreen
+          : (isDark ? AppColors.darkBlueBright : const Color(0xFF2563EB));
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: border, width: 0.6)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                t.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: ink,
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: Text.rich(
+              TextSpan(children: [
+                TextSpan(
+                  text: t.priceText,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: accent,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                TextSpan(
+                  text: '원',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: accent,
+                  ),
+                ),
+              ]),
+              maxLines: 1,
+            ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: border, width: 0.6),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 11, 14, 9),
+            child: Text(
+              '속도별 회원 요금 · 충전기 출력 기준',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: muted,
+                letterSpacing: -0.2,
+              ),
+            ),
+          ),
+          ...s.tierPrices.map(row),
         ],
       ),
     );
@@ -2190,12 +2315,12 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
   }
 
   Widget _priceRow(
-      String tier, Color tierColor, int? fast, int? slow, bool isDark) {
+      String tier, Color tierColor, double? fast, double? slow, bool isDark) {
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     final border =
         isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder;
 
-    Widget col(String label, int? price, Color accent) {
+    Widget col(String label, double? price, Color accent) {
       return Expanded(
         child: Column(
           children: [
@@ -2204,11 +2329,14 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                     fontSize: 11, fontWeight: FontWeight.w500, color: muted)),
             const SizedBox(height: 4),
             price != null
-                ? RichText(
+                ? FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: RichText(
                     text: TextSpan(
                       children: [
                         TextSpan(
-                          text: '$price',
+                          // 소수 한 자리까지 그대로 — 348.4 를 348 로 보여주면 안 된다.
+                          text: evPriceText(price),
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
@@ -2226,7 +2354,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                         ),
                       ],
                     ),
-                  )
+                  ))
                 : Text('-',
                     style: TextStyle(
                         fontSize: 16,

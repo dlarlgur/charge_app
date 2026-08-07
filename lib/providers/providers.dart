@@ -542,7 +542,7 @@ final evStationsProvider = Provider<AsyncValue<List<EvStation>>>((ref) {
           var nonFavStations =
               raw.where((s) => !favIds.contains(s.statId)).where(passEv).toList();
 
-          int cmpPrice(int? a, int? b) {
+          int cmpPrice(num? a, num? b) {
             if (a == null && b == null) return 0;
             if (a == null) return 1;
             if (b == null) return -1;

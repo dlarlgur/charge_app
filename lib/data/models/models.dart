@@ -116,6 +116,39 @@ class GasStation {
 }
 
 // ─── 전기차 충전소 모델 ───
+
+/// 요금 표기 — 고시가가 307.2 / 325.6 / 393.1 처럼 소수 한 자리라 반올림하면 안 된다.
+/// 소수부가 없으면 정수로(295), 있으면 한 자리로(307.2).
+String evPriceText(num v) {
+  final d = v.toDouble();
+  return d == d.roundToDouble() ? d.toInt().toString() : d.toStringAsFixed(1);
+}
+
+/// 출력 구간별 회원 요금 한 줄. 서버가 그 충전소에 **실제 있는 구간만** 내려준다.
+/// (구간이 1개뿐이면 회원가 줄과 같은 값이라 서버가 아예 안 보낸다)
+class EvTierPrice {
+  final double kw;      // 구간 하한 (3.5 / 7 / 11 / 14 / 30 / 50 / 100 / 200 / 350)
+  final String label;   // '급속 100kW'
+  final double member;  // 회원 단가 (원/kWh)
+  final bool fast;      // 급속 여부 — chgerType 기준(출력 아님)
+
+  const EvTierPrice({
+    required this.kw,
+    required this.label,
+    required this.member,
+    required this.fast,
+  });
+
+  factory EvTierPrice.fromJson(Map<String, dynamic> j) => EvTierPrice(
+        kw: (j['kw'] as num?)?.toDouble() ?? 0,
+        label: j['label']?.toString() ?? '',
+        member: (j['member'] as num?)?.toDouble() ?? 0,
+        fast: j['fast'] == true,
+      );
+
+  String get priceText => evPriceText(member);
+}
+
 class EvStation {
   final String statId;
   final String name;
@@ -129,12 +162,16 @@ class EvStation {
   final String? busiId; // 사업자 코드 — 브랜드(E-pit) 판정용, 구서버 응답은 null
   final List<Charger> chargers;
   final double? distance;
-  final int? unitPriceFast;       // 급속 비회원
-  final int? unitPriceSlow;       // 완속 비회원
-  final int? unitPriceFastMember; // 급속 회원
-  final int? unitPriceSlowMember; // 완속 회원
-  final int? kecoRoamFast; // 환경부 회원카드(로밍) 급속 — 상세만 제공
-  final int? kecoRoamSlow; // 환경부 회원카드(로밍) 완속
+  // 요금은 double — 고시가가 307.2 / 325.6 / 393.1 처럼 소수 한 자리다.
+  // int 로 받던 동안 .round() 로 뭉개져서 348.4 가 348 로 보였다.
+  final double? unitPriceFast;       // 급속 비회원
+  final double? unitPriceSlow;       // 완속 비회원
+  final double? unitPriceFastMember; // 급속 회원
+  final double? unitPriceSlowMember; // 완속 회원
+  final double? kecoRoamFast; // 환경부 회원카드(로밍) 급속 — 목록/상세 모두 제공
+  final double? kecoRoamSlow; // 환경부 회원카드(로밍) 완속
+  /// 출력 구간별 회원 요금. 구간이 2개 이상인 충전소에만 실려 온다(1개면 회원가 줄과 동일).
+  final List<EvTierPrice> tierPrices;
   final String? kind;
   final String? kindDetail;
   final bool isTesla;
@@ -165,6 +202,7 @@ class EvStation {
     this.unitPriceSlowMember,
     this.kecoRoamFast,
     this.kecoRoamSlow,
+    this.tierPrices = const [],
     this.kind,
     this.kindDetail,
     this.isTesla = false,
@@ -197,12 +235,16 @@ class EvStation {
       busiId: json['busiId']?.toString(),
       chargers: chargerList,
       distance: json['distance']?.toDouble(),
-      unitPriceFast: json['unitPriceFast'] != null ? (json['unitPriceFast'] as num).round() : null,
-      unitPriceSlow: json['unitPriceSlow'] != null ? (json['unitPriceSlow'] as num).round() : null,
-      unitPriceFastMember: json['unitPriceFastMember'] != null ? (json['unitPriceFastMember'] as num).round() : null,
-      unitPriceSlowMember: json['unitPriceSlowMember'] != null ? (json['unitPriceSlowMember'] as num).round() : null,
-      kecoRoamFast: json['kecoRoamFast'] != null ? (json['kecoRoamFast'] as num).round() : null,
-      kecoRoamSlow: json['kecoRoamSlow'] != null ? (json['kecoRoamSlow'] as num).round() : null,
+      unitPriceFast: (json['unitPriceFast'] as num?)?.toDouble(),
+      unitPriceSlow: (json['unitPriceSlow'] as num?)?.toDouble(),
+      unitPriceFastMember: (json['unitPriceFastMember'] as num?)?.toDouble(),
+      unitPriceSlowMember: (json['unitPriceSlowMember'] as num?)?.toDouble(),
+      kecoRoamFast: (json['kecoRoamFast'] as num?)?.toDouble(),
+      kecoRoamSlow: (json['kecoRoamSlow'] as num?)?.toDouble(),
+      tierPrices: (json['tierPrices'] as List<dynamic>?)
+              ?.map((t) => EvTierPrice.fromJson(t as Map<String, dynamic>))
+              .toList() ??
+          const [],
       kind: json['kind'],
       kindDetail: json['kindDetail'],
       isTesla: json['isTesla'] == true,
@@ -236,17 +278,17 @@ class EvStation {
 
   /// 비회원 요금 텍스트
   String? get priceNonMemberText {
-    if (unitPriceFast != null && unitPriceSlow != null) return '비회원  급속 ${unitPriceFast} · 완속 ${unitPriceSlow}원';
-    if (unitPriceFast != null) return '비회원  급속 ${unitPriceFast}원/kWh';
-    if (unitPriceSlow != null) return '비회원  완속 ${unitPriceSlow}원/kWh';
+    if (unitPriceFast != null && unitPriceSlow != null) return '비회원  급속 ${evPriceText(unitPriceFast!)} · 완속 ${evPriceText(unitPriceSlow!)}원';
+    if (unitPriceFast != null) return '비회원  급속 ${evPriceText(unitPriceFast!)}원/kWh';
+    if (unitPriceSlow != null) return '비회원  완속 ${evPriceText(unitPriceSlow!)}원/kWh';
     return null;
   }
 
   /// 회원 요금 텍스트
   String? get priceMemberText {
-    if (unitPriceFastMember != null && unitPriceSlowMember != null) return '회원     급속 ${unitPriceFastMember} · 완속 ${unitPriceSlowMember}원';
-    if (unitPriceFastMember != null) return '회원     급속 ${unitPriceFastMember}원/kWh';
-    if (unitPriceSlowMember != null) return '회원     완속 ${unitPriceSlowMember}원/kWh';
+    if (unitPriceFastMember != null && unitPriceSlowMember != null) return '회원     급속 ${evPriceText(unitPriceFastMember!)} · 완속 ${evPriceText(unitPriceSlowMember!)}원';
+    if (unitPriceFastMember != null) return '회원     급속 ${evPriceText(unitPriceFastMember!)}원/kWh';
+    if (unitPriceSlowMember != null) return '회원     완속 ${evPriceText(unitPriceSlowMember!)}원/kWh';
     return null;
   }
 
@@ -308,6 +350,7 @@ class EvStation {
     unitPriceSlowMember: unitPriceSlowMember,
     kecoRoamFast: kecoRoamFast,
     kecoRoamSlow: kecoRoamSlow,
+    tierPrices: tierPrices,
     kind: kind,
     kindDetail: kindDetail,
     isTesla: isTesla,
