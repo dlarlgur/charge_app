@@ -1111,6 +1111,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       height: 38,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.zero, // 세이프에어리어 자동 삽입 방지
         separatorBuilder: (_, __) => const SizedBox(width: 7),
         itemCount: fuels.length,
         itemBuilder: (_, i) {
@@ -1297,20 +1298,29 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         ListView.separated(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
+                          padding: EdgeInsets.zero, // 세이프에어리어 자동 삽입 방지
                           itemCount: _searchHistory.length,
                           separatorBuilder: (_, __) => Divider(
                               height: 1,
                               color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
                           itemBuilder: (_, i) {
                             final h = _searchHistory[i];
+                            final isEv = h['type'] == 'ev' &&
+                                (h['statId'] ?? '').toString().isNotEmpty;
                             return GestureDetector(
-                              onTap: () => _moveToPlace(h),
+                              onTap: () =>
+                                  isEv ? _openStationFromSearch(h) : _moveToPlace(h),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.history_rounded, size: 15,
-                                        color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                                    // 충전소 기록은 번개로 구분 — 눌렀을 때 동작이 다르다
+                                    // (지도 이동이 아니라 상세 진입).
+                                    Icon(isEv ? Icons.bolt_rounded : Icons.history_rounded,
+                                        size: 15,
+                                        color: isEv
+                                            ? AppColors.evGreen
+                                            : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
                                     const SizedBox(width: 10),
                                     Expanded(
                                       child: Column(
@@ -1372,6 +1382,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   if (_searchResults.isNotEmpty) ListView.separated(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
+                  // padding 을 안 주면 ListView 가 MediaQuery 세로 세이프에어리어를
+                  // 자동으로 넣는다(BoxScrollView.build). 노치 아이폰에서 헤더와 첫 항목
+                  // 사이에 47pt 공백이 생겼다 — Column 안으로 들어오면서 드러난 문제.
+                  padding: EdgeInsets.zero,
                   itemCount: _searchResults.length,
                   separatorBuilder: (_, __) => Divider(
                       height: 1,
@@ -1451,6 +1465,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (statId == null || statId.isEmpty) return;
 
     FocusScope.of(context).unfocus();
+    // 최근 검색에 남긴다. type/statId 를 넣어 다시 눌렀을 때 지도만 옮기는 게 아니라
+    // 상세로 들어가게 한다(기존 장소 기록엔 이 필드가 없어서 그대로 _moveToPlace 로 간다).
+    _saveToHistory({
+      'type': 'ev',
+      'statId': statId,
+      'name': st['name'] ?? '',
+      'address': st['address'] ?? '',
+      if (lat != null) 'lat': lat,
+      if (lng != null) 'lng': lng,
+    });
     setState(() {
       _isSearchMode = false;
       _searchResults = [];
