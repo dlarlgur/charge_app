@@ -91,7 +91,8 @@ class EvResultBodyState extends State<EvResultBody> {
         await WidgetsBinding.instance.endOfFrame;
       }
     }
-    final key = _stationKeys[statId];
+    // 추천 카드를 우선 찾고, 없으면 대안 카드. (키에 슬롯이 들어가 있다)
+    final key = _stationKeys['rec#$statId'] ?? _stationKeys['alt#$statId'];
     final ctx = key?.currentContext;
     if (ctx == null) return;
     await Scrollable.ensureVisible(
@@ -102,9 +103,14 @@ class EvResultBodyState extends State<EvResultBody> {
     );
   }
 
-  GlobalKey _keyFor(String? statId) {
-    if (statId == null || statId.isEmpty) return GlobalKey();
-    return _stationKeys.putIfAbsent(statId, () => GlobalKey());
+  /// 슬롯('rec'|'alt')까지 키에 넣는다. statId 만으로 만들면 추천 충전소가 대안
+  /// 목록에도 들어 있을 때 같은 GlobalKey 가 두 위젯에 붙어
+  /// '_elements.contains(element) is not true' 로 죽는다(대안은 List.generate 라
+  /// 전부 즉시 빌드된다). statId 가 없을 때 GlobalKey() 를 새로 만들던 것도 문제였다 —
+  /// 빌드마다 키가 바뀌어 상태가 날아간다.
+  GlobalKey _keyFor(String slot, String? statId, int index) {
+    final k = (statId == null || statId.isEmpty) ? '$slot#$index' : '$slot#$statId';
+    return _stationKeys.putIfAbsent(k, () => GlobalKey());
   }
 
   /// 추천 카드의 예상 충전요금 — 접힌 후보 행 '추천 대비 차액'의 기준값.
@@ -282,7 +288,7 @@ class EvResultBodyState extends State<EvResultBody> {
                   ),
                   const SizedBox(height: 6),
                   KeyedSubtree(
-                    key: _keyFor(recommended['statId']?.toString()),
+                    key: _keyFor('rec', recommended['statId']?.toString(), 0),
                     child: _StationCard(
                       station: recommended,
                       isRecommended: true,
@@ -331,7 +337,7 @@ class EvResultBodyState extends State<EvResultBody> {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 10),
                         child: KeyedSubtree(
-                          key: _keyFor(alt['statId']?.toString()),
+                          key: _keyFor('alt', alt['statId']?.toString(), i),
                           child: _AltAccordion(
                             station: alt,
                             rank: i + 2,
