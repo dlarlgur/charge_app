@@ -423,6 +423,9 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
       controller: _scroll,
       slivers: [
         if (widget.sheetMode) SliverToBoxAdapter(child: _dragHandle(isDark)),
+        // 운영 종료 확인분 — 목록·지도에서는 서버가 빼지만 즐겨찾기·딥링크로는 들어올 수
+        // 있다. 그 경로에서 아무 안내가 없으면 헛걸음하게 되므로 맨 위에 알린다.
+        if (s.closed) SliverToBoxAdapter(child: _closedBanner(s, isDark)),
         SliverToBoxAdapter(child: _heroCard(s, isDark)),
         // 상단 카드 바로 아래 광고 — 콘솔(placement=station_detail) house ad 우선,
         // 없으면 AdMob 네이티브 폴백 (로드 전/실패 시 높이 0).
@@ -1182,6 +1185,57 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
             ),
           ),
           ...s.tierPrices.map(row),
+        ],
+      ),
+    );
+  }
+
+  // 운영 종료 안내. 작은 화면에서도 안 깨지게 아이콘 고정 + 본문 Expanded.
+  Widget _closedBanner(EvStation s, bool isDark) {
+    final bg = isDark ? const Color(0x22F59E0B) : const Color(0xFFFFF7ED);
+    final line = isDark ? const Color(0x55F59E0B) : const Color(0xFFFED7AA);
+    final ink = isDark ? const Color(0xFFFBBF24) : const Color(0xFFB45309);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: line, width: 0.8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline_rounded, size: 17, color: ink),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '운영이 종료된 것으로 확인된 충전소예요',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: ink,
+                    letterSpacing: -0.2,
+                    height: 1.3,
+                  ),
+                ),
+                if ((s.closedReason ?? '').isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    s.closedReason!,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: ink.withValues(alpha: 0.85),
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );

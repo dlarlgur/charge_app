@@ -818,15 +818,44 @@ class EvStationCard extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            ValueListenableBuilder<int>(
-                              valueListenable: stationAliasVersion,
-                              builder: (_, __, ___) => Text(
-                                StationAliasService.resolveEv(station.statId, station.name),
-                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.w700, height: 1.2),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                            Row(
+                              children: [
+                                // 운영 종료 확인분 — 목록엔 안 뜨지만 즐겨찾기는
+                                // 사용자가 직접 담은 거라 지우지 않고 배지로 알린다.
+                                if (station.closed) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 5, vertical: 1.5),
+                                    decoration: BoxDecoration(
+                                      color: isDark
+                                          ? const Color(0x33F59E0B)
+                                          : const Color(0xFFFFF1E0),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text('운영 종료',
+                                        style: TextStyle(
+                                            fontSize: 9.5,
+                                            height: 1.1,
+                                            fontWeight: FontWeight.w800,
+                                            color: isDark
+                                                ? const Color(0xFFFBBF24)
+                                                : const Color(0xFFB45309))),
+                                  ),
+                                  const SizedBox(width: 5),
+                                ],
+                                Expanded(
+                                  child: ValueListenableBuilder<int>(
+                                    valueListenable: stationAliasVersion,
+                                    builder: (_, __, ___) => Text(
+                                      StationAliasService.resolveEv(station.statId, station.name),
+                                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                          fontWeight: FontWeight.w700, height: 1.2),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 4),
                             Row(

@@ -182,6 +182,10 @@ class EvStation {
   final bool isRestricted;
   /// 'open' | 'partial' | 'restricted'
   final String accessLevel;
+  /// 운영 종료가 확인된 충전소. 목록·지도·추천에서는 서버가 빼지만 상세는 막지 않는다
+  /// (즐겨찾기·딥링크가 깨지므로) — 대신 이 플래그로 안내한다.
+  final bool closed;
+  final String? closedReason;
 
   EvStation({
     required this.statId,
@@ -212,6 +216,8 @@ class EvStation {
     this.note,
     this.isRestricted = false,
     this.accessLevel = 'open',
+    this.closed = false,
+    this.closedReason,
   });
 
   factory EvStation.fromJson(Map<String, dynamic> json) {
@@ -254,6 +260,8 @@ class EvStation {
       note: json['note']?.toString().isNotEmpty == true ? json['note'] : null,
       isRestricted: json['isRestricted'] == true,
       accessLevel: (json['accessLevel'] as String?) ?? (json['isRestricted'] == true ? 'restricted' : 'open'),
+      closed: json['closed'] == true,
+      closedReason: json['closedReason']?.toString(),
     );
   }
 
@@ -360,6 +368,8 @@ class EvStation {
     note: note,
     isRestricted: isRestricted,
     accessLevel: accessLevel,
+    closed: closed,
+    closedReason: closedReason,
   );
 }
 
