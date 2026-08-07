@@ -296,17 +296,31 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   void _setShowGas(bool value) {
-    setState(() => _showGas = value);
+    setState(() {
+      _showGas = value;
+      // 검색 결과도 지도와 같이 움직여야 한다 — 끈 종류가 목록에 남아 있으면
+      // 지도엔 없는 걸 눌러 들어가게 된다. 켜면 그 자리에서 다시 검색.
+      if (!value) _gasResults = [];
+    });
     if (ref.read(settingsProvider).vehicleType == VehicleType.both) {
       Hive.box(AppConstants.settingsBox).put(AppConstants.keyMapShowGas, value);
+    }
+    if (value && _isSearchMode && _searchController.text.trim().isNotEmpty) {
+      _performSearch(_searchController.text);
     }
     _updateMarkers();
   }
 
   void _setShowEv(bool value) {
-    setState(() => _showEv = value);
+    setState(() {
+      _showEv = value;
+      if (!value) _stationResults = [];
+    });
     if (ref.read(settingsProvider).vehicleType == VehicleType.both) {
       Hive.box(AppConstants.settingsBox).put(AppConstants.keyMapShowEv, value);
+    }
+    if (value && _isSearchMode && _searchController.text.trim().isNotEmpty) {
+      _performSearch(_searchController.text);
     }
     _updateMarkers();
   }
@@ -1415,30 +1429,21 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 // 그때 각 섹션을 다 펼치면 스크롤만 길어지고 아무것도 눈에 안 들어온다
                 // → 켜진 종류 수에 따라 섹션당 노출 개수를 줄이고, 나머지는 '더보기'로.
                 final bothKinds = _stationResults.isNotEmpty && _gasResults.isNotEmpty;
-                final perStation = bothKinds ? 3 : 5;
                 final placeMax = bothKinds ? 4 : 6;
-                final ev = _stationResults.take(_evExpanded ? 20 : perStation).toList();
-                final gas = _gasResults.take(_gasExpanded ? 20 : perStation).toList();
+                // 주유소는 전국 11,897개로 충전소(102,920)의 1/9 수준이라 검색 결과도
+                // 적게 나온다. 둘 다일 때 충전소만 조여서 위쪽 자리를 내준다.
+                final gasMax = bothKinds ? 4 : 5;
+                final evMax = bothKinds ? 3 : 5;
+                final ev = _stationResults.take(_evExpanded ? 20 : evMax).toList();
+                final gas = _gasResults.take(_gasExpanded ? 20 : gasMax).toList();
                 final places =
                     _searchResults.take(_placeExpanded ? 20 : placeMax).toList();
                 return Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── 충전소 — 탭하면 상세로 바로 (장소는 지도 이동일 뿐이라 위에 둔다)
-                  if (ev.isNotEmpty) ...[
-                    _searchSectionHeader('충전소', _stationResults.length, isDark,
-                        icon: Icons.bolt_rounded, accent: AppColors.evGreen),
-                    ...ev.map((e) => _stationResultTile(e, isDark)),
-                    if (_stationResults.length > ev.length)
-                      _moreButton('충전소 ${_stationResults.length - ev.length}곳 더보기',
-                          isDark, AppColors.evGreen,
-                          () => setState(() => _evExpanded = true)),
-                  ],
-                  if (ev.isNotEmpty && gas.isNotEmpty)
-                    Divider(height: 1,
-                        color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
-                  // ── 주유소
+                  // ── 주유소 먼저. 충전소보다 결과가 훨씬 적어서(전국 11,897 vs 102,920)
+                  //    아래에 두면 충전소에 밀려 안 보인다. 장소는 지도 이동일 뿐이라 맨 아래.
                   if (gas.isNotEmpty) ...[
                     _searchSectionHeader('주유소', _gasResults.length, isDark,
                         icon: Icons.local_gas_station_rounded,
@@ -1448,6 +1453,19 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       _moreButton('주유소 ${_gasResults.length - gas.length}곳 더보기',
                           isDark, const Color(0xFF2F7DF6),
                           () => setState(() => _gasExpanded = true)),
+                  ],
+                  if (gas.isNotEmpty && ev.isNotEmpty)
+                    Divider(height: 1,
+                        color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
+                  // ── 충전소 — 탭하면 상세로 바로
+                  if (ev.isNotEmpty) ...[
+                    _searchSectionHeader('충전소', _stationResults.length, isDark,
+                        icon: Icons.bolt_rounded, accent: AppColors.evGreen),
+                    ...ev.map((e) => _stationResultTile(e, isDark)),
+                    if (_stationResults.length > ev.length)
+                      _moreButton('충전소 ${_stationResults.length - ev.length}곳 더보기',
+                          isDark, AppColors.evGreen,
+                          () => setState(() => _evExpanded = true)),
                   ],
                   if ((ev.isNotEmpty || gas.isNotEmpty) && places.isNotEmpty)
                     Divider(height: 1,
