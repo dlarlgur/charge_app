@@ -30,6 +30,7 @@ class ApiConstants {
 
   // ─── 검색 ───
   static const searchPlaces = '/search/places';
+  static const searchEvStations = '/search/ev-stations';
 
   // ─── 지오코딩 ───
   static const reverseGeocode = '/geocode/reverse';

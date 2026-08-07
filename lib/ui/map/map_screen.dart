@@ -92,6 +92,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   bool _isSearchMode = false;
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _searchResults = [];
+  // 충전소 이름 검색 결과 — 장소(카카오 POI)와 분리해서 위에 먼저 보여준다.
+  // 장소 검색만 있던 동안엔 충전소 이름을 쳐도 우리 데이터와 연결 안 된 마커만 떠서,
+  // '이 지역 검색'을 한 번 더 눌러야 찾을 수 있었다.
+  List<Map<String, dynamic>> _stationResults = [];
   List<Map<String, dynamic>> _searchHistory = [];
   bool _isSearchLoading = false;
 
@@ -398,7 +402,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   void _onSearchChanged(String query) {
     _searchDebounce?.cancel();
     if (query.trim().isEmpty) {
-      setState(() => _searchResults = []);
+      setState(() { _searchResults = []; _stationResults = []; });
       return;
     }
     _searchDebounce = Timer(const Duration(milliseconds: 320), () => _performSearch(query));
@@ -407,7 +411,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   Future<void> _performSearch(String query) async {
     _searchDebounce?.cancel(); // onSubmitted(엔터) 즉시 실행 시 대기 중 디바운스 취소
     if (query.trim().isEmpty) {
-      setState(() => _searchResults = []);
+      setState(() { _searchResults = []; _stationResults = []; });
       return;
     }
     setState(() => _isSearchLoading = true);
@@ -416,11 +420,29 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       final loc = center == null ? await ref.read(locationProvider.future) : null;
       final lat = center?.lat ?? loc?.lat;
       final lng = center?.lng ?? loc?.lng;
-      final results = await ApiService().searchPlaces(query.trim(), lat: lat, lng: lng);
-      if (mounted) setState(() { _searchResults = results; _isSearchLoading = false; });
+      // 충전소·장소를 동시에 — 한쪽이 실패해도 다른 쪽은 보여준다.
+      final both = await Future.wait([
+        ApiService().searchEvStations(query.trim(), lat: lat, lng: lng)
+            .catchError((_) => <Map<String, dynamic>>[]),
+        ApiService().searchPlaces(query.trim(), lat: lat, lng: lng)
+            .catchError((_) => <Map<String, dynamic>>[]),
+      ]);
+      if (mounted) {
+        setState(() {
+          _stationResults = both[0];
+          _searchResults = both[1];
+          _isSearchLoading = false;
+        });
+      }
     } catch (e) {
-      if (kDebugMode) debugPrint('[map-search] searchPlaces 실패: $e');
-      if (mounted) setState(() { _searchResults = []; _isSearchLoading = false; });
+      if (kDebugMode) debugPrint('[map-search] 검색 실패: $e');
+      if (mounted) {
+        setState(() {
+          _stationResults = [];
+          _searchResults = [];
+          _isSearchLoading = false;
+        });
+      }
     }
   }
 
@@ -443,6 +465,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     setState(() {
       _isSearchMode = false;
       _searchResults = [];
+      _stationResults = [];
       _showSearchHere = false;
     });
     _searchController.clear();
@@ -725,6 +748,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       setState(() {
         _isSearchMode = false;
         _searchResults = [];
+        _stationResults = [];
         _searchController.clear();
       });
     } else if (_selectedStation != null) {
@@ -985,6 +1009,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   ? () => setState(() {
                         _isSearchMode = false;
                         _searchResults = [];
+                        _stationResults = [];
                         _searchController.clear();
                       })
                   : null,
@@ -1316,7 +1341,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         ),
                       ],
                     )
-          : _searchResults.isEmpty
+          : (_searchResults.isEmpty && _stationResults.isEmpty)
               ? SizedBox(
                   width: double.infinity,
                   child: Padding(
@@ -1326,7 +1351,25 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                             color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
                   ),
                 )
-              : ListView.separated(
+              : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── 충전소 — 탭하면 상세로 바로 (장소는 지도 이동일 뿐이라 위에 둔다)
+                  if (_stationResults.isNotEmpty) ...[
+                    _searchSectionHeader('충전소', _stationResults.length, isDark,
+                        icon: Icons.bolt_rounded, accent: AppColors.evGreen),
+                    ...List.generate(_stationResults.length,
+                        (i) => _stationResultTile(_stationResults[i], isDark)),
+                  ],
+                  if (_stationResults.isNotEmpty && _searchResults.isNotEmpty)
+                    Divider(height: 1,
+                        color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
+                  if (_searchResults.isNotEmpty)
+                    _searchSectionHeader('장소', _searchResults.length, isDark,
+                        icon: Icons.place_rounded,
+                        accent: isDark ? AppColors.darkTextMuted : const Color(0xFF8A94A6)),
+                  if (_searchResults.isNotEmpty) ListView.separated(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: _searchResults.length,
@@ -1394,7 +1437,167 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       ),
                     );
                   },
-                );
+                ),
+                ],
+              );
+  }
+
+  /// 검색 결과의 충전소를 탭했을 때 — 지도를 그 자리로 옮기고 상세 시트를 연다.
+  /// 장소 결과(_moveToPlace)는 지도만 움직이는 것과 다르게, 바로 상세로 들어간다.
+  Future<void> _openStationFromSearch(Map<String, dynamic> st) async {
+    final lat = (st['lat'] as num?)?.toDouble();
+    final lng = (st['lng'] as num?)?.toDouble();
+    final statId = st['statId']?.toString();
+    if (statId == null || statId.isEmpty) return;
+
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _isSearchMode = false;
+      _searchResults = [];
+      _stationResults = [];
+      _showSearchHere = false;
+    });
+    _searchController.clear();
+
+    if (lat != null && lng != null) {
+      _suppressCameraChange = true;
+      _mapController?.updateCamera(NCameraUpdate.withParams(
+        target: NLatLng(lat, lng),
+        zoom: 16,
+      )..setAnimation(
+          animation: NCameraAnimation.easing,
+          duration: const Duration(milliseconds: 400),
+        ));
+      ref.read(mapCenterProvider.notifier).state = (lat: lat, lng: lng);
+      await Future.delayed(const Duration(milliseconds: 420));
+      _suppressCameraChange = false;
+    }
+
+    // 목록 데이터가 아니라 상세를 직접 받아 연다 — 검색 결과엔 충전기 상태가 없다.
+    try {
+      final d = await ApiService().getEvStationDetail(statId);
+      if (mounted) _selectStation(EvStation.fromJson(d));
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('충전소 정보를 불러오지 못했어요')),
+        );
+      }
+    }
+  }
+
+  /// 검색 결과 섹션 헤더 — '충전소' / '장소' 구분.
+  Widget _searchSectionHeader(String title, int count, bool isDark,
+      {required IconData icon, required Color accent}) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: accent),
+          const SizedBox(width: 5),
+          Text(title,
+              style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w800,
+                  color: accent,
+                  letterSpacing: -0.2)),
+          const SizedBox(width: 5),
+          Text('$count',
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: isDark
+                      ? AppColors.darkTextMuted
+                      : AppColors.lightTextMuted)),
+        ],
+      ),
+    );
+  }
+
+  /// 충전소 검색 결과 한 줄 — 탭하면 지도를 옮기고 바로 상세 시트를 연다.
+  /// 작은 화면 방어: 이름은 Expanded + ellipsis, 거리/뱃지는 고정폭 없이 오른쪽.
+  Widget _stationResultTile(Map<String, dynamic> st, bool isDark) {
+    final name = (st['name'] ?? '').toString();
+    final operator = (st['operator'] ?? '').toString();
+    final address = (st['address'] ?? '').toString();
+    final dist = st['distance'];
+    final distStr =
+        dist != null ? formatDistance((dist as num).toDouble()) : null;
+    final cnt = st['chargerCount'];
+    final sub = [
+      if (operator.isNotEmpty) operator,
+      if (cnt != null) '충전기 $cnt대',
+    ].join(' · ');
+
+    return InkWell(
+      onTap: () => _openStationFromSearch(st),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          children: [
+            // 초록 번개 칩 — 목록에서 충전소 줄을 한눈에 구분.
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: AppColors.evGreen.withValues(alpha: isDark ? 0.20 : 0.10),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              alignment: Alignment.center,
+              child: const Icon(Icons.bolt_rounded,
+                  size: 17, color: AppColors.evGreen),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(name,
+                            style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.2,
+                                color: isDark ? Colors.white : Colors.black87),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                      ),
+                      if (distStr != null) ...[
+                        const SizedBox(width: 6),
+                        Text(distStr,
+                            style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.evGreen)),
+                      ],
+                    ],
+                  ),
+                  if (sub.isNotEmpty || address.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(sub.isNotEmpty ? '$sub · $address' : address,
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: isDark
+                                ? AppColors.darkTextMuted
+                                : AppColors.lightTextMuted),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right_rounded,
+                size: 18,
+                color: isDark
+                    ? AppColors.darkTextMuted
+                    : AppColors.lightTextMuted),
+          ],
+        ),
+      ),
+    );
   }
 
   // ─── 이 지역 검색 버튼 ───
