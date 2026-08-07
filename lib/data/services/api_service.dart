@@ -234,16 +234,17 @@ class ApiService {
     return List<Map<String, dynamic>>.from(res.data['results'] ?? []);
   }
 
-  /// 충전소 이름 검색 — 지도 검색창의 '충전소' 섹션용.
-  /// 장소 검색(searchPlaces)은 카카오 POI 라 우리 충전소 데이터와 연결되지 않는다.
-  Future<List<Map<String, dynamic>>> searchEvStations(String query,
-      {double? lat, double? lng}) async {
-    final params = <String, dynamic>{'query': query};
+  /// 충전소·주유소 이름 검색 — 지도 검색창의 '충전소'/'주유소' 섹션용.
+  /// 장소 검색(searchPlaces)은 카카오 POI 라 우리 데이터와 연결되지 않는다.
+  /// [kind] 'ev' | 'gas'
+  Future<List<Map<String, dynamic>>> searchStations(String query,
+      {required String kind, double? lat, double? lng}) async {
+    final params = <String, dynamic>{'query': query, 'kind': kind};
     if (lat != null && lng != null) {
       params['lat'] = lat;
       params['lng'] = lng;
     }
-    final res = await _dio.get(ApiConstants.searchEvStations,
+    final res = await _dio.get(ApiConstants.searchStations,
         queryParameters: params);
     return List<Map<String, dynamic>>.from(res.data['stations'] ?? []);
   }

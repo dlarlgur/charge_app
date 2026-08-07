@@ -96,6 +96,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   // 장소 검색만 있던 동안엔 충전소 이름을 쳐도 우리 데이터와 연결 안 된 마커만 떠서,
   // '이 지역 검색'을 한 번 더 눌러야 찾을 수 있었다.
   List<Map<String, dynamic>> _stationResults = [];
+  List<Map<String, dynamic>> _gasResults = [];
+  // 섹션별 '더보기' 펼침 — 새 검색마다 접힌 상태로 되돌린다.
+  bool _evExpanded = false;
+  bool _gasExpanded = false;
+  bool _placeExpanded = false;
   List<Map<String, dynamic>> _searchHistory = [];
   bool _isSearchLoading = false;
 
@@ -402,7 +407,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   void _onSearchChanged(String query) {
     _searchDebounce?.cancel();
     if (query.trim().isEmpty) {
-      setState(() { _searchResults = []; _stationResults = []; });
+      setState(() { _searchResults = []; _stationResults = []; _gasResults = []; });
       return;
     }
     _searchDebounce = Timer(const Duration(milliseconds: 320), () => _performSearch(query));
@@ -411,7 +416,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   Future<void> _performSearch(String query) async {
     _searchDebounce?.cancel(); // onSubmitted(엔터) 즉시 실행 시 대기 중 디바운스 취소
     if (query.trim().isEmpty) {
-      setState(() { _searchResults = []; _stationResults = []; });
+      setState(() { _searchResults = []; _stationResults = []; _gasResults = []; });
       return;
     }
     setState(() => _isSearchLoading = true);
@@ -420,17 +425,31 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       final loc = center == null ? await ref.read(locationProvider.future) : null;
       final lat = center?.lat ?? loc?.lat;
       final lng = center?.lng ?? loc?.lng;
-      // 충전소·장소를 동시에 — 한쪽이 실패해도 다른 쪽은 보여준다.
-      final both = await Future.wait([
-        ApiService().searchEvStations(query.trim(), lat: lat, lng: lng)
-            .catchError((_) => <Map<String, dynamic>>[]),
+      // 지도 필터를 그대로 따라간다 — 충전만 켠 상태면 충전소만 찾는다.
+      // 켜지 않은 종류를 검색 결과에만 띄우면 지도와 앞뒤가 안 맞는다.
+      final want = <Future<List<Map<String, dynamic>>>>[
+        _showEv
+            ? ApiService().searchStations(query.trim(),
+                kind: 'ev', lat: lat, lng: lng)
+                .catchError((_) => <Map<String, dynamic>>[])
+            : Future.value(<Map<String, dynamic>>[]),
+        _showGas
+            ? ApiService().searchStations(query.trim(),
+                kind: 'gas', lat: lat, lng: lng)
+                .catchError((_) => <Map<String, dynamic>>[])
+            : Future.value(<Map<String, dynamic>>[]),
         ApiService().searchPlaces(query.trim(), lat: lat, lng: lng)
             .catchError((_) => <Map<String, dynamic>>[]),
-      ]);
+      ];
+      final res = await Future.wait(want);
+      _evExpanded = false;
+      _gasExpanded = false;
+      _placeExpanded = false;
       if (mounted) {
         setState(() {
-          _stationResults = both[0];
-          _searchResults = both[1];
+          _stationResults = res[0];
+          _gasResults = res[1];
+          _searchResults = res[2];
           _isSearchLoading = false;
         });
       }
@@ -439,6 +458,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       if (mounted) {
         setState(() {
           _stationResults = [];
+          _gasResults = [];
           _searchResults = [];
           _isSearchLoading = false;
         });
@@ -466,6 +486,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       _isSearchMode = false;
       _searchResults = [];
       _stationResults = [];
+      _gasResults = [];
       _showSearchHere = false;
     });
     _searchController.clear();
@@ -749,6 +770,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         _isSearchMode = false;
         _searchResults = [];
         _stationResults = [];
+        _gasResults = [];
         _searchController.clear();
       });
     } else if (_selectedStation != null) {
@@ -1010,6 +1032,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         _isSearchMode = false;
                         _searchResults = [];
                         _stationResults = [];
+                        _gasResults = [];
                         _searchController.clear();
                       })
                   : null,
@@ -1172,15 +1195,29 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 8, offset: const Offset(0, 2))],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // 집/회사 바로가기 (네이버식) — 등록=컬러+즉시 이동, 미등록=회색+탭하면 등록
-          _buildPlaceShortcutRow(isDark),
-          Divider(height: 1, color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
-          _buildSearchBody(isDark),
-        ],
+      // 결과가 길어지면 잘려서 아예 못 보던 문제 — 화면 높이에 맞춰 상한을 두고
+      // 안쪽을 스크롤시킨다. 상한은 검색창·탭줄·하단탭을 빼고 남는 만큼.
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: (MediaQuery.of(context).size.height * 0.58)
+              .clamp(240.0, 560.0),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 집/회사 바로가기 (네이버식) — 등록=컬러+즉시 이동, 미등록=회색+탭하면 등록
+            _buildPlaceShortcutRow(isDark),
+            Divider(height: 1, color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
+            // Flexible + 스크롤 — 안쪽 ListView 들은 shrinkWrap 이라 스스로 스크롤하지 않는다.
+            Flexible(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.zero,
+                child: _buildSearchBody(isDark),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1307,20 +1344,32 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                             final h = _searchHistory[i];
                             final isEv = h['type'] == 'ev' &&
                                 (h['statId'] ?? '').toString().isNotEmpty;
+                            final isGas = h['type'] == 'gas' &&
+                                (h['uniId'] ?? '').toString().isNotEmpty;
                             return GestureDetector(
-                              onTap: () =>
-                                  isEv ? _openStationFromSearch(h) : _moveToPlace(h),
+                              onTap: () => isEv
+                                  ? _openStationFromSearch(h)
+                                  : isGas
+                                      ? _openGasFromSearch(h)
+                                      : _moveToPlace(h),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                                 child: Row(
                                   children: [
                                     // 충전소 기록은 번개로 구분 — 눌렀을 때 동작이 다르다
                                     // (지도 이동이 아니라 상세 진입).
-                                    Icon(isEv ? Icons.bolt_rounded : Icons.history_rounded,
+                                    Icon(
+                                        isEv
+                                            ? Icons.bolt_rounded
+                                            : isGas
+                                                ? Icons.local_gas_station_rounded
+                                                : Icons.history_rounded,
                                         size: 15,
                                         color: isEv
                                             ? AppColors.evGreen
-                                            : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                                            : isGas
+                                                ? const Color(0xFF2F7DF6)
+                                                : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
                                     const SizedBox(width: 10),
                                     Expanded(
                                       child: Column(
@@ -1351,7 +1400,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         ),
                       ],
                     )
-          : (_searchResults.isEmpty && _stationResults.isEmpty)
+          : (_searchResults.isEmpty && _stationResults.isEmpty && _gasResults.isEmpty)
               ? SizedBox(
                   width: double.infinity,
                   child: Padding(
@@ -1361,37 +1410,65 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                             color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
                   ),
                 )
-              : Column(
+              : Builder(builder: (context) {
+                // 지도에서 둘 다 켜져 있으면 섹션이 3개(충전/주유/장소)가 된다.
+                // 그때 각 섹션을 다 펼치면 스크롤만 길어지고 아무것도 눈에 안 들어온다
+                // → 켜진 종류 수에 따라 섹션당 노출 개수를 줄이고, 나머지는 '더보기'로.
+                final bothKinds = _stationResults.isNotEmpty && _gasResults.isNotEmpty;
+                final perStation = bothKinds ? 3 : 5;
+                final placeMax = bothKinds ? 4 : 6;
+                final ev = _stationResults.take(_evExpanded ? 20 : perStation).toList();
+                final gas = _gasResults.take(_gasExpanded ? 20 : perStation).toList();
+                final places =
+                    _searchResults.take(_placeExpanded ? 20 : placeMax).toList();
+                return Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // ── 충전소 — 탭하면 상세로 바로 (장소는 지도 이동일 뿐이라 위에 둔다)
-                  if (_stationResults.isNotEmpty) ...[
+                  if (ev.isNotEmpty) ...[
                     _searchSectionHeader('충전소', _stationResults.length, isDark,
                         icon: Icons.bolt_rounded, accent: AppColors.evGreen),
-                    ...List.generate(_stationResults.length,
-                        (i) => _stationResultTile(_stationResults[i], isDark)),
+                    ...ev.map((e) => _stationResultTile(e, isDark)),
+                    if (_stationResults.length > ev.length)
+                      _moreButton('충전소 ${_stationResults.length - ev.length}곳 더보기',
+                          isDark, AppColors.evGreen,
+                          () => setState(() => _evExpanded = true)),
                   ],
-                  if (_stationResults.isNotEmpty && _searchResults.isNotEmpty)
+                  if (ev.isNotEmpty && gas.isNotEmpty)
                     Divider(height: 1,
                         color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
-                  if (_searchResults.isNotEmpty)
+                  // ── 주유소
+                  if (gas.isNotEmpty) ...[
+                    _searchSectionHeader('주유소', _gasResults.length, isDark,
+                        icon: Icons.local_gas_station_rounded,
+                        accent: const Color(0xFF2F7DF6)),
+                    ...gas.map((e) => _gasResultTile(e, isDark)),
+                    if (_gasResults.length > gas.length)
+                      _moreButton('주유소 ${_gasResults.length - gas.length}곳 더보기',
+                          isDark, const Color(0xFF2F7DF6),
+                          () => setState(() => _gasExpanded = true)),
+                  ],
+                  if ((ev.isNotEmpty || gas.isNotEmpty) && places.isNotEmpty)
+                    Divider(height: 1,
+                        color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
+                  if (places.isNotEmpty)
                     _searchSectionHeader('장소', _searchResults.length, isDark,
                         icon: Icons.place_rounded,
                         accent: isDark ? AppColors.darkTextMuted : const Color(0xFF8A94A6)),
-                  if (_searchResults.isNotEmpty) ListView.separated(
+                  if (places.isNotEmpty) ListView.separated(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   // padding 을 안 주면 ListView 가 MediaQuery 세로 세이프에어리어를
                   // 자동으로 넣는다(BoxScrollView.build). 노치 아이폰에서 헤더와 첫 항목
                   // 사이에 47pt 공백이 생겼다 — Column 안으로 들어오면서 드러난 문제.
                   padding: EdgeInsets.zero,
-                  itemCount: _searchResults.length,
+                  itemCount: places.length,
                   separatorBuilder: (_, __) => Divider(
                       height: 1,
                       color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
                   itemBuilder: (_, i) {
-                    final place = _searchResults[i];
+                    final place = places[i];
                     final category = place['category']?.toString();
                     final dist = place['distance'];
                     final distStr = dist != null
@@ -1452,8 +1529,37 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     );
                   },
                 ),
+                  if (_searchResults.length > places.length)
+                    _moreButton('장소 ${_searchResults.length - places.length}곳 더보기',
+                        isDark,
+                        isDark ? AppColors.darkTextMuted : const Color(0xFF8A94A6),
+                        () => setState(() => _placeExpanded = true)),
                 ],
               );
+              });
+  }
+
+  /// 섹션 접힘 해제 버튼 — 처음엔 몇 개만 보여주고 필요할 때 펼친다.
+  Widget _moreButton(String label, bool isDark, Color accent, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(label,
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: accent,
+                    letterSpacing: -0.2)),
+            const SizedBox(width: 2),
+            Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: accent),
+          ],
+        ),
+      ),
+    );
   }
 
   /// 검색 결과의 충전소를 탭했을 때 — 지도를 그 자리로 옮기고 상세 시트를 연다.
@@ -1479,6 +1585,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       _isSearchMode = false;
       _searchResults = [];
       _stationResults = [];
+      _gasResults = [];
       _showSearchHere = false;
     });
     _searchController.clear();
@@ -1505,6 +1612,139 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('충전소 정보를 불러오지 못했어요')),
+        );
+      }
+    }
+  }
+
+  /// 주유소 검색 결과 한 줄. 충전소 타일과 같은 골격, 색만 파랑 계열.
+  /// 브랜드·주소·거리를 한 줄로 눌러 담아 작은 화면에서도 두 줄을 넘기지 않는다.
+  Widget _gasResultTile(Map<String, dynamic> st, bool isDark) {
+    const accent = Color(0xFF2F7DF6);
+    final name = (st['name'] ?? '').toString();
+    final address = (st['address'] ?? '').toString();
+    final dist = st['distance'];
+    final distStr =
+        dist != null ? formatDistance((dist as num).toDouble()) : null;
+
+    return InkWell(
+      onTap: () => _openGasFromSearch(st),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: isDark ? 0.20 : 0.10),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              alignment: Alignment.center,
+              child: const Icon(Icons.local_gas_station_rounded,
+                  size: 16, color: accent),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(name,
+                            style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.2,
+                                color: isDark ? Colors.white : Colors.black87),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                      ),
+                      if (distStr != null) ...[
+                        const SizedBox(width: 6),
+                        Text(distStr,
+                            style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: accent)),
+                      ],
+                    ],
+                  ),
+                  if (address.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(address,
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: isDark
+                                ? AppColors.darkTextMuted
+                                : AppColors.lightTextMuted),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right_rounded,
+                size: 18,
+                color: isDark
+                    ? AppColors.darkTextMuted
+                    : AppColors.lightTextMuted),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 주유소 검색 결과 탭 — 충전소와 같은 흐름(기록 저장 → 지도 이동 → 상세).
+  Future<void> _openGasFromSearch(Map<String, dynamic> st) async {
+    final lat = (st['lat'] as num?)?.toDouble();
+    final lng = (st['lng'] as num?)?.toDouble();
+    final uniId = st['uniId']?.toString();
+    if (uniId == null || uniId.isEmpty) return;
+
+    FocusScope.of(context).unfocus();
+    _saveToHistory({
+      'type': 'gas',
+      'uniId': uniId,
+      'name': st['name'] ?? '',
+      'address': st['address'] ?? '',
+      if (lat != null) 'lat': lat,
+      if (lng != null) 'lng': lng,
+    });
+    setState(() {
+      _isSearchMode = false;
+      _searchResults = [];
+      _stationResults = [];
+      _gasResults = [];
+      _showSearchHere = false;
+    });
+    _searchController.clear();
+
+    if (lat != null && lng != null) {
+      _suppressCameraChange = true;
+      _mapController?.updateCamera(NCameraUpdate.withParams(
+        target: NLatLng(lat, lng),
+        zoom: 16,
+      )..setAnimation(
+          animation: NCameraAnimation.easing,
+          duration: const Duration(milliseconds: 400),
+        ));
+      ref.read(mapCenterProvider.notifier).state = (lat: lat, lng: lng);
+      await Future.delayed(const Duration(milliseconds: 420));
+      _suppressCameraChange = false;
+    }
+
+    // 검색 결과엔 가격이 없다 — 현재 유종 기준으로 상세를 받아 연다.
+    try {
+      final fuelType = ref.read(effectiveGasFuelTypeProvider);
+      final d = await ApiService().getGasStationDetail(uniId, fuelType: fuelType);
+      if (mounted) _selectStation(GasStation.fromJson(d));
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('주유소 정보를 불러오지 못했어요')),
         );
       }
     }
