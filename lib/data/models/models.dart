@@ -130,12 +130,14 @@ class EvTierPrice {
   final double kw;      // 구간 하한 (3.5 / 7 / 11 / 14 / 30 / 50 / 100 / 200 / 350)
   final String label;   // '급속 100kW'
   final double member;  // 회원 단가 (원/kWh)
+  final double? keco;   // 같은 구간의 환경부 회원카드(로밍) 단가 — 환경부 직영은 null
   final bool fast;      // 급속 여부 — chgerType 기준(출력 아님)
 
   const EvTierPrice({
     required this.kw,
     required this.label,
     required this.member,
+    this.keco,
     required this.fast,
   });
 
@@ -143,10 +145,12 @@ class EvTierPrice {
         kw: (j['kw'] as num?)?.toDouble() ?? 0,
         label: j['label']?.toString() ?? '',
         member: (j['member'] as num?)?.toDouble() ?? 0,
+        keco: (j['keco'] as num?)?.toDouble(),
         fast: j['fast'] == true,
       );
 
   String get priceText => evPriceText(member);
+  String get kecoText => keco == null ? '-' : evPriceText(keco!);
 }
 
 class EvStation {

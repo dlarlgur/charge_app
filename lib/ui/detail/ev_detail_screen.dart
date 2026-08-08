@@ -1089,13 +1089,48 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
     );
   }
 
-  // 출력 구간별 회원 요금. 서버가 그 충전소에 실제 있는 구간만, 2개 이상일 때만 보낸다.
-  // 작은 화면(320dp)·큰 글꼴에서도 안 깨지게 라벨은 Expanded + ellipsis, 금액은 고정폭 없이.
+  // 출력 구간별 요금. 서버가 그 충전소에 실제 있는 구간만, 2개 이상일 때만 보낸다.
+  // 회원가 옆에 같은 구간의 환경부(로밍) 단가를 나란히 — 헤더 왼쪽은 충전사 회원가,
+  // 오른쪽은 환경부 컬럼. 작은 화면(320dp)·큰 글꼴에서도 안 깨지게 라벨은
+  // Expanded + ellipsis, 금액은 고정폭 컬럼 안에서 FittedBox(scaleDown).
   Widget _tierPriceCard(EvStation s, bool isDark) {
     final border =
         isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder;
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     final ink = isDark ? Colors.white : Colors.black87;
+    final kecoBlue =
+        isDark ? AppColors.darkBlueBright : const Color(0xFF2563EB);
+    // 환경부 직영(ME)은 keco 가 안 내려온다 — 그 경우 기존 단일 컬럼 유지.
+    final hasKeco = s.tierPrices.any((t) => t.keco != null);
+    const priceColW = 64.0;
+
+    Widget price(String text, Color color) => FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerRight,
+          child: Text.rich(
+            TextSpan(children: [
+              TextSpan(
+                text: text,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              if (text != '-')
+                TextSpan(
+                  text: '원',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ),
+            ]),
+            maxLines: 1,
+          ),
+        );
 
     Widget row(EvTierPrice t) {
       final accent = t.fast
@@ -1128,38 +1163,35 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
               ),
             ),
             const SizedBox(width: 8),
-            Flexible(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
+            SizedBox(
+              width: priceColW,
+              child: Align(
                 alignment: Alignment.centerRight,
-                child: Text.rich(
-              TextSpan(children: [
-                TextSpan(
-                  text: t.priceText,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: accent,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                TextSpan(
-                  text: '원',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: accent,
-                  ),
-                ),
-              ]),
-              maxLines: 1,
-            ),
+                child: price(t.priceText, accent),
               ),
             ),
+            if (hasKeco) ...[
+              const SizedBox(width: 10),
+              SizedBox(
+                width: priceColW,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: price(t.kecoText, t.keco != null ? kecoBlue : muted),
+                ),
+              ),
+            ],
           ],
         ),
       );
     }
+
+    final op = s.operator.trim();
+    final headerStyle = TextStyle(
+      fontSize: 11.5,
+      fontWeight: FontWeight.w700,
+      color: muted,
+      letterSpacing: -0.2,
+    );
 
     return Container(
       decoration: BoxDecoration(
@@ -1172,17 +1204,35 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 11, 14, 9),
-            child: Text(
-              '속도별 회원 요금 · 충전기 출력 기준',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w700,
-                color: muted,
-                letterSpacing: -0.2,
-              ),
-            ),
+            child: hasKeco
+                ? Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          op.isNotEmpty ? '$op 회원 · 출력 기준' : '회원 · 출력 기준',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: headerStyle,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      SizedBox(
+                        width: priceColW,
+                        child: Text(
+                          '환경부',
+                          maxLines: 1,
+                          textAlign: TextAlign.right,
+                          style: headerStyle.copyWith(color: kecoBlue),
+                        ),
+                      ),
+                    ],
+                  )
+                : Text(
+                    '속도별 회원 요금 · 충전기 출력 기준',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: headerStyle,
+                  ),
           ),
           ...s.tierPrices.map(row),
         ],
