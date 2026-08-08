@@ -51,7 +51,10 @@ import '../ai/widgets/route_engine_sheet.dart';
 import 'package:home_widget/home_widget.dart';
 import '../../core/utils/nav_scope_pref.dart';
 import 'report_fab.dart';
+import '../../data/services/cheer_service.dart';
 import '../settings/ad_inquiry_screen.dart';
+import '../settings/cheer_screen.dart';
+import '../widgets/cheer_badge_car.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -2132,6 +2135,19 @@ class _AccountCard extends ConsumerWidget {
                               ),
                             ),
                           ),
+                          // 응원 뱃지 — 닉네임 옆에 딱. 승급하면 여기가 바뀐다.
+                          Builder(builder: (_) {
+                            final b = CheerBadge.of(
+                                CheerService.instance.cachedTotal);
+                            if (b.level <= 0) return const SizedBox.shrink();
+                            return Padding(
+                              padding: const EdgeInsets.only(left: 6),
+                              child: CheerBadgeChip(
+                                  level: b.level,
+                                  name: b.name,
+                                  isDark: isDark),
+                            );
+                          }),
                           const SizedBox(width: 4),
                           Icon(Icons.chevron_right_rounded,
                               size: 20, color: textSecondary),
@@ -2862,11 +2878,16 @@ class SettingsScreenEmbed extends ConsumerWidget {
             _ChargeMarketingTile(isDark: isDark),
           ]),
           _SupportEmbed(isDark: isDark),
-          _sectionHeader(context, '정보'),
+          // 개발자 응원하기 — 강제성 없는 순수 응원 코너 (커피 후원은 정책 리스크로 안 넣음)
+          _sectionHeader(context, '개발자 응원하기'),
           settingsCard(isDark, [
-            _tile(context, isDark, Icons.star_rounded, '리뷰를 남겨주세요', '',
+            _tile(context, isDark, Icons.star_rounded, '스토어 리뷰 남겨주기', '',
                 () => RatingPromptService.openReview()),
             settingsDivider(isDark),
+            _CheerTile(isDark: isDark),
+          ]),
+          _sectionHeader(context, '정보'),
+          settingsCard(isDark, [
             _tile(
                 context,
                 isDark,
@@ -3255,6 +3276,52 @@ class _SupportEmbedState extends State<_SupportEmbed> {
           ],
         );
       },
+    );
+  }
+}
+
+// ─── 차곡차곡 응원하기 진입 타일 ───
+/// 설정 카드 톤(38px 칩)에 맞추되 하트만 장미색 — '응원' 코너라는 신호.
+/// 뱃지가 있으면 값 자리에 뱃지명을 보여줘서 다시 들어가고 싶게 만든다.
+class _CheerTile extends StatelessWidget {
+  final bool isDark;
+  const _CheerTile({required this.isDark});
+
+  static const _rose = Color(0xFFF43F5E);
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final badge = CheerBadge.of(CheerService.instance.cachedTotal);
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      leading: Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          color: _rose.withValues(alpha: isDark ? 0.20 : 0.10),
+          borderRadius: BorderRadius.circular(11),
+        ),
+        alignment: Alignment.center,
+        child: const Icon(Icons.favorite_rounded, size: 20, color: _rose),
+      ),
+      title: Text('전기차 기름차 응원하기',
+          style: Theme.of(context)
+              .textTheme
+              .titleSmall
+              ?.copyWith(fontWeight: FontWeight.w600)),
+      subtitle: Text('광고 한 편 보면 응원 1개 · 하루 3번',
+          style: TextStyle(fontSize: 11.5, color: muted)),
+      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+        if (badge.level > 0)
+          CheerBadgeChip(level: badge.level, name: badge.name, isDark: isDark),
+        Padding(
+          padding: const EdgeInsets.only(left: 2),
+          child: Icon(Icons.chevron_right_rounded, size: 20, color: muted),
+        ),
+      ]),
+      onTap: () => Navigator.of(context, rootNavigator: true)
+          .push(MaterialPageRoute(builder: (_) => const CheerScreen())),
     );
   }
 }

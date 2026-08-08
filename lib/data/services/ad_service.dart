@@ -220,10 +220,21 @@ class AdUnitIds {
   static const String _exitNativeIos =
       'ca-app-pub-8640148276009977/5945092247'; // out_dialog (iOS)
 
+  // ─── 개발자 응원하기 보상형 (2026-08 발급) ───
+  static const String _cheerRewardedAndroid =
+      'ca-app-pub-8640148276009977/9748022724'; // charge_cheer_rewarded
+  static const String _cheerRewardedIos =
+      'ca-app-pub-8640148276009977/5327110140'; // charge_cheer_rewarded (iOS)
+
   // Google 공식 네이티브 테스트 유닛 (iOS/Android 공용). debug 빌드(시뮬·개발기기)에선
   // 무조건 이걸 반환 → 실제 광고 노출/클릭이 계정에 집계되는 사고 방지(정지 위험 차단).
   // release 빌드에서만 실제 유닛 사용.
   static const String _testNative = 'ca-app-pub-3940256099942544/3986624511';
+  // 보상형 테스트 유닛은 플랫폼별로 다르다 (Google 공식 문서 고정값).
+  static const String _testRewardedAndroid =
+      'ca-app-pub-3940256099942544/5224354917';
+  static const String _testRewardedIos =
+      'ca-app-pub-3940256099942544/1712485313';
 
   /// 리스트 list_position 에 매핑되는 광고 단위 ID.
   /// admobSlots 외 position 호출 시 list_banner1 으로 fallback.
@@ -258,4 +269,10 @@ class AdUnitIds {
       ? _testNative
       : (_overrideUnit('admob_units', 'exit') ??
           (Platform.isIOS ? _exitNativeIos : _exitNativeAndroid));
+
+  /// 개발자 응원하기 보상형 광고 단위 ID.
+  static String get cheerRewarded => kDebugMode
+      ? (Platform.isIOS ? _testRewardedIos : _testRewardedAndroid)
+      : (_overrideUnit('admob_units', 'cheer') ??
+          (Platform.isIOS ? _cheerRewardedIos : _cheerRewardedAndroid));
 }
