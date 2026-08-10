@@ -2185,9 +2185,52 @@ class _AccountCard extends ConsumerWidget {
                     ],
                   ),
                 ),
+                // 아직 뱃지가 없는 사용자 — 잠긴 첫 차 실루엣으로 개러지를 예고한다.
+                // 앱 사용 흐름(지도·홈·추천)은 건드리지 않고, 스스로 들어오는
+                // 마이페이지의 기존 카드 안에서만 보여준다(형 원칙: 스텝 추가 금지).
+                const SizedBox(width: 6),
+                _FirstCarHint(isDark: isDark),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 첫 응원 유도 — 잠긴 쿠페 실루엣 + 짧은 한 줄. 탭하면 응원 화면.
+class _FirstCarHint extends StatelessWidget {
+  final bool isDark;
+  const _FirstCarHint({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    final tier = CheerTierTheme.byLevel(1);
+    final tint = CheerDs.silhouette(isDark);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => Navigator.of(context, rootNavigator: true)
+          .push(MaterialPageRoute(builder: (_) => const CheerScreen())),
+      child: SizedBox(
+        width: 76,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+                height: 26, child: tier.silhouette(tint, width: 66)),
+            const SizedBox(height: 3),
+            Text('첫 차 받기',
+                maxLines: 1,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.lightTextSecondary,
+                )),
+          ],
         ),
       ),
     );
