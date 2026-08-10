@@ -1062,7 +1062,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
               // 환경부는 앰버 — 급속(파랑)·완속(초록)과 겹치지 않는 제3의 색으로
               // '로밍 참고가'라는 별개 축임을 색으로 구분한다(형 지적).
               _priceRow(
-                  '환경부',
+                  '기후부',
                   isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706),
                   s.kecoRoamFast,
                   s.kecoRoamSlow,
@@ -1082,7 +1082,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
             const SizedBox(height: 10),
             Text(
               s.kecoRoamFast != null || s.kecoRoamSlow != null
-                  ? '환경부 = 환경부 회원카드(로밍) 결제 시 · 실제 충전소 요금과 다를 수 있습니다'
+                  ? '기후부 = 기후에너지환경부(옛 환경부) 회원카드 결제 시 · 실제 요금과 다를 수 있습니다'
                   : '실제 충전소 요금과 다를 수 있습니다',
               style: TextStyle(
                   fontSize: 11,
@@ -1249,18 +1249,26 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                 ? Row(
                     children: [
                       Expanded(
-                        child: Text(
-                          op.isNotEmpty ? '$op 회원 · 출력 기준' : '회원 · 출력 기준',
+                        // 전부 회색이면 옆의 기후부(앰버)와 무게가 안 맞아 어색하다(형 지적)
+                        // — 주인공(운영사 회원)은 본문색, '출력 기준'만 보조로.
+                        child: Text.rich(
+                          TextSpan(children: [
+                            TextSpan(
+                              text: op.isNotEmpty ? '$op 회원' : '회원',
+                              style: headerStyle.copyWith(
+                                  color: isDark ? Colors.white : Colors.black87),
+                            ),
+                            TextSpan(text: ' · 출력 기준', style: headerStyle),
+                          ]),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: headerStyle,
                         ),
                       ),
                       const SizedBox(width: 10),
                       SizedBox(
                         width: priceColW,
                         child: Text(
-                          '환경부',
+                          '기후부',
                           maxLines: 1,
                           textAlign: TextAlign.right,
                           style: headerStyle.copyWith(color: kecoAmber),
@@ -1396,7 +1404,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
           ]),
           const SizedBox(height: 10),
           Text(
-            '충전소 정보는 환경부 제공 자료로 실제와 다를 수 있습니다',
+            '충전소 정보는 기후에너지환경부 제공 자료로 실제와 다를 수 있습니다',
             style: TextStyle(
                 fontSize: 11,
                 color: isDark ? AppColors.darkTextMuted : Colors.black45),

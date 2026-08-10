@@ -766,7 +766,12 @@ class EvFilterNotifier extends StateNotifier<EvFilterOptions> {
       radius: _box.get(AppConstants.keyEvFilterRadius, defaultValue: 5000),
       chargerTypes: List<String>.from(_box.get(AppConstants.keyEvFilterChargerTypes, defaultValue: [])),
       availableOnly: _box.get(AppConstants.keyEvFilterAvailableOnly, defaultValue: false),
-      operators: List<String>.from(_box.get(AppConstants.keyEvFilterOperators, defaultValue: [])),
+      // 부처 개편 마이그레이션 — 예전에 '환경부'로 저장한 필터가 새 이름과 어긋나
+      // 조용히 무효가 되지 않게 읽을 때 치환한다.
+      operators: List<String>.from(
+          _box.get(AppConstants.keyEvFilterOperators, defaultValue: []))
+        .map((e) => e == '환경부' ? '기후부' : e)
+        .toList(),
       kinds: List<String>.from(_box.get(AppConstants.keyEvFilterKinds, defaultValue: [])),
       accessLevels: List<String>.from(_box.get(AppConstants.keyEvFilterAccessLevels, defaultValue: [])),
       speeds: List<String>.from(_box.get(AppConstants.keyEvFilterSpeeds, defaultValue: [])),

@@ -592,7 +592,7 @@ class EvOperatorLogo extends StatelessWidget {
 
   static String _toCode(String op) {
     if (op.contains('한국전력') || op.contains('한전') || op.contains('KEPCO')) return 'KEP';
-    if (op.contains('환경부')) return 'ENV';
+    if (op.contains('환경부') || op.contains('기후에너지')) return 'ENV';
     if (op.contains('GS') || op.contains('gs')) return 'GSC';
     if (op.contains('SK')) return 'SKP';
     if (op.contains('현대') || op.contains('E-pit') || op.contains('이핏')) return 'HMC';
@@ -630,7 +630,7 @@ class EvOperatorLogo extends StatelessWidget {
   // 카드에 들어갈 짧은 약칭. 4자 이내.
   static const _shortLabel = <String, String>{
     'KEP': '한전',
-    'ENV': '환경부',
+    'ENV': '기후부',
     'GSC': 'GS',
     'SKP': 'SK',
     'HMC': '현대',

@@ -128,7 +128,7 @@ class SettingsScreen extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
             child: Text(
-              '유가 정보 출처: 한국석유공사 오피넷(www.opinet.co.kr)\n충전소 정보 출처: 환경부 전기차 충전소 공공데이터',
+              '유가 정보 출처: 한국석유공사 오피넷(www.opinet.co.kr)\n충전소 정보 출처: 기후에너지환경부 전기차 충전소 공공데이터',
               style: TextStyle(
                 fontSize: 11,
                 color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,

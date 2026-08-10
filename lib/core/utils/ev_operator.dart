@@ -14,7 +14,8 @@ class _Rep {
 
 // 대표 사업자 — matcher 는 정규화된 이름(공백/(주)/주식회사 제거) 기준. 순서대로 첫 매칭.
 final List<_Rep> _representatives = [
-  _Rep('환경부', RegExp('환경부')),
+  // 부처 개편: 환경부 → 기후에너지환경부(기후부). 원천엔 두 표기가 섞여 온다.
+  _Rep('기후부', RegExp('환경부|기후에너지')),
   _Rep('한국전력', RegExp('한국전력|한전')),
   _Rep('채비', RegExp('채비')),
   _Rep('SK일렉링크', RegExp('일렉링크')),
