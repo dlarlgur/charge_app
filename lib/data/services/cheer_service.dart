@@ -52,6 +52,8 @@ class CheerStatus {
   final int dailyLimit;
   final int total;
   final int streak; // 연속 응원 일수 (오늘 포함)
+  /// 등급별 획득일 {'1': 'YYYY-MM-DD', ...} — 등급 상세 팝업 표시용
+  final Map<String, String> tierAcquiredAt;
   final String month; // '2026-08'
   final int serverCount;
   final int serverGoal;
@@ -62,6 +64,7 @@ class CheerStatus {
     required this.dailyLimit,
     required this.total,
     required this.streak,
+    this.tierAcquiredAt = const {},
     required this.month,
     required this.serverCount,
     required this.serverGoal,
@@ -75,6 +78,9 @@ class CheerStatus {
       dailyLimit: (j['dailyLimit'] as num?)?.toInt() ?? 3,
       total: (j['total'] as num?)?.toInt() ?? 0,
       streak: (j['streak'] as num?)?.toInt() ?? 0,
+      tierAcquiredAt: (j['tierAcquiredAt'] as Map?)
+              ?.map((k, v) => MapEntry(k.toString(), v.toString())) ??
+          const {},
       month: server['month']?.toString() ?? '',
       serverCount: (server['count'] as num?)?.toInt() ?? 0,
       serverGoal: (server['goal'] as num?)?.toInt() ?? 1,

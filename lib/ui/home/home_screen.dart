@@ -53,8 +53,8 @@ import '../../core/utils/nav_scope_pref.dart';
 import 'report_fab.dart';
 import '../../data/services/cheer_service.dart';
 import '../settings/ad_inquiry_screen.dart';
-import '../settings/cheer_screen.dart';
-import '../widgets/cheer_badge_car.dart';
+import '../cheer/cheer_screen.dart';
+import '../cheer/cheer_tier_theme.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -2061,6 +2061,23 @@ class _AccountCard extends ConsumerWidget {
         isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
     final loggedIn = user != null;
 
+    // 뱃지 보유 시 등급 라벨 카드(핸드오프 4a — 실버/레드/골드/블랙 8종).
+    // 0회는 기존 카드 그대로, 탭은 두 경우 모두 계정 관리(형 확정).
+    final cheerTier = CheerTierTheme.of(CheerService.instance.cachedTotal);
+    if (cheerTier != null) {
+      return _TierProfileCard(
+        tier: cheerTier,
+        total: CheerService.instance.cachedTotal,
+        isDark: isDark,
+        nickname: !ready
+            ? '불러오는 중…'
+            : (loggedIn ? '${user.nickname ?? '사용자'}님' : '로그인이 필요합니다'),
+        profileImageUrl: loggedIn ? user.profileImageUrl : null,
+        onTap: () =>
+            loggedIn ? context.push('/account') : context.push('/login'),
+      );
+    }
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -2135,19 +2152,6 @@ class _AccountCard extends ConsumerWidget {
                               ),
                             ),
                           ),
-                          // 응원 뱃지 — 닉네임 옆에 딱. 승급하면 여기가 바뀐다.
-                          Builder(builder: (_) {
-                            final b = CheerBadge.of(
-                                CheerService.instance.cachedTotal);
-                            if (b.level <= 0) return const SizedBox.shrink();
-                            return Padding(
-                              padding: const EdgeInsets.only(left: 6),
-                              child: CheerBadgeChip(
-                                  level: b.level,
-                                  name: b.name,
-                                  isDark: isDark),
-                            );
-                          }),
                           const SizedBox(width: 4),
                           Icon(Icons.chevron_right_rounded,
                               size: 20, color: textSecondary),
@@ -2165,6 +2169,182 @@ class _AccountCard extends ConsumerWidget {
                         style: TextStyle(
                             fontSize: 12.5, height: 1.4, color: textSecondary),
                       ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 마이페이지 등급 프로필 카드 (핸드오프 4a) — 등급 라벨 bg 그라데이션 +
+/// 우측 등급색 radial 글로우 + 아바타 등급 링(2.5px) + 컬러 차 SVG.
+class _TierProfileCard extends StatelessWidget {
+  final CheerTierTheme tier;
+  final int total;
+  final bool isDark;
+  final String nickname;
+  final String? profileImageUrl;
+  final VoidCallback onTap;
+  const _TierProfileCard({
+    required this.tier,
+    required this.total,
+    required this.isDark,
+    required this.nickname,
+    required this.profileImageUrl,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = tier.cardBg(isDark);
+    final ink = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final muted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
+    // 등급명 — 블랙라벨 다크는 실버 그라데이션 텍스트 (ShaderMask)
+    Widget tierName() {
+      final text = Text(tier.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.2,
+              color: tier.label(isDark)));
+      if (isDark && tier.labelIsGradientDark) {
+        return ShaderMask(
+          shaderCallback: (r) => const LinearGradient(
+                  colors: CheerTierTheme.blackLabelGradient)
+              .createShader(r),
+          child: Text(tier.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
+                  color: Colors.white)),
+        );
+      }
+      return text;
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: bg,
+            ),
+            border: Border.all(
+              color: tier.cardBorder(isDark),
+              width: isDark ? 0.5 : 1,
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Stack(
+              children: [
+                // 우측 등급색 radial 글로우
+                Positioned(
+                  right: -30,
+                  top: -30,
+                  bottom: -30,
+                  width: 190,
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: RadialGradient(colors: [
+                          tier.glow(isDark),
+                          tier.glow(isDark).withValues(alpha: 0),
+                        ]),
+                      ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+                  child: Row(
+                    children: [
+                      // 아바타 — 등급 링 2.5px, 안쪽 보더는 카드 bg색
+                      Container(
+                        width: 56,
+                        height: 56,
+                        padding: const EdgeInsets.all(2.5),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: tier.ring(isDark),
+                          ),
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                              shape: BoxShape.circle, color: bg.first),
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: AppColors.logoGradient,
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              shape: BoxShape.circle,
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: (profileImageUrl?.isNotEmpty ?? false)
+                                ? Image.network(profileImageUrl!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => const Icon(
+                                        Icons.person_rounded,
+                                        color: Colors.white,
+                                        size: 24))
+                                : const Icon(Icons.person_rounded,
+                                    color: Colors.white, size: 24),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(nickname,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: -0.3,
+                                    color: ink)),
+                            const SizedBox(height: 3),
+                            Row(
+                              children: [
+                                Flexible(child: tierName()),
+                                Text(' · 누적 $total회',
+                                    style: TextStyle(
+                                        fontSize: 11, color: muted)),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                          width: 104, height: 42, child: tier.car()),
                     ],
                   ),
                 ),
@@ -3314,7 +3494,29 @@ class _CheerTile extends StatelessWidget {
           style: TextStyle(fontSize: 11.5, color: muted)),
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
         if (badge.level > 0)
-          CheerBadgeChip(level: badge.level, name: badge.name, isDark: isDark),
+          Container(
+            padding: const EdgeInsets.fromLTRB(7, 3, 9, 3),
+            decoration: BoxDecoration(
+              color: CheerTierTheme.byLevel(badge.level)
+                  .label(isDark)
+                  .withValues(alpha: isDark ? 0.14 : 0.10),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              CheerTierTheme.byLevel(badge.level).silhouette(
+                  CheerTierTheme.byLevel(badge.level).label(isDark),
+                  width: 26,
+                  height: 12),
+              const SizedBox(width: 5),
+              Text(badge.name,
+                  style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
+                      color:
+                          CheerTierTheme.byLevel(badge.level).label(isDark))),
+            ]),
+          ),
         Padding(
           padding: const EdgeInsets.only(left: 2),
           child: Icon(Icons.chevron_right_rounded, size: 20, color: muted),

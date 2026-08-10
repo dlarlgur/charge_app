@@ -1747,9 +1747,11 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
           ? Center(
               child: CircularProgressIndicator(strokeWidth: 2, color: accent))
           : (r == null
-              ? Padding(
-                  padding: const EdgeInsets.fromLTRB(32, 60, 32, 32),
+              ? Center(
+                  child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.insights_rounded,
                           size: 40,
@@ -1790,7 +1792,8 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                         child: const Text('다시 시도'),
                       ),
                     ],
-                  ))
+                  ),
+                ))
               : ListView(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 36),
                   children: [

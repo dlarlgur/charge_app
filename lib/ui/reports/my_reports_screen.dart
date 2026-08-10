@@ -76,7 +76,8 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
-        SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+        // 화면 세로 중앙에 오도록 — 고정 비율 스페이서는 기기별로 위/아래로 쏠린다(형 지적 계열).
+        SizedBox(height: MediaQuery.of(context).size.height * 0.30),
         Icon(_error ? Icons.wifi_off_rounded : Icons.fact_check_outlined,
             size: 44, color: muted),
         const SizedBox(height: 14),
