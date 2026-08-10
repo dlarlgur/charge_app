@@ -185,6 +185,8 @@ class EvStation {
   final bool limitYn;
   final String? limitDetail;
   final String? note;
+  /// 안내문 출처 — 'report'(이용자 제보) | 'admin'(운영자 확인). 없으면 표기 안 함.
+  final String? noteSource;
   final bool isRestricted;
   /// 'open' | 'partial' | 'restricted'
   final String accessLevel;
@@ -221,6 +223,7 @@ class EvStation {
     this.limitYn = false,
     this.limitDetail,
     this.note,
+    this.noteSource,
     this.isRestricted = false,
     this.accessLevel = 'open',
     this.closed = false,
@@ -266,6 +269,7 @@ class EvStation {
       limitYn: json['limitYn'] == 'Y' || json['limitYn'] == true,
       limitDetail: json['limitDetail']?.toString().isNotEmpty == true ? json['limitDetail'] : null,
       note: json['note']?.toString().isNotEmpty == true ? json['note'] : null,
+      noteSource: json['noteSource']?.toString(),
       isRestricted: json['isRestricted'] == true,
       accessLevel: (json['accessLevel'] as String?) ?? (json['isRestricted'] == true ? 'restricted' : 'open'),
       closed: json['closed'] == true,
@@ -375,6 +379,7 @@ class EvStation {
     limitYn: limitYn,
     limitDetail: limitDetail,
     note: note,
+    noteSource: noteSource,
     isRestricted: isRestricted,
     accessLevel: accessLevel,
     closed: closed,

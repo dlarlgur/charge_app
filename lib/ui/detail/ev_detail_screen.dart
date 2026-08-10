@@ -1382,7 +1382,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
             ],
             if (s.note?.isNotEmpty == true) ...[
               _infoDivider(isDark),
-              _infoRow('안내', s.note!, isDark),
+              _noteRow(s.note!, s.noteSource, isDark),
             ],
             if (s.phone != null && s.phone!.isNotEmpty) ...[
               _infoDivider(isDark),
@@ -2560,6 +2560,72 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
         thickness: 0.5,
         color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
       );
+
+  /// 안내문 행 — 값이 길어 우측 정렬 한 줄에 안 들어간다. 왼쪽 정렬 + 줄바꿈으로 읽히게 하고,
+  /// 출처가 이용자 제보면 문구 아래 작은 칩으로 분리한다(문장 끝에 '(이용자 제보)'를
+  /// 붙이면 줄바꿈이 어색하게 걸리고 우리가 검증한 정보처럼 읽힌다).
+  Widget _noteRow(String note, String? source, bool isDark) {
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final fromReport = source == 'report';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 64,
+            child: Text('안내',
+                style: TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w500, color: muted)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  note,
+                  textAlign: TextAlign.end,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    height: 1.45,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+                if (fromReport) ...[
+                  const SizedBox(height: 6),
+                  _sourceChip(isDark),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// '이용자 제보' 칩 — 공식 확인 정보가 아니라는 표시. 톤은 설정 카드 칩과 같은
+  /// 옅은 배경 + 소문자 크기. 작은 화면에서도 한 줄을 넘지 않는다.
+  Widget _sourceChip(bool isDark) {
+    final c = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: c.withValues(alpha: isDark ? 0.16 : 0.10),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        '이용자 제보',
+        style: TextStyle(
+          fontSize: 10.5,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.1,
+          color: c,
+        ),
+      ),
+    );
+  }
 
   Widget _infoRow(String label, String value, bool isDark,
       {Color? valueColor, bool copyable = false}) {

@@ -1526,6 +1526,10 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
           _infoRow('세차', hasCarWash ? '가능' : '불가', isDark,
               valueColor: hasCarWash ? _kGreen : null),
           if (hasCvs) _infoRow('편의점', '있음', isDark, valueColor: _kGreen),
+          // 이용자 제보로 등록된 공개 안내문 — 오피넷 원천엔 없는 현장 정보
+          // (지역화폐 사용 가능 등). 운영자 확인 후에만 노출된다.
+          if ((d['note'] ?? '').toString().trim().isNotEmpty)
+            _noteRow(d['note'].toString(), d['noteSource']?.toString(), isDark),
           if (phone.isNotEmpty)
             InkWell(
               onTap: () => launchUrl(Uri.parse('tel:$phone')),
@@ -1545,6 +1549,63 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
   }
 
   // ─── 공용 소형 위젯 ───
+  /// 안내문 행 — 문구가 길어 한 줄에 안 들어가므로 줄바꿈을 허용하고,
+  /// 출처가 이용자 제보면 문구 아래 작은 칩으로 분리한다(문장 끝에 '(이용자 제보)'를
+  /// 붙이면 줄바꿈이 어색하게 걸리고 우리가 검증한 정보처럼 읽힌다).
+  Widget _noteRow(String note, String? source, bool isDark) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 4),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: isDark ? Colors.white12 : _kLineSoft),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(
+              width: 80,
+              child: Text('안내',
+                  style: TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w600, color: _kMuted)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(note,
+                      textAlign: TextAlign.end,
+                      style: TextStyle(
+                          fontSize: 13,
+                          height: 1.45,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.2,
+                          color: isDark ? Colors.white : _kInk)),
+                  if (source == 'report') ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _kMuted.withValues(alpha: isDark ? 0.16 : 0.10),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text('이용자 제보',
+                          style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: -0.1,
+                              color: _kMuted)),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+
+
   Widget _infoRow(String label, String value, bool isDark,
       {Color? valueColor, bool isLast = false}) => Container(
         padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 4),
