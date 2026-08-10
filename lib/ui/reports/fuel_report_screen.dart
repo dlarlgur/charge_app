@@ -1584,7 +1584,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
             children: [
               Row(
                 children: [
-                  _pill(monthly ? '월간 종합' : '주간', accent, isDark),
+                  _pill(monthly ? '월간 종합' : '주간',
+                      _kindColor(monthly ? 'monthly' : 'weekly', accent), isDark),
                   const SizedBox(width: 6),
                   Text(!monthly ? (_weeklyPeriod(r['date']) ?? date) : date,
                       style: TextStyle(
@@ -1642,6 +1643,14 @@ Widget _pill(String text, Color accent, bool isDark) => Container(
           style: TextStyle(
               fontSize: 11, fontWeight: FontWeight.w800, color: accent)),
     );
+
+/// 리포트 종류 배지 색 — 주간·월간이 본문 파랑(액션 색)과 섞여 안 보이던 문제.
+/// 주간=바이올렛, 월간=앰버. 종류가 색으로 먼저 읽히게 한다.
+Color _kindColor(String kind, Color fallback) => switch (kind) {
+      'weekly' => const Color(0xFF8B5CF6),
+      'monthly' => const Color(0xFFF59E0B),
+      _ => fallback,
+    };
 
 /// 주간 리포트 기간 라벨 — "8월 1주차 · 7.28 ~ 8.3".
 /// brief_date(생성일)가 끝날이고, 데이터 창은 그날 포함 최근 7일이다.
@@ -1787,7 +1796,7 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                   children: [
                     Row(
                       children: [
-                        _pill(kindLabel, accent, isDark),
+                        _pill(kindLabel, _kindColor(kind, accent), isDark),
                         const SizedBox(width: 6),
                         Text(
                             kind == 'weekly'
@@ -1828,7 +1837,8 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                     if (topic == 'ev')
                       ..._evVisuals(r['facts'], isDark, accent)
                     else
-                      ..._fuelVisuals(r['facts'], isDark),
+                      ..._fuelVisuals(r['facts'], isDark,
+                          kind: (r['kind'] ?? 'weekly').toString()),
 
                     // ── 섹션 본문 ──
                     for (final e in _sections.entries)
@@ -1852,7 +1862,8 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
 
   /* ── 유가: 오늘 가격 + 7일 추이 + 시도별 ── */
 
-  List<Widget> _fuelVisuals(dynamic factsRaw, bool isDark) {
+  List<Widget> _fuelVisuals(dynamic factsRaw, bool isDark,
+      {String kind = 'weekly'}) {
     final f = factsRaw is Map ? factsRaw : const {};
     final g = f['gasoline'] is Map ? f['gasoline'] as Map : null;
     final d = f['diesel'] is Map ? f['diesel'] as Map : null;
@@ -1863,11 +1874,34 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
     // 유종 4종 — 한 줄에 4개면 작은 화면에서 넘치므로 2×2 로 (휘발유·경유 / 고급·LPG)
     final prem = f['premium'] is Map ? f['premium'] as Map : null;
     final lpg = f['lpg'] is Map ? f['lpg'] as Map : null;
-    final cells = <(String, Map, Color)>[
-      if (g != null) ('휘발유', g, AppColors.gasBlue),
-      if (d != null) ('경유', d, const Color(0xFF8B5CF6)),
-      if (prem != null) ('고급휘발유', prem, const Color(0xFFEF4444)),
-      if (lpg != null) ('LPG', lpg, const Color(0xFF0EA5E9)),
+    // 비교 기준은 리포트 종류를 따른다 — 주간 리포트에 '어제 대비'가 붙으면
+    // 일간과 구분이 안 되고 틀린 정보가 된다(형 지적).
+    //  · weekly: 서버 계산 week_change(지난주 대비). 없으면(구 리포트) 7일 시계열
+    //    첫/끝으로 직접 계산, 그것도 없으면 칩 숨김.
+    //  · monthly: 월 대비 수치가 없으므로 칩 숨김(한 달 흐름은 본문이 서술).
+    //  · daily 상세는 이 화면을 안 탄다(오늘의 유가 카드가 '어제 대비'로 따로 그림).
+    final wc = f['week_change'] is Map ? f['week_change'] as Map : null;
+    num? periodDiff(String key, Map? cell) {
+      if (kind == 'monthly') return null;
+      final w = wc?[key];
+      if (w is Map && w['change'] is num) return w['change'] as num;
+      final series = week?[key];
+      if (series is List && series.length >= 2) {
+        final first = (series.first as Map?)?['price'];
+        final last = (series.last as Map?)?['price'];
+        if (first is num && last is num) return last - first;
+      }
+      return null;
+    }
+
+    final suffix = kind == 'weekly' ? '원 (지난주 대비)' : '원 (어제 대비)';
+    final cells = <(String, Map, Color, num?)>[
+      if (g != null) ('휘발유', g, AppColors.gasBlue, periodDiff('gasoline', g)),
+      if (d != null) ('경유', d, const Color(0xFF8B5CF6), periodDiff('diesel', d)),
+      if (prem != null)
+        ('고급휘발유', prem, const Color(0xFFEF4444), periodDiff('premium', prem)),
+      if (lpg != null)
+        ('LPG', lpg, const Color(0xFF0EA5E9), periodDiff('lpg', lpg)),
     ];
     if (cells.isNotEmpty) {
       final divider =
@@ -1884,14 +1918,16 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
         rows.add(Row(
           children: [
             Expanded(
-                child: _priceCell(pair[0].$1, pair[0].$2['price'],
-                    pair[0].$2['diff'], pair[0].$3, isDark)),
+                child: _priceCell(pair[0].$1, pair[0].$2['price'], pair[0].$4,
+                    pair[0].$3, isDark,
+                    suffix: suffix)),
             if (pair.length > 1)
               Container(width: 1, height: 46, color: divider),
             if (pair.length > 1)
               Expanded(
                   child: _priceCell(pair[1].$1, pair[1].$2['price'],
-                      pair[1].$2['diff'], pair[1].$3, isDark)),
+                      pair[1].$4, pair[1].$3, isDark,
+                      suffix: suffix)),
             if (pair.length == 1) const Expanded(child: SizedBox()),
           ],
         ));
@@ -2109,7 +2145,8 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
   }
 
   Widget _priceCell(
-      String label, dynamic price, dynamic diff, Color color, bool isDark) {
+      String label, dynamic price, dynamic diff, Color color, bool isDark,
+      {String suffix = '원 (어제 대비)'}) {
     final p = _num(price);
     final dv = _num(diff);
     return Column(
@@ -2149,7 +2186,7 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
         ),
         if (dv != null) ...[
           const SizedBox(height: 3),
-          _deltaChip(dv, isDark, suffix: '원 (어제 대비)'),
+          _deltaChip(dv, isDark, suffix: suffix),
         ],
       ],
     );

@@ -139,6 +139,10 @@ class _StationReportSheetState extends State<_StationReportSheet> {
   String? _maintAvail;
   String? _closedKind; // closed | location
   final _infoCtrl = TextEditingController(); // price/access/broken
+  // 요금 제보 — 프로모션(한시 요금)인지, 언제까지인지. 운영자가 만료일을 걸어
+  // 기간이 지나면 자동으로 운영사 요금으로 복귀시키는 데 쓴다.
+  bool _isPromo = false;
+  final _promoUntilCtrl = TextEditingController();
   final _hoursCtrl = TextEditingController();
   final _memoCtrl = TextEditingController();
   bool _submitting = false;
@@ -170,6 +174,7 @@ class _StationReportSheetState extends State<_StationReportSheet> {
   @override
   void dispose() {
     _infoCtrl.dispose();
+    _promoUntilCtrl.dispose();
     _hoursCtrl.dispose();
     _memoCtrl.dispose();
     super.dispose();
@@ -223,6 +228,12 @@ class _StationReportSheetState extends State<_StationReportSheet> {
       case 'closed':
         return {'kind': _closedKind};
       case 'price':
+        return {
+          'info': _infoCtrl.text.trim(),
+          if (_isPromo) 'promo': true,
+          if (_isPromo && _promoUntilCtrl.text.trim().isNotEmpty)
+            'promo_until': _promoUntilCtrl.text.trim(),
+        };
       case 'access':
         return {'info': _infoCtrl.text.trim()};
       case 'broken':
@@ -492,7 +503,24 @@ class _StationReportSheetState extends State<_StationReportSheet> {
           ],
         );
       case 'price':
-        return _infoBlock('요금 정보', '예) 급속 347원/kWh, 완속 250원', isDark, ink, muted, line);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _infoBlock('요금 정보', '예) 급속 347원/kWh, 완속 250원', isDark, ink, muted, line),
+            const SizedBox(height: 12),
+            _label('프로모션(기간 한정) 요금인가요?', muted),
+            const SizedBox(height: 8),
+            _segmented(const ['아니요 · 잘못된 요금', '프로모션 요금'], const ['no', 'yes'],
+                _isPromo ? 'yes' : 'no',
+                (v) => setState(() => _isPromo = v == 'yes'), ink, line),
+            if (_isPromo) ...[
+              const SizedBox(height: 10),
+              _field(_promoUntilCtrl, '언제까지인가요? 예) 9월 29일까지 / 9월 말',
+                  isDark: isDark, ink: ink, muted: muted, line: line, maxLines: 1,
+                  onChanged: (_) => setState(() {})),
+            ],
+          ],
+        );
       case 'access':
         return _infoBlock('이용 정보', '예) 주차요금 별도 · 야간 미운영 · 회원카드 필요', isDark, ink, muted, line);
       case 'broken':
