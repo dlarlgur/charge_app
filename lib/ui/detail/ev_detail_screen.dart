@@ -1068,6 +1068,11 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                   s.kecoRoamSlow,
                   isDark),
             ],
+            // 기간 한정 특별요금(프로모션) 안내 — 언제까지인지 알아야 오해가 없다.
+            if (s.priceExpiresOn != null) ...[
+              const SizedBox(height: 10),
+              _promoUntilBadge(s.priceExpiresOn!, isDark),
+            ],
             // 출력 구간별 회원 요금 — 같은 충전소에서도 50kW 와 100kW 가 요금이 다르다.
             // 위 회원 카드는 그중 낮은 값(대표)이라, 실제로 쓸 충전기 요금은 여기서 본다.
             if (s.tierPrices.isNotEmpty) ...[
@@ -1084,6 +1089,41 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                   color: isDark ? AppColors.darkTextMuted : Colors.black45),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  /// 기간 한정 특별요금 배지 — 'YYYY-MM-DD' → "9월 29일까지 특별요금".
+  /// 만료 후엔 서버가 특별요금을 걷어내므로 이 배지도 자연히 사라진다.
+  Widget _promoUntilBadge(String isoDate, bool isDark) {
+    final d = DateTime.tryParse(isoDate);
+    final until = d == null ? isoDate : '${d.month}월 ${d.day}일';
+    const amber = Color(0xFFF59E0B);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: amber.withValues(alpha: isDark ? 0.14 : 0.09),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+            color: amber.withValues(alpha: isDark ? 0.40 : 0.28), width: 0.8),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.local_offer_rounded,
+              size: 15, color: isDark ? const Color(0xFFFBBF24) : amber),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              '$until까지 적용되는 특별요금이에요',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.2,
+                color: isDark ? const Color(0xFFFBBF24) : const Color(0xFFB45309),
+              ),
+            ),
+          ),
         ],
       ),
     );

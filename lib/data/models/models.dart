@@ -172,6 +172,8 @@ class EvStation {
   final double? unitPriceSlow;       // 완속 비회원
   final double? unitPriceFastMember; // 급속 회원
   final double? unitPriceSlowMember; // 완속 회원
+  /// 기간 한정 특별요금이면 만료일('YYYY-MM-DD'). 상세 응답에만 실린다.
+  final String? priceExpiresOn;
   final double? kecoRoamFast; // 환경부 회원카드(로밍) 급속 — 목록/상세 모두 제공
   final double? kecoRoamSlow; // 환경부 회원카드(로밍) 완속
   /// 출력 구간별 회원 요금. 구간이 2개 이상인 충전소에만 실려 온다(1개면 회원가 줄과 동일).
@@ -208,6 +210,7 @@ class EvStation {
     this.unitPriceSlow,
     this.unitPriceFastMember,
     this.unitPriceSlowMember,
+    this.priceExpiresOn,
     this.kecoRoamFast,
     this.kecoRoamSlow,
     this.tierPrices = const [],
@@ -249,6 +252,7 @@ class EvStation {
       unitPriceSlow: (json['unitPriceSlow'] as num?)?.toDouble(),
       unitPriceFastMember: (json['unitPriceFastMember'] as num?)?.toDouble(),
       unitPriceSlowMember: (json['unitPriceSlowMember'] as num?)?.toDouble(),
+      priceExpiresOn: json['priceExpiresOn']?.toString(),
       kecoRoamFast: (json['kecoRoamFast'] as num?)?.toDouble(),
       kecoRoamSlow: (json['kecoRoamSlow'] as num?)?.toDouble(),
       tierPrices: (json['tierPrices'] as List<dynamic>?)
@@ -360,6 +364,7 @@ class EvStation {
     unitPriceSlow: unitPriceSlow,
     unitPriceFastMember: unitPriceFastMember,
     unitPriceSlowMember: unitPriceSlowMember,
+    priceExpiresOn: priceExpiresOn,
     kecoRoamFast: kecoRoamFast,
     kecoRoamSlow: kecoRoamSlow,
     tierPrices: tierPrices,
