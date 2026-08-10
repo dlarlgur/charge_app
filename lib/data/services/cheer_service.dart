@@ -101,6 +101,24 @@ class CheerService {
 
   static const _hiveTotalKey = 'cheer_total'; // 설정 타일 뱃지 표시용 캐시
 
+  /// 누적 횟수 반응형 알림 — 마이페이지 프로필 카드·설정 타일이 구독한다.
+  /// 콘솔에서 리셋해도 캐시가 옛 값으로 남아 뱃지가 그대로 보이던 문제(형 제보):
+  /// 서버 상태를 받아올 때마다 여기로 흘려 화면들이 즉시 따라오게 한다.
+  late final ValueNotifier<int> totalNotifier = ValueNotifier(cachedTotal);
+
+  DateTime? _lastFetch;
+
+  /// 마지막 조회가 오래됐으면 서버와 동기화 (마이페이지 진입 시 호출, 쿨다운 2분).
+  void refreshIfStale() {
+    final now = DateTime.now();
+    if (_lastFetch != null &&
+        now.difference(_lastFetch!) < const Duration(minutes: 2)) {
+      return;
+    }
+    _lastFetch = now;
+    status(); // 성공 시 _cacheTotal → totalNotifier 갱신
+  }
+
   final _dio = Dio(BaseOptions(
     baseUrl: ApiConstants.baseUrl,
     connectTimeout: const Duration(seconds: 10),
@@ -129,6 +147,7 @@ class CheerService {
     try {
       Hive.box('settings').put(_hiveTotalKey, total);
     } catch (_) {}
+    totalNotifier.value = total;
   }
 
   Future<CheerStatus?> status() async {

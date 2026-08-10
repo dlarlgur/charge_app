@@ -2055,28 +2055,41 @@ class _AccountCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider);
     final ready = ref.watch(authInitializedProvider); // 복원 완료 전엔 로그인 상태 단정 X
-    final textPrimary =
-        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary =
-        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
     final loggedIn = user != null;
 
     // 뱃지 보유 시 등급 라벨 카드(핸드오프 4a — 실버/레드/골드/블랙 8종).
     // 0회는 기존 카드 그대로, 탭은 두 경우 모두 계정 관리(형 확정).
-    final cheerTier = CheerTierTheme.of(CheerService.instance.cachedTotal);
-    if (cheerTier != null) {
-      return _TierProfileCard(
-        tier: cheerTier,
-        total: CheerService.instance.cachedTotal,
-        isDark: isDark,
-        nickname: !ready
-            ? '불러오는 중…'
-            : (loggedIn ? '${user.nickname ?? '사용자'}님' : '로그인이 필요합니다'),
-        profileImageUrl: loggedIn ? user.profileImageUrl : null,
-        onTap: () =>
-            loggedIn ? context.push('/account') : context.push('/login'),
-      );
-    }
+    // totalNotifier 구독 — 응원/리셋으로 누적이 바뀌면 카드가 즉시 따라온다.
+    return ValueListenableBuilder<int>(
+      valueListenable: CheerService.instance.totalNotifier,
+      builder: (context, cheerTotal, _) {
+        final cheerTier = CheerTierTheme.of(cheerTotal);
+        if (cheerTier != null) {
+          return _TierProfileCard(
+            tier: cheerTier,
+            total: cheerTotal,
+            isDark: isDark,
+            nickname: !ready
+                ? '불러오는 중…'
+                : (loggedIn
+                    ? '${user.nickname ?? '사용자'}님'
+                    : '로그인이 필요합니다'),
+            profileImageUrl: loggedIn ? user.profileImageUrl : null,
+            onTap: () =>
+                loggedIn ? context.push('/account') : context.push('/login'),
+          );
+        }
+        return _plainCard(context, user, ready, loggedIn);
+      },
+    );
+  }
+
+  Widget _plainCard(
+      BuildContext context, dynamic user, bool ready, bool loggedIn) {
+    final textPrimary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
     return Material(
       color: Colors.transparent,
@@ -2962,6 +2975,9 @@ class SettingsScreenEmbed extends ConsumerWidget {
             ? fuelLabels.join(', ')
             : '${fuelLabels.first} 외 ${fuelLabels.length - 1}');
 
+    // 응원 누적을 서버와 동기화 — 콘솔 리셋·다른 기기 적립이 뱃지에 늦게 반영되던 문제.
+    CheerService.instance.refreshIfStale();
+
     return SafeArea(
       child: ListView(
         padding: const EdgeInsets.only(bottom: 8),
@@ -3472,7 +3488,13 @@ class _CheerTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    final badge = CheerBadge.of(CheerService.instance.cachedTotal);
+    return ValueListenableBuilder<int>(
+      valueListenable: CheerService.instance.totalNotifier,
+      builder: (context, total, _) => _tile(context, CheerBadge.of(total), muted),
+    );
+  }
+
+  Widget _tile(BuildContext context, CheerBadge badge, Color muted) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       leading: Container(
