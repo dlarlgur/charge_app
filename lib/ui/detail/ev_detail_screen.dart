@@ -728,7 +728,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                   ),
                 ),
                 const Spacer(),
-                _availTag('급속', fastAvail, const Color(0xFFE76A3B), isDark),
+                _availTag('급속', fastAvail, AppColors.statusFast, isDark),
                 Container(
                   width: 1,
                   height: 12,
@@ -1059,11 +1059,11 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
             // 적용되는 공공 출력구간별 요금 (형 확정 B안, 제보 대응).
             if (s.kecoRoamFast != null || s.kecoRoamSlow != null) ...[
               const SizedBox(height: 8),
+              // 환경부는 앰버 — 급속(파랑)·완속(초록)과 겹치지 않는 제3의 색으로
+              // '로밍 참고가'라는 별개 축임을 색으로 구분한다(형 지적).
               _priceRow(
                   '환경부',
-                  isDark
-                      ? AppColors.darkBlueBright
-                      : const Color(0xFF2563EB),
+                  isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706),
                   s.kecoRoamFast,
                   s.kecoRoamSlow,
                   isDark),
@@ -1098,7 +1098,8 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
   /// 만료 후엔 서버가 특별요금을 걷어내므로 이 배지도 자연히 사라진다.
   Widget _promoUntilBadge(String isoDate, bool isDark) {
     final d = DateTime.tryParse(isoDate);
-    final until = d == null ? isoDate : '${d.month}월 ${d.day}일';
+    // 연도 포함 — 연말에 걸친 프로모션(내년 1월까지 등)은 연도가 없으면 헷갈린다(형 지적).
+    final until = d == null ? isoDate : '${d.year}년 ${d.month}월 ${d.day}일';
     const amber = Color(0xFFF59E0B);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
@@ -1138,8 +1139,9 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
         isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder;
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     final ink = isDark ? Colors.white : Colors.black87;
-    final kecoBlue =
-        isDark ? AppColors.darkBlueBright : const Color(0xFF2563EB);
+    // 환경부 = 앰버(메인 카드 환경부 행과 동일 축), 급속/완속 = 메인 카드와 같은 파랑/초록.
+    final kecoAmber =
+        isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706);
     // 환경부 직영(ME)은 keco 가 안 내려온다 — 그 경우 기존 단일 컬럼 유지.
     final hasKeco = s.tierPrices.any((t) => t.keco != null);
     const priceColW = 64.0;
@@ -1173,9 +1175,8 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
         );
 
     Widget row(EvTierPrice t) {
-      final accent = t.fast
-          ? AppColors.evGreen
-          : (isDark ? AppColors.darkBlueBright : const Color(0xFF2563EB));
+      // 급속=파랑, 완속=초록 — 위 요금 카드와 같은 정체성(반대로 돼 있던 것 수정, 형 지적).
+      final accent = t.fast ? AppColors.statusFast : AppColors.evGreen;
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
@@ -1216,7 +1217,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                 width: priceColW,
                 child: Align(
                   alignment: Alignment.centerRight,
-                  child: price(t.kecoText, t.keco != null ? kecoBlue : muted),
+                  child: price(t.kecoText, t.keco != null ? kecoAmber : muted),
                 ),
               ),
             ],
@@ -1262,7 +1263,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                           '환경부',
                           maxLines: 1,
                           textAlign: TextAlign.right,
-                          style: headerStyle.copyWith(color: kecoBlue),
+                          style: headerStyle.copyWith(color: kecoAmber),
                         ),
                       ),
                     ],
