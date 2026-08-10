@@ -52,6 +52,8 @@ import 'package:home_widget/home_widget.dart';
 import '../../core/utils/nav_scope_pref.dart';
 import 'report_fab.dart';
 import '../../data/services/cheer_service.dart';
+import '../../core/util/app_toast.dart';
+import '../../data/services/notif_prefs_service.dart';
 import '../settings/ad_inquiry_screen.dart';
 import '../cheer/cheer_screen.dart';
 import '../cheer/cheer_tier_theme.dart';
@@ -3065,6 +3067,10 @@ class SettingsScreenEmbed extends ConsumerWidget {
             _EvAlarmSettingTileEmbed(isDark: isDark),
             settingsDivider(isDark),
             _DndSettingTileEmbed(isDark: isDark),
+            settingsDivider(isDark),
+            // 종류별 수신 — 알림이 잦아 싫은 사용자가 카테고리 단위로 끄게(형 지시).
+            // 유가·EV 개별 알림은 위 타일에서 따로 관리한다.
+            _NotifCategoryTile(isDark: isDark),
           ]),
           // AI 추천 관련 설정은 별도 섹션 — '앱 설정' 한 카드에 9개가 몰려 있어
           // 뭐가 어디 있는지 못 찾았다(형 지적).
@@ -3515,6 +3521,101 @@ class _SupportEmbedState extends State<_SupportEmbed> {
           ],
         );
       },
+    );
+  }
+}
+
+// ─── 알림 종류별 수신 (리포트 · 공지 · 이벤트) ───
+/// 서버(push_devices.notif_*)에 저장돼 발송 시점에 필터된다.
+/// 여기서 끈 종류는 아예 발송 대상에서 빠진다(방해금지처럼 소리만 죽이는 게 아니다).
+class _NotifCategoryTile extends StatefulWidget {
+  final bool isDark;
+  const _NotifCategoryTile({required this.isDark});
+
+  @override
+  State<_NotifCategoryTile> createState() => _NotifCategoryTileState();
+}
+
+class _NotifCategoryTileState extends State<_NotifCategoryTile> {
+  static const _items = [
+    (NotifPrefsService.keyReport, '유가·충전 리포트', '주간 분석과 오늘의 유가'),
+    (NotifPrefsService.keyNotice, '공지사항', '점검·업데이트 안내'),
+    (NotifPrefsService.keyEvent, '이벤트·혜택', '이벤트 소식'),
+  ];
+
+  bool _expanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // 서버 값으로 캐시 동기화 — 기기를 바꿔도 설정이 따라온다.
+    NotifPrefsService.instance.fetch().then((v) {
+      if (v != null && mounted) setState(() {});
+    });
+  }
+
+  Future<void> _toggle(String key, bool value) async {
+    setState(() {});
+    final ok = await NotifPrefsService.instance.set(key, value);
+    if (!mounted) return;
+    setState(() {});
+    if (!ok) {
+      showAppToast(context, '설정을 저장하지 못했어요. 잠시 후 다시 시도해주세요',
+          isError: true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = widget.isDark;
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final svc = NotifPrefsService.instance;
+    final offCount = _items.where((e) => !svc.cached(e.$1)).length;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ListTile(
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          leading: SettingsScreenEmbed.settingsIconChip(
+              Icons.tune_rounded, isDark),
+          title: Text('알림 종류별 수신',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w600)),
+          subtitle: Text(
+              offCount == 0 ? '리포트 · 공지 · 이벤트 모두 받는 중' : '$offCount종류 끔',
+              style: TextStyle(fontSize: 11.5, color: muted)),
+          trailing: Icon(
+              _expanded
+                  ? Icons.expand_less_rounded
+                  : Icons.expand_more_rounded,
+              size: 22,
+              color: muted),
+          onTap: () => setState(() => _expanded = !_expanded),
+        ),
+        if (_expanded)
+          for (final it in _items)
+            SwitchListTile(
+              contentPadding:
+                  const EdgeInsets.only(left: 66, right: 14, bottom: 2),
+              dense: true,
+              value: svc.cached(it.$1),
+              onChanged: (v) => _toggle(it.$1, v),
+              title: Text(it.$2,
+                  style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.lightTextPrimary)),
+              subtitle: Text(it.$3,
+                  style: TextStyle(fontSize: 11, color: muted)),
+              activeThumbColor: AppColors.gasBlue,
+            ),
+      ],
     );
   }
 }
