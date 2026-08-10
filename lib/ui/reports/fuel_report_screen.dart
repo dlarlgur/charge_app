@@ -703,7 +703,7 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
           children: [
             Row(
               children: [
-                _pill('우리 동네', accent, isDark),
+                _pill('우리 동네', const Color(0xFF14B8A6), isDark),
                 const SizedBox(width: 6),
                 Flexible(
                   child: Text('$homeName 기준',
@@ -793,7 +793,7 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
         children: [
           Row(
             children: [
-              _pill('우리 동네', accent, isDark),
+              _pill('우리 동네', const Color(0xFF14B8A6), isDark),
               const SizedBox(width: 6),
               Flexible(
                 child: Text('$label · 집 기준',
@@ -2797,7 +2797,7 @@ class LocalFuelBriefDetailScreen extends StatelessWidget {
           // ── 헤더 ──
           Row(
             children: [
-              _pill('우리 동네', accent, isDark),
+              _pill('우리 동네', const Color(0xFF14B8A6), isDark),
               const SizedBox(width: 7),
               Text(_fmtYmd(data['stats_date']),
                   style: TextStyle(
