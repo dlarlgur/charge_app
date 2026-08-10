@@ -5,7 +5,7 @@ import 'cheer_flow.dart';
 import 'cheer_tier_theme.dart';
 
 /// 광고 완주 감사 바텀시트 (핸드오프 3d).
-/// 로고 그라데이션 원 + 감사 카피(회차별) + 오늘/연속 칩 + 서버 게이지 미니바
+/// 로고 그라데이션 원 + 감사 카피(회차별) + 오늘/연속 칩 + 응원 게이지 미니바
 /// + "한 번 더 응원하기"(3회차엔 숨김).
 void showCheerThanksSheet(
   BuildContext context, {
@@ -135,10 +135,10 @@ class _ThanksSheet extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
-                // 서버 게이지 미니바
+                // 응원 게이지 미니바
                 Row(
                   children: [
-                    Text('오늘의 서버 게이지',
+                    Text('오늘의 응원 게이지',
                         style: TextStyle(
                             fontSize: 12, color: CheerDs.secondary(isDark))),
                     const Spacer(),

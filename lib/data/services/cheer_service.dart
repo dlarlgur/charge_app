@@ -46,6 +46,60 @@ class CheerBadge {
   }
 }
 
+/// 월간 랭킹 이벤트(치킨 등) — 서버 원격설정으로 켜질 때만 내려온다.
+/// 꺼져 있으면 status.event 가 null 이라 앱은 아무것도 그리지 않는다(앱 배포 불필요).
+class CheerEvent {
+  final String title;
+  final String desc;
+  final String reward;
+  final String month;
+  final int myCount;
+  final int? myRank;
+  final List<CheerEventRank> top;
+
+  const CheerEvent({
+    required this.title,
+    required this.desc,
+    required this.reward,
+    required this.month,
+    required this.myCount,
+    required this.myRank,
+    required this.top,
+  });
+
+  factory CheerEvent.fromJson(Map<String, dynamic> j) => CheerEvent(
+        title: j['title']?.toString() ?? '이달의 응원왕 이벤트',
+        desc: j['desc']?.toString() ?? '',
+        reward: j['reward']?.toString() ?? '',
+        month: j['month']?.toString() ?? '',
+        myCount: (j['myCount'] as num?)?.toInt() ?? 0,
+        myRank: (j['myRank'] as num?)?.toInt(),
+        top: ((j['top'] as List?) ?? const [])
+            .map((e) => CheerEventRank.fromJson(
+                Map<String, dynamic>.from(e as Map)))
+            .toList(),
+      );
+}
+
+class CheerEventRank {
+  final int rank;
+  final String name;
+  final int count;
+  final bool me;
+  const CheerEventRank(
+      {required this.rank,
+      required this.name,
+      required this.count,
+      required this.me});
+
+  factory CheerEventRank.fromJson(Map<String, dynamic> j) => CheerEventRank(
+        rank: (j['rank'] as num?)?.toInt() ?? 0,
+        name: j['name']?.toString() ?? '익명의 서포터',
+        count: (j['count'] as num?)?.toInt() ?? 0,
+        me: j['me'] == true,
+      );
+}
+
 /// GET /api/cheer/status 응답
 class CheerStatus {
   final int today;
@@ -60,6 +114,8 @@ class CheerStatus {
   final double serverPct; // 0~100
   /// 어제 목표를 채웠으면 그 수치 (못 채운 날은 null — 실패는 표시하지 않는다)
   final int? yesterdayCount;
+  /// 월간 랭킹 이벤트 — 서버에서 켜졌을 때만 non-null
+  final CheerEvent? event;
 
   const CheerStatus({
     required this.today,
@@ -72,6 +128,7 @@ class CheerStatus {
     required this.serverGoal,
     required this.serverPct,
     this.yesterdayCount,
+    this.event,
   });
 
   factory CheerStatus.fromJson(Map<String, dynamic> j) {
@@ -90,6 +147,9 @@ class CheerStatus {
       serverPct: (server['pct'] as num?)?.toDouble() ?? 0,
       yesterdayCount:
           ((j['yesterdayFull'] as Map?)?['count'] as num?)?.toInt(),
+      event: j['event'] is Map
+          ? CheerEvent.fromJson(Map<String, dynamic>.from(j['event'] as Map))
+          : null,
     );
   }
 

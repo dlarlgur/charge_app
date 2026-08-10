@@ -8,7 +8,7 @@ import 'cheer_tier_theme.dart';
 import 'garage_screen.dart';
 
 /// 전기차 기름차 응원하기 — 계기판형 (design_handoff_supporter_badges 확정 시안 3b).
-/// 서버 게이지(반원 계기판) + 오늘의 연료(3칸) + 내 뱃지 카드(→ 개러지).
+/// 응원 게이지(반원 계기판) + 오늘의 연료(3칸) + 내 뱃지 카드(→ 개러지).
 class CheerScreen extends StatefulWidget {
   const CheerScreen({super.key});
 
@@ -107,6 +107,10 @@ class _CheerScreenState extends State<CheerScreen>
                     ],
                     _gaugeCard(isDark),
                     const SizedBox(height: 12),
+                    if (_status!.event != null) ...[
+                      _eventCard(_status!.event!, isDark),
+                      const SizedBox(height: 12),
+                    ],
                     _fuelCard(isDark),
                     const SizedBox(height: 12),
                     _badgeCard(isDark),
@@ -159,7 +163,7 @@ class _CheerScreenState extends State<CheerScreen>
           const SizedBox(width: 9),
           Expanded(
             child: Text(
-              '어제 서버 만땅 달성! 모두의 응원 ${st.yesterdayCount}개, 고마워요',
+              '어제 목표 달성! 모두의 응원 ${st.yesterdayCount}개, 고마워요',
               style: TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w700,
@@ -173,7 +177,7 @@ class _CheerScreenState extends State<CheerScreen>
     );
   }
 
-  // ─── 1. 서버 게이지 카드 (반원 계기판) ───
+  // ─── 1. 응원 게이지 카드 (반원 계기판) ───
   Widget _gaugeCard(bool isDark) {
     final st = _status!;
     return Container(
@@ -209,7 +213,7 @@ class _CheerScreenState extends State<CheerScreen>
                 style: TextStyle(fontSize: 14, color: CheerDs.muted(isDark))),
           ])),
           const SizedBox(height: 4),
-          Text('오늘의 서버 응원 게이지',
+          Text('오늘의 개발자 응원 게이지',
               style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
@@ -233,6 +237,119 @@ class _CheerScreenState extends State<CheerScreen>
     if (pct >= 50) return '절반을 넘었어요 — ${pct.round()}% 채워졌어요';
     if (pct >= 20) return '차오르는 중 — 모두의 응원으로 ${pct.round()}%';
     return '이제 시동을 걸었어요 — ${pct.round()}% 채워졌어요';
+  }
+
+  /// 월간 랭킹 이벤트 카드 — 서버 원격설정으로 켤 때만 나타난다(앱 배포 불필요).
+  /// 사행성으로 읽히지 않게 '감사 이벤트' 톤 유지, 순위는 참고 정보로만.
+  Widget _eventCard(CheerEvent ev, bool isDark) {
+    final gold = isDark ? const Color(0xFFFACC15) : const Color(0xFFA16207);
+    return Container(
+      decoration: BoxDecoration(
+        color: CheerDs.card(isDark),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+            color: gold.withValues(alpha: isDark ? 0.35 : 0.28), width: 0.8),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(Icons.emoji_events_rounded, size: 17, color: gold),
+            const SizedBox(width: 7),
+            Expanded(
+              child: Text(ev.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
+                      color: CheerDs.ink(isDark))),
+            ),
+            if (ev.reward.isNotEmpty)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: gold.withValues(alpha: isDark ? 0.18 : 0.12),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(ev.reward,
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: gold)),
+              ),
+          ]),
+          if (ev.desc.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(ev.desc,
+                style: TextStyle(
+                    fontSize: 12,
+                    height: 1.45,
+                    color: CheerDs.secondary(isDark))),
+          ],
+          const SizedBox(height: 12),
+          for (final r in ev.top)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(children: [
+                SizedBox(
+                  width: 22,
+                  child: Text('${r.rank}',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: r.rank == 1 ? gold : CheerDs.muted(isDark))),
+                ),
+                Expanded(
+                  child: Text(r.me ? '${r.name} (나)' : r.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight:
+                              r.me ? FontWeight.w800 : FontWeight.w600,
+                          color: r.me ? CheerDs.gas : CheerDs.ink(isDark))),
+                ),
+                Text('${r.count}회',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: CheerDs.secondary(isDark))),
+              ]),
+            ),
+          Container(
+            margin: const EdgeInsets.only(top: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(
+              color: CheerDs.iconBg(isDark),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(children: [
+              Text('내 기록',
+                  style: TextStyle(
+                      fontSize: 12, color: CheerDs.secondary(isDark))),
+              const Spacer(),
+              Flexible(
+                child: Text(
+                    ev.myCount == 0
+                        ? '아직 이번 달 응원이 없어요'
+                        : '이번 달 ${ev.myCount}회'
+                            '${ev.myRank != null ? ' · ${ev.myRank}위' : ''}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: CheerDs.ink(isDark))),
+              ),
+            ]),
+          ),
+        ],
+      ),
+    );
   }
 
   // ─── 2. 오늘의 연료 카드 ───
