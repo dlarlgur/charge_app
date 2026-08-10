@@ -215,11 +215,24 @@ class _CheerScreenState extends State<CheerScreen>
                   fontWeight: FontWeight.w600,
                   color: CheerDs.ink(isDark))),
           const SizedBox(height: 2),
-          Text('모두의 응원으로 ${st.serverPct.round()}% 채워졌어요',
+          Text(_gaugeCopy(st),
+              textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: CheerDs.muted(isDark))),
         ],
       ),
     );
+  }
+
+  /// 게이지 아래 한 줄 — 구간마다 말이 달라진다(형 지시).
+  /// 0%에 "0% 채워졌어요"는 초라해서, 시작 전엔 아예 다른 문장으로 연다.
+  String _gaugeCopy(CheerStatus st) {
+    final pct = st.serverPct;
+    if (st.serverCount == 0) return '오늘의 게이지가 비어 있어요. 첫 응원을 기다려요';
+    if (pct >= 100) return '오늘 목표 달성! 모두의 응원 ${st.serverCount}개, 고마워요';
+    if (pct >= 80) return '거의 다 왔어요 — ${pct.round()}% 채워졌어요';
+    if (pct >= 50) return '절반을 넘었어요 — ${pct.round()}% 채워졌어요';
+    if (pct >= 20) return '차오르는 중 — 모두의 응원으로 ${pct.round()}%';
+    return '이제 시동을 걸었어요 — ${pct.round()}% 채워졌어요';
   }
 
   // ─── 2. 오늘의 연료 카드 ───
