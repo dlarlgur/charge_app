@@ -33,14 +33,14 @@ class _ThanksSheet extends StatelessWidget {
       {required this.status, required this.isDark, required this.onStatus});
 
   String get _body {
-    // 회차별 카피 — 1회차/2회차/3회차
+    // 회차별 카피 — 시안 문구 유지. 2회차도 '서버가 쌩쌩' 대신 같은 톤으로(형 확정).
     switch (status.today) {
       case 1:
         return '응원 1개가 서버에 전해졌어요.\n개발자 힘이 불끈! 오늘도 쌩쌩하게 달릴게요.';
       case 2:
-        return '두 번째 응원까지 도착했어요.\n서버가 쌩쌩 돌아갑니다. 정말 고마워요.';
+        return '오늘 두 번째 응원이에요.\n개발자 힘이 불끈! 오늘도 쌩쌩하게 달릴게요.';
       default:
-        return '오늘 응원 만땅! 최고의 서포터예요.\n내일 또 만나요.';
+        return '오늘 응원 만땅! 최고의 서포터예요.\n개발자 힘이 불끈! 내일도 쌩쌩하게 달릴게요.';
     }
   }
 
