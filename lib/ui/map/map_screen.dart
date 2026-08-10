@@ -205,11 +205,17 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _searchMarker = null;
   }
 
-  void _selectStation(dynamic station) {
+  // 검색·최근검색으로 연 상세는 필터와 무관하게 유지한다 — 명시적으로 찾아 들어온
+  // 것이라, 필터 정리 로직(아래 stillVisible)이 시트를 닫으면 '눌렀는데 안 열림'으로
+  // 보인다(형 제보: 고급휘발유 필터에서 검색한 주유소 상세가 바로 사라짐).
+  bool _selectionPinned = false;
+
+  void _selectStation(dynamic station, {bool pinned = false}) {
     _clearSearchMarker();
     _sheetController?.dispose();
     _sheetController = DraggableScrollableController();
     mapSheetOpen.value = true;
+    _selectionPinned = pinned;
     setState(() {
       _selectedStation = station;
       _selectedCluster = null;
@@ -219,6 +225,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   /// 같은 GPS 에 여러 마커가 있을 때(아파트 단지 등) 클릭 시 호출.
   /// 목록 시트로 전환 — 사용자가 1개 선택하면 _selectStation 으로 단일 상세 전환.
   void _selectCluster(List<dynamic> stations) {
+    _selectionPinned = false;
     _clearSearchMarker();
     _sheetController?.dispose();
     _sheetController = DraggableScrollableController();
@@ -230,6 +237,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   Future<void> _dismissSheet() async {
+    _selectionPinned = false;
     final prev = _selectedStation;
     // 상세시트를 닫아도 지역 리스트가 펼쳐져 있으면 back 처리는 여전히 지도 탭 몫.
     mapSheetOpen.value = _listExpanded;
@@ -1625,7 +1633,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     // 목록 데이터가 아니라 상세를 직접 받아 연다 — 검색 결과엔 충전기 상태가 없다.
     try {
       final d = await ApiService().getEvStationDetail(statId);
-      if (mounted) _selectStation(EvStation.fromJson(d));
+      if (mounted) _selectStation(EvStation.fromJson(d), pinned: true);
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1758,7 +1766,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     try {
       final fuelType = ref.read(effectiveGasFuelTypeProvider);
       final d = await ApiService().getGasStationDetail(uniId, fuelType: fuelType);
-      if (mounted) _selectStation(GasStation.fromJson(d));
+      if (mounted) _selectStation(GasStation.fromJson(d), pinned: true);
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2152,8 +2160,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       ref.read(mapEvStationsProvider).valueOrNull ?? <EvStation>[], 150,
     );
 
-    // 필터 변경 등으로 선택된 스테이션이 결과에서 사라지면 선택 해제
-    if (_selectedStation != null) {
+    // 필터 변경 등으로 선택된 스테이션이 결과에서 사라지면 선택 해제.
+    // 검색으로 연 상세(pinned)는 예외 — 필터에 안 걸려도 사용자가 찾아 들어온 곳이다.
+    if (_selectedStation != null && !_selectionPinned) {
       final stillVisible = (_selectedStation is GasStation &&
               gasStations.any((s) => s.id == (_selectedStation as GasStation).id)) ||
           (_selectedStation is EvStation &&
