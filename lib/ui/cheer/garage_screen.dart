@@ -57,6 +57,10 @@ class _GarageScreenState extends State<GarageScreen> {
       backgroundColor: CheerDs.bg(isDark),
       appBar: AppBar(
         backgroundColor: CheerDs.bg(isDark),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
         title: const Text('내 개러지',
             style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.3)),
         actions: [
@@ -66,14 +70,14 @@ class _GarageScreenState extends State<GarageScreen> {
               padding:
                   const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: CheerDs.ev.withValues(alpha: isDark ? 0.18 : 0.12),
+                color: CheerDs.ev.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Text('$owned/${CheerTierTheme.tiers.length} 수집',
                   style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: CheerDs.ev)),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: CheerDs.success)),
             ),
           ),
         ],
@@ -167,13 +171,13 @@ class _GarageScreenState extends State<GarageScreen> {
               ownedTier
                   ? Text('누적 $total회 · 보유',
                       style: TextStyle(
-                          fontSize: 11, color: CheerDs.muted(isDark)))
+                          fontSize: 11, color: CheerDs.secondary(isDark)))
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.lock_rounded,
-                            size: 12, color: CheerDs.faint(isDark)),
-                        const SizedBox(width: 3),
+                            size: 12, color: CheerDs.secondary(isDark)),
+                        const SizedBox(width: 4),
                         Flexible(
                           child: Text(
                               '${t.threshold}회 · ${t.threshold - total}회 남음',
@@ -181,7 +185,7 @@ class _GarageScreenState extends State<GarageScreen> {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                   fontSize: 11,
-                                  color: CheerDs.faint(isDark))),
+                                  color: CheerDs.secondary(isDark))),
                         ),
                       ],
                     ),
@@ -210,15 +214,13 @@ class _GarageScreenState extends State<GarageScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                      color: CheerDs.ink(isDark))),
+                      fontSize: 12, color: CheerDs.secondary(isDark))),
             ),
             Text('${next.threshold - total}회 남음',
                 style: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
-                    color: CheerDs.ev)),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: CheerDs.success)),
           ]),
           const SizedBox(height: 10),
           ClipRRect(

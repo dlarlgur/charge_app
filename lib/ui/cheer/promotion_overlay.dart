@@ -218,7 +218,10 @@ class _PromotionOverlayState extends State<_PromotionOverlay>
                 child: Container(
                   width: specs[i].$3,
                   height: specs[i].$3,
-                  color: colors[i % colors.length],
+                  decoration: BoxDecoration(
+                    color: colors[i % colors.length],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
             ),

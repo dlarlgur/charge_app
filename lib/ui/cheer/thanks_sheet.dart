@@ -16,8 +16,12 @@ void showCheerThanksSheet(
   showModalBottomSheet(
     context: context,
     backgroundColor: Colors.transparent,
+    barrierColor: isDark
+        ? const Color(0xFF0C0E13).withValues(alpha: 0.72)
+        : const Color(0xFF2D3748).withValues(alpha: 0.55),
     isScrollControlled: true,
-    builder: (ctx) => _ThanksSheet(status: status, isDark: isDark, onStatus: onStatus),
+    builder: (ctx) =>
+        _ThanksSheet(status: status, isDark: isDark, onStatus: onStatus),
   );
 }
 
@@ -43,13 +47,13 @@ class _ThanksSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ink = CheerDs.ink(isDark);
-    final muted = CheerDs.muted(isDark);
     final remaining = (status.dailyLimit - status.today).clamp(0, 3);
 
     return Container(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom),
       decoration: BoxDecoration(
-        color: CheerDs.card(isDark),
+        // 딤 위에 뜨는 시트라 불투명이어야 한다(반투명 카드색이면 딤이 비친다)
+        color: CheerDs.cardSolid(isDark),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Stack(
@@ -100,17 +104,33 @@ class _ThanksSheet extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(_body,
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 13, height: 1.5, color: muted)),
+                    style: TextStyle(
+                        fontSize: 13,
+                        height: 1.5,
+                        color: CheerDs.secondary(isDark))),
                 const SizedBox(height: 14),
                 // 칩 2개 — 오늘 N/3 (그린 틴트) · N일 연속 (앰버 틴트)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _chip('오늘 ${status.today} / ${status.dailyLimit}',
-                        CheerDs.ev, isDark),
+                    _chip(Icons.check_rounded,
+                        '오늘 ${status.today} / ${status.dailyLimit}',
+                        fg: isDark
+                            ? CheerDs.success
+                            : const Color(0xFF059669),
+                        bg: isDark
+                            ? const Color(0x2610B981)
+                            : const Color(0xFFD1FAE5)),
                     if (status.streak >= 1) ...[
                       const SizedBox(width: 8),
-                      _chip('${status.streak}일 연속', CheerDs.amber, isDark),
+                      _chip(Icons.local_fire_department_rounded,
+                          '${status.streak}일 연속',
+                          fg: isDark
+                              ? const Color(0xFFFBBF24)
+                              : const Color(0xFFB45309),
+                          bg: isDark
+                              ? const Color(0x26F59E0B)
+                              : const Color(0xFFFEF3C7)),
                     ],
                   ],
                 ),
@@ -119,7 +139,8 @@ class _ThanksSheet extends StatelessWidget {
                 Row(
                   children: [
                     Text('서버 응원 게이지',
-                        style: TextStyle(fontSize: 12, color: muted)),
+                        style: TextStyle(
+                            fontSize: 12, color: CheerDs.secondary(isDark))),
                     const Spacer(),
                     Text.rich(TextSpan(children: [
                       TextSpan(
@@ -130,7 +151,9 @@ class _ThanksSheet extends StatelessWidget {
                               color: ink)),
                       TextSpan(
                           text: ' / ${status.serverGoal}',
-                          style: TextStyle(fontSize: 12, color: muted)),
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: CheerDs.secondary(isDark))),
                     ])),
                   ],
                 ),
@@ -158,12 +181,12 @@ class _ThanksSheet extends StatelessWidget {
                 if (remaining > 0)
                   SizedBox(
                     width: double.infinity,
-                    height: 50,
+                    height: 48,
                     child: FilledButton(
                       style: FilledButton.styleFrom(
                         backgroundColor: CheerDs.ev,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                       onPressed: () {
                         Navigator.of(context).pop();
@@ -177,7 +200,8 @@ class _ThanksSheet extends StatelessWidget {
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
                   child: Text('닫기',
-                      style: TextStyle(fontSize: 13, color: muted)),
+                      style: TextStyle(
+                          fontSize: 13, color: CheerDs.muted(isDark))),
                 ),
               ],
             ),
@@ -187,14 +211,20 @@ class _ThanksSheet extends StatelessWidget {
     );
   }
 
-  Widget _chip(String text, Color color, bool isDark) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+  Widget _chip(IconData icon, String text,
+          {required Color fg, required Color bg}) =>
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: isDark ? 0.18 : 0.12),
+          color: bg,
           borderRadius: BorderRadius.circular(999),
         ),
-        child: Text(text,
-            style: TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w700, color: color)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 13, color: fg),
+          const SizedBox(width: 4),
+          Text(text,
+              style: TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w600, color: fg)),
+        ]),
       );
 }

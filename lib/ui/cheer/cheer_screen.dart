@@ -86,6 +86,11 @@ class _CheerScreenState extends State<CheerScreen>
       backgroundColor: CheerDs.bg(isDark),
       appBar: AppBar(
         backgroundColor: CheerDs.bg(isDark),
+        // 시안 헤더는 iOS 스타일 화살표(arrow_back_ios_new)
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
         title: const Text('전기차 기름차 응원하기',
             style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.3)),
       ),
@@ -138,12 +143,12 @@ class _CheerScreenState extends State<CheerScreen>
     final st = _status!;
     return Container(
       decoration: _card(isDark),
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 20),
       child: Column(
         children: [
           SizedBox(
-            width: 210,
-            height: 118,
+            width: 230,
+            height: 128,
             child: AnimatedBuilder(
               animation: _needleCtrl,
               builder: (_, __) {
@@ -211,8 +216,8 @@ class _CheerScreenState extends State<CheerScreen>
                       color: CheerDs.gas)),
               TextSpan(
                   text: ' / ${st.dailyLimit}',
-                  style:
-                      TextStyle(fontSize: 13, color: CheerDs.muted(isDark))),
+                  style: TextStyle(
+                      fontSize: 12, color: CheerDs.secondary(isDark))),
             ])),
           ]),
           const SizedBox(height: 12),
@@ -370,7 +375,7 @@ class _CheerScreenState extends State<CheerScreen>
                                 : '누적 응원 ${st.total}회',
                             style: TextStyle(
                                 fontSize: 12,
-                                color: CheerDs.muted(isDark))),
+                                color: CheerDs.secondary(isDark))),
                       ],
                     ),
                   ),
@@ -387,12 +392,7 @@ class _CheerScreenState extends State<CheerScreen>
                     Container(color: CheerDs.iconBg(isDark)),
                     FractionallySizedBox(
                       widthFactor: progress == 0 ? 0.015 : progress,
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                              colors: [CheerDs.gas, CheerDs.ev]),
-                        ),
-                      ),
+                      child: Container(color: CheerDs.gas),
                     ),
                   ]),
                 ),
@@ -405,7 +405,7 @@ class _CheerScreenState extends State<CheerScreen>
                           ? '다음 등급 「${next.name}」까지 '
                           : '최고 등급 달성! ',
                       style: TextStyle(
-                          fontSize: 12, color: CheerDs.muted(isDark))),
+                          fontSize: 12, color: CheerDs.secondary(isDark))),
                   if (next != null)
                     TextSpan(
                         text: '${next.threshold - st.total}회',
@@ -423,7 +423,8 @@ class _CheerScreenState extends State<CheerScreen>
   }
 }
 
-/// 반원 계기판 — E→F 트랙(13px round cap) + 파랑→초록 그라데이션 호 + 앰버 니들·허브.
+/// 반원 계기판 — 시안 SVG(3b, viewBox 200×116)를 좌표 그대로 옮김.
+/// 틱 5개(45° 간격) + 트랙/그라데이션 호(13, round cap) + 테이퍼 삼각 니들 + 허브.
 class _DialGaugePainter extends CustomPainter {
   final double fill; // 0~1
   final bool isDark;
@@ -431,12 +432,27 @@ class _DialGaugePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height - 6);
-    final radius = math.min(size.width / 2 - 10, size.height - 22);
-    const stroke = 13.0;
-    final rect = Rect.fromCircle(center: center, radius: radius);
+    // 시안 좌표계 200×116 → 화면 크기로 균일 스케일
+    final k = math.min(size.width / 200, size.height / 116);
+    final ox = (size.width - 200 * k) / 2;
+    final oy = (size.height - 116 * k) / 2;
+    Offset pt(double x, double y) => Offset(ox + x * k, oy + y * k);
+    final center = pt(100, 100);
 
-    // 트랙
+    // 틱 5개 — (14,100)→(24,100) 을 0/45/90/135/180° 회전 (시안 그대로)
+    final tick = Paint()
+      ..color = CheerDs.cardBorderStrong(isDark)
+      ..strokeWidth = 2 * k
+      ..strokeCap = StrokeCap.butt;
+    for (final deg in [0, 45, 90, 135, 180]) {
+      final a = math.pi + deg * math.pi / 180; // 왼쪽(180°)부터 시계방향
+      final dir = Offset(math.cos(a), math.sin(a));
+      canvas.drawLine(
+          center + dir * (86 * k), center + dir * (76 * k), tick);
+    }
+
+    // 트랙 (r70, 13px round cap)
+    final rect = Rect.fromCircle(center: center, radius: 70 * k);
     canvas.drawArc(
       rect,
       math.pi,
@@ -444,12 +460,12 @@ class _DialGaugePainter extends CustomPainter {
       false,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = stroke
+        ..strokeWidth = 13 * k
         ..strokeCap = StrokeCap.round
         ..color = CheerDs.iconBg(isDark),
     );
 
-    // 채움 호 — 파랑→초록 SweepGradient (좌→우)
+    // 채움 호 — #3B82F6→#10B981 (시안 arcG)
     final sweep = math.pi * fill.clamp(0.0, 1.0);
     if (sweep > 0.01) {
       canvas.drawArc(
@@ -459,7 +475,7 @@ class _DialGaugePainter extends CustomPainter {
         false,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = stroke
+          ..strokeWidth = 13 * k
           ..strokeCap = StrokeCap.round
           ..shader = SweepGradient(
             startAngle: math.pi,
@@ -469,44 +485,45 @@ class _DialGaugePainter extends CustomPainter {
       );
     }
 
-    // E / F 라벨
+    // E / F — (20,115) (173,115), 11px/700 text-muted
     final tpStyle = TextStyle(
-        fontSize: 11,
+        fontSize: 11 * k,
         fontWeight: FontWeight.w700,
-        color: CheerDs.faint(isDark));
-    void label(String s, Offset at) {
+        color: CheerDs.muted(isDark));
+    void label(String t, double x, double y) {
       final tp = TextPainter(
-          text: TextSpan(text: s, style: tpStyle),
+          text: TextSpan(text: t, style: tpStyle),
           textDirection: TextDirection.ltr)
         ..layout();
-      tp.paint(canvas, at - Offset(tp.width / 2, tp.height / 2));
+      // SVG text 는 baseline 기준 — baseline 근사(높이의 0.8)
+      tp.paint(canvas, pt(x, y) - Offset(0, tp.height * 0.8));
     }
 
-    label('E', Offset(center.dx - radius, center.dy + 14));
-    label('F', Offset(center.dx + radius, center.dy + 14));
+    label('E', 20, 115);
+    label('F', 173, 115);
 
-    // 니들 (앰버) — 각도 = 진행률 × 180°
-    final angle = math.pi + sweep;
-    final needleLen = radius - stroke - 4;
-    final tip = center +
-        Offset(math.cos(angle), math.sin(angle)) * needleLen;
-    canvas.drawLine(
-      center,
-      tip,
-      Paint()
-        ..color = CheerDs.amber
-        ..strokeWidth = 3.5
-        ..strokeCap = StrokeCap.round,
-    );
+    // 니들 — 테이퍼 삼각형 M100 96 L42 100 L100 104 Z, rotate(fill×180°)
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    canvas.rotate(math.pi * fill.clamp(0.0, 1.0));
+    canvas.translate(-center.dx, -center.dy);
+    final needle = Path()
+      ..moveTo(pt(100, 96).dx, pt(100, 96).dy)
+      ..lineTo(pt(42, 100).dx, pt(42, 100).dy)
+      ..lineTo(pt(100, 104).dx, pt(100, 104).dy)
+      ..close();
+    canvas.drawPath(needle, Paint()..color = CheerDs.amber);
+    canvas.restore();
 
-    // 허브 — 카드색 원 + 앰버 스트로크 3
-    canvas.drawCircle(center, 9, Paint()..color = CheerDs.card(isDark));
+    // 허브 — r7 카드색 + 앰버 스트로크 3
+    canvas.drawCircle(
+        center, 7 * k, Paint()..color = CheerDs.cardSolid(isDark));
     canvas.drawCircle(
       center,
-      9,
+      7 * k,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 3
+        ..strokeWidth = 3 * k
         ..color = CheerDs.amber,
     );
   }

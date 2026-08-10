@@ -7,25 +7,33 @@ import 'package:flutter_svg/flutter_svg.dart';
 class CheerDs {
   CheerDs._();
 
-  // 화면 공통
+  // 화면 공통 — _ds/colors_and_type.css 토큰 그대로 (라이트 / .dark)
   static const bgL = Color(0xFFF8FAFB);
   static const bgD = Color(0xFF0C0E13);
   static const cardL = Colors.white;
-  static const cardD = Color(0xFF151A23);
+  static const cardD = Color(0x08FFFFFF); // rgba(255,255,255,0.03)
   static const cardBorderL = Color(0xFFE8ECF0);
   static const cardBorderD = Color(0x14FFFFFF); // rgba(255,255,255,0.08)
+  // 틱 등 강조 보더 — --card-border-strong
+  static const cardBorderStrongL = Color(0xFFDDE3EC);
+  static const cardBorderStrongD = Color(0x14FFFFFF);
   static const inkL = Color(0xFF0F172A);
   static const inkD = Color(0xFFF1F5F9);
-  static const mutedL = Color(0xFF64748B);
-  static const mutedD = Color(0xFF94A3B8);
-  static const faintL = Color(0xFF94A3B8);
-  static const faintD = Color(0xFF64748B);
+  // --text-secondary
+  static const secondaryL = Color(0xFF64748B);
+  static const secondaryD = Color(0xFF94A3B8);
+  // --text-muted
+  static const mutedL = Color(0xFF94A3B8);
+  static const mutedD = Color(0xFF475569);
   static const iconBgL = Color(0xFFF1F5F9);
-  static const iconBgD = Color(0x14FFFFFF);
+  static const iconBgD = Color(0xFF1E293B);
+  // 반투명 다크 카드 위에 불투명이 필요한 곳(게이지 허브) — bg+card 합성 근사
+  static const cardSolidD = Color(0xFF14161B);
 
   static const gas = Color(0xFF3B82F6);
   static const ev = Color(0xFF10B981);
   static const amber = Color(0xFFF59E0B);
+  static const success = Color(0xFF34D399);
 
   // 미획득 실루엣 틴트
   static const silhouetteL = Color(0xFFCBD5E1);
@@ -34,10 +42,15 @@ class CheerDs {
 
   static Color bg(bool d) => d ? bgD : bgL;
   static Color card(bool d) => d ? cardD : cardL;
+  static Color cardSolid(bool d) => d ? cardSolidD : cardL;
   static Color cardBorder(bool d) => d ? cardBorderD : cardBorderL;
+  static Color cardBorderStrong(bool d) =>
+      d ? cardBorderStrongD : cardBorderStrongL;
   static Color ink(bool d) => d ? inkD : inkL;
+  static Color secondary(bool d) => d ? secondaryD : secondaryL;
   static Color muted(bool d) => d ? mutedD : mutedL;
-  static Color faint(bool d) => d ? faintD : faintL;
+  // 구 명칭 호환 — muted 보다 옅은 톤이 필요하던 자리, 시안 기준 muted 로 통일
+  static Color faint(bool d) => muted(d);
   static Color iconBg(bool d) => d ? iconBgD : iconBgL;
   static Color silhouette(bool d, {bool popup = false}) =>
       d ? (popup ? silhouettePopupD : silhouetteListD) : silhouetteL;
@@ -140,8 +153,8 @@ class CheerTierTheme {
       cardBgD: [Color(0xFF141821), Color(0xFF0D1017)],
       cardBorderD: Color(0x14FFFFFF),
       ring: [Color(0xFFDCE4EE), Color(0xFF8FA3B8)],
-      glowL: Color(0x29475569), // slate 0.16
-      glowD: Color(0x4D94A3B8), // slate 0.30
+      glowL: Color(0x4D94A3B8), // 4a 마크업 실측 rgba(148,163,184,0.30)
+      glowD: Color(0x4D94A3B8),
       cta: [Color(0xFF475569)],
       ctaD: Color(0xFF64748B),
     ),

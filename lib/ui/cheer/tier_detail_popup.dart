@@ -60,7 +60,8 @@ class _TierDetailDialog extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
         child: Container(
-          color: CheerDs.card(isDark),
+          // 딤 위 팝업 — 불투명 표면
+          color: CheerDs.cardSolid(isDark),
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
           child: Column(
             mainAxisSize: MainAxisSize.min,
