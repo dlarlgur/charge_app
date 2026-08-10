@@ -101,6 +101,10 @@ class _CheerScreenState extends State<CheerScreen>
               : ListView(
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
                   children: [
+                    if (_status!.yesterdayCount != null) ...[
+                      _yesterdayBanner(_status!, isDark),
+                      const SizedBox(height: 12),
+                    ],
                     _gaugeCard(isDark),
                     const SizedBox(height: 12),
                     _fuelCard(isDark),
@@ -138,6 +142,37 @@ class _CheerScreenState extends State<CheerScreen>
         border: Border.all(color: CheerDs.cardBorder(isDark), width: 0.5),
       );
 
+  // 어제 목표 달성 축하 — 못 채운 날은 아예 표시하지 않는다(실패 프레임 금지, 형 확정).
+  Widget _yesterdayBanner(CheerStatus st, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: CheerDs.ev.withValues(alpha: isDark ? 0.14 : 0.10),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+            color: CheerDs.ev.withValues(alpha: isDark ? 0.30 : 0.20),
+            width: 0.5),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.celebration_rounded, size: 18, color: CheerDs.ev),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              '어제 서버 만땅 달성! 모두의 응원 ${st.yesterdayCount}개, 고마워요',
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.2,
+                color: isDark ? CheerDs.success : const Color(0xFF059669),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ─── 1. 서버 게이지 카드 (반원 계기판) ───
   Widget _gaugeCard(bool isDark) {
     final st = _status!;
@@ -174,7 +209,7 @@ class _CheerScreenState extends State<CheerScreen>
                 style: TextStyle(fontSize: 14, color: CheerDs.muted(isDark))),
           ])),
           const SizedBox(height: 4),
-          Text('이번 달 서버 응원 게이지',
+          Text('오늘의 서버 응원 게이지',
               style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,

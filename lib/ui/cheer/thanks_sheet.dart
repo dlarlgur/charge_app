@@ -138,7 +138,7 @@ class _ThanksSheet extends StatelessWidget {
                 // 서버 게이지 미니바
                 Row(
                   children: [
-                    Text('서버 응원 게이지',
+                    Text('오늘의 서버 게이지',
                         style: TextStyle(
                             fontSize: 12, color: CheerDs.secondary(isDark))),
                     const Spacer(),

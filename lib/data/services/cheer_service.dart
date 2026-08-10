@@ -58,6 +58,8 @@ class CheerStatus {
   final int serverCount;
   final int serverGoal;
   final double serverPct; // 0~100
+  /// 어제 목표를 채웠으면 그 수치 (못 채운 날은 null — 실패는 표시하지 않는다)
+  final int? yesterdayCount;
 
   const CheerStatus({
     required this.today,
@@ -69,6 +71,7 @@ class CheerStatus {
     required this.serverCount,
     required this.serverGoal,
     required this.serverPct,
+    this.yesterdayCount,
   });
 
   factory CheerStatus.fromJson(Map<String, dynamic> j) {
@@ -85,6 +88,8 @@ class CheerStatus {
       serverCount: (server['count'] as num?)?.toInt() ?? 0,
       serverGoal: (server['goal'] as num?)?.toInt() ?? 1,
       serverPct: (server['pct'] as num?)?.toDouble() ?? 0,
+      yesterdayCount:
+          ((j['yesterdayFull'] as Map?)?['count'] as num?)?.toInt(),
     );
   }
 
@@ -220,6 +225,14 @@ class CheerService {
     );
   }
 
+  /// 보상형 광고를 띄운 시점을 서버에 남긴다 — 콘솔 완료율(요청 대비 리워드) 산출용.
+  /// 실패해도 광고 흐름을 막지 않는다.
+  void reportAdStart() {
+    _dio
+        .post('/cheer/ad-start', data: {'device_id': DkswCore.deviceId})
+        .catchError((_) => Response(requestOptions: RequestOptions(path: '')));
+  }
+
   /// 광고 표시. 사용자가 끝까지 봐서 리워드를 받으면 onEarned 호출.
   /// (적립 API 호출은 화면 쪽에서 — UI 갱신 흐름을 한 곳에 모으기 위해)
   Future<void> show({
@@ -229,6 +242,7 @@ class CheerService {
     final ad = _ad;
     if (ad == null) return;
     _ad = null;
+    reportAdStart();
     var earned = false;
     ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {

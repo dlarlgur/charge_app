@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../data/services/cheer_service.dart';
+import '../cheer/cheer_tier_theme.dart';
+import '../cheer/garage_screen.dart';
 import '../../core/app_dialog.dart';
 import '../../core/util/app_toast.dart';
 import '../../data/services/auth_service.dart';
@@ -40,33 +43,62 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // 프로필 헤더
-          Container(
+          // 프로필 헤더 — 응원 등급이 있으면 4a 등급 카드 톤(라벨 bg·아바타 링·컬러 차)으로.
+          // 등급 없으면 기존 그대로. 차를 누르면 개러지로 간다.
+          Builder(builder: (context) {
+            final tier = CheerTierTheme.of(CheerService.instance.cachedTotal);
+            return Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: cardColor,
+              color: tier == null ? cardColor : null,
+              gradient: tier == null
+                  ? null
+                  : LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: tier.cardBg(isDark)),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: border),
+              border: Border.all(
+                  color: tier == null ? border : tier.cardBorder(isDark)),
             ),
             child: Row(
               children: [
                 Container(
                   width: 60,
                   height: 60,
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: AppColors.logoGradient,
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                  padding: tier == null ? null : const EdgeInsets.all(2.5),
+                  decoration: BoxDecoration(
                     shape: BoxShape.circle,
+                    gradient: tier == null
+                        ? const LinearGradient(
+                            colors: AppColors.logoGradient,
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight)
+                        : LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: tier.ring(isDark)),
                   ),
-                  clipBehavior: Clip.antiAlias,
-                  child: (user.profileImageUrl?.isNotEmpty ?? false)
-                      ? Image.network(user.profileImageUrl!, fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              const Icon(Icons.person_rounded, color: Colors.white, size: 34))
-                      : const Icon(Icons.person_rounded, color: Colors.white, size: 34),
+                  clipBehavior: tier == null ? Clip.antiAlias : Clip.none,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: tier == null
+                          ? null
+                          : Border.all(color: tier.cardBg(isDark).first, width: 2.5),
+                      gradient: const LinearGradient(
+                        colors: AppColors.logoGradient,
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: (user.profileImageUrl?.isNotEmpty ?? false)
+                        ? Image.network(user.profileImageUrl!, fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                                const Icon(Icons.person_rounded, color: Colors.white, size: 30))
+                        : const Icon(Icons.person_rounded, color: Colors.white, size: 30),
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -87,6 +119,19 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 13.5, color: textSecondary),
                       ),
+                      if (tier != null) ...[
+                        const SizedBox(height: 6),
+                        Row(children: [
+                          Text(tier.name,
+                              style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: tier.label(isDark))),
+                          Text('  · 누적 ${CheerService.instance.cachedTotal}회',
+                              style: TextStyle(
+                                  fontSize: 11.5, color: textSecondary)),
+                        ]),
+                      ],
                       if (user.ageGroup?.isNotEmpty ?? false) ...[
                         const SizedBox(height: 8),
                         Container(
@@ -108,6 +153,12 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                     ],
                   ),
                 ),
+                if (tier != null)
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const GarageScreen())),
+                    child: SizedBox(width: 88, height: 36, child: tier.car()),
+                  ),
                 IconButton(
                   icon: Icon(Icons.edit_rounded, size: 20, color: textSecondary),
                   tooltip: '닉네임 수정',
@@ -115,7 +166,8 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                 ),
               ],
             ),
-          ),
+          );
+          }),
           const SizedBox(height: 20),
           // 로그아웃 / 회원탈퇴
           Container(
