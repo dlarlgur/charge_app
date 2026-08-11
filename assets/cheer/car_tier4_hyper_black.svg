@@ -1,16 +1,101 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 96">
 <defs>
-<linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5C6673"></stop><stop offset="1" stop-color="#0E1116"></stop></linearGradient>
-<filter id="b" x="-30%" y="-200%" width="160%" height="500%"><feGaussianBlur stdDeviation="4"></feGaussianBlur></filter>
+<linearGradient id="body4" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#3A4250"/><stop offset="0.35" stop-color="#181D26"/><stop offset="1" stop-color="#0B0E14"/>
+</linearGradient>
+<linearGradient id="glass4" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#64748B"/><stop offset="1" stop-color="#111827"/>
+</linearGradient>
+<linearGradient id="cline" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#9CA3AF"/><stop offset="1" stop-color="#374151"/>
+</linearGradient>
+<filter id="b4" x="-30%" y="-200%" width="160%" height="500%"><feGaussianBlur stdDeviation="4"/></filter>
 </defs>
-<ellipse cx="115" cy="78" rx="92" ry="5" fill="#9FB4CC" opacity="0.45" filter="url(#b)"></ellipse>
-<ellipse cx="117" cy="84" rx="106" ry="5" fill="rgba(15,23,42,0.10)"></ellipse>
-<path d="M208 51 L224 48 L225 52 L210 54 Z" fill="#3A4250"></path>
-<path d="M8 68 L9 61 Q10 57 20 55 L36 53 Q44 45 60 43 L76 42 Q94 32 118 31 L130 31 Q152 32 164 42 Q180 46 198 49 L212 51 Q226 53 226 63 L226 68 Q226 71 220 71 L203 71 A16 16 0 0 0 171 71 L99 71 A16 16 0 0 0 67 71 L14 71 Q8 71 8 68 Z" fill="url(#g)"></path>
-<path d="M92 40 Q102 34 118 33 L128 33 Q144 34 154 41 L158 45 Z" fill="#2A3340"></path>
-<path d="M138 36 Q152 44 154 58 L148 58 Q146 46 134 38 Z" fill="rgba(255,255,255,0.10)"></path>
-<path d="M160 56 L184 54 L186 61 L162 63 Z" fill="rgba(0,0,0,0.25)"></path>
-<path d="M11 58 L24 56 L24 59 L10 60 Z" fill="#CBD5E1"></path>
-<g><circle cx="83" cy="67" r="13" fill="#111827"></circle><circle cx="83" cy="67" r="6.5" fill="#1F2937" stroke="#B7C4D4" stroke-width="2.5"></circle><circle cx="83" cy="67" r="1.8" fill="#B7C4D4"></circle></g>
-<g><circle cx="187" cy="67" r="13" fill="#111827"></circle><circle cx="187" cy="67" r="6.5" fill="#1F2937" stroke="#B7C4D4" stroke-width="2.5"></circle><circle cx="187" cy="67" r="1.8" fill="#B7C4D4"></circle></g>
+
+<!-- 바닥 그림자 -->
+<ellipse cx="120" cy="80" rx="104" ry="5" fill="#9FB4CC" opacity="0.45" filter="url(#b4)"/>
+<ellipse cx="120" cy="85" rx="114" ry="4.5" fill="rgba(15,23,42,0.10)"/>
+
+<!-- 차체 — 노즈부터 롱테일까지 한 번의 큰 돔 -->
+<path d="M12 62
+  L11 56 Q11 51 18 49.5
+  Q30 45 48 42.5
+  Q66 40.5 80 38
+  L98 30 Q108 24.5 120 24.5
+  Q134 24.5 146 29.5
+  Q162 36 178 41
+  Q198 46.5 214 47.5
+  Q226 48.5 226 54
+  L226 59 Q226 66.5 214 67
+  L200 67 A15 15 0 0 0 170 67
+  L75 67 A15 15 0 0 0 45 67
+  L20 67 Q12 67 12 62 Z" fill="url(#body4)"/>
+
+<!-- C라인 — 도어를 감싸는 시그니처 크롬 곡선 (앞쪽으로 열린 C) -->
+<path d="M106 27.5 Q152 33 156 45 Q158.5 56.5 118 63.5"
+  fill="none" stroke="url(#cline)" stroke-width="4.6" opacity="0.95" stroke-linecap="round"/>
+<path d="M106 27.5 Q152 33 156 45 Q158.5 56.5 118 63.5"
+  fill="none" stroke="#E5E7EB" stroke-width="1.2" opacity="0.5" stroke-linecap="round"/>
+
+<!-- C라인 뒤 엔진부 — 노출 카본 톤 -->
+<path d="M158 46 Q160 38 138 30 Q150 33 160 37.5 Q174 43 190 46.5
+  Q204 49.5 214 50.5 L208 53.5 Q188 52.5 172 50 Q163 48.5 158 46 Z"
+  fill="#2A3140" opacity="0.5"/>
+
+<!-- 캐노피 -->
+<path d="M93 36.5 L102 30.6 Q110 26.6 120 26.6 Q130 26.6 139 30.2
+  Q132 33.6 122 35.4 Q106 38 93 36.5 Z" fill="url(#glass4)"/>
+<path d="M97 35.8 L104 31 Q109 28.2 114.5 27.8 L117.5 27.7 L107 36.2 Z" fill="#94A3B8" opacity="0.3"/>
+
+<!-- 헤드램프 — 수직 4점 슬릿 -->
+<path d="M19 48.6 L22 48 L23.6 55.4 L20.6 56 Z" fill="#E5E7EB"/>
+<path d="M20 49.4 L21.3 49.1 L22.4 54.4 L21.1 54.7 Z" fill="#FFFFFF"/>
+
+<!-- 프론트 하부 인테이크 -->
+<path d="M13 58 L34 59.5 L34 64 L16 64 Q12.5 63 13 58 Z" fill="#0A0C10"/>
+
+<!-- 테일 — 얇은 풀폭 라이트 + 디퓨저 + 배기 -->
+<path d="M212 49 L225.5 50 L225.5 53.2 L212 52.4 Z" fill="#450A0A"/>
+<path d="M213 50 L224.5 50.9 L224.5 51.9 L213 51.1 Z" fill="#F87171" opacity="0.9"/>
+<path d="M204 62.5 L226 61 L226 63.5 Q226 66.5 214 67 L204 67 Z" fill="#0A0C10"/>
+<rect x="215" y="57" width="7" height="3" rx="1.5" fill="#374151"/>
+
+<!-- 로커 -->
+<path d="M78 63.5 L166 63.5 L166 67 L78 67 Z" fill="#0A0C10" opacity="0.85"/>
+
+<!-- 휠 — 레드 터빈 스포크 -->
+<g>
+<circle cx="60" cy="66" r="14" fill="#0B0D11"/>
+<circle cx="60" cy="66" r="9.6" fill="#171A1F"/>
+<circle cx="60" cy="66" r="9" fill="none" stroke="#DC2626" stroke-width="1.5"/>
+<g stroke="#DC2626" stroke-width="2.1" stroke-linecap="round">
+<path d="M60 66 Q62.5 62.5 60.4 58.6" fill="none"/>
+<path d="M60 66 Q64.2 65.3 67 62.2" fill="none"/>
+<path d="M60 66 Q64 68 67.1 67.9" fill="none"/>
+<path d="M60 66 Q61.5 70 64.4 72" fill="none"/>
+<path d="M60 66 Q57.5 69.5 58.2 73.3" fill="none"/>
+<path d="M60 66 Q55.8 66.7 53 69.8" fill="none"/>
+<path d="M60 66 Q56 64 52.9 64.1" fill="none"/>
+<path d="M60 66 Q58.5 62 55.6 60" fill="none"/>
+</g>
+<circle cx="60" cy="66" r="2.6" fill="#0B0D11"/>
+<circle cx="60" cy="66" r="1.2" fill="#7F1D1D"/>
+</g>
+<g>
+<circle cx="185" cy="66" r="14" fill="#0B0D11"/>
+<circle cx="185" cy="66" r="9.6" fill="#171A1F"/>
+<circle cx="185" cy="66" r="9" fill="none" stroke="#DC2626" stroke-width="1.5"/>
+<g stroke="#DC2626" stroke-width="2.1" stroke-linecap="round">
+<path d="M185 66 Q187.5 62.5 185.4 58.6" fill="none"/>
+<path d="M185 66 Q189.2 65.3 192 62.2" fill="none"/>
+<path d="M185 66 Q189 68 192.1 67.9" fill="none"/>
+<path d="M185 66 Q186.5 70 189.4 72" fill="none"/>
+<path d="M185 66 Q182.5 69.5 183.2 73.3" fill="none"/>
+<path d="M185 66 Q180.8 66.7 178 69.8" fill="none"/>
+<path d="M185 66 Q181 64 177.9 64.1" fill="none"/>
+<path d="M185 66 Q183.5 62 180.6 60" fill="none"/>
+</g>
+<circle cx="185" cy="66" r="2.6" fill="#0B0D11"/>
+<circle cx="185" cy="66" r="1.2" fill="#7F1D1D"/>
+</g>
 </svg>
