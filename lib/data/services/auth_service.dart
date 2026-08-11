@@ -23,7 +23,14 @@ class AuthUser {
   String? get profileImageAbsolute {
     final u = profileImageUrl;
     if (u == null || u.isEmpty) return null;
-    if (u.startsWith('http')) return u;
+    if (u.startsWith('http')) {
+      // 구글 아바타는 96px(=s96-c)로 내려온다 — 큰 화면(왕관 연출 128px 등)에서
+      // 뭉개지므로 사이즈 파라미터만 512로 올려 요청한다. 카카오는 원래 640px.
+      if (u.contains('googleusercontent.com')) {
+        return u.replaceFirst(RegExp(r'=s\d+(-c)?$'), '=s512-c');
+      }
+      return u;
+    }
     final origin = ApiConstants.baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
     return '$origin$u';
   }
