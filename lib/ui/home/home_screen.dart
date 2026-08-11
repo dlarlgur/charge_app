@@ -3087,6 +3087,14 @@ class SettingsScreenEmbed extends ConsumerWidget {
           ]),
           // AI 추천 관련 설정은 별도 섹션 — '앱 설정' 한 카드에 9개가 몰려 있어
           // 뭐가 어디 있는지 못 찾았다(형 지적).
+          // 개발자 응원하기 — 강제성 없는 순수 응원 코너 (커피 후원은 정책 리스크로 안 넣음)
+          _sectionHeader(context, '개발자 응원하기'),
+          settingsCard(isDark, [
+            _tile(context, isDark, Icons.star_rounded, '스토어 리뷰 남겨주기', '',
+                () => RatingPromptService.openReview()),
+            settingsDivider(isDark),
+            _CheerTile(isDark: isDark),
+          ]),
           _sectionHeader(context, 'AI 추천'),
           settingsCard(isDark, [
             _RouteEngineTileEmbed(isDark: isDark),
@@ -3136,14 +3144,6 @@ class SettingsScreenEmbed extends ConsumerWidget {
             _ChargeMarketingTile(isDark: isDark),
           ]),
           _SupportEmbed(isDark: isDark),
-          // 개발자 응원하기 — 강제성 없는 순수 응원 코너 (커피 후원은 정책 리스크로 안 넣음)
-          _sectionHeader(context, '개발자 응원하기'),
-          settingsCard(isDark, [
-            _tile(context, isDark, Icons.star_rounded, '스토어 리뷰 남겨주기', '',
-                () => RatingPromptService.openReview()),
-            settingsDivider(isDark),
-            _CheerTile(isDark: isDark),
-          ]),
           _sectionHeader(context, '정보'),
           settingsCard(isDark, [
             _tile(
