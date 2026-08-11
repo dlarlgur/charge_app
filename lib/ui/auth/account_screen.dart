@@ -143,16 +143,23 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                       ),
                       if (tier != null) ...[
                         const SizedBox(height: 6),
-                        Row(children: [
-                          Text(tier.name,
-                              style: TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: tier.label(isDark))),
-                          Text('  · 누적 ${CheerService.instance.cachedTotal}회',
-                              style: TextStyle(
-                                  fontSize: 11.5, color: textSecondary)),
-                        ]),
+                        Text.rich(
+                          TextSpan(children: [
+                            TextSpan(
+                                text: tier.name,
+                                style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: tier.label(isDark))),
+                            TextSpan(
+                                text:
+                                    '  · 누적 ${CheerService.instance.cachedTotal}회',
+                                style: TextStyle(
+                                    fontSize: 11.5, color: textSecondary)),
+                          ]),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ],
                       if (user.ageGroup?.isNotEmpty ?? false) ...[
                         const SizedBox(height: 8),

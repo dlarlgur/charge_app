@@ -2089,7 +2089,7 @@ class _AccountCard extends ConsumerWidget {
                 : (loggedIn
                     ? '${user.nickname ?? '사용자'}님'
                     : '로그인이 필요합니다'),
-            profileImageUrl: loggedIn ? user.profileImageUrl : null,
+            profileImageUrl: loggedIn ? user.profileImageAbsolute : null,
             onTap: () =>
                 loggedIn ? context.push('/account') : context.push('/login'),
           );
@@ -2145,8 +2145,8 @@ class _AccountCard extends ConsumerWidget {
                   ),
                   clipBehavior: Clip.antiAlias,
                   child:
-                      (loggedIn && (user.profileImageUrl?.isNotEmpty ?? false))
-                          ? Image.network(user.profileImageUrl!,
+                      (loggedIn && user.profileImageAbsolute != null)
+                          ? Image.network(user.profileImageAbsolute!,
                               fit: BoxFit.cover,
                               errorBuilder: (_, __, ___) => const Icon(
                                   Icons.person_rounded,

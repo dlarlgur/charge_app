@@ -295,7 +295,7 @@ class _CrownOverlayState extends State<_CrownOverlay>
                           children: [
                             Icon(Icons.ios_share_rounded, size: 19),
                             SizedBox(width: 8),
-                            Text('인스타에 자랑하기',
+                            Text('공유하기',
                                 style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w800)),
@@ -439,22 +439,22 @@ class CrownShareCard extends StatelessWidget {
           ),
         ),
         Column(children: [
-          const SizedBox(height: 64),
+          const SizedBox(height: 40),
           Center(
               child: CustomPaint(
-                  size: const Size(150, 108), painter: _CrownPainter(t))),
-          const SizedBox(height: 34),
+                  size: const Size(134, 96), painter: _CrownPainter(t))),
+          const SizedBox(height: 26),
           Text(title,
               style: TextStyle(
                   fontSize: 34,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.8,
                   color: t.main)),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text('한 달 동안 ${crown.count}번 응원했습니다',
               style: const TextStyle(
-                  fontSize: 15.5, color: Color(0xFFCBD5E1))),
-          const SizedBox(height: 22),
+                  fontSize: 15, color: Color(0xFFCBD5E1))),
+          const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
@@ -470,7 +470,7 @@ class CrownShareCard extends StatelessWidget {
           const Spacer(),
           // 하단 앱 시그니처
           Padding(
-            padding: const EdgeInsets.only(bottom: 34),
+            padding: const EdgeInsets.only(bottom: 26),
             child: Column(children: [
               Container(
                 width: 42,
