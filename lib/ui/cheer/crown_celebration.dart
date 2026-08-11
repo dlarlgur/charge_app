@@ -116,12 +116,14 @@ class _CrownOverlayState extends State<_CrownOverlay>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final t = CrownTheme.of(widget.crown.rank);
     final copy = crownCopy(widget.crown);
     final tier = CheerTierTheme.of(CheerService.instance.cachedTotal);
 
     return Material(
-      color: const Color(0xF20C0E13),
+      // 승급 오버레이와 같은 규칙 — 테마를 따른다 (다크 고정은 공유 이미지쪽만)
+      color: isDark ? const Color(0xF20C0E13) : const Color(0xF5F8FAFB),
       child: SafeArea(
         child: Stack(children: [
           // 왕관색 라디얼 글로우
@@ -132,7 +134,7 @@ class _CrownOverlayState extends State<_CrownOverlay>
                   gradient: RadialGradient(
                     center: const Alignment(0, -0.35),
                     radius: 0.9,
-                    colors: [t.main.withValues(alpha: 0.16), Colors.transparent],
+                    colors: [t.main.withValues(alpha: isDark ? 0.16 : 0.22), Colors.transparent],
                   ),
                 ),
               ),
@@ -168,16 +170,23 @@ class _CrownOverlayState extends State<_CrownOverlay>
                     ),
                     child: ClipOval(
                       child: Container(
-                        color: const Color(0xFF1E293B),
+                        color: isDark
+                            ? const Color(0xFF1E293B)
+                            : const Color(0xFFE2E8F0),
                         child: widget.profileImageUrl != null
                             ? Image.network(widget.profileImageUrl!,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const Icon(
+                                errorBuilder: (_, __, ___) => Icon(
                                     Icons.person_rounded,
                                     size: 64,
-                                    color: Colors.white70))
-                            : const Icon(Icons.person_rounded,
-                                size: 64, color: Colors.white70),
+                                    color: isDark
+                                        ? Colors.white70
+                                        : const Color(0xFF94A3B8)))
+                            : Icon(Icons.person_rounded,
+                                size: 64,
+                                color: isDark
+                                    ? Colors.white70
+                                    : const Color(0xFF94A3B8)),
                       ),
                     ),
                   ),
@@ -213,8 +222,8 @@ class _CrownOverlayState extends State<_CrownOverlay>
                           bottom: 70,
                           child: CustomPaint(
                             size: const Size(220, 160),
-                            painter:
-                                _SparklePainter(_sparkle.value, t.glow),
+                            painter: _SparklePainter(_sparkle.value,
+                                isDark ? t.glow : t.deep),
                           ),
                         ),
                 ),
@@ -231,30 +240,34 @@ class _CrownOverlayState extends State<_CrownOverlay>
                         fontSize: 24,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.5,
-                        color: t.main)),
+                        color: isDark ? t.main : t.deep)),
                 const SizedBox(height: 10),
                 Text(copy.sub,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 14.5,
                         height: 1.5,
-                        color: Color(0xFFCBD5E1))),
+                        color: isDark
+                            ? const Color(0xFFCBD5E1)
+                            : const Color(0xFF475569))),
                 const SizedBox(height: 14),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.06),
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.06)
+                        : Colors.white,
                     borderRadius: BorderRadius.circular(999),
                     border: Border.all(
-                        color: t.main.withValues(alpha: 0.35)),
+                        color: t.main.withValues(alpha: isDark ? 0.35 : 0.6)),
                   ),
                   child: Text(
                       '${widget.crown.month.replaceFirst('-', '년 ')}월 · 응원 ${widget.crown.count}회',
                       style: TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w700,
-                          color: t.glow)),
+                          color: isDark ? t.glow : t.deep)),
                 ),
               ]),
             ),
@@ -292,9 +305,12 @@ class _CrownOverlayState extends State<_CrownOverlay>
                   const SizedBox(height: 8),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('닫기',
+                    child: Text('닫기',
                         style: TextStyle(
-                            fontSize: 14.5, color: Color(0xFF94A3B8))),
+                            fontSize: 14.5,
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B))),
                   ),
                 ]),
               ),
@@ -327,7 +343,7 @@ class _CrownPainter extends CustomPainter {
     canvas.drawPath(
         body,
         Paint()
-          ..shader = ui.Gradient.linear(Offset(0, 0), Offset(0, h),
+          ..shader = ui.Gradient.linear(const Offset(0, 0), Offset(0, h),
               [t.main, t.deep]));
     // 밴드
     canvas.drawRRect(
