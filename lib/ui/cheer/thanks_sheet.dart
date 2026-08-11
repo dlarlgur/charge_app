@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../data/services/cheer_service.dart';
-import 'cheer_flow.dart';
 import 'cheer_tier_theme.dart';
 
 /// 광고 완주 감사 바텀시트 (핸드오프 3d).
@@ -11,6 +10,9 @@ Future<void> showCheerThanksSheet(
   BuildContext context, {
   required CheerStatus status,
   required void Function(CheerStatus st) onStatus,
+  /// '한 번 더' — 시트가 닫힌 뒤 살아있는 화면 context 로 다음 회차를 돌린다.
+  /// (시트 자신의 context 는 pop 순간 죽어서 다음 팝업·연출이 통째로 증발한다)
+  VoidCallback? onAgain,
 }) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
   return showModalBottomSheet(
@@ -21,7 +23,8 @@ Future<void> showCheerThanksSheet(
         : const Color(0xFF2D3748).withValues(alpha: 0.55),
     isScrollControlled: true,
     builder: (ctx) =>
-        _ThanksSheet(status: status, isDark: isDark, onStatus: onStatus),
+        _ThanksSheet(
+            status: status, isDark: isDark, onStatus: onStatus, onAgain: onAgain),
   );
 }
 
@@ -29,8 +32,12 @@ class _ThanksSheet extends StatelessWidget {
   final CheerStatus status;
   final bool isDark;
   final void Function(CheerStatus st) onStatus;
+  final VoidCallback? onAgain;
   const _ThanksSheet(
-      {required this.status, required this.isDark, required this.onStatus});
+      {required this.status,
+      required this.isDark,
+      required this.onStatus,
+      this.onAgain});
 
   String get _body {
     // 회차별 카피 — 시안 문구 유지. 2회차도 '서버가 쌩쌩' 대신 같은 톤으로(형 확정).
@@ -190,7 +197,7 @@ class _ThanksSheet extends StatelessWidget {
                       ),
                       onPressed: () {
                         Navigator.of(context).pop();
-                        runCheerAdFlow(context, onStatus: onStatus);
+                        onAgain?.call();
                       },
                       child: Text('한 번 더 응원하기 · $remaining번 남음',
                           style: const TextStyle(

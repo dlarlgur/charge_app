@@ -57,8 +57,17 @@ Future<bool> runCheerAdFlow(
               builder: (_) => GarageScreen(initialStatus: st)));
         }).then((_) => onCelebrationClosed?.call(st));
       } else {
-        showCheerThanksSheet(context, status: st, onStatus: onStatus)
-            .then((_) => onCelebrationClosed?.call(st));
+        showCheerThanksSheet(context, status: st, onStatus: onStatus,
+            onAgain: () {
+          // 시트 pop → ⚡ 연출(620ms)이 먼저 재생되고, 끝날 즈음 다음 광고.
+          Future.delayed(const Duration(milliseconds: 800), () {
+            if (context.mounted) {
+              runCheerAdFlow(context,
+                  onStatus: onStatus,
+                  onCelebrationClosed: onCelebrationClosed);
+            }
+          });
+        }).then((_) => onCelebrationClosed?.call(st));
       }
     },
   );

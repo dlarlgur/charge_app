@@ -17,7 +17,9 @@ class CheerScreen extends StatefulWidget {
 }
 
 class _CheerScreenState extends State<CheerScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
+  // Single- 이 아닌 이유: 바늘 컨트롤러 외에 ⚡ 비행 연출이 일회성 컨트롤러를
+  // 추가로 만든다 — Single 은 두 번째 생성에서 예외로 죽는다(연출 무반응 원인).
   CheerStatus? _status;
   bool _loading = true;
   bool _failed = false;
