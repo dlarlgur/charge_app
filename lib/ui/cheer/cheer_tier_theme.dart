@@ -144,7 +144,7 @@ class CheerTierTheme {
       threshold: 1,
       carAsset: 'assets/cheer/car_tier1_coupe.svg',
       silAsset: 'assets/cheer/sil_tier1_coupe.svg',
-      popupDesc: '국산 쿠페 패스트백이에요.\n첫 응원 한 번이면 바로 도착해요.',
+      popupDesc: '고성능 쿠페예요.\n첫 응원 한 번이면 바로 도착해요.',
       promoOverline: '첫 뱃지 획득',
       promoSub: '첫 응원 완료 — 개러지에 첫 차가 들어왔어요',
       labelL: Color(0xFF475569),

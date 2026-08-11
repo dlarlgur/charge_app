@@ -11,7 +11,7 @@ import 'ad_service.dart';
 import 'auth_service.dart';
 
 /// 응원 뱃지 등급 — 누적 응원 횟수 기준. 스포츠카 사다리 (형 아이디어):
-/// 국산 쿠페급에서 시작해 하이퍼카까지. 실제 브랜드명은 상표 리스크라 급 이름만 쓴다.
+/// 고성능 쿠페(M4 모티브)에서 시작해 하이퍼카까지. 실제 브랜드명은 상표 리스크라 급 이름만 쓴다.
 class CheerBadge {
   final int level; // 0 = 아직 없음
   final String name;
