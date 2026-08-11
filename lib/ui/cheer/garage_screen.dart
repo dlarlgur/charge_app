@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/services/cheer_service.dart';
 import 'cheer_tier_theme.dart';
+import 'crown_celebration.dart';
 import 'tier_detail_popup.dart';
 
 /// 내 개러지 — 2×2 수집 그리드 (핸드오프 G1).
@@ -101,6 +102,10 @@ class _GarageScreenState extends State<GarageScreen> {
             const SizedBox(height: 12),
             _nextCard(next, total, nextProgress, isDark),
           ],
+          if (st != null && st.crowns.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _hallOfFame(st, isDark),
+          ],
           const SizedBox(height: 12),
           Center(
             child: Text('잠긴 차를 누르면 상세를 볼 수 있어요',
@@ -108,6 +113,66 @@ class _GarageScreenState extends State<GarageScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  /// 명예의 전당 — 월간 왕관 확정 기록. 하이퍼카 이후에도 매달 모을 게 남는다.
+  Widget _hallOfFame(CheerStatus st, bool isDark) {
+    final c = st.crownCounts;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: CheerDs.card(isDark),
+        border: Border.all(color: const Color(0xFFFACC15).withValues(alpha: 0.35)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Text('명예의 전당',
+              style: TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w800,
+                  color: CheerDs.ink(isDark))),
+          const Spacer(),
+          Text(
+            [
+              if ((c['gold'] ?? 0) > 0) '금 ${c['gold']}',
+              if ((c['silver'] ?? 0) > 0) '은 ${c['silver']}',
+              if ((c['bronze'] ?? 0) > 0) '동 ${c['bronze']}',
+            ].join(' · '),
+            style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFFB45309)),
+          ),
+        ]),
+        const SizedBox(height: 10),
+        for (final crown in st.crowns)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(children: [
+              Icon(Icons.emoji_events_rounded,
+                  size: 17, color: CrownTheme.of(crown.rank).main),
+              const SizedBox(width: 8),
+              Text('${crown.month.replaceFirst('-', '년 ')}월',
+                  style: TextStyle(
+                      fontSize: 13, color: CheerDs.secondary(isDark))),
+              const Spacer(),
+              Text(
+                  crown.rank == 1
+                      ? '응원왕'
+                      : '${crown.rank}위',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: CrownTheme.of(crown.rank).main)),
+              const SizedBox(width: 6),
+              Text('${crown.count}회',
+                  style: TextStyle(
+                      fontSize: 12, color: CheerDs.faint(isDark))),
+            ]),
+          ),
+      ]),
     );
   }
 

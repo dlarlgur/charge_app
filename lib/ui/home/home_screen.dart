@@ -57,6 +57,7 @@ import '../../data/services/notif_prefs_service.dart';
 import '../settings/ad_inquiry_screen.dart';
 import '../cheer/cheer_screen.dart';
 import '../cheer/cheer_tier_theme.dart';
+import '../cheer/crown_celebration.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -80,6 +81,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     WidgetsBinding.instance.addObserver(this);
     AlertService().refreshToken();
     WatchService().restore();
+
+    // 월간 응원 왕관 — 매월 1일 결산 후 첫 진입 때 한 번만 축하 연출.
+    // status 조회가 실패하면 조용히 넘어간다(응원 기능 원칙: 앱 사용 방해 금지).
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final st = await CheerService.instance.status();
+      final crown = st?.newCrown;
+      if (crown != null && mounted) {
+        final user = ref.read(authProvider);
+        showCrownCelebration(context,
+            crown: crown, profileImageUrl: user?.profileImageAbsolute);
+      }
+    });
 
     // 앱 진입 시 만족도 게이트(2번째 진입부터·백오프 7/30일·평생 3회). 첫 프레임 후.
     // 👎(아쉬워요) → 공개 별점 대신 1:1 문의로 유도(불만 비공개 수집).

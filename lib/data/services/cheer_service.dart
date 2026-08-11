@@ -100,6 +100,20 @@ class CheerEventRank {
       );
 }
 
+/// 월간 응원 왕관 — 매월 1일 서버가 지난달 1·2·3등을 확정한다.
+class CheerCrown {
+  final String month; // 'YYYY-MM'
+  final int rank; // 1=금 2=은 3=동
+  final int count;
+  const CheerCrown({required this.month, required this.rank, required this.count});
+
+  factory CheerCrown.fromJson(Map<String, dynamic> j) => CheerCrown(
+        month: j['month']?.toString() ?? '',
+        rank: (j['rank'] as num?)?.toInt() ?? 3,
+        count: (j['count'] as num?)?.toInt() ?? 0,
+      );
+}
+
 /// GET /api/cheer/status 응답
 class CheerStatus {
   final int today;
@@ -117,6 +131,11 @@ class CheerStatus {
   /// 월간 랭킹 이벤트 — 서버에서 켜졌을 때만 non-null
   final CheerEvent? event;
 
+  /// 왕관 이력(최신순) · 개수(금/은/동) · 아직 축하 연출을 안 본 왕관
+  final List<CheerCrown> crowns;
+  final Map<String, int> crownCounts;
+  final CheerCrown? newCrown;
+
   const CheerStatus({
     required this.today,
     required this.dailyLimit,
@@ -129,6 +148,9 @@ class CheerStatus {
     required this.serverPct,
     this.yesterdayCount,
     this.event,
+    this.crowns = const [],
+    this.crownCounts = const {},
+    this.newCrown,
   });
 
   factory CheerStatus.fromJson(Map<String, dynamic> j) {
@@ -149,6 +171,16 @@ class CheerStatus {
           ((j['yesterdayFull'] as Map?)?['count'] as num?)?.toInt(),
       event: j['event'] is Map
           ? CheerEvent.fromJson(Map<String, dynamic>.from(j['event'] as Map))
+          : null,
+      crowns: ((j['crowns'] as List?) ?? const [])
+          .whereType<Map>()
+          .map((e) => CheerCrown.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      crownCounts: (j['crownCounts'] as Map?)
+              ?.map((k, v) => MapEntry(k.toString(), (v as num?)?.toInt() ?? 0)) ??
+          const {},
+      newCrown: j['newCrown'] is Map
+          ? CheerCrown.fromJson(Map<String, dynamic>.from(j['newCrown'] as Map))
           : null,
     );
   }
@@ -221,10 +253,23 @@ class CheerService {
       final st = CheerStatus.fromJson(
           Map<String, dynamic>.from(res.data['data'] as Map));
       _cacheTotal(st.total);
+      lastStatus = st;
       return st;
     } catch (_) {
       return null;
     }
+  }
+
+  /// 최근 status 의 왕관 스냅샷 — 프로필/개러지가 네트워크 없이 그린다.
+  CheerStatus? lastStatus;
+
+  /// 축하 연출을 봤다고 서버에 알린다(다음 진입부터 안 뜨게). 실패해도 조용히.
+  Future<void> markCrownSeen() async {
+    try {
+      await _dio.post('/cheer/crown-seen',
+          data: {'device_id': DkswCore.deviceId},
+          options: await _authOptions());
+    } catch (_) {}
   }
 
   /// 광고 시청 완료 후 적립. 성공/한도초과 모두 최신 상태를 돌려준다.

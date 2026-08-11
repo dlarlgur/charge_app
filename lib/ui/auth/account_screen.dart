@@ -8,6 +8,7 @@ import '../cheer/cheer_tier_theme.dart';
 import '../cheer/garage_screen.dart';
 import '../../core/app_dialog.dart';
 import '../../core/util/app_toast.dart';
+import '../cheer/crown_celebration.dart';
 import 'profile_photo_sheet.dart';
 import '../../data/services/auth_service.dart';
 
@@ -64,6 +65,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
             ),
             child: Row(
               children: [
+                Stack(clipBehavior: Clip.none, children: [
                 _EditablePhoto(
                   user: user,
                   onUpdated: (u) => ref.read(authProvider.notifier).setUser(u),
@@ -105,6 +107,21 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                   ),
                 ),
                 ),
+                // 월간 왕관 — 최근 획득한 왕관을 아바타 위에 삐딱하게
+                if (CheerService.instance.lastStatus?.crowns.isNotEmpty ?? false)
+                  Positioned(
+                    top: -9,
+                    left: 14,
+                    child: Transform.rotate(
+                      angle: -0.18,
+                      child: Icon(Icons.emoji_events_rounded,
+                          size: 20,
+                          color: CrownTheme.of(CheerService
+                                  .instance.lastStatus!.crowns.first.rank)
+                              .main),
+                    ),
+                  ),
+                ]),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
