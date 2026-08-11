@@ -7,13 +7,13 @@ import 'cheer_tier_theme.dart';
 /// 광고 완주 감사 바텀시트 (핸드오프 3d).
 /// 로고 그라데이션 원 + 감사 카피(회차별) + 오늘/연속 칩 + 응원 게이지 미니바
 /// + "한 번 더 응원하기"(3회차엔 숨김).
-void showCheerThanksSheet(
+Future<void> showCheerThanksSheet(
   BuildContext context, {
   required CheerStatus status,
   required void Function(CheerStatus st) onStatus,
 }) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
-  showModalBottomSheet(
+  return showModalBottomSheet(
     context: context,
     backgroundColor: Colors.transparent,
     barrierColor: isDark

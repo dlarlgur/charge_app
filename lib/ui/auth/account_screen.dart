@@ -8,6 +8,7 @@ import '../cheer/cheer_tier_theme.dart';
 import '../cheer/garage_screen.dart';
 import '../../core/app_dialog.dart';
 import '../../core/util/app_toast.dart';
+import 'profile_photo_sheet.dart';
 import '../../data/services/auth_service.dart';
 
 /// 계정 관리 화면 — 닉네임·이메일 표시 + 로그아웃 / 회원탈퇴.
@@ -63,7 +64,10 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
             ),
             child: Row(
               children: [
-                Container(
+                _EditablePhoto(
+                  user: user,
+                  onUpdated: (u) => ref.read(authProvider.notifier).setUser(u),
+                  child: Container(
                   width: 60,
                   height: 60,
                   padding: tier == null ? null : const EdgeInsets.all(2.5),
@@ -93,12 +97,13 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                       ),
                     ),
                     clipBehavior: Clip.antiAlias,
-                    child: (user.profileImageUrl?.isNotEmpty ?? false)
-                        ? Image.network(user.profileImageUrl!, fit: BoxFit.cover,
+                    child: user.profileImageAbsolute != null
+                        ? Image.network(user.profileImageAbsolute!, fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) =>
                                 const Icon(Icons.person_rounded, color: Colors.white, size: 30))
                         : const Icon(Icons.person_rounded, color: Colors.white, size: 30),
                   ),
+                ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -284,6 +289,86 @@ class _NicknameDialogState extends State<_NicknameDialog> {
           child: const Text('저장'),
         ),
       ],
+    );
+  }
+}
+
+
+/// 프로필 사진 — 탭하면 등록/변경, 우하단에 카메라 배지.
+/// 업로드 → PATCH /auth/me 까지 끝내고 authProvider 를 갱신한다.
+class _EditablePhoto extends StatefulWidget {
+  final AuthUser user;
+  final Widget child;
+  final void Function(AuthUser updated) onUpdated;
+  const _EditablePhoto(
+      {required this.user, required this.child, required this.onUpdated});
+
+  @override
+  State<_EditablePhoto> createState() => _EditablePhotoState();
+}
+
+class _EditablePhotoState extends State<_EditablePhoto> {
+  bool _busy = false;
+
+  Future<void> _pick() async {
+    if (_busy) return;
+    final url = await pickProfilePhoto(context,
+        hasPhoto: (widget.user.profileImageUrl ?? '').isNotEmpty);
+    if (url == null || !mounted) return; // 취소
+    setState(() => _busy = true);
+    final updated = await AuthService.updateProfile(profileImageUrl: url);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (updated != null) {
+      widget.onUpdated(updated);
+      showAppToast(context, url.isEmpty ? '기본 이미지로 바꿨어요.' : '프로필 사진을 바꿨어요.');
+    } else {
+      showAppToast(context, '변경에 실패했어요. 다시 시도해주세요.', isError: true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: _pick,
+      child: Stack(clipBehavior: Clip.none, children: [
+        widget.child,
+        if (_busy)
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.black.withValues(alpha: 0.45),
+              ),
+              child: const Center(
+                child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white)),
+              ),
+            ),
+          ),
+        Positioned(
+          right: -2,
+          bottom: -2,
+          child: Container(
+            width: 22,
+            height: 22,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFF3B82F6),
+              border: Border.all(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFF14161B)
+                      : Colors.white,
+                  width: 2),
+            ),
+            child: const Icon(Icons.photo_camera_rounded,
+                size: 11, color: Colors.white),
+          ),
+        ),
+      ]),
     );
   }
 }

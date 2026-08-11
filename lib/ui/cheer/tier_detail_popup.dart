@@ -248,7 +248,9 @@ class _TierDetailDialog extends StatelessWidget {
       ),
       child: Row(children: [
         cell('${st.total}회', '누적 응원'),
-        cell('${st.streak}일', '연속 응원'),
+        // 오늘·어제 모두 없으면 연속이 끊긴 상태 — '0일' 은 고장처럼 보이고,
+        // 그렇다고 1일로 띄우면 하지 않은 기록을 만드는 셈이라 '–' 로 비운다.
+        cell(st.streak > 0 ? '${st.streak}일' : '–', '연속 응원'),
         cell(next != null ? '${next.threshold - st.total}회' : '완주',
             next != null ? '다음 등급까지' : '최고 등급'),
       ]),

@@ -15,6 +15,8 @@ import 'thanks_sheet.dart';
 Future<bool> runCheerAdFlow(
   BuildContext context, {
   required void Function(CheerStatus st) onStatus,
+  /// 감사 시트·승급 오버레이를 닫은 뒤 호출 — 응원 화면의 하트 비행 연출용.
+  void Function(CheerStatus st)? onCelebrationClosed,
 }) async {
   final svc = CheerService.instance;
   if (!svc.adReady) {
@@ -53,9 +55,10 @@ Future<bool> runCheerAdFlow(
             onSeeGarage: () {
           Navigator.of(context).push(MaterialPageRoute(
               builder: (_) => GarageScreen(initialStatus: st)));
-        });
+        }).then((_) => onCelebrationClosed?.call(st));
       } else {
-        showCheerThanksSheet(context, status: st, onStatus: onStatus);
+        showCheerThanksSheet(context, status: st, onStatus: onStatus)
+            .then((_) => onCelebrationClosed?.call(st));
       }
     },
   );

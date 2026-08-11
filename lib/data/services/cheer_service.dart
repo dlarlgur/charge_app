@@ -262,10 +262,22 @@ class CheerService {
 
   /// 광고 미리 로드 (화면 진입 시 + 소비 후 재호출).
   /// AdMob 이 아닌 네트워크 모드(off/adfit)면 로드하지 않는다 — 보상형은 AdMob 전용.
+  /// 화면 갱신 콜백 — 한 번 등록되면 이후 preload(콜백 없이 호출되는 경로 포함)에서도
+  /// 로드 완료를 화면에 알린다. 이게 없어서 광고 소비 후 재로드가 끝나도 버튼이
+  /// '광고 불러오는 중…' 에 멈춰 있었다(형 제보).
+  VoidCallback? _onChanged;
+
+  /// 로드 실패 — 버튼을 '다시 시도' 로 바꿔 사용자가 직접 풀 수 있게 한다.
+  bool _loadFailed = false;
+  bool get adLoadFailed => _loadFailed;
+
   void preload({VoidCallback? onChanged}) {
+    if (onChanged != null) _onChanged = onChanged;
     if (AdNetworkConfig.current != AdNetwork.admob) return;
     if (_ad != null || _loading) return;
     _loading = true;
+    _loadFailed = false;
+    _onChanged?.call();
     RewardedAd.load(
       adUnitId: AdUnitIds.cheerRewarded,
       request: const AdRequest(),
@@ -273,16 +285,25 @@ class CheerService {
         onAdLoaded: (ad) {
           _ad = ad;
           _loading = false;
-          onChanged?.call();
+          _loadFailed = false;
+          _onChanged?.call();
         },
         onAdFailedToLoad: (e) {
           if (kDebugMode) debugPrint('[Cheer] rewarded load 실패: ${e.message}');
           _ad = null;
           _loading = false;
-          onChanged?.call();
+          _loadFailed = true;
+          _onChanged?.call();
         },
       ),
     );
+  }
+
+  /// 사용자가 직접 누르는 재시도 — 로딩 상태가 끼어 멈춘 경우까지 강제로 푼다.
+  void retryLoad({VoidCallback? onChanged}) {
+    _loading = false;
+    _loadFailed = false;
+    preload(onChanged: onChanged);
   }
 
   /// 보상형 광고를 띄운 시점을 서버에 남긴다 — 콘솔 완료율(요청 대비 리워드) 산출용.
@@ -302,6 +323,7 @@ class CheerService {
     final ad = _ad;
     if (ad == null) return;
     _ad = null;
+    _onChanged?.call(); // 소비됨 — 버튼 상태 즉시 갱신
     reportAdStart();
     var earned = false;
     ad.fullScreenContentCallback = FullScreenContentCallback(
@@ -320,6 +342,10 @@ class CheerService {
       earned = true;
       onEarned();
     });
+  }
+
+  void clearOnChanged() {
+    _onChanged = null;
   }
 
   void disposeAd() {

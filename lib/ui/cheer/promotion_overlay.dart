@@ -5,13 +5,13 @@ import 'cheer_tier_theme.dart';
 
 /// 뱃지 승급 오버레이 (핸드오프 4b/4c — 등급별).
 /// 풀스크린 딤 + 등급색 radial 글로우 + 컨페티 4개 + 차 슬라이드-인(150ms easeOut).
-void showCheerPromotionOverlay(
+Future<void> showCheerPromotionOverlay(
   BuildContext context, {
   required CheerTierTheme tier,
   required CheerStatus status,
   required VoidCallback onSeeGarage,
 }) {
-  showGeneralDialog(
+  return showGeneralDialog<void>(
     context: context,
     barrierDismissible: false,
     barrierLabel: 'cheer-promotion',

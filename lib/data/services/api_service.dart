@@ -400,6 +400,20 @@ class ApiService {
     }
   }
 
+  /// 프로필 사진 업로드 — 앱에서 이미 512px 정사각 PNG 로 잘라서 보낸다.
+  Future<String?> uploadProfilePhotoBytes(Uint8List bytes) async {
+    try {
+      final form = FormData.fromMap({
+        'photo': MultipartFile.fromBytes(bytes, filename: 'profile.png'),
+      });
+      final res = await _dio.post('/uploads/profile-photo', data: form);
+      final url = res.data?['url']?.toString();
+      return (url != null && url.startsWith('/api/uploads/')) ? url : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<bool> submitReport({
     required String stationType, // 'gas' | 'ev'
     required String stationId,

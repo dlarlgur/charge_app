@@ -28,6 +28,14 @@ class _CheerScreenState extends State<CheerScreen>
       vsync: this, duration: const Duration(milliseconds: 450));
   double _fillFrom = 0;
   double _fillTo = 0;
+  // 충전 아이콘이 게이지로 빨려들어간 직후엔 바늘이 살짝 튕긴다(elasticOut).
+  Curve _needleCurve = Curves.easeOut;
+
+  // 게이지 위치를 알아야 충전 아이콘을 정확히 그쪽으로 보낸다.
+  final GlobalKey _gaugeKey = GlobalKey();
+  final GlobalKey _ctaKey = GlobalKey();
+  // 적립 직후 값 — 축하 팝업을 닫고 아이콘이 도착한 다음에 바늘에 반영한다.
+  double? _pendingFill;
 
   @override
   void initState() {
@@ -58,23 +66,71 @@ class _CheerScreenState extends State<CheerScreen>
     if (st != null) _animateTo(st.serverPct / 100);
   }
 
-  void _animateTo(double target) {
+  void _animateTo(double target, {bool bounce = false}) {
     _fillFrom = _fillTo;
     _fillTo = target.clamp(0.0, 1.0);
+    _needleCurve = bounce ? Curves.elasticOut : Curves.easeOut;
+    _needleCtrl.duration =
+        Duration(milliseconds: bounce ? 900 : 450);
     _needleCtrl.forward(from: 0);
   }
 
-  void _applyStatus(CheerStatus st) {
+  /// 적립 결과 반영. 광고 직후엔 축하 팝업이 화면을 덮고 있으므로
+  /// 바늘은 움직이지 않고 잡아뒀다가, 충전 아이콘이 도착할 때 함께 움직인다.
+  void _applyStatus(CheerStatus st, {bool defer = false}) {
     if (!mounted) return;
     setState(() => _status = st);
-    _animateTo(st.serverPct / 100);
+    if (defer) {
+      _pendingFill = st.serverPct / 100;
+    } else {
+      _animateTo(st.serverPct / 100);
+    }
+  }
+
+  /// 축하 팝업을 닫으면 충전 아이콘이 게이지로 쓔욱 빨려들어가고,
+  /// 도착하는 순간 바늘이 움찔하며 새 값으로 올라간다.
+  Future<void> _flyChargeBolt() async {
+    final overlay = Overlay.of(context);
+    final gaugeBox =
+        _gaugeKey.currentContext?.findRenderObject() as RenderBox?;
+    final ctaBox = _ctaKey.currentContext?.findRenderObject() as RenderBox?;
+    if (gaugeBox == null || ctaBox == null) {
+      final f = _pendingFill;
+      if (f != null) _animateTo(f, bounce: true);
+      _pendingFill = null;
+      return;
+    }
+    // 도착점 = 계기판 바늘 축(시안 viewBox 200×116 기준 hub (100,96)).
+    final gs = gaugeBox.size;
+    final end = gaugeBox.localToGlobal(
+        Offset(gs.width * 0.5, gs.height * (96 / 116) * 0.92));
+    final cs = ctaBox.size;
+    final start = ctaBox.localToGlobal(Offset(cs.width / 2, cs.height / 2));
+
+    final ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 620));
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => _FlyingBolt(anim: ctrl, start: start, end: end),
+    );
+    overlay.insert(entry);
+    await ctrl.forward();
+    entry.remove();
+    ctrl.dispose();
+    if (!mounted) return;
+    final f = _pendingFill;
+    _pendingFill = null;
+    _animateTo(f ?? (_status?.serverPct ?? 0) / 100, bounce: true);
   }
 
   Future<void> _watchAd() async {
     if (_showing) return;
     setState(() => _showing = true);
-    final started =
-        await runCheerAdFlow(context, onStatus: _applyStatus);
+    final started = await runCheerAdFlow(
+      context,
+      onStatus: (st) => _applyStatus(st, defer: true),
+      onCelebrationClosed: (_) => _flyChargeBolt(),
+    );
     if (!started) CheerService.instance.preload(onChanged: _refresh);
     if (mounted) setState(() => _showing = false);
   }
@@ -186,12 +242,13 @@ class _CheerScreenState extends State<CheerScreen>
       child: Column(
         children: [
           SizedBox(
+            key: _gaugeKey,
             width: 230,
             height: 128,
             child: AnimatedBuilder(
               animation: _needleCtrl,
               builder: (_, __) {
-                final t = Curves.easeOut.transform(_needleCtrl.value);
+                final t = _needleCurve.transform(_needleCtrl.value);
                 final fill = _fillFrom + (_fillTo - _fillFrom) * t;
                 return CustomPaint(
                   painter: _DialGaugePainter(fill: fill, isDark: isDark),
@@ -408,8 +465,10 @@ class _CheerScreenState extends State<CheerScreen>
             ],
           ),
           const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
+          Row(children: [
+            Expanded(
+                child: SizedBox(
+            key: _ctaKey,
             height: 52,
             child: FilledButton(
               style: FilledButton.styleFrom(
@@ -430,7 +489,10 @@ class _CheerScreenState extends State<CheerScreen>
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        if (_showing || (!svc.adReady && svc.adLoading)) ...[
+                        if (_showing ||
+                            (!svc.adReady &&
+                                svc.adLoading &&
+                                !svc.adLoadFailed)) ...[
                           const SizedBox(
                               width: 15,
                               height: 15,
@@ -443,7 +505,9 @@ class _CheerScreenState extends State<CheerScreen>
                                 ? '광고 재생 중…'
                                 : svc.adReady
                                     ? '광고 보고 응원하기'
-                                    : '광고 불러오는 중…',
+                                    : svc.adLoadFailed
+                                        ? '광고를 못 불러왔어요'
+                                        : '광고 불러오는 중…',
                             style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
@@ -467,7 +531,32 @@ class _CheerScreenState extends State<CheerScreen>
                       ],
                     ),
             ),
-          ),
+            )),
+            // 로드가 오래 걸리거나 실패했을 때 직접 푸는 갱신 버튼 (형 요청).
+            if (!done && !_showing && !svc.adReady) ...[
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 52,
+                height: 52,
+                child: Material(
+                  color: CheerDs.iconBg(isDark),
+                  borderRadius: BorderRadius.circular(14),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () {
+                      CheerService.instance.retryLoad(onChanged: _refresh);
+                      if (mounted) setState(() {});
+                    },
+                    child: Icon(Icons.refresh_rounded,
+                        size: 22,
+                        color: svc.adLoadFailed
+                            ? CheerDs.gas
+                            : CheerDs.muted(isDark)),
+                  ),
+                ),
+              ),
+            ],
+          ]),
           const SizedBox(height: 9),
           Center(
             child: Text(
@@ -696,4 +785,73 @@ class _DialGaugePainter extends CustomPainter {
   @override
   bool shouldRepaint(_DialGaugePainter old) =>
       old.fill != fill || old.isDark != isDark;
+}
+
+
+/// 충전 아이콘이 CTA 에서 계기판으로 빨려들어가는 연출.
+/// 살짝 위로 솟았다가 게이지로 내리꽂히고(2차 베지어), 도착 직전에 작아지며 사라진다.
+class _FlyingBolt extends StatelessWidget {
+  final Animation<double> anim;
+  final Offset start;
+  final Offset end;
+  const _FlyingBolt(
+      {required this.anim, required this.start, required this.end});
+
+  @override
+  Widget build(BuildContext context) {
+    // 제어점을 두 점 사이 위쪽으로 — 포물선을 그리며 날아간다.
+    final ctrl = Offset(
+      (start.dx + end.dx) / 2 + (end.dx - start.dx) * 0.15,
+      math.min(start.dy, end.dy) - 90,
+    );
+    return AnimatedBuilder(
+      animation: anim,
+      builder: (_, __) {
+        final t = Curves.easeInOutCubic.transform(anim.value);
+        final inv = 1 - t;
+        final pos = Offset(
+          inv * inv * start.dx + 2 * inv * t * ctrl.dx + t * t * end.dx,
+          inv * inv * start.dy + 2 * inv * t * ctrl.dy + t * t * end.dy,
+        );
+        // 출발에서 튀어오르고(1.0→1.25) 도착에서 빨려들어간다(→0.35)
+        final scale = t < 0.25
+            ? 1.0 + t * 1.0
+            : 1.25 - ((t - 0.25) / 0.75) * 0.9;
+        final opacity = t < 0.12 ? t / 0.12 : (t > 0.88 ? (1 - t) / 0.12 : 1.0);
+        return Positioned(
+          left: pos.dx - 22,
+          top: pos.dy - 22,
+          child: IgnorePointer(
+            child: Opacity(
+              opacity: opacity.clamp(0.0, 1.0),
+              child: Transform.scale(
+                scale: scale.clamp(0.2, 1.3),
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(
+                      colors: [CheerDs.ev, CheerDs.gas],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: CheerDs.ev.withValues(alpha: 0.45),
+                        blurRadius: 18,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.bolt_rounded,
+                      size: 26, color: Colors.white),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
 }

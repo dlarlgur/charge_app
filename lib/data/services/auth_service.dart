@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../core/constants/api_constants.dart';
 import 'dart:io' show Platform;
 
 import 'package:dio/dio.dart';
@@ -16,6 +17,16 @@ class AuthUser {
   final String? email;
   final String? nickname;
   final String? profileImageUrl;
+
+  /// 화면에서 바로 쓸 절대 URL. 우리 서버 업로드는 '/api/uploads/...' 상대경로로
+  /// 내려오므로 origin 을 붙인다(소셜 https URL 은 그대로).
+  String? get profileImageAbsolute {
+    final u = profileImageUrl;
+    if (u == null || u.isEmpty) return null;
+    if (u.startsWith('http')) return u;
+    final origin = ApiConstants.baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
+    return '$origin$u';
+  }
   final bool signupCompleted; // 닉네임·약관동의까지 끝낸 "완성" 계정 여부.
   final String? ageGroup; // 연령대(10대/20대/…/60대이상). 네이버 자동 또는 수동 입력.
 
@@ -184,7 +195,12 @@ class AuthService {
   /// updateProfile 최근 실패 사유 코드 (서버 error 필드: no_phone/invalid_nickname 등).
   static String? lastProfileError;
 
-  static Future<AuthUser?> updateProfile({String? nickname, String? email, String? ageGroup}) async {
+  /// [profileImageUrl] 은 빈 문자열('')을 주면 기본 이미지로 되돌린다.
+  static Future<AuthUser?> updateProfile(
+      {String? nickname,
+      String? email,
+      String? ageGroup,
+      String? profileImageUrl}) async {
     lastProfileError = null;
     final access = await _storage.read(key: _kAccess);
     if (access == null) return null;
@@ -195,6 +211,7 @@ class AuthService {
           if (nickname != null) 'nickname': nickname,
           if (email != null) 'email': email,
           if (ageGroup != null) 'age_group': ageGroup,
+          if (profileImageUrl != null) 'profile_image_url': profileImageUrl,
         },
         options: Options(headers: {'Authorization': 'Bearer $access'}),
       );
