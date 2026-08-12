@@ -209,9 +209,26 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   // 것이라, 필터 정리 로직(아래 stillVisible)이 시트를 닫으면 '눌렀는데 안 열림'으로
   // 보인다(형 제보: 고급휘발유 필터에서 검색한 주유소 상세가 바로 사라짐).
   bool _selectionPinned = false;
+  // pinned 상세용으로 지도에 임시 주입한 마커 id — 필터에 안 걸리는 스테이션이라
+  // 정규 마커 셋엔 없어서 따로 그린 것. 선택이 끝나면 거둬야 한다(필터상 없어야 할 마커).
+  String? _pinnedMarkerId;
+
+  /// pinned 주입 마커 제거 — 시트 닫기/다른 선택으로 역할이 끝났을 때.
+  void _clearPinnedMarker() {
+    final id = _pinnedMarkerId;
+    if (id == null) return;
+    _pinnedMarkerId = null;
+    final m = _markerRefs.remove(id);
+    if (m != null) {
+      _mapController
+          ?.deleteOverlay(m.info)
+          .catchError((_) {/* 이미 제거된 마커 무시 */});
+    }
+  }
 
   void _selectStation(dynamic station, {bool pinned = false}) {
     _clearSearchMarker();
+    if (!pinned) _clearPinnedMarker(); // 일반 마커 탭으로 관심사 이동 → 주입 마커 회수
     _sheetController?.dispose();
     _sheetController = DraggableScrollableController();
     mapSheetOpen.value = true;
@@ -238,6 +255,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   Future<void> _dismissSheet() async {
     _selectionPinned = false;
+    _clearPinnedMarker();
     final prev = _selectedStation;
     // 상세시트를 닫아도 지역 리스트가 펼쳐져 있으면 back 처리는 여전히 지도 탭 몫.
     mapSheetOpen.value = _listExpanded;
@@ -532,7 +550,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final matched = await _findStationMatching(name, lat, lng);
     if (!mounted) return;
     if (matched != null) {
-      _selectStation(matched);
+      // pinned — 검색으로 찾아온 상세는 필터와 무관하게 유지 + 마커도 주입.
+      // (여기만 pinned 가 아니어서, 필터에 안 맞는 매칭 결과가 stillVisible 정리에
+      //  즉시 닫히던 잔존 경로였다 — statId/uniId 직접 검색과 같은 대우로 통일)
+      _selectStation(matched, pinned: true);
+      _scheduleUpdateMarkers();
     } else {
       // 검색 위치에 빨강 핀 + 장소명 캡션. 주변 주유/충전소는 center 갱신으로 재조회됨.
       _setSearchMarker(lat, lng, name);
@@ -1633,7 +1655,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     // 목록 데이터가 아니라 상세를 직접 받아 연다 — 검색 결과엔 충전기 상태가 없다.
     try {
       final d = await ApiService().getEvStationDetail(statId);
-      if (mounted) _selectStation(EvStation.fromJson(d), pinned: true);
+      if (!mounted) return;
+      _selectStation(EvStation.fromJson(d), pinned: true);
+      _scheduleUpdateMarkers(); // 필터에 안 걸려도 pinned 마커 주입이 그리게
+
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1766,7 +1791,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     try {
       final fuelType = ref.read(effectiveGasFuelTypeProvider);
       final d = await ApiService().getGasStationDetail(uniId, fuelType: fuelType);
-      if (mounted) _selectStation(GasStation.fromJson(d), pinned: true);
+      if (!mounted) return;
+      _selectStation(GasStation.fromJson(d), pinned: true);
+      _scheduleUpdateMarkers(); // 필터에 안 걸려도 pinned 마커 주입이 그리게
+
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2303,6 +2331,64 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           }());
         }
       });
+    }
+
+    // ── pinned(검색으로 연) 상세의 마커 주입 ─────────────────────────────────
+    // 상세는 필터와 무관하게 열어주면서(위 stillVisible 예외) 마커는 필터된
+    // provider 셋에서만 그려서, 시트 아래 지도에 정작 그 스테이션이 없었다
+    // (형 제보: "상세는 보여주는데 마커는 안 찍힌다"). 명시적으로 찾아온 곳이니
+    // 필터·주유/충전 표시 모드와 무관하게 선택 스타일 마커를 하나 그려준다.
+    // 정규 셋에 이미 있으면(id 일치) 건너뛴다. 선택이 끝나면 _clearPinnedMarker 로 회수.
+    _pinnedMarkerId = null;
+    if (_selectionPinned && _selectedStation != null) {
+      final sel = _selectedStation;
+      if (sel is GasStation && !_markerRefs.containsKey('gas_${sel.id}')) {
+        final markerId = 'gas_${sel.id}';
+        final label = sel.priceText;
+        final displayName = StationAliasService.resolveGas(sel.id, sel.name);
+        _pinnedMarkerId = markerId;
+        markerFutures.add(() async {
+          final marker = NClusterableMarker(
+            id: markerId,
+            position: NLatLng(sel.lat, sel.lng),
+            tags: const {'type': 'gas'},
+            icon: await _stationBadgeIcon(
+              label: label, brand: sel.brand, stationName: displayName,
+              isHighlighted: true, // 지금 선택된 상세의 마커다
+              isFavorite: _isFavGas(sel.id),
+            ),
+          );
+          marker.setOnTapListener((_) async {
+            if (!await _tapGuard()) return;
+            await _dismissSheet(); // 선택된 마커 재탭 = 닫기 (일반 마커와 동일)
+          });
+          _markerRefs[markerId] = marker;
+          return marker;
+        }());
+      } else if (sel is EvStation && !_markerRefs.containsKey('ev_${sel.statId}')) {
+        final markerId = 'ev_${sel.statId}';
+        final markerLabel =
+            sel.isTesla ? 'Tesla' : '${sel.availableCount}/${sel.totalCount}';
+        _pinnedMarkerId = markerId;
+        markerFutures.add(() async {
+          final marker = NClusterableMarker(
+            id: markerId,
+            position: NLatLng(sel.lat, sel.lng),
+            tags: const {'type': 'ev'},
+            icon: await _stationBadgeIcon(
+              label: markerLabel, isEv: true, isHighlighted: true,
+              evFast: sel.hasFast,
+              isFavorite: _isFavEv(sel.statId),
+            ),
+          );
+          marker.setOnTapListener((_) async {
+            if (!await _tapGuard()) return;
+            await _dismissSheet();
+          });
+          _markerRefs[markerId] = marker;
+          return marker;
+        }());
+      }
     }
 
     if (gen != _markersGeneration) return;
