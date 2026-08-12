@@ -322,15 +322,23 @@ String recolorSvg(String svg, int tierLevel, CarPaint paint) {
   final recipe = _TierRecipe.byLevel[tierLevel];
   if (recipe == null) return svg;
 
-  // 유광(프리미엄)은 4-stop 글로시 그라디언트로 통째로 다시 쓴다.
-  // 원본의 3-stop(부드러운 셰이딩)에 색만 갈아끼우면 "크레용" 이 된다(형 피드백) —
-  // 도장면 광은 스페큘러(0)와 반사 경계(0.42→0.56 급락)에서 나온다.
+  // 유광(프리미엄)은 6-stop 글로시 그라디언트로 통째로 다시 쓴다.
+  // 원본의 3-stop(부드러운 셰이딩)에 색만 갈아끼우면 "크레용" 이 된다(형 피드백).
+  //
+  // 4-stop(0/0.42/0.56/1) 도 아직 밋밋했다("별로 느낌 안 남"). 렌더로 비교해 보니 원인이
+  // 두 개였다:
+  //  1) 0.42→0.56 은 차체 높이의 14% 에 걸친 '부드러운 블렌드' 라 에어브러시로 보인다.
+  //     실제 도장면의 수평선 반사는 거의 순간적으로 꺾인다 → 0.46→0.48 로 좁혀 하드 엣지.
+  //  2) 아래로 갈수록 단조롭게 어두워지면 그건 무광의 특징이다. 유광차는 지면 반사(바운스)
+  //     때문에 로커 패널이 다시 밝아진다 → 마지막 stop 을 dark 가 아니라 mid 로 되올린다.
   var out = paint.isPremium
       ? _setGradientStops(svg, recipe.bodyGradientId, [
           ('0', paint.highlight),      // 순간 반사광 (하늘)
-          ('0.42', paint.light),       // 밝은 바디면
-          ('0.56', paint.mid),         // 반사 경계 — 급격한 명도 낙차가 '유광' 그 자체
-          ('1', paint.dark),           // 하부 섀도
+          ('0.28', paint.light),       // 밝은 바디면
+          ('0.46', paint.light),       // 반사선 직전까지 밝기 유지
+          ('0.48', paint.mid),         // 반사 경계 — 하드 엣지가 '유광' 그 자체
+          ('0.80', paint.dark),        // 하부 섀도
+          ('1', paint.mid),            // 지면 바운스 — 다시 밝아져야 무광으로 안 보인다
         ])
       : _replaceGradientStops(
           svg, recipe.bodyGradientId, [paint.light, paint.mid, paint.dark]);

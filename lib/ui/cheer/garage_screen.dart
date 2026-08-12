@@ -6,7 +6,7 @@ import '../../data/services/cheer_service.dart';
 import 'car_paint.dart';
 import 'car_paint_screen.dart';
 import 'cheer_tier_theme.dart';
-import 'crown_celebration.dart';
+import 'gold_profile.dart';
 import 'tier_detail_popup.dart';
 
 /// 내 개러지 — handoff 2 (CheerGarage.html) 시안.
@@ -568,11 +568,9 @@ class _GarageScreenState extends State<GarageScreen>
   }
 
   Widget _crownRow(CheerCrown crown, bool isDark) {
-    final theme = CrownTheme.of(crown.rank);
-    final parts = crown.month.split('-');
-    final label = parts.length == 2
-        ? '${parts[0]}년 ${parts[1]}월'
-        : crown.month;
+    // 왕관(금·은·동) 컨셉은 폐기 — handoff 3 의 순위 메달 톤으로 통일한다.
+    final medal = CheerGold.medal(crown.rank);
+    final label = cheerMonthLabelFull(crown.month);
     return Row(children: [
       Container(
         width: 22,
@@ -582,12 +580,15 @@ class _GarageScreenState extends State<GarageScreen>
           gradient: LinearGradient(
             begin: const Alignment(-0.4, -1),
             end: const Alignment(0.4, 1),
-            colors: [theme.glow, theme.deep],
+            colors: medal,
           ),
         ),
-        child: Icon(Icons.workspace_premium_rounded,
-            size: 12,
-            color: isDark ? const Color(0xFF2A1608) : Colors.white),
+        alignment: Alignment.center,
+        child: Text('${crown.rank}',
+            style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: CheerGold.medalInk(crown.rank))),
       ),
       const SizedBox(width: 8),
       Text(label,
@@ -597,7 +598,7 @@ class _GarageScreenState extends State<GarageScreen>
           style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w800,
-              color: isDark ? theme.glow : theme.deep)),
+              color: CheerGold.rankLabel(crown.rank, isDark))),
       const SizedBox(width: 6),
       Text('${crown.count}회',
           style: TextStyle(fontSize: 12, color: CheerDs.muted(isDark))),

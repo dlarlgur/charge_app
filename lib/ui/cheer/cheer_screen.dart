@@ -453,21 +453,23 @@ class _CheerScreenState extends State<CheerScreen>
 
   /// 표시할 게이지 채움 — 연출 중이면 바늘이 목표를 지나쳤다가 좌우로
   /// 흔들리며 자리 잡는다(감쇠 진동 — 형 지시 "와리가리").
+  /// 연출 중 바늘이 넘을 수 있는 상한 — 페인터가 바늘만 F 를 살짝(9°) 지나치게 그린다.
+  /// 목표가 100% 여도 오버슈트가 실제로 보이게 하기 위한 여유폭.
+  static const double _kGaugeCeil = 1.05;
+
   double get _displayFill {
     if (_rewardActive) {
       final t = _needleWiggle(_seg(2600, 1700));
-      // 오버슈트가 게이지 상한을 넘으면 넘는 만큼만 눌러 담는다.
-      // 그냥 clamp(0,1) 하면 목표가 100%(=일일 목표 달성, 가장 축하할 순간)일 때
-      // 진동의 절반이 1.0 에 붙어 연출이 죽는다. 남은 여유폭에 맞춰 진폭만 줄인다.
+      // 오버슈트가 상한(1.05)을 넘으면 넘는 만큼만 [목표, 1.05] 여유폭으로 압축.
+      // 목표가 정확히 100% 라도 headroom 이 0.05 남아 있어 진동이 안 죽는다 —
+      // 예전엔 상한이 1.0 이라 일일 목표를 채우는 순간(가장 축하할 때) 연출 절반이 눌렸다.
       final v = _rewardFrom + (_rewardTo - _rewardFrom) * t;
-      if (v <= 1.0) return v.clamp(0.0, 1.0);
+      if (v <= _kGaugeCeil) return v.clamp(0.0, _kGaugeCeil);
       final peak = _rewardFrom + (_rewardTo - _rewardFrom) * _kWigglePeak;
-      if (peak <= 1.0) return v.clamp(0.0, 1.0);
-      // 초과분을 [_rewardTo, 1.0] 여유폭으로 선형 압축 — 목표가 정확히 1.0 이면
-      // headroom 이 0 이라 상한에 붙지만, 되돌아오는 아래쪽 진동은 그대로 살아 있다.
-      final headroom = 1.0 - _rewardTo;
+      if (peak <= _kGaugeCeil) return v.clamp(0.0, _kGaugeCeil);
+      final headroom = _kGaugeCeil - _rewardTo;
       final excess = (v - _rewardTo) / (peak - _rewardTo); // 0~1
-      return (_rewardTo + headroom * excess).clamp(0.0, 1.0);
+      return (_rewardTo + headroom * excess).clamp(0.0, _kGaugeCeil);
     }
     final t = Curves.easeOut.transform(_needleCtrl.value);
     return (_fillFrom + (_fillTo - _fillFrom) * t).clamp(0.0, 1.0);
@@ -764,7 +766,12 @@ class _CheerScreenState extends State<CheerScreen>
           ]),
           const SizedBox(height: 11),
           Center(
-            child: Text(done ? '내일 또 응원할 수 있어요' : '3칸을 다 채우면 "오늘 응원 만땅!"',
+            // 칸 수는 원격설정(cheer.daily_limit)로 바뀐다 — '3칸' 하드코딩이면 한도를
+            // 조정한 순간 도트 개수와 문구가 어긋난다.
+            child: Text(
+                done
+                    ? '내일 또 응원할 수 있어요'
+                    : '${st.dailyLimit}칸을 다 채우면 "오늘 응원 만땅!"',
                 style: TextStyle(fontSize: 10.5, color: CheerDs.muted(isDark))),
           ),
         ],
@@ -1119,7 +1126,7 @@ class _FuelDot extends StatelessWidget {
 /// 컬러 존 세그먼트 계기판 — 시안 좌표계 104×62 (원 96×96, 중심 (52,52)).
 /// 존 5개 #EF4444→#10B981, 갭 3°, 미충전 opacity 라이트 0.30 / 다크 0.50.
 class _ZoneGaugePainter extends CustomPainter {
-  final double fill; // 0~1
+  final double fill; // 0~1.05 — 1 초과분은 바늘만 F 를 지나친다 (아크는 1.0 캡)
   final bool isDark;
   const _ZoneGaugePainter({required this.fill, required this.isDark});
 
@@ -1159,7 +1166,9 @@ class _ZoneGaugePainter extends CustomPainter {
     );
 
     // 2) 미충전 존 (연하게)
+    // 아크(색 채움)는 트랙 밖을 못 그리니 1.0 캡, 바늘은 오버슈트 연출로 1.05 까지.
     final fillDeg = fill.clamp(0.0, 1.0) * 180;
+    final needleDeg = fill.clamp(0.0, 1.05) * 180;
     for (var i = 0; i < _zones.length; i++) {
       final z = _zones[i];
       canvas.drawArc(
@@ -1210,7 +1219,7 @@ class _ZoneGaugePainter extends CustomPainter {
     label('F', left: false);
 
     // 바늘 — 길이 36, 두께 5, 레드 그라디언트 + 글로우
-    final a = rad(fillDeg);
+    final a = rad(needleDeg);
     final dir = Offset(math.cos(a), math.sin(a));
     final tip = center + dir * (36 * k);
     final needle = Paint()

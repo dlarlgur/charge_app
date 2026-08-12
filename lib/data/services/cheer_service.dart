@@ -142,6 +142,22 @@ class CheerEventRank {
       );
 }
 
+/// 'YYYY-MM' → '8월' (수상 pill·상장 문구용). 형식이 다르면 원문 그대로.
+String cheerMonthLabel(String month) {
+  final parts = month.split('-');
+  if (parts.length != 2) return month;
+  final m = int.tryParse(parts[1]);
+  return m == null ? month : '$m월';
+}
+
+/// 'YYYY-MM' → '2026년 8월'
+String cheerMonthLabelFull(String month) {
+  final parts = month.split('-');
+  if (parts.length != 2) return month;
+  final m = int.tryParse(parts[1]);
+  return m == null ? month : '${parts[0]}년 $m월';
+}
+
 /// 월간 응원 왕관 — 매월 1일 서버가 지난달 1·2·3등을 확정한다.
 class CheerCrown {
   final String month; // 'YYYY-MM'
@@ -170,6 +186,73 @@ Map<int, String>? parseCarPaints(dynamic raw) {
     if (lv != null && v is String && v.isNotEmpty) out[lv] = v;
   });
   return out;
+}
+
+/// 월간 시상식(결산) — GET /api/cheer/awards
+class CheerAwards {
+  final String month; // 'YYYY-MM'
+  final int total; // 그 달 전체 응원 수
+  final List<CheerAwardRank> top; // 1~3위
+  final int? myRank;
+  final int myCount;
+  /// 전월 대비 순위 변동 (+면 상승). 비교 불가면 null
+  final int? delta;
+  /// 내가 그 달 1등인지 — 상장(시상식)은 1등만 본다
+  final bool winner;
+  final bool chickenOn;
+  final bool chickenSent;
+
+  const CheerAwards({
+    required this.month,
+    required this.total,
+    required this.top,
+    required this.myRank,
+    required this.myCount,
+    required this.delta,
+    required this.winner,
+    required this.chickenOn,
+    required this.chickenSent,
+  });
+
+  factory CheerAwards.fromJson(Map<String, dynamic> j) {
+    final me = (j['me'] as Map?) ?? const {};
+    final chicken = (j['chicken'] as Map?) ?? const {};
+    return CheerAwards(
+      month: j['month']?.toString() ?? '',
+      total: (j['total'] as num?)?.toInt() ?? 0,
+      top: ((j['top'] as List?) ?? const [])
+          .whereType<Map>()
+          .map((e) => CheerAwardRank.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      myRank: (me['rank'] as num?)?.toInt(),
+      myCount: (me['count'] as num?)?.toInt() ?? 0,
+      delta: (me['delta'] as num?)?.toInt(),
+      winner: j['winner'] == true,
+      chickenOn: chicken['on'] == true,
+      chickenSent: chicken['sent'] == true,
+    );
+  }
+
+  CheerAwardRank? get first => top.isEmpty ? null : top.first;
+}
+
+class CheerAwardRank {
+  final int rank;
+  final String name;
+  final int count;
+  final bool me;
+  const CheerAwardRank(
+      {required this.rank,
+      required this.name,
+      required this.count,
+      required this.me});
+
+  factory CheerAwardRank.fromJson(Map<String, dynamic> j) => CheerAwardRank(
+        rank: (j['rank'] as num?)?.toInt() ?? 0,
+        name: j['name']?.toString() ?? '익명의 서포터',
+        count: (j['count'] as num?)?.toInt() ?? 0,
+        me: j['me'] == true,
+      );
 }
 
 /// GET /api/cheer/status 응답
@@ -337,8 +420,11 @@ class CheerService {
     }
   }
 
-  /// 최근 status 의 왕관 스냅샷 — 프로필/개러지가 네트워크 없이 그린다.
-  CheerStatus? lastStatus;
+  /// 최근 status 스냅샷 — 프로필/개러지/설정 진입 카드가 네트워크 없이 그린다.
+  /// 값이 바뀌면 구독한 화면(설정 카드의 오늘 응원 도트 등)이 바로 따라온다.
+  final ValueNotifier<CheerStatus?> statusNotifier = ValueNotifier(null);
+  CheerStatus? get lastStatus => statusNotifier.value;
+  set lastStatus(CheerStatus? v) => statusNotifier.value = v;
 
   /// 로그인 여부 — 차 컬러를 서버에 저장할지(회원) 로컬에만 둘지(비회원) 가른다.
   Future<bool> get signedIn async => (await AuthService.accessToken()) != null;
@@ -358,6 +444,19 @@ class CheerService {
     } catch (e) {
       if (kDebugMode) debugPrint('[Cheer] 차 컬러 저장 실패: $e');
       return false;
+    }
+  }
+
+  /// 월간 시상식 데이터 — month 미지정이면 지난달 결산.
+  Future<CheerAwards?> awards({String? month}) async {
+    try {
+      final res = await _dio.get('/cheer/awards',
+          queryParameters: {if (month != null) 'month': month},
+          options: await _authOptions());
+      return CheerAwards.fromJson(
+          Map<String, dynamic>.from(res.data['data'] as Map));
+    } catch (_) {
+      return null;
     }
   }
 
@@ -427,6 +526,7 @@ class CheerService {
     final st = await _postCheer(key);
     if (st != null) {
       _setPendingKeys(_pendingKeys()..remove(key));
+      lastStatus = st; // 설정 진입 카드의 '오늘 응원 n/3' 이 바로 따라오게
     }
     return st;
   }

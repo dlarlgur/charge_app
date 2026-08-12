@@ -61,12 +61,12 @@ void main() {
       for (final p in paints) {
         final out = recolorSvg(src, t.level, p);
         expect(_count(out, '<path'), _count(src, '<path'));
-        // 유광(프리미엄)은 차체 그라디언트를 글로시 4-stop 으로 통째로 다시 쓴다
-        // (원본이 2-stop 이든 3-stop 이든 결과는 4). 그 외 구조는 전부 동일해야 한다.
+        // 유광(프리미엄)은 차체 그라디언트를 글로시 6-stop 으로 통째로 다시 쓴다
+        // (원본이 2-stop 이든 3-stop 이든 결과는 6). 그 외 구조는 전부 동일해야 한다.
         final bodyId = const {1: 'g', 2: 'body', 3: 'body3', 4: 'body4'}[t.level]!;
         final srcBodyStops = _bodyStops(src, bodyId);
         final expectStops = p.isPremium
-            ? _count(src, '<stop') - srcBodyStops + 4
+            ? _count(src, '<stop') - srcBodyStops + 6
             : _count(src, '<stop');
         expect(_count(out, '<stop'), expectStops,
             reason: '${t.name} / ${p.name}');

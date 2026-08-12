@@ -9,6 +9,7 @@ import '../../core/constants/api_constants.dart';
 import '../../data/models/models.dart';
 import '../../providers/providers.dart';
 import '../widgets/shared_widgets.dart';
+import '../widgets/settings_value.dart';
 
 const _chargerTypeOptions = <({String code, String label})>[
   (code: '02', label: 'AC완속'),
@@ -175,11 +176,15 @@ class SettingsScreen extends ConsumerWidget {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
       leading: Icon(icon, size: 22, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
-      title: Text(title, style: Theme.of(context).textTheme.titleSmall),
+      title: Text(title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.titleSmall),
+      // 값 폭 상한·말줄임 규칙은 SettingsValue 한 곳에만 둔다(설정 화면이 두 벌이라).
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (value != null) Text(value, style: Theme.of(context).textTheme.bodyMedium),
+          if (value != null) SettingsValue(value),
           if (onTap != null) ...[
             const SizedBox(width: 4),
             Icon(Icons.chevron_right_rounded, size: 20,

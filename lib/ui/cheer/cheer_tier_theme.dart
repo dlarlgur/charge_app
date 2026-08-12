@@ -142,12 +142,28 @@ class CheerTierTheme {
   final String carAsset;
   final String silAsset;
 
-  /// 등급 상세 팝업 설명 (2줄)
+  /// 등급 상세 팝업 설명 (2줄) — 코드 기본 카피. 표시는 popupDescEffective 를 쓸 것
+  /// (임계값을 원격설정으로 바꾸면 "매일 3회씩 나흘…" 같은 숫자 문장이 낡는다).
   final String popupDesc;
 
-  /// 승급 오버레이 오버라인 · 서브 카피
+  /// 승급 오버레이 오버라인 · 서브 카피 — 표시는 promoSubEffective 를 쓸 것.
   final String promoOverline;
   final String promoSub;
+
+  /// 임계값(원격설정 반영) 기준으로 기간 문장을 다시 만든 팝업 설명.
+  /// 첫 줄(차 소개)은 정적 카피 유지, 둘째 줄만 threshold·dailyLimit 로 재계산.
+  String popupDescEffective({int dailyLimit = 3}) {
+    final firstLine = popupDesc.split('\n').first;
+    if (threshold <= 1) return '$firstLine\n첫 응원 한 번이면 바로 도착해요.';
+    final limit = dailyLimit < 1 ? 1 : dailyLimit;
+    final days = (threshold + limit - 1) ~/ limit; // ceil
+    return '$firstLine\n매일 $limit회씩 약 $days일이면 도착해요.';
+  }
+
+  /// '누적 N회 달성 — …' 꼴이면 N 을 실효 임계값으로 치환. 아니면 원문 그대로.
+  String get promoSubEffective => promoSub.startsWith('누적 ')
+      ? promoSub.replaceFirst(RegExp(r'^누적 \d+회'), '누적 $threshold회')
+      : promoSub;
 
   final Color _labelL, _labelD;
   final List<Color> _cardBgL, _cardBgD;

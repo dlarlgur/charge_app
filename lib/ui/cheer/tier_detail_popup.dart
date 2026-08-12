@@ -153,7 +153,8 @@ class _TierDetailDialog extends StatelessWidget {
                   ),
                 ),
               const SizedBox(height: 10),
-              Text(tier.popupDesc,
+              // 임계값 원격설정 반영 — 정적 카피의 '매일 3회씩 나흘…' 숫자가 낡지 않게
+              Text(tier.popupDescEffective(dailyLimit: status?.dailyLimit ?? 3),
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 12, height: 1.55, color: muted)),
               const SizedBox(height: 14),

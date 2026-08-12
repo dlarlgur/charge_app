@@ -213,10 +213,19 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
       builder: (_) => _VehicleSpecSearchSheet(kind: _vehicleType),
     );
     if (picked == null || !mounted) return;
+    // 시트에서 유종을 바꿔 고를 수 있다 — 고른 차 기준으로 폼 타입을 맞춘다.
+    // (전기차로 열어놨다가 내연기관차를 고르면 폼도 내연기관차로 바뀌어야 한다)
+    final pickedKind = (picked['kind'] ?? _vehicleType).toString();
+    final typeChanged = pickedKind != _vehicleType;
     setState(() {
+      if (typeChanged) {
+        _animCtrl.reset();
+        _vehicleType = pickedKind;
+        _animCtrl.forward();
+      }
       _nameController.text = (picked['model'] ?? '').toString();
       final eff = picked['efficiency'];
-      if (_vehicleType == 'gas') {
+      if (pickedKind == 'gas') {
         final code = (picked['fuelType'] ?? 'B027').toString();
         _fuelType = FuelType.fromCode(code);
         if (eff is num && eff > 0) {
@@ -247,6 +256,10 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
         }
       }
     });
+    if (typeChanged) {
+      showAppToast(context,
+          '${pickedKind == 'ev' ? '전기차' : '내연기관차'}로 바꿨어요');
+    }
   }
 
   String _resolvedName(String vehicleType) {
@@ -1698,9 +1711,11 @@ class _GaugeSlider extends StatelessWidget {
 }
 
 /// 차종 검색 바텀시트 — 에너지공단 공인연비 데이터.
-/// 선택하면 {model, fuelType, efficiency, rangePerCharge, ...} 를 pop 으로 반환.
+/// 시트 안에서 내연기관/전기차를 바꿔 검색할 수 있고, 선택하면
+/// {kind, model, fuelType, efficiency, rangePerCharge, ...} 를 pop 으로 반환한다.
+/// (폼에서 고른 타입과 다른 차를 골랐을 때 폼이 따라오게 하려면 kind 가 필요하다)
 class _VehicleSpecSearchSheet extends StatefulWidget {
-  final String kind; // 'gas' | 'ev'
+  final String kind; // 'gas' | 'ev' — 시작 값
   const _VehicleSpecSearchSheet({required this.kind});
 
   @override
@@ -1715,6 +1730,13 @@ class _VehicleSpecSearchSheetState extends State<_VehicleSpecSearchSheet> {
   bool _loading = false;
   bool _searched = false;
 
+  /// 시트 안에서 바꾸는 검색 대상 — 폼 타입과 별개로 움직인다.
+  late String _kind = widget.kind;
+
+  /// 같은 검색어에 대한 응답만 반영 (유종을 빠르게 토글하면 이전 응답이 늦게 와서
+  /// 목록을 덮어쓰는 일이 생긴다)
+  int _reqSeq = 0;
+
   @override
   void dispose() {
     _debounce?.cancel();
@@ -1724,32 +1746,48 @@ class _VehicleSpecSearchSheetState extends State<_VehicleSpecSearchSheet> {
 
   void _onQuery(String q) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 350), () async {
-      final term = q.trim();
-      if (term.length < 2) {
-        if (mounted)
-          setState(() {
-            _results = const [];
-            _searched = false;
-          });
-        return;
+    _debounce = Timer(const Duration(milliseconds: 350), () => _search(q));
+  }
+
+  Future<void> _search(String q) async {
+    final term = q.trim();
+    if (term.length < 2) {
+      if (mounted) {
+        setState(() {
+          _results = const [];
+          _searched = false;
+          _loading = false;
+        });
       }
-      setState(() => _loading = true);
-      final items =
-          await ApiService().searchVehicleSpecs(term, kind: widget.kind);
-      if (!mounted) return;
-      setState(() {
-        _results = items;
-        _loading = false;
-        _searched = true;
-      });
+      return;
+    }
+    final seq = ++_reqSeq;
+    setState(() => _loading = true);
+    final items = await ApiService().searchVehicleSpecs(term, kind: _kind);
+    if (!mounted || seq != _reqSeq) return;
+    setState(() {
+      _results = items;
+      _loading = false;
+      _searched = true;
     });
+  }
+
+  /// 유종 전환 — 입력한 검색어가 있으면 그대로 다시 조회한다(다시 타이핑 안 하게).
+  void _switchKind(String kind) {
+    if (kind == _kind) return;
+    _debounce?.cancel();
+    setState(() {
+      _kind = kind;
+      _results = const [];
+      _searched = false;
+    });
+    _search(_searchCtrl.text);
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isEv = widget.kind == 'ev';
+    final isEv = _kind == 'ev';
     final accent = isEv ? AppColors.evGreen : AppColors.gasBlue;
     final ink = isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A2E);
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
@@ -1772,35 +1810,33 @@ class _VehicleSpecSearchSheetState extends State<_VehicleSpecSearchSheet> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
-            child: Row(
-              children: [
-                Text('차종 검색',
-                    style: TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.w800, color: ink)),
-                const SizedBox(width: 8),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: accent.withOpacity(isDark ? 0.16 : 0.10),
-                    borderRadius: BorderRadius.circular(7),
-                  ),
-                  child: Text(isEv ? '전기차' : '내연기관',
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: accent)),
-                ),
-              ],
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text('차종 검색',
+                  style: TextStyle(
+                      fontSize: 17, fontWeight: FontWeight.w800, color: ink)),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 2, 20, 0),
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text('공인연비 기준이에요 — 선택하면 자동으로 채워드려요',
+              child: Text('공인연비 기준이에요 — 선택하면 차량 타입까지 자동으로 맞춰드려요',
                   style: TextStyle(fontSize: 12, color: muted)),
+            ),
+          ),
+          // 유종 전환 — 폼에서 고른 타입과 달라도 여기서 바꿔 찾을 수 있다.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+            child: Row(
+              children: [
+                _kindChip('gas', '내연기관차', Icons.local_gas_station_rounded,
+                    AppColors.gasBlue, isDark, muted),
+                const SizedBox(width: 8),
+                _kindChip('ev', '전기차', Icons.bolt_rounded, AppColors.evGreen,
+                    isDark, muted),
+              ],
             ),
           ),
           Padding(
@@ -1861,9 +1897,50 @@ class _VehicleSpecSearchSheetState extends State<_VehicleSpecSearchSheet> {
     );
   }
 
+  /// 유종 칩 — 선택되면 해당 색으로 채우고, 아니면 옅은 외곽선만.
+  Widget _kindChip(String kind, String label, IconData icon, Color color,
+      bool isDark, Color muted) {
+    final on = _kind == kind;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => _switchKind(kind),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          height: 38,
+          decoration: BoxDecoration(
+            color: on
+                ? color.withOpacity(isDark ? 0.18 : 0.10)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: on
+                  ? color
+                  : (isDark
+                      ? AppColors.darkCardBorder
+                      : AppColors.lightCardBorder),
+              width: on ? 1.2 : 0.8,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: on ? color : muted),
+              const SizedBox(width: 6),
+              Text(label,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: on ? FontWeight.w800 : FontWeight.w600,
+                      color: on ? color : muted)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _specTile(Map<String, dynamic> it, bool isDark, Color accent,
       Color ink, Color muted) {
-    final isEv = widget.kind == 'ev';
+    final isEv = _kind == 'ev';
     final eff = it['efficiency'];
     final range = it['rangePerCharge'];
     final sub = [
@@ -1874,7 +1951,8 @@ class _VehicleSpecSearchSheetState extends State<_VehicleSpecSearchSheet> {
     ].join(' · ');
 
     return InkWell(
-      onTap: () => Navigator.pop(context, it),
+      // 고른 차의 유종을 같이 넘긴다 — 폼이 이 값으로 차량 타입을 맞춘다.
+      onTap: () => Navigator.pop(context, {...it, 'kind': _kind}),
       borderRadius: BorderRadius.circular(14),
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),

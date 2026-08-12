@@ -55,9 +55,12 @@ import '../../data/services/cheer_service.dart';
 import '../../core/util/app_toast.dart';
 import '../../data/services/notif_prefs_service.dart';
 import '../settings/ad_inquiry_screen.dart';
+import '../cheer/cheer_entry_card.dart';
+import '../cheer/gold_profile.dart';
 import '../cheer/cheer_screen.dart';
 import '../cheer/cheer_tier_theme.dart';
-import '../cheer/crown_celebration.dart';
+import '../cheer/awards_screen.dart';
+import '../widgets/settings_value.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -82,16 +85,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     AlertService().refreshToken();
     WatchService().restore();
 
-    // 월간 응원 왕관 — 매월 1일 결산 후 첫 진입 때 한 번만 축하 연출.
+    // 월간 시상식 — 매월 1일 결산 후 첫 진입 때 한 번만. 상장은 1등만 본다(handoff 3).
+    // 2·3위도 seen 처리해서 매번 다시 조회하지 않게 한다.
     // status 조회가 실패하면 조용히 넘어간다(응원 기능 원칙: 앱 사용 방해 금지).
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final st = await CheerService.instance.status();
       final crown = st?.newCrown;
-      if (crown != null && mounted) {
-        final user = ref.read(authProvider);
-        showCrownCelebration(context,
-            crown: crown, profileImageUrl: user?.profileImageAbsolute);
+      if (crown == null || !mounted) return;
+      // 2·3위는 상장이 없다 — 조회만 소진하고 끝낸다(마이페이지 수상 기록엔 남는다).
+      if (crown.rank != 1) {
+        CheerService.instance.markCrownSeen();
+        return;
       }
+      final awards = await CheerService.instance.awards(month: crown.month);
+      // 시상식 조회가 실패하면 왕관을 소진하지 않는다 — 여기서 seen 처리해 버리면
+      // 서버가 잠깐 삐끗한 사이에 1등이 상장을 영영 못 본다(테스트 왕관도 마찬가지로
+      // 앱 켤 때마다 소진돼서 '설정했는데 안 뜬다'가 된다).
+      if (awards == null || !mounted) return;
+      CheerService.instance.markCrownSeen();
+      final user = ref.read(authProvider);
+      // 비회원 1등 — 닉네임이 없다. 서버가 순위표에 내려준 기기 별칭('응원자 4821')을
+      // 그대로 상장에 쓴다. 그것도 없을 때만 '응원왕'.
+      final myRow = awards.top.where((r) => r.me);
+      final nickname = (user?.nickname?.trim().isNotEmpty ?? false)
+          ? user!.nickname!
+          : (myRow.isEmpty ? '응원왕' : myRow.first.name);
+      showCheerAwards(context,
+          data: awards, nickname: nickname, loggedIn: user != null);
     });
 
     // 앱 진입 시 만족도 게이트(2번째 진입부터·백오프 7/30일·평생 3회). 첫 프레임 후.
@@ -2072,30 +2092,27 @@ class _AccountCard extends ConsumerWidget {
     final ready = ref.watch(authInitializedProvider); // 복원 완료 전엔 로그인 상태 단정 X
     final loggedIn = user != null;
 
-    // 뱃지 보유 시 등급 라벨 카드(핸드오프 4a — 실버/레드/골드/블랙 8종).
-    // 0회는 기존 카드 그대로, 탭은 두 경우 모두 계정 관리(형 확정).
-    // totalNotifier 구독 — 응원/리셋으로 누적이 바뀌면 카드가 즉시 따라온다.
+    // 로그인 사용자 = 골드 프로필 카드(handoff 3). 비로그인은 로그인 유도 문구가
+    // 필요해서 기존 카드를 유지한다 — 골드 카드엔 그 문구 자리가 없다.
+    // totalNotifier·statusNotifier 구독 — 응원/수상이 바뀌면 카드가 즉시 따라온다.
+    if (!loggedIn || !ready) return _plainCard(context, user, ready, loggedIn);
     return ValueListenableBuilder<int>(
       valueListenable: CheerService.instance.totalNotifier,
-      builder: (context, cheerTotal, _) {
-        final cheerTier = CheerTierTheme.of(cheerTotal);
-        if (cheerTier != null) {
-          return _TierProfileCard(
-            tier: cheerTier,
-            total: cheerTotal,
+      builder: (context, cheerTotal, _) => ValueListenableBuilder<CheerStatus?>(
+        valueListenable: CheerService.instance.statusNotifier,
+        builder: (context, st, __) {
+          final crowns = st?.crowns ?? const <CheerCrown>[];
+          return _GoldProfileCard(
             isDark: isDark,
-            nickname: !ready
-                ? '불러오는 중…'
-                : (loggedIn
-                    ? '${user.nickname ?? '사용자'}님'
-                    : '로그인이 필요합니다'),
-            profileImageUrl: loggedIn ? user.profileImageAbsolute : null,
-            onTap: () =>
-                loggedIn ? context.push('/account') : context.push('/login'),
+            nickname: '${user.nickname ?? '사용자'}님',
+            profileImageUrl: user.profileImageAbsolute,
+            tierName: CheerTierTheme.of(cheerTotal)?.name,
+            total: cheerTotal,
+            crown: crowns.isEmpty ? null : crowns.first,
+            onTap: () => context.push('/account'),
           );
-        }
-        return _plainCard(context, user, ready, loggedIn);
-      },
+        },
+      ),
     );
   }
 
@@ -2252,170 +2269,164 @@ class _FirstCarHint extends StatelessWidget {
   }
 }
 
-/// 마이페이지 등급 프로필 카드 (핸드오프 4a) — 등급 라벨 bg 그라데이션 +
-/// 우측 등급색 radial 글로우 + 아바타 등급 링(2.5px) + 컬러 차 SVG.
-class _TierProfileCard extends StatelessWidget {
-  final CheerTierTheme tier;
-  final int total;
+/// 마이페이지 골드 프로필 카드 — handoff 3 (CheerMyPage 2-1).
+/// 골드 링 아바타 + 닉네임 + (최근 수상 pill) + 등급·누적. ✦ 트윙클 3개.
+class _GoldProfileCard extends StatefulWidget {
   final bool isDark;
   final String nickname;
   final String? profileImageUrl;
+  final String? tierName;
+  final int total;
+
+  /// 최근 수상 — '8월 1위' pill (없으면 숨김)
+  final CheerCrown? crown;
   final VoidCallback onTap;
-  const _TierProfileCard({
-    required this.tier,
-    required this.total,
+
+  const _GoldProfileCard({
     required this.isDark,
     required this.nickname,
     required this.profileImageUrl,
+    required this.tierName,
+    required this.total,
+    required this.crown,
     required this.onTap,
   });
 
   @override
+  State<_GoldProfileCard> createState() => _GoldProfileCardState();
+}
+
+class _GoldProfileCardState extends State<_GoldProfileCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _tw = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 4000))
+    ..repeat();
+
+  @override
+  void dispose() {
+    _tw.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final bg = tier.cardBg(isDark);
+    final isDark = widget.isDark;
     final ink = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
     final muted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
-
-    // 등급명 — 블랙라벨 다크는 실버 그라데이션 텍스트 (ShaderMask)
-    Widget tierName() {
-      final text = Text(tier.name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.2,
-              color: tier.label(isDark)));
-      if (isDark && tier.labelIsGradientDark) {
-        return ShaderMask(
-          shaderCallback: (r) => const LinearGradient(
-                  colors: CheerTierTheme.blackLabelGradient)
-              .createShader(r),
-          child: Text(tier.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.2,
-                  color: Colors.white)),
-        );
-      }
-      return text;
-    }
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        onTap: widget.onTap,
         child: Ink(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
             gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: bg,
+              begin: const Alignment(-0.6, -1),
+              end: const Alignment(0.6, 1),
+              colors: CheerGold.card(isDark),
             ),
-            border: Border.all(
-              color: tier.cardBorder(isDark),
-              width: isDark ? 0.5 : 1,
-            ),
+            border: Border.all(color: CheerGold.border(isDark)),
+            boxShadow: CheerGold.shadow(isDark),
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
             child: Stack(
               children: [
-                // 우측 등급색 radial 글로우
                 Positioned(
-                  right: -30,
-                  top: -30,
-                  bottom: -30,
-                  width: 190,
-                  child: IgnorePointer(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: RadialGradient(colors: [
-                          tier.glow(isDark),
-                          tier.glow(isDark).withValues(alpha: 0),
-                        ]),
-                      ),
-                    ),
-                  ),
-                ),
+                    left: 14,
+                    top: 14,
+                    child: GoldTwinkle(
+                        anim: _tw,
+                        size: 10,
+                        color: isDark
+                            ? CheerGold.twinkleD
+                            : CheerGold.twinkleL)),
+                Positioned(
+                    right: 16,
+                    top: 26,
+                    child: GoldTwinkle(
+                        anim: _tw,
+                        size: 8,
+                        delaySec: 0.6,
+                        color: isDark
+                            ? CheerGold.twinkleD2
+                            : CheerGold.twinkleL2)),
+                Positioned(
+                    right: 30,
+                    bottom: 16,
+                    child: GoldTwinkle(
+                        anim: _tw,
+                        size: 11,
+                        delaySec: 1.3,
+                        color: isDark
+                            ? CheerGold.twinkleD
+                            : CheerGold.twinkleL)),
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 13),
                   child: Row(
                     children: [
-                      // 아바타 — 등급 링 2.5px, 안쪽 보더는 카드 bg색
-                      Container(
-                        width: 56,
-                        height: 56,
-                        padding: const EdgeInsets.all(2.5),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: tier.ring(isDark),
-                          ),
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                              shape: BoxShape.circle, color: bg.first),
-                          child: Container(
-                            decoration: const BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: AppColors.logoGradient,
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              shape: BoxShape.circle,
-                            ),
-                            clipBehavior: Clip.antiAlias,
-                            child: (profileImageUrl?.isNotEmpty ?? false)
-                                ? Image.network(profileImageUrl!,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => const Icon(
-                                        Icons.person_rounded,
-                                        color: Colors.white,
-                                        size: 24))
-                                : const Icon(Icons.person_rounded,
-                                    color: Colors.white, size: 24),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
+                      GoldAvatar(
+                          size: 56,
+                          isDark: isDark,
+                          photoUrl: widget.profileImageUrl),
+                      const SizedBox(width: 13),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(nickname,
+                            Text(widget.nickname,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w700,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
                                     letterSpacing: -0.3,
                                     color: ink)),
-                            const SizedBox(height: 3),
-                            Row(
+                            const SizedBox(height: 5),
+                            Wrap(
+                              spacing: 5,
+                              runSpacing: 4,
+                              crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
-                                Flexible(child: tierName()),
-                                Text(' · 누적 $total회',
+                                if (widget.crown != null)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: CheerGold.pillBg(isDark),
+                                      borderRadius:
+                                          BorderRadius.circular(999),
+                                    ),
+                                    child: Text(
+                                        '${cheerMonthLabel(widget.crown!.month)} ${widget.crown!.rank}위',
+                                        style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                            color: CheerGold.pillFg(isDark))),
+                                  ),
+                                Text(
+                                    widget.tierName == null
+                                        ? '첫 응원을 기다리고 있어요'
+                                        : '${widget.tierName} · ${widget.total}회',
                                     style: TextStyle(
-                                        fontSize: 11, color: muted)),
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: muted)),
                               ],
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      SizedBox(
-                          width: 104, height: 42, child: tier.car()),
+                      const SizedBox(width: 6),
+                      Icon(Icons.chevron_right_rounded,
+                          size: 18,
+                          color: isDark
+                              ? const Color(0xFF475569)
+                              : const Color(0xFFC9B896)),
                     ],
                   ),
                 ),
@@ -2465,6 +2476,8 @@ class _RouteEngineTileEmbedState extends State<_RouteEngineTileEmbed> {
       leading: SettingsScreenEmbed.settingsIconChip(
           Icons.alt_route_rounded, widget.isDark),
       title: Text('AI 경로 기준',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: Theme.of(context)
               .textTheme
               .titleSmall
@@ -2472,9 +2485,7 @@ class _RouteEngineTileEmbedState extends State<_RouteEngineTileEmbed> {
       subtitle: Text('목적지 경로 미리보기를 계산할 내비',
           style: TextStyle(fontSize: 11.5, color: muted)),
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-        Text(label,
-            style:
-                Theme.of(context).textTheme.bodyMedium?.copyWith(color: muted)),
+        SettingsValue(label, color: muted),
         Padding(
           padding: const EdgeInsets.only(left: 2),
           child: Icon(Icons.chevron_right_rounded, size: 20, color: muted),
@@ -2574,6 +2585,8 @@ class _NavScopeTileEmbedState extends State<_NavScopeTileEmbed> {
       leading: SettingsScreenEmbed.settingsIconChip(
           Icons.turn_sharp_right_rounded, widget.isDark),
       title: Text('길찾기 기본',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: Theme.of(context)
               .textTheme
               .titleSmall
@@ -2581,9 +2594,7 @@ class _NavScopeTileEmbedState extends State<_NavScopeTileEmbed> {
       subtitle: Text('추천 주유소까지만 안내할지, 목적지까지 이어서 안내할지',
           style: TextStyle(fontSize: 11.5, color: muted)),
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-        Text(NavScopePref.label(cur),
-            style:
-                Theme.of(context).textTheme.bodyMedium?.copyWith(color: muted)),
+        SettingsValue(NavScopePref.label(cur), color: muted),
         Padding(
           padding: const EdgeInsets.only(left: 2),
           child: Icon(Icons.chevron_right_rounded, size: 20, color: muted),
@@ -2747,6 +2758,8 @@ class _WidgetOpacityTileState extends State<_WidgetOpacityTile> {
       leading: SettingsScreenEmbed.settingsIconChip(
           Icons.opacity_rounded, widget.isDark),
       title: Text('위젯 배경 투명도',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: Theme.of(context)
               .textTheme
               .titleSmall
@@ -3052,6 +3065,11 @@ class SettingsScreenEmbed extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
             child: _AccountCard(isDark: isDark),
           ),
+          // 응원하기 진입 — 알림 설정보다 위의 강조 카드 (handoff 3 확정)
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 10, 16, 2),
+            child: CheerEntryCard(),
+          ),
           _sectionHeader(context, '차량 설정'),
           settingsCard(isDark, [
             _tile(context, isDark, Icons.directions_car_rounded, '차량 타입',
@@ -3087,13 +3105,11 @@ class SettingsScreenEmbed extends ConsumerWidget {
           ]),
           // AI 추천 관련 설정은 별도 섹션 — '앱 설정' 한 카드에 9개가 몰려 있어
           // 뭐가 어디 있는지 못 찾았다(형 지적).
-          // 개발자 응원하기 — 강제성 없는 순수 응원 코너 (커피 후원은 정책 리스크로 안 넣음)
+          // 개발자 응원하기 — 응원 진입은 위 강조 카드로 올라갔고, 여기엔 리뷰만 남는다.
           _sectionHeader(context, '개발자 응원하기'),
           settingsCard(isDark, [
             _tile(context, isDark, Icons.star_rounded, '스토어 리뷰 남겨주기', '',
                 () => RatingPromptService.openReview()),
-            settingsDivider(isDark),
-            _CheerTile(isDark: isDark),
           ]),
           _sectionHeader(context, 'AI 추천'),
           settingsCard(isDark, [
@@ -3129,13 +3145,13 @@ class SettingsScreenEmbed extends ConsumerWidget {
                   VehicleType.ev => '충전 리포트',
                   VehicleType.both => '유가 · 충전 리포트',
                 },
-                '매주 흐름 분석', () {
+                '', () {
               Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
                   builder: (_) => FuelReportScreen(
                       initialTopic: settings.vehicleType == VehicleType.ev
                           ? 'ev'
                           : 'fuel')));
-            }),
+            }, subtitle: '매주 흐름 분석'),
             settingsDivider(isDark),
             _ReportFabTile(isDark: isDark),
             settingsDivider(isDark),
@@ -3156,11 +3172,10 @@ class SettingsScreenEmbed extends ConsumerWidget {
                     'https://play.google.com/store/apps/details?id=com.dksw.charge')),
             settingsDivider(isDark),
             // 광고 문의는 앱 동작 설정이 아니라 대외 안내라 '앱 설정' 카드에서 분리 (형 지적)
-            _tile(context, isDark, Icons.campaign_rounded, '광고 문의',
-                '앱 지면에 광고를 싣고 싶다면', () {
+            _tile(context, isDark, Icons.campaign_rounded, '광고 문의', '', () {
               Navigator.of(context, rootNavigator: true).push(
                   MaterialPageRoute(builder: (_) => const AdInquiryScreen()));
-            }),
+            }, subtitle: '앱 지면에 광고를 싣고 싶다면'),
             settingsDivider(isDark),
             _tile(context, isDark, Icons.description_outlined, '정책 및 약관', '',
                 () => context.push('/policies')),
@@ -3249,20 +3264,31 @@ class SettingsScreenEmbed extends ConsumerWidget {
       );
 
   Widget _tile(BuildContext context, bool isDark, IconData icon, String title,
-      String value, VoidCallback? onTap) {
+      String value, VoidCallback? onTap,
+      {String? subtitle}) {
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       leading: settingsIconChip(icon, isDark),
       title: Text(title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: Theme.of(context)
               .textTheme
               .titleSmall
               ?.copyWith(fontWeight: FontWeight.w600)),
+      // 설명문은 값(trailing)이 아니라 부제로 — 값 자리에 넣으면 타이틀을 굶긴다.
+      subtitle: subtitle == null
+          ? null
+          : Text(subtitle,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: muted)),
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-        Text(value,
-            style:
-                Theme.of(context).textTheme.bodyMedium?.copyWith(color: muted)),
+        SettingsValue(value, color: muted),
         if (onTap != null)
           Padding(
             padding: const EdgeInsets.only(left: 2),
@@ -3629,80 +3655,6 @@ class _NotifCategoryTileState extends State<_NotifCategoryTile> {
               activeThumbColor: AppColors.gasBlue,
             ),
       ],
-    );
-  }
-}
-
-// ─── 차곡차곡 응원하기 진입 타일 ───
-/// 설정 카드 톤(38px 칩)에 맞추되 하트만 장미색 — '응원' 코너라는 신호.
-/// 뱃지가 있으면 값 자리에 뱃지명을 보여줘서 다시 들어가고 싶게 만든다.
-class _CheerTile extends StatelessWidget {
-  final bool isDark;
-  const _CheerTile({required this.isDark});
-
-  static const _rose = Color(0xFFF43F5E);
-
-  @override
-  Widget build(BuildContext context) {
-    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    return ValueListenableBuilder<int>(
-      valueListenable: CheerService.instance.totalNotifier,
-      builder: (context, total, _) => _tile(context, CheerBadge.of(total), muted),
-    );
-  }
-
-  Widget _tile(BuildContext context, CheerBadge badge, Color muted) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      leading: Container(
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(
-          color: _rose.withValues(alpha: isDark ? 0.20 : 0.10),
-          borderRadius: BorderRadius.circular(11),
-        ),
-        alignment: Alignment.center,
-        child: const Icon(Icons.favorite_rounded, size: 20, color: _rose),
-      ),
-      title: Text('전기차 기름차 응원하기',
-          style: Theme.of(context)
-              .textTheme
-              .titleSmall
-              ?.copyWith(fontWeight: FontWeight.w600)),
-      subtitle: Text('광고 한 편 보면 응원 1개 · 하루 3번',
-          style: TextStyle(fontSize: 11.5, color: muted)),
-      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-        if (badge.level > 0)
-          Container(
-            padding: const EdgeInsets.fromLTRB(7, 3, 9, 3),
-            decoration: BoxDecoration(
-              color: CheerTierTheme.byLevel(badge.level)
-                  .label(isDark)
-                  .withValues(alpha: isDark ? 0.14 : 0.10),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              CheerTierTheme.byLevel(badge.level).silhouette(
-                  CheerTierTheme.byLevel(badge.level).label(isDark),
-                  width: 26,
-                  height: 12),
-              const SizedBox(width: 5),
-              Text(badge.name,
-                  style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.2,
-                      color:
-                          CheerTierTheme.byLevel(badge.level).label(isDark))),
-            ]),
-          ),
-        Padding(
-          padding: const EdgeInsets.only(left: 2),
-          child: Icon(Icons.chevron_right_rounded, size: 20, color: muted),
-        ),
-      ]),
-      onTap: () => Navigator.of(context, rootNavigator: true)
-          .push(MaterialPageRoute(builder: (_) => const CheerScreen())),
     );
   }
 }

@@ -135,7 +135,7 @@ class _PromotionOverlayState extends State<_PromotionOverlay>
                                 letterSpacing: -0.4,
                                 color: ink)),
                         const SizedBox(height: 8),
-                        Text(t.promoSub,
+                        Text(t.promoSubEffective,
                             textAlign: TextAlign.center,
                             style: TextStyle(
                                 fontSize: 13, height: 1.45, color: sub)),

@@ -134,6 +134,8 @@ flutter:
     - assets/social/
     - assets/cheer/
     - assets/logo/oil/
+    # 앱 아이콘 원본 — 상장·공유 카드·프로필 기본 이미지 (handoff 3)
+    - assets/new/app_icon_1024.png
 
   # Pretendard — 한글/영문 통일감을 위해 5단계 weight 번들 (안드로이드 기기간
   # 시스템 폰트 차이 제거). 합계 ~7.5MB.

@@ -14,11 +14,13 @@ class SignupCompleteScreen extends ConsumerStatefulWidget {
   const SignupCompleteScreen({super.key, required this.user});
 
   @override
-  ConsumerState<SignupCompleteScreen> createState() => _SignupCompleteScreenState();
+  ConsumerState<SignupCompleteScreen> createState() =>
+      _SignupCompleteScreenState();
 }
 
 class _SignupCompleteScreenState extends ConsumerState<SignupCompleteScreen> {
-  late final TextEditingController _nick = TextEditingController(text: widget.user.nickname ?? '');
+  late final TextEditingController _nick =
+      TextEditingController(text: widget.user.nickname ?? '');
   final TextEditingController _age = TextEditingController();
   bool _busy = false;
 
@@ -29,12 +31,14 @@ class _SignupCompleteScreenState extends ConsumerState<SignupCompleteScreen> {
     if (g == null || g.isEmpty) return true;
     return g == '10대' || g == '10대 미만';
   }
+
   String? _ageToGroup() {
     final n = int.tryParse(_age.text.trim());
     if (n == null || n < 18 || n > 100) return null; // 만 18세 이상 (Play 타겟연령 일치)
     if (n >= 60) return '60대이상';
     return '${(n ~/ 10) * 10}대'; // 18→10대, 27→20대
   }
+
   bool get _ageOk => !_needAge || _ageToGroup() != null;
 
   Future<void> _onConfirm() async {
@@ -64,7 +68,8 @@ class _SignupCompleteScreenState extends ConsumerState<SignupCompleteScreen> {
     );
     await DkswCore.postConsents(
       consents
-          .map((c) => ConsentChoice(key: c.key, agreed: agreed[c.key] == true, version: c.version))
+          .map((c) => ConsentChoice(
+              key: c.key, agreed: agreed[c.key] == true, version: c.version))
           .toList(),
     );
     if (updated != null) ref.read(authProvider.notifier).setUser(updated);
@@ -90,8 +95,10 @@ class _SignupCompleteScreenState extends ConsumerState<SignupCompleteScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = AppColors.gasBlue;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textPrimary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
     return PopScope(
       canPop: false,
@@ -106,88 +113,127 @@ class _SignupCompleteScreenState extends ConsumerState<SignupCompleteScreen> {
             onPressed: _busy ? null : _cancel,
           ),
         ),
-        body: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+        // 키보드가 올라오면 본문 높이가 줄어드는데 고정 Column + Spacer 라 그만큼 넘쳤다
+        // (나이 입력 포커스 시 BOTTOM OVERFLOWED BY 95 PIXELS). 입력부만 스크롤시키고
+        // 확인 버튼은 키보드 바로 위에 고정한다 — 키보드를 내리지 않고도 누를 수 있다.
+        body: SafeArea(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('회원 정보를 입력해주세요',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: textPrimary)),
-              const SizedBox(height: 8),
-              Text('서비스에서 사용할 닉네임을 정해주세요.',
-                  style: TextStyle(fontSize: 14, color: textSecondary, height: 1.4)),
-              const SizedBox(height: 28),
-              Text('닉네임',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: textSecondary)),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _nick,
-                maxLength: 20,
-                onChanged: (_) => setState(() {}),
-                inputFormatters: [
-                  // 이모티콘·특수문자 차단 — 한글/영문/숫자/공백/._- 만 허용(서버 규칙과 동일).
-                  // ㆍㆎ(U+318D,318E): 천지인 키보드 아래아 점. 조합 중간 문자라 허용해야
-                  // 모음 입력이 되며, 조합 완료 시 완성형 한글로 바뀌어 남지 않음.
-                  FilteringTextInputFormatter.allow(
-                      RegExp(r'[가-힣ㄱ-ㅎㅏ-ㅣㆍㆎa-zA-Z0-9 ._-]')),
-                ],
-                decoration: const InputDecoration(
-                  hintText: '사용할 닉네임',
-                  helperText: '한글·영문·숫자만 (이모티콘·특수문자 불가)',
-                  border: OutlineInputBorder(),
-                  counterText: '',
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('회원 정보를 입력해주세요',
+                          style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: textPrimary)),
+                      const SizedBox(height: 8),
+                      Text('서비스에서 사용할 닉네임을 정해주세요.',
+                          style: TextStyle(
+                              fontSize: 14, color: textSecondary, height: 1.4)),
+                      const SizedBox(height: 28),
+                      Text('닉네임',
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: textSecondary)),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: _nick,
+                        maxLength: 20,
+                        onChanged: (_) => setState(() {}),
+                        inputFormatters: [
+                          // 이모티콘·특수문자 차단 — 한글/영문/숫자/공백/._- 만 허용(서버 규칙과 동일).
+                          // ㆍㆎ(U+318D,318E): 천지인 키보드 아래아 점. 조합 중간 문자라 허용해야
+                          // 모음 입력이 되며, 조합 완료 시 완성형 한글로 바뀌어 남지 않음.
+                          FilteringTextInputFormatter.allow(
+                              RegExp(r'[가-힣ㄱ-ㅎㅏ-ㅣㆍㆎa-zA-Z0-9 ._-]')),
+                        ],
+                        decoration: const InputDecoration(
+                          hintText: '사용할 닉네임',
+                          helperText: '한글·영문·숫자만 (이모티콘·특수문자 불가)',
+                          border: OutlineInputBorder(),
+                          counterText: '',
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(_needAge ? '나이' : '연령대',
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: textSecondary)),
+                      const SizedBox(height: 6),
+                      if (_needAge)
+                        // 소셜이 연령대를 안 줬으면 직접 입력(필수, 18~100).
+                        TextField(
+                          controller: _age,
+                          keyboardType: TextInputType.number,
+                          maxLength: 3,
+                          onChanged: (_) => setState(() {}),
+                          decoration: const InputDecoration(
+                            hintText: '나이 입력 (18~100)',
+                            border: OutlineInputBorder(),
+                            counterText: '',
+                          ),
+                        )
+                      else
+                        // 소셜(네이버/카카오)이 준 연령대 → 디폴트 표시, 수정 불가.
+                        TextFormField(
+                          initialValue: widget.user.ageGroup,
+                          enabled: false,
+                          decoration: const InputDecoration(
+                              border: OutlineInputBorder()),
+                        ),
+                      const SizedBox(height: 6),
+                      Builder(builder: (_) {
+                        final n = int.tryParse(_age.text.trim());
+                        final under18 = _needAge && n != null && n < 18;
+                        return Text(
+                          under18
+                              ? '만 18세 이상만 가입할 수 있어요'
+                              : (_needAge
+                                  ? '연령대 통계용으로만 사용돼요.'
+                                  : '소셜 계정에서 가져온 연령대예요.'),
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: under18 ? Colors.red : textSecondary),
+                        );
+                      }),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 20),
-              Text(_needAge ? '나이' : '연령대',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: textSecondary)),
-              const SizedBox(height: 6),
-              if (_needAge)
-                // 소셜이 연령대를 안 줬으면 직접 입력(필수, 18~100).
-                TextField(
-                  controller: _age,
-                  keyboardType: TextInputType.number,
-                  maxLength: 3,
-                  onChanged: (_) => setState(() {}),
-                  decoration: const InputDecoration(
-                    hintText: '나이 입력 (18~100)',
-                    border: OutlineInputBorder(),
-                    counterText: '',
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed:
+                        (_nick.text.trim().isNotEmpty && _ageOk && !_busy)
+                            ? _onConfirm
+                            : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accent,
+                      disabledBackgroundColor: Colors.grey[300],
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: _busy
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Text('확인',
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white)),
                   ),
-                )
-              else
-                // 소셜(네이버/카카오)이 준 연령대 → 디폴트 표시, 수정 불가.
-                TextFormField(
-                  initialValue: widget.user.ageGroup,
-                  enabled: false,
-                  decoration: const InputDecoration(border: OutlineInputBorder()),
-                ),
-              const SizedBox(height: 6),
-              Builder(builder: (_) {
-                final n = int.tryParse(_age.text.trim());
-                final under18 = _needAge && n != null && n < 18;
-                return Text(
-                  under18
-                      ? '만 18세 이상만 가입할 수 있어요'
-                      : (_needAge ? '연령대 통계용으로만 사용돼요.' : '소셜 계정에서 가져온 연령대예요.'),
-                  style: TextStyle(fontSize: 12, color: under18 ? Colors.red : textSecondary),
-                );
-              }),
-              const Spacer(),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: (_nick.text.trim().isNotEmpty && _ageOk && !_busy) ? _onConfirm : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: accent,
-                    disabledBackgroundColor: Colors.grey[300],
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  child: _busy
-                      ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Text('확인',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
                 ),
               ),
             ],
@@ -212,8 +258,9 @@ class _ConsentSheetState extends State<_ConsentSheet> {
   // 마케팅 채널(앱푸시/문자/이메일) — 마케팅 동의에 종속(표시용, 현재 단일 키).
   static const _channels = ['앱 푸시', '문자', '이메일'];
 
-  bool get _allRequiredChecked =>
-      widget.consents.where((c) => c.required).every((c) => _checked[c.key] == true);
+  bool get _allRequiredChecked => widget.consents
+      .where((c) => c.required)
+      .every((c) => _checked[c.key] == true);
   bool get _allChecked => widget.consents.every((c) => _checked[c.key] == true);
 
   void _toggleAll(bool v) => setState(() {
@@ -226,8 +273,10 @@ class _ConsentSheetState extends State<_ConsentSheet> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = AppColors.gasBlue;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textPrimary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
     final bg = isDark ? AppColors.darkSurface1 : Colors.white;
 
     return Container(
@@ -235,140 +284,185 @@ class _ConsentSheetState extends State<_ConsentSheet> {
         color: bg,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
       ),
-      padding: EdgeInsets.fromLTRB(22, 18, 22, 18 + MediaQuery.of(context).viewPadding.bottom),
+      padding: EdgeInsets.fromLTRB(
+          22, 18, 22, 18 + MediaQuery.of(context).viewPadding.bottom),
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxHeight: MediaQuery.of(context).size.height * 0.9,
         ),
         child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 약관 항목이 많거나 큰 폰트여도 넘치지 않게 스크롤, 가입 버튼은 하단 고정.
-          Flexible(
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-          Text.rich(
-            TextSpan(children: [
-              const TextSpan(text: '서비스 이용을 위해\n'),
-              TextSpan(text: '약관에 동의', style: TextStyle(color: accent)),
-              const TextSpan(text: '해주세요.'),
-            ]),
-            style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, height: 1.35, color: textPrimary),
-          ),
-          const SizedBox(height: 18),
-
-          // 전체 동의
-          InkWell(
-            onTap: () => _toggleAll(!_allChecked),
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(children: [
-                Icon(_allChecked ? Icons.check_circle : Icons.check_circle_outline,
-                    color: _allChecked ? accent : Colors.grey),
-                const SizedBox(width: 10),
-                Text('약관 전체 동의',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: textPrimary)),
-              ]),
-            ),
-          ),
-          const Divider(height: 22),
-
-          // 항목들
-          ...widget.consents.expand((c) {
-            final on = _checked[c.key] == true;
-            final rows = <Widget>[
-              InkWell(
-                onTap: () => setState(() => _checked[c.key] = !on),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 9),
-                  child: Row(children: [
-                    Icon(on ? Icons.check_circle : Icons.check_circle_outline,
-                        size: 22, color: on ? accent : Colors.grey),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text.rich(TextSpan(children: [
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 약관 항목이 많거나 큰 폰트여도 넘치지 않게 스크롤, 가입 버튼은 하단 고정.
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text.rich(
+                      TextSpan(children: [
+                        const TextSpan(text: '서비스 이용을 위해\n'),
                         TextSpan(
-                          text: c.required ? '(필수) ' : '(선택) ',
-                          style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: c.required ? textSecondary : accent),
-                        ),
-                        TextSpan(text: c.title, style: TextStyle(fontSize: 14, color: textPrimary)),
-                      ])),
+                            text: '약관에 동의', style: TextStyle(color: accent)),
+                        const TextSpan(text: '해주세요.'),
+                      ]),
+                      style: TextStyle(
+                          fontSize: 21,
+                          fontWeight: FontWeight.w800,
+                          height: 1.35,
+                          color: textPrimary),
                     ),
-                    if (c.viewUrl != null)
-                      GestureDetector(
-                        onTap: () => showPolicySheet(context, url: c.viewUrl!, title: c.title),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                          child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            Text('보기',
-                                style: TextStyle(
-                                    fontSize: 13,
-                                    color: accent,
-                                    fontWeight: FontWeight.w600,
-                                    decoration: TextDecoration.underline,
-                                    decorationColor: accent)),
-                            Icon(Icons.chevron_right_rounded, size: 16, color: accent),
-                          ]),
-                        ),
-                      ),
-                  ]),
-                ),
-              ),
-            ];
-            // 마케팅이면 채널(앱푸시/문자/이메일) 표시 — 마케팅 동의에 종속
-            if (c.isMarketing) {
-              rows.add(Padding(
-                padding: const EdgeInsets.only(left: 32, bottom: 6),
-                child: Wrap(
-                  spacing: 14,
-                  children: _channels
-                      .map((ch) => Row(mainAxisSize: MainAxisSize.min, children: [
-                            Icon(on ? Icons.check : Icons.check_box_outline_blank,
-                                size: 15, color: on ? accent : Colors.grey),
-                            const SizedBox(width: 3),
-                            Text(ch, style: TextStyle(fontSize: 12, color: textSecondary)),
-                          ]))
-                      .toList(),
-                ),
-              ));
-            }
-            return rows;
-          }),
-                ],
-              ),
-            ),
-          ),
+                    const SizedBox(height: 18),
 
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton(
-              onPressed: _allRequiredChecked ? () => Navigator.of(context).pop(Map<String, bool>.from(_checked)) : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: accent,
-                disabledBackgroundColor: Colors.grey[300],
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              child: Text(
-                _allRequiredChecked ? '동의하고 가입 완료' : '필수 약관에 동의해주세요',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
+                    // 전체 동의
+                    InkWell(
+                      onTap: () => _toggleAll(!_allChecked),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: accent.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(children: [
+                          Icon(
+                              _allChecked
+                                  ? Icons.check_circle
+                                  : Icons.check_circle_outline,
+                              color: _allChecked ? accent : Colors.grey),
+                          const SizedBox(width: 10),
+                          Text('약관 전체 동의',
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: textPrimary)),
+                        ]),
+                      ),
+                    ),
+                    const Divider(height: 22),
+
+                    // 항목들
+                    ...widget.consents.expand((c) {
+                      final on = _checked[c.key] == true;
+                      final rows = <Widget>[
+                        InkWell(
+                          onTap: () => setState(() => _checked[c.key] = !on),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 9),
+                            child: Row(children: [
+                              Icon(
+                                  on
+                                      ? Icons.check_circle
+                                      : Icons.check_circle_outline,
+                                  size: 22,
+                                  color: on ? accent : Colors.grey),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text.rich(TextSpan(children: [
+                                  TextSpan(
+                                    text: c.required ? '(필수) ' : '(선택) ',
+                                    style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: c.required
+                                            ? textSecondary
+                                            : accent),
+                                  ),
+                                  TextSpan(
+                                      text: c.title,
+                                      style: TextStyle(
+                                          fontSize: 14, color: textPrimary)),
+                                ])),
+                              ),
+                              if (c.viewUrl != null)
+                                GestureDetector(
+                                  onTap: () => showPolicySheet(context,
+                                      url: c.viewUrl!, title: c.title),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 4, vertical: 2),
+                                    child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text('보기',
+                                              style: TextStyle(
+                                                  fontSize: 13,
+                                                  color: accent,
+                                                  fontWeight: FontWeight.w600,
+                                                  decoration:
+                                                      TextDecoration.underline,
+                                                  decorationColor: accent)),
+                                          Icon(Icons.chevron_right_rounded,
+                                              size: 16, color: accent),
+                                        ]),
+                                  ),
+                                ),
+                            ]),
+                          ),
+                        ),
+                      ];
+                      // 마케팅이면 채널(앱푸시/문자/이메일) 표시 — 마케팅 동의에 종속
+                      if (c.isMarketing) {
+                        rows.add(Padding(
+                          padding: const EdgeInsets.only(left: 32, bottom: 6),
+                          child: Wrap(
+                            spacing: 14,
+                            children: _channels
+                                .map((ch) => Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                              on
+                                                  ? Icons.check
+                                                  : Icons
+                                                      .check_box_outline_blank,
+                                              size: 15,
+                                              color: on ? accent : Colors.grey),
+                                          const SizedBox(width: 3),
+                                          Text(ch,
+                                              style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: textSecondary)),
+                                        ]))
+                                .toList(),
+                          ),
+                        ));
+                      }
+                      return rows;
+                    }),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: _allRequiredChecked
+                    ? () => Navigator.of(context)
+                        .pop(Map<String, bool>.from(_checked))
+                    : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: accent,
+                  disabledBackgroundColor: Colors.grey[300],
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+                child: Text(
+                  _allRequiredChecked ? '동의하고 가입 완료' : '필수 약관에 동의해주세요',
+                  style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
