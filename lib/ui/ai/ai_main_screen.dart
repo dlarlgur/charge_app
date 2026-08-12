@@ -31,6 +31,7 @@ import 'ai_onboarding_screen.dart';
 import 'widgets/ai_painters.dart';
 import 'widgets/ev_station_detail_sheet.dart';
 import 'widgets/ev_operator_picker.dart';
+import 'widgets/soc_condition_sheet.dart';
 import 'widgets/hero_card.dart';
 import 'widgets/level_edit_sheet.dart';
 import 'widgets/location_picker_sheet.dart';
@@ -492,6 +493,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   static const _kEvChargerTypeKey = 'ai_ev_charger_type';
   static const _kEvFastOutputsKey = 'ai_ev_fast_outputs';
   static const _kGasPrefBrandsKey = 'ai_gas_pref_brands';
+  // 잔량 조건 — 충전소 도착 하한 / 목적지 도착 하한. 서버 SoC 창의 ①③ 에 대응.
+  static const _kEvMinArrivalSocKey = 'ai_ev_min_arrival_soc';
+  static const _kEvDestMinSocKey = 'ai_ev_dest_min_soc';
+  static const _kEvSocUserSetKey = 'ai_ev_soc_user_set';
 
   /// AI 탭 필터 상태를 Hive 에 저장 — 각 토글/시트 적용 지점에서 호출.
   void _saveAiFilters() {
@@ -501,6 +506,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     box.put(_kEvChargerTypeKey, _evChargerType);
     box.put(_kEvFastOutputsKey, _evFastOutputs.toList());
     box.put(_kGasPrefBrandsKey, _preferredGasBrands.toList());
+    box.put(_kEvMinArrivalSocKey, _evMinArrivalSoc);
+    box.put(_kEvDestMinSocKey, _evDestMinSoc);
+    box.put(_kEvSocUserSetKey, _socConditionUserSet);
   }
   bool _evHighwayOnly = true; // 고속도로 충전소만
   bool _gasHighwayOnly = true; // 고속도로 휴게소 주유소만
@@ -517,6 +525,23 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   // 800V 차주의 "200kW+ 만" 니즈용. 서버가 후보 전멸 시 완화하고 speed_relaxed 로 알림.
   final Set<String> _evFastOutputs = {};
   static const _allFastOutputs = ['50', '100', '200', '300'];
+
+  // 잔량 조건 — 사용자가 직접 적용하기 전까지는 요청에 안 싣는다. 서버 원격설정
+  // (ev.min_arrival_soc / ev.dest_soc_safe)이 기본값이라 콘솔에서 무배포 튜닝이 가능한데,
+  // 앱이 하드코딩 값을 매번 보내면 그 튜닝이 죽는다.
+  // 대신 응답의 soc_conditions 로 표시값을 맞춰서 칩이 거짓말하지 않게 한다.
+  int _evMinArrivalSoc = SocConditionSheet.defaultMinArrivalSoc;
+  int _evDestMinSoc = SocConditionSheet.defaultDestMinSoc;
+  bool _socConditionUserSet = false;
+
+  bool get _socConditionCustom =>
+      _socConditionUserSet &&
+      (_evMinArrivalSoc != SocConditionSheet.defaultMinArrivalSoc ||
+          _evDestMinSoc != SocConditionSheet.defaultDestMinSoc);
+
+  // 반폭 타일에 들어가야 해서 최대한 압축 (가로 배치 — 형 지시)
+  String get _socConditionSummary =>
+      '도착 $_evMinArrivalSoc%·목적지 $_evDestMinSoc%';
 
   void _toggleEvFastOutput(String key) {
     setState(() {
@@ -810,6 +835,15 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       ..clear()
       ..addAll(List<String>.from(
           box.get(_kGasPrefBrandsKey, defaultValue: const <String>[])));
+    _evMinArrivalSoc = (box.get(_kEvMinArrivalSocKey,
+            defaultValue: SocConditionSheet.defaultMinArrivalSoc) as num)
+        .round()
+        .clamp(0, 50);
+    _evDestMinSoc = (box.get(_kEvDestMinSocKey,
+            defaultValue: SocConditionSheet.defaultDestMinSoc) as num)
+        .round()
+        .clamp(0, 50);
+    _socConditionUserSet = box.get(_kEvSocUserSetKey, defaultValue: false) == true;
 
     // 선택된 차량 프로필 기준으로 로드
     final vehicle = _readSelectedVehicle(box);
@@ -1960,6 +1994,41 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         ..addAll(result.brands);
     });
     _saveAiFilters();
+  }
+
+  /// 잔량 조건 시트 — 충전소/목적지 도착 시 최소 잔량. 적용 시 바로 저장한다.
+  Future<void> _openSocConditionSheet() async {
+    final vehicle = _readSelectedVehicle(Hive.box(AppConstants.settingsBox));
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? AppColors.darkCard
+          : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => SocConditionSheet(
+        initialMinArrivalSoc: _evMinArrivalSoc,
+        initialDestMinSoc: _evDestMinSoc,
+        // % ↔ km 병기용. 차량 미선택이면 0 이 되어 km 표기만 빠진다.
+        capacity: vehicle?.batteryCapacity ?? 0,
+        efficiency: vehicle?.evEfficiency ?? 0,
+        onSave: (minArrival, destMin) {
+          setState(() {
+            _evMinArrivalSoc = minArrival;
+            _evDestMinSoc = destMin;
+            // 기본값 그대로 적용했으면 '서버 추종' 으로 되돌린다.
+            // 무조건 true 로 두면, 시트를 한 번 열어보고 기본값으로 되돌린 사용자까지
+            // 앱 하드코딩 15/20 에 영구히 고정돼 원격설정 튜닝이 죽는다(복귀 경로 없음).
+            _socConditionUserSet =
+                minArrival != SocConditionSheet.defaultMinArrivalSoc ||
+                    destMin != SocConditionSheet.defaultDestMinSoc;
+          });
+          _saveAiFilters();
+        },
+      ),
+    );
   }
 
   Widget _buildRouteSelector({required bool isEv}) {
@@ -4009,6 +4078,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'batteryCapacityKwh': selectedVehicle.batteryCapacity,
         'efficiencyKmPerKwh': selectedVehicle.evEfficiency,
         'targetSocPercent': selectedVehicle.targetChargePercent, // 목표 충전 %
+        // 잔량 조건 — 사용자가 직접 정했을 때만. 안 보내면 서버 원격설정 기본값이 쓰인다.
+        if (_socConditionUserSet) ...{
+          'minArrivalSocPercent': _evMinArrivalSoc,
+          'destMinSocPercent': _evDestMinSoc,
+        },
         'chargerType': _evChargerType,
         'originLat': startLat,
         'originLng': startLng,
@@ -4036,6 +4110,18 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       if (!mounted) return;
 
       final originLabel = _originName ?? _currentLocationAddress ?? '현재 위치';
+
+      // 사용자가 조건을 직접 안 정했으면 서버가 실제로 쓴 값으로 칩 표시를 맞춘다.
+      // (원격설정으로 기본값을 튜닝했을 때 앱 하드코딩 값이 그대로 보이면 칩이 거짓말한다)
+      final srvCond = data['soc_conditions'];
+      if (!_socConditionUserSet && srvCond is Map) {
+        // 표시값은 클램프하지 않는다 — 슬라이더 범위(0~50)와 별개다.
+        // 원격설정이 50 을 넘으면 칩이 깎인 값을 보여줘 거짓말이 된다.
+        final mn = (srvCond['min_arrival_soc'] as num?)?.round();
+        final dm = (srvCond['dest_min_soc'] as num?)?.round();
+        if (mn != null) _evMinArrivalSoc = mn;
+        if (dm != null) _evDestMinSoc = dm;
+      }
 
       setState(() {
         _isEvResultMode = true;
@@ -6136,6 +6222,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                   : '${tokens.take(2).join(', ')} 외 ${tokens.length - 2}';
                             }(),
                             onTapOperators: _openEvOperatorSheet,
+                            socConditionSummary: _socConditionSummary,
+                            socConditionCustom: _socConditionCustom,
+                            onTapSocConditions:
+                                isEvVehicle ? _openSocConditionSheet : null,
                           ),
                         _buildRouteSelector(isEv: isEvVehicle),
                         const SizedBox(height: 12),

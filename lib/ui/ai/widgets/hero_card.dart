@@ -39,6 +39,10 @@ class HeroCard extends StatelessWidget {
   // 급속 칩이 켜져 있을 때만 하위 칩 행으로 펼쳐진다 (점진 노출).
   final Set<String> fastOutputs;
   final ValueChanged<String>? onToggleFastOutput;
+  // 충전 전용 — 잔량 조건(충전소 도착 하한 / 목적지 도착 하한). 기본값이 아니면 강조 표시.
+  final String socConditionSummary; // 예: "도착 15% · 목적지 20%"
+  final bool socConditionCustom; // 기본값에서 바꿨는지
+  final VoidCallback? onTapSocConditions;
   final Widget? topHandle;
 
   // 선호 브랜드 칩 옵션 (키=pollDivCo, 라벨). 알뜰은 RTO 키 하나로 받고 서버 전송 시 RTX 도 확장.
@@ -79,6 +83,9 @@ class HeroCard extends StatelessWidget {
     this.onTapOperators,
     this.fastOutputs = const <String>{},
     this.onToggleFastOutput,
+    this.socConditionSummary = '',
+    this.socConditionCustom = false,
+    this.onTapSocConditions,
     this.topHandle,
     this.isConnected = false,
     this.isFetching = false,
@@ -317,53 +324,49 @@ class HeroCard extends StatelessWidget {
                     )
                   : const SizedBox(width: double.infinity),
             ),
-          // ── 충전 사업자 (충전 전용) — 선호 조건과 같은 섹션, 탭하면 바텀시트 ──
+          // ── 충전 전용 설정 — 사업자·잔량 조건. 탭하면 바텀시트 ──
+          // 두 행을 세로로 쌓으니 카드가 너무 길어져(형 제보) 반반 타일로 가로 배치.
+          // 잔량 조건이 없으면(비 EV 등) 사업자만 기존 한 줄 행 유지.
           if (isEv) ...[
             const SizedBox(height: 12),
-            InkWell(
-              onTap: onTapOperators,
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
-                decoration: BoxDecoration(
-                  color: operatorCount > 0
-                      ? modeAccentLight(isEv)
-                      : (isDark ? AppColors.darkBg : const Color(0xFFF7F8FA)),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                      color: operatorCount > 0 ? accent : Colors.transparent,
-                      width: 1.2),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.ev_station_rounded, size: 16, color: accent),
-                    const SizedBox(width: 7),
-                    const Text('충전 사업자',
-                        style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                            color: kMute2)),
-                    const Spacer(),
-                    Flexible(
-                      child: Text(
-                        operatorCount > 0 ? operatorSummary : '전체',
-                        textAlign: TextAlign.right,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: operatorCount > 0
-                                ? FontWeight.w700
-                                : FontWeight.w500,
-                            color: operatorCount > 0 ? accent : kMute2),
-                      ),
+            if (onTapSocConditions != null)
+              Row(
+                children: [
+                  Expanded(
+                    child: _settingTile(
+                      isDark: isDark,
+                      accent: accent,
+                      icon: Icons.ev_station_rounded,
+                      label: '충전 사업자',
+                      value: operatorCount > 0 ? operatorSummary : '전체',
+                      highlighted: operatorCount > 0,
+                      onTap: onTapOperators,
                     ),
-                    const SizedBox(width: 2),
-                    Icon(Icons.chevron_right_rounded, size: 18, color: kMute2),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _settingTile(
+                      isDark: isDark,
+                      accent: accent,
+                      icon: Icons.battery_saver_rounded,
+                      label: '잔량 조건',
+                      value: socConditionSummary,
+                      highlighted: socConditionCustom,
+                      onTap: onTapSocConditions,
+                    ),
+                  ),
+                ],
+              )
+            else
+              _settingRow(
+                isDark: isDark,
+                accent: accent,
+                icon: Icons.ev_station_rounded,
+                label: '충전 사업자',
+                value: operatorCount > 0 ? operatorSummary : '전체',
+                highlighted: operatorCount > 0,
+                onTap: onTapOperators,
               ),
-            ),
           ],
           // ── 주유 선호 브랜드 (가스 전용, 복수 선택) ──
           if (!isEv) ...[
@@ -565,6 +568,121 @@ class HeroCard extends StatelessWidget {
         ),
       );
     });
+  }
+
+  /// 반반 가로 배치용 설정 타일 — 위 라벨, 아래 현재값 2줄 구성.
+  /// (한 줄 행은 반폭에서 값이 말줄임으로 다 잘려서 2줄로 바꿨다)
+  Widget _settingTile({
+    required bool isDark,
+    required Color accent,
+    required IconData icon,
+    required String label,
+    required String value,
+    required bool highlighted,
+    required VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+        decoration: BoxDecoration(
+          color: highlighted
+              ? modeAccentLight(isEv)
+              : (isDark ? AppColors.darkBg : const Color(0xFFF7F8FA)),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+              color: highlighted ? accent : Colors.transparent, width: 1.2),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 14, color: accent),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Text(label,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: kMute2)),
+                ),
+                const Icon(Icons.chevron_right_rounded,
+                    size: 16, color: kMute2),
+              ],
+            ),
+            const SizedBox(height: 3),
+            Text(
+              value,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: highlighted
+                      ? accent
+                      : (isDark ? AppColors.darkTextPrimary : kInk2)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 탭하면 바텀시트가 열리는 설정 행 (충전 사업자 / 잔량 조건 공용).
+  /// highlighted=true 면 기본값에서 벗어난 상태 — 강조 테두리 + 액센트 텍스트.
+  Widget _settingRow({
+    required bool isDark,
+    required Color accent,
+    required IconData icon,
+    required String label,
+    required String value,
+    required bool highlighted,
+    required VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+        decoration: BoxDecoration(
+          color: highlighted
+              ? modeAccentLight(isEv)
+              : (isDark ? AppColors.darkBg : const Color(0xFFF7F8FA)),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+              color: highlighted ? accent : Colors.transparent, width: 1.2),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: accent),
+            const SizedBox(width: 7),
+            Text(label,
+                style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: kMute2)),
+            const Spacer(),
+            // 요약이 길면 말줄임 — 좁은 화면에서 행이 밀리지 않도록.
+            Flexible(
+              child: Text(
+                value,
+                textAlign: TextAlign.right,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight:
+                        highlighted ? FontWeight.w700 : FontWeight.w500,
+                    color: highlighted ? accent : kMute2),
+              ),
+            ),
+            const SizedBox(width: 2),
+            const Icon(Icons.chevron_right_rounded, size: 18, color: kMute2),
+          ],
+        ),
+      ),
+    );
   }
 
   // 급속 kW 구간 옵션 (키, 라벨) — 서버 fastOutputs 파라미터와 동일 키.
