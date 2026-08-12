@@ -1,14 +1,18 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
 import '../../data/services/cheer_service.dart';
+import 'car_paint.dart';
 import 'cheer_flow.dart';
 import 'cheer_tier_theme.dart';
 import 'garage_screen.dart';
 
-/// 전기차 기름차 응원하기 — 계기판형 (design_handoff_supporter_badges 확정 시안 3b).
-/// 응원 게이지(반원 계기판) + 오늘의 연료(3칸) + 내 뱃지 카드(→ 개러지).
+/// 전기차 기름차 응원하기 — handoff 2 (CheerMain.html) 확정 시안.
+/// 히어로(내 차 스테이지) + 컬러 존 계기판 카드 + 오늘의 연료 카드.
+/// 광고를 끝까지 보면 에너지 오브가 차로 날아가 게이지를 올리는 리워드 연출이
+/// 화면에서 1회 재생된다(시안 3·4번째 패널).
 class CheerScreen extends StatefulWidget {
   const CheerScreen({super.key});
 
@@ -18,36 +22,39 @@ class CheerScreen extends StatefulWidget {
 
 class _CheerScreenState extends State<CheerScreen>
     with TickerProviderStateMixin {
-  // Single- 이 아닌 이유: 바늘 컨트롤러 외에 ⚡ 비행 연출이 일회성 컨트롤러를
-  // 추가로 만든다 — Single 은 두 번째 생성에서 예외로 죽는다(연출 무반응 원인).
   CheerStatus? _status;
   bool _loading = true;
   bool _failed = false;
   bool _showing = false;
 
-  // 니들 스윕 — 진입·적립 시 이전 값에서 새 값으로 (150ms easeOut, 시안 모션 규칙)
+  /// 리워드 연출 1회 재생 — 시안 타임라인 총 4.7초 (design-spec 표 그대로).
+  late final AnimationController _reward = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: _rewardTotal));
+
+  /// 진입·비연출 갱신용 바늘 스윕.
   late final AnimationController _needleCtrl = AnimationController(
       vsync: this, duration: const Duration(milliseconds: 450));
   double _fillFrom = 0;
   double _fillTo = 0;
-  // 충전 아이콘이 게이지로 빨려들어간 직후엔 바늘이 살짝 튕긴다(elasticOut).
-  Curve _needleCurve = Curves.easeOut;
 
-  // 게이지 위치를 알아야 충전 아이콘을 정확히 그쪽으로 보낸다.
-  final GlobalKey _gaugeKey = GlobalKey();
-  final GlobalKey _ctaKey = GlobalKey();
-  // 적립 직후 값 — 축하 팝업을 닫고 아이콘이 도착한 다음에 바늘에 반영한다.
-  double? _pendingFill;
+  // 연출 중 게이지가 출발할 값 / 도착할 값
+  double _rewardFrom = 0;
+  double _rewardTo = 0;
+  int _rewardFromCount = 0;
+
+  bool get _rewardActive => _reward.isAnimating;
 
   @override
   void initState() {
     super.initState();
+    CarPaintService.instance.init();
     _load();
     CheerService.instance.preload(onChanged: _refresh);
   }
 
   @override
   void dispose() {
+    _reward.dispose();
     _needleCtrl.dispose();
     CheerService.instance.disposeAd();
     super.dispose();
@@ -65,64 +72,51 @@ class _CheerScreenState extends State<CheerScreen>
       _failed = st == null;
       _status = st;
     });
-    if (st != null) _animateTo(st.serverPct / 100);
+    if (st == null) return;
+    // 콘솔 원격설정 승급 임계값 반영 — 등급 판정·해금 표시가 서버 값을 따르게.
+    CheerTierTheme.applyThresholds(st.tierThresholds);
+    _animateTo(st.serverPct / 100);
+    // 로그인 회원이면 계정에 저장된 차 컬러를 따라간다(기기 바뀌어도 유지).
+    CarPaintService.instance.applyServer(st.carPaints,
+        signedIn: await CheerService.instance.signedIn);
   }
 
-  void _animateTo(double target, {bool bounce = false}) {
+  void _animateTo(double target) {
     _fillFrom = _fillTo;
     _fillTo = target.clamp(0.0, 1.0);
-    _needleCurve = bounce ? Curves.elasticOut : Curves.easeOut;
-    _needleCtrl.duration =
-        Duration(milliseconds: bounce ? 900 : 450);
     _needleCtrl.forward(from: 0);
   }
 
-  /// 적립 결과 반영. 광고 직후엔 축하 팝업이 화면을 덮고 있으므로
-  /// 바늘은 움직이지 않고 잡아뒀다가, 충전 아이콘이 도착할 때 함께 움직인다.
-  void _applyStatus(CheerStatus st, {bool defer = false}) {
+  /// 광고를 끝까지 본 뒤 — 값은 즉시 반영하되 게이지 숫자·바늘은 연출에 맡긴다.
+  /// 적립 직전 수치를 잡아둬야 숫자 스왑(이전→이후)이 실제 값으로 돌아간다.
+  void _applyStatus(CheerStatus st) {
     if (!mounted) return;
+    CheerTierTheme.applyThresholds(st.tierThresholds);
+    _rewardFromCount = _status?.serverCount ?? st.serverCount;
     setState(() => _status = st);
-    if (defer) {
-      _pendingFill = st.serverPct / 100;
-    } else {
-      _animateTo(st.serverPct / 100);
-    }
   }
 
-  /// 축하 팝업을 닫으면 충전 아이콘이 게이지로 쓔욱 빨려들어가고,
-  /// 도착하는 순간 바늘이 움찔하며 새 값으로 올라간다.
-  Future<void> _flyChargeBolt() async {
-    final overlay = Overlay.of(context);
-    final gaugeBox =
-        _gaugeKey.currentContext?.findRenderObject() as RenderBox?;
-    final ctaBox = _ctaKey.currentContext?.findRenderObject() as RenderBox?;
-    if (gaugeBox == null || ctaBox == null) {
-      final f = _pendingFill;
-      if (f != null) _animateTo(f, bounce: true);
-      _pendingFill = null;
+  /// 리워드 연출 1회 재생. reduce-motion 이면 건너뛰고 즉시 게이지에 반영한다.
+  Future<void> _playReward(CheerStatus st) async {
+    if (!mounted) return;
+    final target = (st.serverPct / 100).clamp(0.0, 1.0);
+    if (MediaQuery.of(context).disableAnimations) {
+      setState(() {
+        _fillFrom = target;
+        _fillTo = target;
+      });
+      _needleCtrl.value = 1;
       return;
     }
-    // 도착점 = 계기판 바늘 축(시안 viewBox 200×116 기준 hub (100,96)).
-    final gs = gaugeBox.size;
-    final end = gaugeBox.localToGlobal(
-        Offset(gs.width * 0.5, gs.height * (96 / 116) * 0.92));
-    final cs = ctaBox.size;
-    final start = ctaBox.localToGlobal(Offset(cs.width / 2, cs.height / 2));
-
-    final ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 620));
-    late final OverlayEntry entry;
-    entry = OverlayEntry(
-      builder: (_) => _FlyingBolt(anim: ctrl, start: start, end: end),
-    );
-    overlay.insert(entry);
-    await ctrl.forward();
-    entry.remove();
-    ctrl.dispose();
+    _rewardFrom = _fillTo;
+    _rewardTo = target;
+    await _reward.forward(from: 0);
     if (!mounted) return;
-    final f = _pendingFill;
-    _pendingFill = null;
-    _animateTo(f ?? (_status?.serverPct ?? 0) / 100, bounce: true);
+    setState(() {
+      _fillFrom = target;
+      _fillTo = target;
+    });
+    _needleCtrl.value = 1;
   }
 
   Future<void> _watchAd() async {
@@ -130,11 +124,18 @@ class _CheerScreenState extends State<CheerScreen>
     setState(() => _showing = true);
     final started = await runCheerAdFlow(
       context,
-      onStatus: (st) => _applyStatus(st, defer: true),
-      onCelebrationClosed: (_) => _flyChargeBolt(),
+      inlineReward: true, // 감사 시트 대신 화면 안에서 리워드 연출
+      onStatus: _applyStatus,
+      onCelebrationClosed: _playReward,
     );
     if (!started) CheerService.instance.preload(onChanged: _refresh);
     if (mounted) setState(() => _showing = false);
+  }
+
+  void _openGarage() {
+    final st = _status;
+    Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => GarageScreen(initialStatus: st)));
   }
 
   @override
@@ -150,19 +151,24 @@ class _CheerScreenState extends State<CheerScreen>
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: const Text('전기차 기름차 응원하기',
-            style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.3)),
+            style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.3)),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _failed
               ? _retryView(isDark)
               : ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                   children: [
                     if (_status!.yesterdayCount != null) ...[
                       _yesterdayBanner(_status!, isDark),
                       const SizedBox(height: 12),
                     ],
+                    _hero(isDark),
+                    const SizedBox(height: 12),
                     _gaugeCard(isDark),
                     const SizedBox(height: 12),
                     if (_status!.event != null) ...[
@@ -170,13 +176,11 @@ class _CheerScreenState extends State<CheerScreen>
                       const SizedBox(height: 12),
                     ],
                     _fuelCard(isDark),
-                    const SizedBox(height: 12),
-                    _badgeCard(isDark),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 18),
                     Center(
-                      child: Text('광고 수익은 전액 서버 운영비에 보태져요.',
+                      child: Text('광고 수익은 전액 서버 운영비에 보태져요',
                           style: TextStyle(
-                              fontSize: 11, color: CheerDs.faint(isDark))),
+                              fontSize: 10, color: CheerDs.muted(isDark))),
                     ),
                   ],
                 ),
@@ -198,9 +202,10 @@ class _CheerScreenState extends State<CheerScreen>
         ]),
       );
 
+  // 풀업 DS — 카드 radius 14, border 0.5px, 그림자 없음
   BoxDecoration _card(bool isDark) => BoxDecoration(
         color: CheerDs.card(isDark),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: CheerDs.cardBorder(isDark), width: 0.5),
       );
 
@@ -210,7 +215,7 @@ class _CheerScreenState extends State<CheerScreen>
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: CheerDs.ev.withValues(alpha: isDark ? 0.14 : 0.10),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
             color: CheerDs.ev.withValues(alpha: isDark ? 0.30 : 0.20),
             width: 0.5),
@@ -235,67 +240,259 @@ class _CheerScreenState extends State<CheerScreen>
     );
   }
 
-  // ─── 1. 응원 게이지 카드 (반원 계기판) ───
-  Widget _gaugeCard(bool isDark) {
+  // ─── 1. 히어로 — 내 차 스테이지 ───
+  Widget _hero(bool isDark) {
     final st = _status!;
+    final tier = CheerTierTheme.of(st.total) ?? CheerTierTheme.byLevel(1);
+    final owned = CheerTierTheme.of(st.total) != null;
+    final next = CheerTierTheme.nextOf(st.total);
+    final accent = isDark ? const Color(0xFFFDBA74) : const Color(0xFFEA580C);
+
+    // 히어로 뒤 은은한 블루 워시 — 정적 배경으로만 채운다(움직임은 승급·리워드 전용).
     return Container(
-      decoration: _card(isDark),
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 20),
-      child: Column(
-        children: [
-          SizedBox(
-            key: _gaugeKey,
-            width: 230,
-            height: 128,
-            child: AnimatedBuilder(
-              animation: _needleCtrl,
-              builder: (_, __) {
-                final t = _needleCurve.transform(_needleCtrl.value);
-                final fill = _fillFrom + (_fillTo - _fillFrom) * t;
-                return CustomPaint(
-                  painter: _DialGaugePainter(fill: fill, isDark: isDark),
-                );
-              },
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: isDark
+              ? const [Color(0x143B82F6), Color(0x003B82F6)]
+              : const [Color(0xFFEFF6FF), Color(0x00EFF6FF)],
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: _openGarage,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 14, bottom: 4),
+            child: Column(
+              children: [
+                _HeroStage(
+                  tier: tier,
+                  owned: owned,
+                  isDark: isDark,
+                  reward: _reward,
+                  // 시안은 +100 고정이지만 실제 게이지 증가분을 그대로 띄운다
+                  plusLabel:
+                      '+${math.max(1, st.serverCount - _rewardFromCount)}',
+                ),
+                const SizedBox(height: 12),
+                Text(owned ? tier.name : '첫 차를 기다리는 중',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
+                        color: CheerDs.ink(isDark))),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Flexible(
+                      child: Text.rich(
+                        TextSpan(children: [
+                          TextSpan(
+                              text: next == null
+                                  ? '누적 ${st.total}회 · 최고 등급'
+                                  : '누적 ${st.total}회 · ${next.name.replaceAll(' 서포터', '')}까지 ',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: CheerDs.secondary(isDark))),
+                          if (next != null)
+                            TextSpan(
+                                text: '${next.threshold - st.total}회',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: accent)),
+                        ]),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    // 시안에는 없지만 개러지 진입점이 메인에서 사라지면 안 된다.
+                    Icon(Icons.chevron_right_rounded,
+                        size: 16, color: CheerDs.muted(isDark)),
+                  ],
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 10),
-          Text.rich(TextSpan(children: [
-            TextSpan(
-                text: '${st.serverCount}',
-                style: TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                    color: CheerDs.ink(isDark))),
-            TextSpan(
-                text: ' / ${st.serverGoal}',
-                style: TextStyle(fontSize: 14, color: CheerDs.muted(isDark))),
-          ])),
-          const SizedBox(height: 4),
-          Text('오늘의 개발자 응원 게이지',
-              style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: CheerDs.ink(isDark))),
-          const SizedBox(height: 2),
-          Text(_gaugeCopy(st),
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: CheerDs.muted(isDark))),
+        ),
+      ),
+    );
+  }
+
+  // ─── 2. 응원 게이지 카드 (컬러 존 세그먼트 계기판) ───
+  Widget _gaugeCard(bool isDark) {
+    final st = _status!;
+    final k = _uiScale(context); // 큰 폰에서 계기판도 비례해 커진다
+    return Container(
+      decoration: _card(isDark),
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 104 * k,
+            height: 62 * k,
+            child: AnimatedBuilder(
+              animation: Listenable.merge([_needleCtrl, _reward]),
+              builder: (_, __) => CustomPaint(
+                painter: _ZoneGaugePainter(fill: _displayFill, isDark: isDark),
+              ),
+            ),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(height: 22, child: _gaugeCount(st, isDark)),
+                const SizedBox(height: 3),
+                Text('오늘의 응원 게이지',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: CheerDs.ink(isDark))),
+                const SizedBox(height: 3),
+                AnimatedBuilder(
+                  animation: _reward,
+                  builder: (_, __) {
+                    final hot = _rewardActive && _elapsed >= 2500;
+                    return Text(
+                      hot ? '에너지가 도착했어요! 게이지가 올라가요' : _gaugeCopy(st),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        height: 1.35,
+                        fontWeight: hot ? FontWeight.w600 : FontWeight.w400,
+                        color: hot
+                            ? CheerDs.rewardAccent(isDark)
+                            : CheerDs.muted(isDark),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  /// 숫자 스왑 — 연출 2.8s 에 이전 값이 사라지고 새 값이 아래에서 올라온다.
+  Widget _gaugeCount(CheerStatus st, bool isDark) {
+    return AnimatedBuilder(
+      animation: _reward,
+      builder: (_, __) {
+        if (!_rewardActive) {
+          return _countRow(st.serverCount, st.serverGoal, isDark,
+              highlight: false);
+        }
+        final t = Curves.ease.transform(_seg(2800, 600));
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Opacity(
+              opacity: 1 - t,
+              child: _countRow(_rewardFromCount, st.serverGoal, isDark,
+                  highlight: false),
+            ),
+            Opacity(
+              opacity: t,
+              child: Transform.translate(
+                offset: Offset(0, 8 * (1 - t)),
+                child: _countRow(st.serverCount, st.serverGoal, isDark,
+                    highlight: true),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _countRow(int count, int goal, bool isDark,
+      {required bool highlight}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('$count',
+            style: TextStyle(
+                fontSize: 20,
+                height: 1,
+                fontWeight: FontWeight.w800,
+                fontFeatures: const [ui.FontFeature.tabularFigures()],
+                color: highlight
+                    ? CheerDs.rewardAccent(isDark)
+                    : CheerDs.ink(isDark))),
+        const SizedBox(width: 3),
+        Text('/ $goal',
+            style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: CheerDs.slash(isDark))),
+      ],
+    );
+  }
+
+  double get _elapsed => _reward.value * _rewardTotal;
+
+  /// 연출 타임라인의 한 구간을 0~1 로 — [startMs] 에 시작해 [durMs] 동안.
+  double _seg(double startMs, double durMs) =>
+      ((_elapsed - startMs) / durMs).clamp(0.0, 1.0);
+
+  /// 표시할 게이지 채움 — 연출 중이면 바늘이 목표를 지나쳤다가 좌우로
+  /// 흔들리며 자리 잡는다(감쇠 진동 — 형 지시 "와리가리").
+  double get _displayFill {
+    if (_rewardActive) {
+      final t = _needleWiggle(_seg(2600, 1700));
+      // 오버슈트가 게이지 상한을 넘으면 넘는 만큼만 눌러 담는다.
+      // 그냥 clamp(0,1) 하면 목표가 100%(=일일 목표 달성, 가장 축하할 순간)일 때
+      // 진동의 절반이 1.0 에 붙어 연출이 죽는다. 남은 여유폭에 맞춰 진폭만 줄인다.
+      final v = _rewardFrom + (_rewardTo - _rewardFrom) * t;
+      if (v <= 1.0) return v.clamp(0.0, 1.0);
+      final peak = _rewardFrom + (_rewardTo - _rewardFrom) * _kWigglePeak;
+      if (peak <= 1.0) return v.clamp(0.0, 1.0);
+      // 초과분을 [_rewardTo, 1.0] 여유폭으로 선형 압축 — 목표가 정확히 1.0 이면
+      // headroom 이 0 이라 상한에 붙지만, 되돌아오는 아래쪽 진동은 그대로 살아 있다.
+      final headroom = 1.0 - _rewardTo;
+      final excess = (v - _rewardTo) / (peak - _rewardTo); // 0~1
+      return (_rewardTo + headroom * excess).clamp(0.0, 1.0);
+    }
+    final t = Curves.easeOut.transform(_needleCtrl.value);
+    return (_fillFrom + (_fillTo - _fillFrom) * t).clamp(0.0, 1.0);
+  }
+
+  /// _needleWiggle 의 최대값(t≈0.25) — 오버슈트 압축 계산에 쓴다.
+  static const double _kWigglePeak = 1.323;
+
+  /// 감쇠 진동 — 목표를 크게 넘었다가 두어 번 되돌아오며 정착 (0→1, 최대 ~1.32).
+  static double _needleWiggle(double t) {
+    if (t <= 0) return 0;
+    if (t >= 1) return 1;
+    return 1 - math.exp(-4.2 * t) * math.cos(t * math.pi * 3.5);
   }
 
   /// 게이지 아래 한 줄 — 구간마다 말이 달라진다(형 지시).
   /// 0%에 "0% 채워졌어요"는 초라해서, 시작 전엔 아예 다른 문장으로 연다.
   String _gaugeCopy(CheerStatus st) {
     final pct = st.serverPct;
-    if (st.serverCount == 0) return '오늘의 게이지가 비어 있어요. 첫 응원을 기다려요';
-    if (pct >= 100) return '오늘 목표 달성! 모두의 응원 ${st.serverCount}개, 고마워요';
-    if (pct >= 80) return '거의 다 왔어요 — ${pct.round()}% 채워졌어요';
-    if (pct >= 50) return '절반을 넘었어요 — ${pct.round()}% 채워졌어요';
-    if (pct >= 20) return '차오르는 중 — 모두의 응원으로 ${pct.round()}%';
-    return '이제 시동을 걸었어요 — ${pct.round()}% 채워졌어요';
+    if (st.serverCount == 0) return '첫 응원을 기다리고 있어요';
+    if (pct >= 100) return '오늘 목표 달성! 고마워요';
+    if (pct >= 80) return '거의 다 왔어요 · ${pct.round()}%';
+    if (pct >= 50) return '절반을 넘었어요 · ${pct.round()}%';
+    if (pct >= 20) return '차오르는 중 · ${pct.round()}%';
+    return '이제 시동을 걸었어요 · ${pct.round()}%';
   }
 
   /// 월간 랭킹 이벤트 카드 — 서버 원격설정으로 켤 때만 나타난다(앱 배포 불필요).
@@ -305,39 +502,38 @@ class _CheerScreenState extends State<CheerScreen>
     return Container(
       decoration: BoxDecoration(
         color: CheerDs.card(isDark),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
             color: gold.withValues(alpha: isDark ? 0.35 : 0.28), width: 0.8),
       ),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Icon(Icons.emoji_events_rounded, size: 17, color: gold),
+            Icon(Icons.emoji_events_rounded, size: 16, color: gold),
             const SizedBox(width: 7),
             Expanded(
               child: Text(ev.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 13,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.2,
                       color: CheerDs.ink(isDark))),
             ),
             if (ev.reward.isNotEmpty)
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: gold.withValues(alpha: isDark ? 0.18 : 0.12),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(ev.reward,
                     style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
                         color: gold)),
               ),
           ]),
@@ -345,11 +541,11 @@ class _CheerScreenState extends State<CheerScreen>
             const SizedBox(height: 6),
             Text(ev.desc,
                 style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11.5,
                     height: 1.45,
                     color: CheerDs.secondary(isDark))),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: 11),
           for (final r in ev.top)
             Padding(
               padding: const EdgeInsets.only(bottom: 6),
@@ -358,7 +554,7 @@ class _CheerScreenState extends State<CheerScreen>
                   width: 22,
                   child: Text('${r.rank}',
                       style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11.5,
                           fontWeight: FontWeight.w800,
                           color: r.rank == 1 ? gold : CheerDs.muted(isDark))),
                 ),
@@ -367,14 +563,13 @@ class _CheerScreenState extends State<CheerScreen>
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight:
-                              r.me ? FontWeight.w800 : FontWeight.w600,
+                          fontSize: 12,
+                          fontWeight: r.me ? FontWeight.w800 : FontWeight.w600,
                           color: r.me ? CheerDs.gas : CheerDs.ink(isDark))),
                 ),
                 Text('${r.count}회',
                     style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 11.5,
                         fontWeight: FontWeight.w700,
                         color: CheerDs.secondary(isDark))),
               ]),
@@ -389,7 +584,7 @@ class _CheerScreenState extends State<CheerScreen>
             child: Row(children: [
               Text('내 기록',
                   style: TextStyle(
-                      fontSize: 12, color: CheerDs.secondary(isDark))),
+                      fontSize: 11.5, color: CheerDs.secondary(isDark))),
               const Spacer(),
               Flexible(
                 child: Text(
@@ -400,7 +595,7 @@ class _CheerScreenState extends State<CheerScreen>
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 11.5,
                         fontWeight: FontWeight.w700,
                         color: CheerDs.ink(isDark))),
               ),
@@ -411,146 +606,154 @@ class _CheerScreenState extends State<CheerScreen>
     );
   }
 
-  // ─── 2. 오늘의 연료 카드 ───
+  // ─── 3. 오늘의 연료 카드 ───
   Widget _fuelCard(bool isDark) {
     final st = _status!;
     final svc = CheerService.instance;
     final remaining = (st.dailyLimit - st.today).clamp(0, st.dailyLimit);
     final done = st.doneToday;
+    final ctaEnabled = !done && !_showing && svc.adReady;
 
     return Container(
       decoration: _card(isDark),
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
             Text('오늘의 연료',
                 style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
                     color: CheerDs.ink(isDark))),
             const Spacer(),
-            Text.rich(TextSpan(children: [
-              TextSpan(
-                  text: '${st.today}',
-                  style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: CheerDs.gas)),
-              TextSpan(
-                  text: ' / ${st.dailyLimit}',
-                  style: TextStyle(
-                      fontSize: 12, color: CheerDs.secondary(isDark))),
-            ])),
-          ]),
-          const SizedBox(height: 12),
-          // 연료바 3칸 — 채운 칸 파랑 그라데이션, 빈 칸 iconBg
-          Row(
-            children: [
-              for (var i = 0; i < st.dailyLimit; i++) ...[
-                if (i > 0) const SizedBox(width: 6),
-                Expanded(
-                  child: Container(
-                    height: 10,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(999),
-                      gradient: i < st.today
-                          ? const LinearGradient(
-                              colors: [Color(0xFF3B82F6), Color(0xFF60A5FA)])
-                          : null,
-                      color: i < st.today ? null : CheerDs.iconBg(isDark),
-                    ),
-                  ),
-                ),
-              ],
+            // 연료 도트 — 채운 칸은 블루 + 글로우, 빈 칸은 1.5px 링
+            for (var i = 0; i < st.dailyLimit; i++) ...[
+              if (i > 0) const SizedBox(width: 5),
+              _FuelDot(
+                filled: i < st.today,
+                // 방금 채워진 칸은 연출 2.9초에 톡 점등
+                justLit: i == st.today - 1,
+                isDark: isDark,
+                reward: _reward,
+                seg: _seg,
+                rewardActive: () => _rewardActive,
+              ),
             ],
-          ),
-          const SizedBox(height: 14),
+            const SizedBox(width: 3),
+            Text('${st.today}/${st.dailyLimit}',
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: isDark
+                        ? const Color(0xFF60A5FA)
+                        : const Color(0xFF3B82F6))),
+          ]),
+          const SizedBox(height: 11),
           Row(children: [
             Expanded(
-                child: SizedBox(
-            key: _ctaKey,
-            height: 52,
-            child: FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor:
-                    done ? CheerDs.iconBg(isDark) : CheerDs.gas,
-                disabledBackgroundColor: CheerDs.iconBg(isDark),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-                padding: EdgeInsets.zero,
-              ),
-              onPressed: done || _showing || !svc.adReady ? null : _watchAd,
-              child: done
-                  ? Text('오늘 응원 만땅!',
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: CheerDs.muted(isDark)))
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (_showing ||
-                            (!svc.adReady &&
-                                svc.adLoading &&
-                                !svc.adLoadFailed)) ...[
-                          const SizedBox(
-                              width: 15,
-                              height: 15,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white)),
-                          const SizedBox(width: 8),
-                        ],
-                        Text(
-                            _showing
-                                ? '광고 재생 중…'
-                                : svc.adReady
-                                    ? '광고 보고 응원하기'
-                                    : svc.adLoadFailed
-                                        ? '광고를 못 불러왔어요'
-                                        : '광고 불러오는 중…',
-                            style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white)),
-                        if (!_showing && svc.adReady) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.18),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text('$remaining번 남음',
-                                style: const TextStyle(
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white)),
-                          ),
-                        ],
-                      ],
+              child: SizedBox(
+                height: 48,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    gradient: ctaEnabled || _showing
+                        ? const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: CheerDs.ctaBlue)
+                        : null,
+                    color:
+                        ctaEnabled || _showing ? null : CheerDs.iconBg(isDark),
+                  ),
+                  child: TextButton(
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
+                    onPressed: ctaEnabled ? _watchAd : null,
+                    child: done
+                        ? Text('오늘 응원 만땅!',
+                            style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: CheerDs.muted(isDark)))
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (_showing ||
+                                  (!svc.adReady &&
+                                      svc.adLoading &&
+                                      !svc.adLoadFailed)) ...[
+                                SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: _showing
+                                          ? Colors.white
+                                          : CheerDs.muted(isDark)),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                              Flexible(
+                                child: Text(
+                                    _showing
+                                        ? '광고 재생 중…'
+                                        : svc.adReady
+                                            ? '광고 보고 응원하기'
+                                            : svc.adLoadFailed
+                                                ? '광고를 못 불러왔어요'
+                                                : '광고 불러오는 중…',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: ctaEnabled || _showing
+                                            ? Colors.white
+                                            : CheerDs.muted(isDark))),
+                              ),
+                              if (ctaEnabled) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.22),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Text('$remaining번 남음',
+                                      style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          color: Colors.white)),
+                                ),
+                              ],
+                            ],
+                          ),
+                  ),
+                ),
+              ),
             ),
-            )),
             // 로드가 오래 걸리거나 실패했을 때 직접 푸는 갱신 버튼 (형 요청).
             if (!done && !_showing && !svc.adReady) ...[
               const SizedBox(width: 8),
               SizedBox(
-                width: 52,
-                height: 52,
+                width: 48,
+                height: 48,
                 child: Material(
                   color: CheerDs.iconBg(isDark),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(12),
                     onTap: () {
                       CheerService.instance.retryLoad(onChanged: _refresh);
                       if (mounted) setState(() {});
                     },
                     child: Icon(Icons.refresh_rounded,
-                        size: 22,
+                        size: 21,
                         color: svc.adLoadFailed
                             ? CheerDs.gas
                             : CheerDs.muted(isDark)),
@@ -559,119 +762,295 @@ class _CheerScreenState extends State<CheerScreen>
               ),
             ],
           ]),
-          const SizedBox(height: 9),
+          const SizedBox(height: 11),
           Center(
-            child: Text(
-                done ? '내일 또 응원할 수 있어요' : '3칸을 다 채우면 "오늘 응원 만땅!"',
-                style:
-                    TextStyle(fontSize: 12, color: CheerDs.muted(isDark))),
+            child: Text(done ? '내일 또 응원할 수 있어요' : '3칸을 다 채우면 "오늘 응원 만땅!"',
+                style: TextStyle(fontSize: 10.5, color: CheerDs.muted(isDark))),
           ),
         ],
       ),
     );
   }
+}
 
-  // ─── 3. 내 뱃지 카드 → 개러지 ───
-  Widget _badgeCard(bool isDark) {
-    final st = _status!;
-    final tier = CheerTierTheme.of(st.total);
-    final next = CheerTierTheme.nextOf(st.total);
+const int _rewardTotal = 4700;
 
-    double progress = 1;
-    if (next != null) {
-      final from = tier?.threshold ?? 0;
-      progress = ((st.total - from) / (next.threshold - from)).clamp(0.0, 1.0);
-    }
+/// 화면 폭 기준 보정 배율 — 기준 390dp. 큰 폰에서 히어로 차·게이지 계기판이
+/// 상대적으로 작아 보이지 않게 최대 1.25배까지 키운다(형 요청 반응형).
+double _uiScale(BuildContext context) =>
+    (MediaQuery.sizeOf(context).width / 390).clamp(1.0, 1.25).toDouble();
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: () => Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => GarageScreen(initialStatus: st))),
-        child: Ink(
-          decoration: _card(isDark),
-          padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 96,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? const Color(0x0FFFFFFF)
-                          : CheerDs.iconBgL,
-                      borderRadius: BorderRadius.circular(12),
+/// 히어로 스테이지 — 정적인 글로우 + 차. 움직임은 리워드 연출(오브 비행·차 히트·
+/// 링 파동·+100) 1회 재생 때만 나온다. 상시 pulse·트윙클은 승급 연출과 겹쳐 보여
+/// 뺐다(형 지시: 메인에서 차 스테이지가 움직이면 안 된다).
+class _HeroStage extends StatelessWidget {
+  final CheerTierTheme tier;
+  final bool owned;
+  final bool isDark;
+  final AnimationController reward;
+  final String plusLabel;
+
+  const _HeroStage({
+    required this.tier,
+    required this.owned,
+    required this.isDark,
+    required this.reward,
+    required this.plusLabel,
+  });
+
+  /// 고정 스테이지 폭 — 차(200px)와 같다. 모든 좌표는 이 폭 기준.
+  static const double _stageW = 200;
+
+  // 오브 3개 — (시작 오프셋, 3차 베지어 제어점·끝점, 크기, 색) 시안 offset-path 그대로
+  static const _orbs = [
+    (
+      Offset(-110, 100),
+      [Offset(40, -70), Offset(90, -60), Offset(118, -38)],
+      14.0,
+      Color(0xFFBFDBFE),
+      Color(0xFF3B82F6),
+    ),
+    (
+      Offset(-114, 108),
+      [Offset(30, -90), Offset(100, -70), Offset(124, -44)],
+      10.0,
+      Color(0xFFA7F3D0),
+      Color(0xFF10B981),
+    ),
+    (
+      Offset(-106, 104),
+      [Offset(50, -50), Offset(80, -80), Offset(114, -34)],
+      8.0,
+      Color(0xFFFDE68A),
+      Color(0xFFF59E0B),
+    ),
+  ];
+
+  static Offset _cubic(Offset p0, List<Offset> c, double t) {
+    final p1 = p0 + c[0], p2 = p0 + c[1], p3 = p0 + c[2];
+    final u = 1 - t;
+    return p0 * (u * u * u) +
+        p1 * (3 * u * u * t) +
+        p2 * (3 * u * t * t) +
+        p3 * (t * t * t);
+  }
+
+  double _seg(double startMs, double durMs) =>
+      ((reward.value * _rewardTotal - startMs) / durMs).clamp(0.0, 1.0);
+
+  @override
+  Widget build(BuildContext context) {
+    // 화면폭 기준 배치(maxWidth/2)는 광고 복귀 직후처럼 제약이 출렁이는 순간
+    // 차가 옆으로 튀는 사고가 있었다(형 제보 스크린샷). 고정폭 스테이지를
+    // Center 로 앉혀 어떤 폭에서도 배치가 흔들리지 않게 하고,
+    // 큰 폰에서는 스테이지째 확대한다.
+    const cx = _stageW / 2;
+    final k = _uiScale(context);
+    return SizedBox(
+      height: 104 * k,
+      child: Center(
+        child: Transform.scale(
+          scale: k,
+          child: SizedBox(
+            width: _stageW,
+            height: 104,
+            child: AnimatedBuilder(
+              animation: reward,
+              builder: (_, __) {
+                final active = reward.isAnimating;
+                // 차 히트 — 2.5s 부터 0.9s, 0.42 지점이 정점 (brightness 1.55 / scale 1.05)
+                final hp = _seg(2500, 900);
+                final hit = !active
+                    ? 0.0
+                    : (hp < 0.42 ? hp / 0.42 : (1 - hp) / 0.58).clamp(0.0, 1.0);
+
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    // 오렌지(등급색) 글로우 — 정적
+                    Positioned(
+                      left: cx - 100,
+                      top: 10,
+                      child: Container(
+                        width: 200,
+                        height: 104,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(colors: [
+                            tier.heroGlow
+                                .withValues(alpha: isDark ? 0.26 : 0.20),
+                            tier.heroGlow.withValues(alpha: 0),
+                          ]),
+                        ),
+                      ),
                     ),
-                    padding: const EdgeInsets.all(4),
-                    child: tier != null
-                        ? tier.car()
-                        : CheerTierTheme.byLevel(1).silhouette(
-                            CheerDs.silhouette(isDark)),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(tier?.name ?? '첫 차를 기다리는 중',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: CheerDs.ink(isDark))),
-                        const SizedBox(height: 3),
-                        Text(
-                            st.streak >= 2
-                                ? '누적 응원 ${st.total}회 · ${st.streak}일 연속'
-                                : '누적 응원 ${st.total}회',
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: CheerDs.secondary(isDark))),
-                      ],
+                    // 링 파동 (2.6s+1.7s)
+                    if (active)
+                      Positioned(
+                        left: cx - 60,
+                        top: -16,
+                        child: IgnorePointer(child: _ring()),
+                      ),
+                    // 차 + 바닥 그림자
+                    Positioned(
+                      left: cx - 100,
+                      top: 14,
+                      child: SizedBox(
+                        width: 200,
+                        height: 80,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            if (hit > 0)
+                              Opacity(
+                                opacity: hit,
+                                child: Container(
+                                  width: 190,
+                                  height: 90,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: RadialGradient(colors: [
+                                      CheerDs.gas.withValues(alpha: 0.55),
+                                      CheerDs.gas.withValues(alpha: 0),
+                                    ]),
+                                  ),
+                                ),
+                              ),
+                            Transform.scale(
+                              scale: 1 + 0.05 * hit,
+                              child: _carArt(hit),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                  Icon(Icons.chevron_right_rounded,
-                      size: 22, color: CheerDs.faint(isDark)),
-                ],
-              ),
-              const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(999),
-                child: SizedBox(
-                  height: 6,
-                  child: Stack(children: [
-                    Container(color: CheerDs.iconBg(isDark)),
-                    FractionallySizedBox(
-                      widthFactor: progress == 0 ? 0.015 : progress,
-                      child: Container(color: CheerDs.gas),
+                    Positioned(
+                      left: cx - 80,
+                      top: 87,
+                      child: Container(
+                        width: 160,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(999),
+                          gradient: RadialGradient(colors: [
+                            isDark
+                                ? const Color(0x99000000)
+                                : const Color(0x260F172A),
+                            const Color(0x00000000),
+                          ]),
+                        ),
+                      ),
                     ),
-                  ]),
-                ),
+                    // 에너지 오브 3개 (0s 시작, 1.7s, stagger 0.5s)
+                    if (active)
+                      for (var i = 0; i < _orbs.length; i++) _orb(cx, i),
+                    // +100 플로팅 (2.9s+1.8s)
+                    if (active) _plus100(cx),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 미보유(첫 응원 전)면 실루엣, 보유면 내가 고른 바디 컬러. 히트 순간엔 밝기 1→1.55.
+  Widget _carArt(double hit) {
+    final car = owned
+        ? CarImage(tier: tier, width: 200, height: 80)
+        : tier.silhouette(CheerDs.silhouette(isDark), width: 200, height: 80);
+    if (hit <= 0) return car;
+    final b = 1 + 0.55 * hit;
+    return ColorFiltered(
+      colorFilter: ColorFilter.matrix(<double>[
+        b, 0, 0, 0, 0, //
+        0, b, 0, 0, 0, //
+        0, 0, b, 0, 0, //
+        0, 0, 0, 1, 0,
+      ]),
+      child: car,
+    );
+  }
+
+  Widget _ring() {
+    final t = Curves.easeOut.transform(_seg(2600, 1700));
+    final op = t < 0.3 ? t / 0.3 * 0.9 : 0.9 * (1 - (t - 0.3) / 0.7);
+    return Opacity(
+      opacity: op.clamp(0.0, 1.0),
+      child: Transform.scale(
+        scale: 0.3 + 1.2 * t,
+        child: Container(
+          width: 120,
+          height: 120,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+                color: CheerDs.gas.withValues(alpha: 0.55), width: 2),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _orb(double cx, int i) {
+    final o = _orbs[i];
+    final t = Curves.easeIn.transform(_seg(i * 500, 1700));
+    if (t <= 0 || t >= 1) return const SizedBox.shrink();
+    final p = _cubic(o.$1, o.$2, t);
+    final size = o.$3;
+    final op = t < 0.12 ? t / 0.12 : (t > 0.9 ? (1 - t) / 0.1 : 1.0);
+    return Positioned(
+      left: cx + p.dx - size / 2,
+      top: p.dy - size / 2,
+      child: IgnorePointer(
+        child: Opacity(
+          opacity: op.clamp(0.0, 1.0),
+          child: Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                center: const Alignment(-0.3, -0.4),
+                colors: [o.$4, o.$5],
               ),
-              const SizedBox(height: 8),
-              Text.rich(
-                TextSpan(children: [
-                  TextSpan(
-                      text: next != null
-                          ? '다음 등급 「${next.name}」까지 '
-                          : '최고 등급 달성! ',
-                      style: TextStyle(
-                          fontSize: 12, color: CheerDs.secondary(isDark))),
-                  if (next != null)
-                    TextSpan(
-                        text: '${next.threshold - st.total}회',
-                        style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: CheerDs.gas)),
-                ]),
-              ),
-            ],
+              boxShadow: [
+                BoxShadow(
+                    color: o.$5.withValues(alpha: 0.65),
+                    blurRadius: size * 0.9,
+                    spreadRadius: size * 0.2),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _plus100(double cx) {
+    final t = Curves.easeOut.transform(_seg(2900, 1800));
+    if (t <= 0 || t >= 1) return const SizedBox.shrink();
+    // 6px 아래에서 솟아 -30px 까지 올라가며 사라진다
+    final dy = t < 0.28 ? 6 - 16 * (t / 0.28) : -10 - 20 * ((t - 0.28) / 0.72);
+    final op = t < 0.28 ? t / 0.28 : (t > 0.5 ? 1 - (t - 0.5) / 0.5 : 1.0);
+    final sc =
+        t < 0.28 ? 0.7 + 0.3 * (t / 0.28) : 1 - 0.15 * ((t - 0.28) / 0.72);
+    return Positioned(
+      left: cx + 2,
+      top: 26 + dy,
+      child: IgnorePointer(
+        child: Opacity(
+          opacity: op.clamp(0.0, 1.0),
+          child: Transform.scale(
+            scale: sc,
+            child: Text(plusLabel,
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    height: 1,
+                    color: CheerDs.rewardAccent(isDark))),
           ),
         ),
       ),
@@ -679,181 +1058,196 @@ class _CheerScreenState extends State<CheerScreen>
   }
 }
 
-/// 반원 계기판 — 시안 SVG(3b, viewBox 200×116)를 좌표 그대로 옮김.
-/// 틱 5개(45° 간격) + 트랙/그라데이션 호(13, round cap) + 테이퍼 삼각 니들 + 허브.
-class _DialGaugePainter extends CustomPainter {
-  final double fill; // 0~1
+/// 연료 도트 1칸 — 채워지면 블루 + 글로우. 방금 채워진 칸은 연출 2.9초에 점등.
+class _FuelDot extends StatelessWidget {
+  final bool filled;
+  final bool justLit;
   final bool isDark;
-  const _DialGaugePainter({required this.fill, required this.isDark});
+  final AnimationController reward;
+  final double Function(double, double) seg;
+  final bool Function() rewardActive;
 
-  @override
-  void paint(Canvas canvas, Size size) {
-    // 시안 좌표계 200×116 → 화면 크기로 균일 스케일
-    final k = math.min(size.width / 200, size.height / 116);
-    final ox = (size.width - 200 * k) / 2;
-    final oy = (size.height - 116 * k) / 2;
-    Offset pt(double x, double y) => Offset(ox + x * k, oy + y * k);
-    final center = pt(100, 100);
-
-    // 틱 5개 — (14,100)→(24,100) 을 0/45/90/135/180° 회전 (시안 그대로)
-    final tick = Paint()
-      ..color = CheerDs.cardBorderStrong(isDark)
-      ..strokeWidth = 2 * k
-      ..strokeCap = StrokeCap.butt;
-    for (final deg in [0, 45, 90, 135, 180]) {
-      final a = math.pi + deg * math.pi / 180; // 왼쪽(180°)부터 시계방향
-      final dir = Offset(math.cos(a), math.sin(a));
-      canvas.drawLine(
-          center + dir * (86 * k), center + dir * (76 * k), tick);
-    }
-
-    // 트랙 (r70, 13px round cap)
-    final rect = Rect.fromCircle(center: center, radius: 70 * k);
-    canvas.drawArc(
-      rect,
-      math.pi,
-      math.pi,
-      false,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 13 * k
-        ..strokeCap = StrokeCap.round
-        ..color = CheerDs.iconBg(isDark),
-    );
-
-    // 채움 호 — #3B82F6→#10B981 (시안 arcG)
-    final sweep = math.pi * fill.clamp(0.0, 1.0);
-    if (sweep > 0.01) {
-      canvas.drawArc(
-        rect,
-        math.pi,
-        sweep,
-        false,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 13 * k
-          ..strokeCap = StrokeCap.round
-          ..shader = SweepGradient(
-            startAngle: math.pi,
-            endAngle: math.pi * 2,
-            colors: const [CheerDs.gas, CheerDs.ev],
-          ).createShader(rect),
-      );
-    }
-
-    // E / F — (20,115) (173,115), 11px/700 text-muted
-    final tpStyle = TextStyle(
-        fontSize: 11 * k,
-        fontWeight: FontWeight.w700,
-        color: CheerDs.muted(isDark));
-    void label(String t, double x, double y) {
-      final tp = TextPainter(
-          text: TextSpan(text: t, style: tpStyle),
-          textDirection: TextDirection.ltr)
-        ..layout();
-      // SVG text 는 baseline 기준 — baseline 근사(높이의 0.8)
-      tp.paint(canvas, pt(x, y) - Offset(0, tp.height * 0.8));
-    }
-
-    label('E', 20, 115);
-    label('F', 173, 115);
-
-    // 니들 — 테이퍼 삼각형 M100 96 L42 100 L100 104 Z, rotate(fill×180°)
-    canvas.save();
-    canvas.translate(center.dx, center.dy);
-    canvas.rotate(math.pi * fill.clamp(0.0, 1.0));
-    canvas.translate(-center.dx, -center.dy);
-    final needle = Path()
-      ..moveTo(pt(100, 96).dx, pt(100, 96).dy)
-      ..lineTo(pt(42, 100).dx, pt(42, 100).dy)
-      ..lineTo(pt(100, 104).dx, pt(100, 104).dy)
-      ..close();
-    canvas.drawPath(needle, Paint()..color = CheerDs.amber);
-    canvas.restore();
-
-    // 허브 — r7 카드색 + 앰버 스트로크 3
-    canvas.drawCircle(
-        center, 7 * k, Paint()..color = CheerDs.cardSolid(isDark));
-    canvas.drawCircle(
-      center,
-      7 * k,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3 * k
-        ..color = CheerDs.amber,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_DialGaugePainter old) =>
-      old.fill != fill || old.isDark != isDark;
-}
-
-
-/// 충전 아이콘이 CTA 에서 계기판으로 빨려들어가는 연출.
-/// 살짝 위로 솟았다가 게이지로 내리꽂히고(2차 베지어), 도착 직전에 작아지며 사라진다.
-class _FlyingBolt extends StatelessWidget {
-  final Animation<double> anim;
-  final Offset start;
-  final Offset end;
-  const _FlyingBolt(
-      {required this.anim, required this.start, required this.end});
+  const _FuelDot({
+    required this.filled,
+    required this.justLit,
+    required this.isDark,
+    required this.reward,
+    required this.seg,
+    required this.rewardActive,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // 제어점을 두 점 사이 위쪽으로 — 포물선을 그리며 날아간다.
-    final ctrl = Offset(
-      (start.dx + end.dx) / 2 + (end.dx - start.dx) * 0.15,
-      math.min(start.dy, end.dy) - 90,
-    );
     return AnimatedBuilder(
-      animation: anim,
+      animation: reward,
       builder: (_, __) {
-        final t = Curves.easeInOutCubic.transform(anim.value);
-        final inv = 1 - t;
-        final pos = Offset(
-          inv * inv * start.dx + 2 * inv * t * ctrl.dx + t * t * end.dx,
-          inv * inv * start.dy + 2 * inv * t * ctrl.dy + t * t * end.dy,
-        );
-        // 출발에서 튀어오르고(1.0→1.25) 도착에서 빨려들어간다(→0.35)
-        final scale = t < 0.25
-            ? 1.0 + t * 1.0
-            : 1.25 - ((t - 0.25) / 0.75) * 0.9;
-        final opacity = t < 0.12 ? t / 0.12 : (t > 0.88 ? (1 - t) / 0.12 : 1.0);
-        return Positioned(
-          left: pos.dx - 22,
-          top: pos.dy - 22,
-          child: IgnorePointer(
-            child: Opacity(
-              opacity: opacity.clamp(0.0, 1.0),
-              child: Transform.scale(
-                scale: scale.clamp(0.2, 1.3),
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const LinearGradient(
-                      colors: [CheerDs.ev, CheerDs.gas],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    boxShadow: [
+        final blue = isDark ? const Color(0xFF60A5FA) : const Color(0xFF3B82F6);
+        // 연출 중이면 2.9초 전까지는 아직 안 켜진 칸으로 그린다
+        final lit =
+            filled && (!justLit || !rewardActive() || seg(2900, 300) > 0);
+        final pop = justLit && rewardActive() ? seg(2900, 300) : 1.0;
+        return Transform.scale(
+          scale: lit ? 1 + 0.35 * math.sin(pop * math.pi) : 1,
+          child: Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: lit ? blue : null,
+              border: lit
+                  ? null
+                  : Border.all(
+                      color: isDark
+                          ? const Color(0x33FFFFFF)
+                          : const Color(0xFFCBD5E1),
+                      width: 1.5),
+              boxShadow: lit
+                  ? [
                       BoxShadow(
-                        color: CheerDs.ev.withValues(alpha: 0.45),
-                        blurRadius: 18,
-                        spreadRadius: 2,
-                      ),
-                    ],
-                  ),
-                  child: const Icon(Icons.bolt_rounded,
-                      size: 26, color: Colors.white),
-                ),
-              ),
+                          color: CheerDs.gas.withValues(alpha: 0.5),
+                          blurRadius: 6),
+                    ]
+                  : null,
             ),
           ),
         );
       },
     );
   }
+}
+
+/// 컬러 존 세그먼트 계기판 — 시안 좌표계 104×62 (원 96×96, 중심 (52,52)).
+/// 존 5개 #EF4444→#10B981, 갭 3°, 미충전 opacity 라이트 0.30 / 다크 0.50.
+class _ZoneGaugePainter extends CustomPainter {
+  final double fill; // 0~1
+  final bool isDark;
+  const _ZoneGaugePainter({required this.fill, required this.isDark});
+
+  // (시작°, 길이°) — E(0°, 왼쪽)부터 시계방향으로 F(180°)까지
+  static const _zones = [
+    (0.0, 34.0),
+    (37.0, 33.0),
+    (73.0, 33.0),
+    (109.0, 33.0),
+    (145.0, 35.0),
+  ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final k = math.min(size.width / 104, size.height / 62);
+    final ox = (size.width - 104 * k) / 2;
+    final oy = (size.height - 62 * k) / 2;
+    Offset pt(double x, double y) => Offset(ox + x * k, oy + y * k);
+    final center = pt(52, 52);
+
+    // 링: 바깥 반지름 48, 안쪽 마스크 58% → 두께 20.2, 중심선 반지름 37.9
+    const rMid = 37.9;
+    const stroke = 20.2;
+    final rect = Rect.fromCircle(center: center, radius: rMid * k);
+    double rad(double deg) => math.pi + deg * math.pi / 180;
+
+    // 1) 빈 트랙
+    canvas.drawArc(
+      rect,
+      rad(0),
+      math.pi,
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke * k
+        ..color = CheerDs.gaugeTrack(isDark),
+    );
+
+    // 2) 미충전 존 (연하게)
+    final fillDeg = fill.clamp(0.0, 1.0) * 180;
+    for (var i = 0; i < _zones.length; i++) {
+      final z = _zones[i];
+      canvas.drawArc(
+        rect,
+        rad(z.$1),
+        z.$2 * math.pi / 180,
+        false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = stroke * k
+          ..color =
+              CheerDs.gaugeZones[i].withValues(alpha: isDark ? 0.50 : 0.30),
+      );
+    }
+
+    // 3) 채워진 만큼 100%
+    for (var i = 0; i < _zones.length; i++) {
+      final z = _zones[i];
+      final end = math.min(z.$1 + z.$2, fillDeg);
+      if (end <= z.$1) break;
+      canvas.drawArc(
+        rect,
+        rad(z.$1),
+        (end - z.$1) * math.pi / 180,
+        false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = stroke * k
+          ..color = CheerDs.gaugeZones[i],
+      );
+    }
+
+    // E / F — 9px 800
+    void label(String t, {required bool left}) {
+      final tp = TextPainter(
+        text: TextSpan(
+            text: t,
+            style: TextStyle(
+                fontSize: 9 * k,
+                fontWeight: FontWeight.w800,
+                color: CheerDs.efLabel(isDark))),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, pt(left ? 0 : 104 - tp.width / k, 50));
+    }
+
+    label('E', left: true);
+    label('F', left: false);
+
+    // 바늘 — 길이 36, 두께 5, 레드 그라디언트 + 글로우
+    final a = rad(fillDeg);
+    final dir = Offset(math.cos(a), math.sin(a));
+    final tip = center + dir * (36 * k);
+    final needle = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 5 * k
+      ..strokeCap = StrokeCap.round
+      ..shader = ui.Gradient.linear(
+        center,
+        tip,
+        const [CheerDs.needleFrom, CheerDs.needleTo],
+      );
+    canvas.drawLine(
+      center,
+      tip,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 5 * k
+        ..strokeCap = StrokeCap.round
+        ..color = CheerDs.needleFrom.withValues(alpha: isDark ? 0.6 : 0.35)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 6 * k),
+    );
+    canvas.drawLine(center, tip, needle);
+
+    // 허브 — 13px 원, 카드색 + 레드 보더 3.5 (box-sizing: border-box)
+    canvas.drawCircle(
+        center, 6.5 * k, Paint()..color = CheerDs.gaugeGap(isDark));
+    canvas.drawCircle(
+      center,
+      (6.5 - 1.75) * k,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3.5 * k
+        ..color = CheerDs.needleFrom,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_ZoneGaugePainter old) =>
+      old.fill != fill || old.isDark != isDark;
 }

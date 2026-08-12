@@ -1,12 +1,17 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../data/services/cheer_service.dart';
+import 'car_paint.dart';
+import 'car_paint_screen.dart';
 import 'cheer_tier_theme.dart';
 import 'crown_celebration.dart';
 import 'tier_detail_popup.dart';
 
-/// 내 개러지 — 2×2 수집 그리드 (핸드오프 G1).
-/// 보유 카드는 등급색 글로우+컬러 차, 잠금 카드는 실루엣+남은 횟수.
+/// 내 개러지 — handoff 2 (CheerGarage.html) 시안.
+/// 2×2 수집 그리드(보유=등급 그라데이션 카드+글로우, 최신 등급=NEW 스윕/✦,
+/// 잠금=대시 보더+그레이스케일 차+자물쇠) + 다음 입고 진행바 + 명예의 전당.
 class GarageScreen extends StatefulWidget {
   final CheerStatus? initialStatus;
   const GarageScreen({super.key, this.initialStatus});
@@ -15,25 +20,45 @@ class GarageScreen extends StatefulWidget {
   State<GarageScreen> createState() => _GarageScreenState();
 }
 
-class _GarageScreenState extends State<GarageScreen> {
+class _GarageScreenState extends State<GarageScreen>
+    with TickerProviderStateMixin {
   CheerStatus? _status;
+
+  /// 다음 입고 진행바 — 진입 시 1회 채워진다 (시안 ggBar)
+  late final AnimationController _bar = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 900));
 
   @override
   void initState() {
     super.initState();
+    CarPaintService.instance.init();
     _status = widget.initialStatus;
     if (_status == null) _load();
     CheerService.instance.preload(onChanged: () {
       if (mounted) setState(() {});
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _bar.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _bar.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
     final st = await CheerService.instance.status();
-    if (mounted) setState(() => _status = st);
+    if (!mounted || st == null) return;
+    CheerTierTheme.applyThresholds(st.tierThresholds);
+    setState(() => _status = st);
+    CarPaintService.instance.applyServer(st.carPaints,
+        signedIn: await CheerService.instance.signedIn);
   }
 
   void _applyStatus(CheerStatus st) {
+    CheerTierTheme.applyThresholds(st.tierThresholds);
     if (mounted) setState(() => _status = st);
   }
 
@@ -63,125 +88,97 @@ class _GarageScreenState extends State<GarageScreen> {
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: const Text('내 개러지',
-            style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.3)),
+            style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.3)),
         actions: [
+          // 내 차 꾸미기 — 보유 차가 있을 때만
+          if (cur != null)
+            IconButton(
+              tooltip: '내 차 꾸미기',
+              icon: Icon(Icons.format_paint_rounded,
+                  size: 21, color: CheerDs.secondary(isDark)),
+              onPressed: () => Navigator.of(context)
+                  .push(MaterialPageRoute(
+                      builder: (_) =>
+                          CarPaintScreen(tier: cur, total: total)))
+                  .then((_) {
+                if (mounted) setState(() {});
+              }),
+            ),
           Center(
             child: Container(
               margin: const EdgeInsets.only(right: 16),
               padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: CheerDs.ev.withValues(alpha: 0.15),
+                color: isDark
+                    ? CheerDs.ev.withValues(alpha: 0.15)
+                    : const Color(0xFFD1FAE5),
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Text('$owned/${CheerTierTheme.tiers.length} 수집',
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: CheerDs.success)),
+                      fontWeight: FontWeight.w800,
+                      color: isDark
+                          ? CheerDs.success
+                          : const Color(0xFF047857))),
             ),
           ),
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+        padding: const EdgeInsets.fromLTRB(14, 4, 14, 24),
         children: [
-          GridView.count(
-            crossAxisCount: 2,
+          GridView(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            childAspectRatio: 0.98,
+            padding: EdgeInsets.zero,
+            gridDelegate:
+                const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 9,
+              crossAxisSpacing: 9,
+              // 시안 카드 = 11+47+6+17+3+14+10 ≈ 108. 큰 글자 배율 여유로 124.
+              mainAxisExtent: 124,
+            ),
             children: [
               for (final t in CheerTierTheme.tiers)
-                _tierCard(t, total >= t.threshold, total, isDark),
+                _tierCard(t, total >= t.threshold, t == cur, total, isDark),
             ],
           ),
           if (next != null) ...[
-            const SizedBox(height: 12),
-            _nextCard(next, total, nextProgress, isDark),
+            const SizedBox(height: 10),
+            _nextCard(next, cur, total, nextProgress, isDark),
           ],
           if (st != null && st.crowns.isNotEmpty) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             _hallOfFame(st, isDark),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Center(
             child: Text('잠긴 차를 누르면 상세를 볼 수 있어요',
-                style: TextStyle(fontSize: 11, color: CheerDs.faint(isDark))),
+                style: TextStyle(fontSize: 10, color: CheerDs.muted(isDark))),
           ),
         ],
       ),
     );
   }
 
-  /// 명예의 전당 — 월간 왕관 확정 기록. 하이퍼카 이후에도 매달 모을 게 남는다.
-  Widget _hallOfFame(CheerStatus st, bool isDark) {
-    final c = st.crownCounts;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        color: CheerDs.card(isDark),
-        border: Border.all(color: const Color(0xFFFACC15).withValues(alpha: 0.35)),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Text('명예의 전당',
-              style: TextStyle(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w800,
-                  color: CheerDs.ink(isDark))),
-          const Spacer(),
-          Text(
-            [
-              if ((c['gold'] ?? 0) > 0) '금 ${c['gold']}',
-              if ((c['silver'] ?? 0) > 0) '은 ${c['silver']}',
-              if ((c['bronze'] ?? 0) > 0) '동 ${c['bronze']}',
-            ].join(' · '),
-            style: const TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFFB45309)),
-          ),
-        ]),
-        const SizedBox(height: 10),
-        for (final crown in st.crowns)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Row(children: [
-              Icon(Icons.emoji_events_rounded,
-                  size: 17, color: CrownTheme.of(crown.rank).main),
-              const SizedBox(width: 8),
-              Text('${crown.month.replaceFirst('-', '년 ')}월',
-                  style: TextStyle(
-                      fontSize: 13, color: CheerDs.secondary(isDark))),
-              const Spacer(),
-              Text(
-                  crown.rank == 1
-                      ? '응원왕'
-                      : '${crown.rank}위',
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: CrownTheme.of(crown.rank).main)),
-              const SizedBox(width: 6),
-              Text('${crown.count}회',
-                  style: TextStyle(
-                      fontSize: 12, color: CheerDs.faint(isDark))),
-            ]),
-          ),
-      ]),
-    );
-  }
-
-  Widget _tierCard(CheerTierTheme t, bool ownedTier, int total, bool isDark) {
+  // ─── 수집 카드 ───
+  Widget _tierCard(CheerTierTheme t, bool ownedTier, bool isCurrent, int total,
+      bool isDark) {
     final st = _status;
+    final content = ownedTier
+        ? _ownedCard(t, isCurrent, total, isDark)
+        : _lockedCard(t, total, isDark);
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         onTap: () => showTierDetailPopup(
           context,
           tier: t,
@@ -189,87 +186,204 @@ class _GarageScreenState extends State<GarageScreen> {
           total: total,
           onStatus: _applyStatus,
         ),
-        child: Ink(
+        child: content,
+      ),
+    );
+  }
+
+  Widget _ownedCard(
+      CheerTierTheme t, bool isCurrent, int total, bool isDark) {
+    final badge = t.garageBadge(isDark);
+
+    return Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            color: CheerDs.card(isDark),
-            border: Border.all(
-              color: ownedTier
-                  ? t.ring(isDark).first.withValues(alpha: 0.9)
-                  : CheerDs.cardBorder(isDark),
-              width: ownedTier ? 1.5 : 0.5,
+            borderRadius: BorderRadius.circular(14),
+            gradient: LinearGradient(
+              // 160deg ≈ 위에서 아래로 살짝 기운 방향
+              begin: const Alignment(-0.35, -1),
+              end: const Alignment(0.35, 1),
+              colors: t.garageBg(isDark),
             ),
-            gradient: ownedTier
-                ? RadialGradient(
-                    center: Alignment.center,
-                    radius: 1.0,
-                    colors: [
-                      t.glow(isDark),
-                      CheerDs.card(isDark),
-                    ],
-                  )
-                : null,
+            border: Border.all(
+                color: t.garageBorder(isDark),
+                width: t.level == 1 ? 0.5 : 1.5),
           ),
-          padding: const EdgeInsets.fromLTRB(12, 14, 12, 12),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
             children: [
-              // 폭 고정(118) 대신 가용폭 — 320dp 에선 셀이 115px 라 고정폭이 더 크다.
-              SizedBox(
-                height: 47,
-                width: double.infinity,
-                child: ownedTier
-                    ? t.car()
-                    : t.silhouette(CheerDs.silhouette(isDark)),
-              ),
-              const SizedBox(height: 10),
-              Text(t.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: ownedTier
-                          ? CheerDs.ink(isDark)
-                          : CheerDs.muted(isDark))),
-              const SizedBox(height: 3),
-              ownedTier
-                  ? Text('누적 $total회 · 보유',
-                      style: TextStyle(
-                          fontSize: 11, color: CheerDs.secondary(isDark)))
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.lock_rounded,
-                            size: 12, color: CheerDs.secondary(isDark)),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                              '${t.threshold}회 · ${t.threshold - total}회 남음',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  color: CheerDs.secondary(isDark))),
-                        ),
-                      ],
+              // 등급색 radial 글로우 — 정적 (상시 pulse 는 승급 연출 전용, 형 지시)
+              Positioned(
+                top: 6,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Opacity(
+                    opacity: 0.75,
+                    child: Container(
+                      width: 100,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(colors: [
+                          t.garageGlow(isDark),
+                          t.garageGlow(isDark).withValues(alpha: 0),
+                        ]),
+                      ),
                     ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 11, 10, 10),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                        height: 47,
+                        width: double.infinity,
+                        child: CarImage(tier: t)),
+                    const SizedBox(height: 6),
+                    Text(t.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w800,
+                            color: CheerDs.ink(isDark))),
+                    const SizedBox(height: 3),
+                    Text(
+                        isCurrent
+                            ? '누적 $total회 · NEW'
+                            : '누적 ${t.threshold}회 · 보유',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 10,
+                            fontWeight:
+                                t.level == 1 ? FontWeight.w400 : FontWeight.w700,
+                            color: t.garageSub(isDark))),
+                  ],
+                ),
+              ),
+              // 우상단 뱃지 — 보유는 체크, 최신 등급은 별
+              Positioned(
+                right: 7,
+                top: 7,
+                child: Container(
+                  width: 18,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: badge.length == 1 ? badge.first : null,
+                    gradient: badge.length > 1
+                        ? LinearGradient(
+                            begin: const Alignment(-0.4, -1),
+                            end: const Alignment(0.4, 1),
+                            colors: badge)
+                        : null,
+                  ),
+                  child: Icon(
+                      isCurrent ? Icons.star_rounded : Icons.check_rounded,
+                      size: 12,
+                      color: isDark && isCurrent
+                          ? const Color(0xFF2A1608)
+                          : Colors.white),
+                ),
+              ),
             ],
           ),
+        );
+  }
+
+  Widget _lockedCard(CheerTierTheme t, int total, bool isDark) {
+    return CustomPaint(
+      foregroundPainter: _DashedBorder(
+        color: isDark ? const Color(0x29FFFFFF) : const Color(0xFFCBD5E1),
+        radius: 14,
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          color: isDark ? const Color(0x05FFFFFF) : Colors.white,
+        ),
+        padding: const EdgeInsets.fromLTRB(10, 11, 10, 10),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              height: 47,
+              width: double.infinity,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Opacity(
+                    opacity: isDark ? 0.4 : 0.55,
+                    child: ColorFiltered(
+                      colorFilter: _grayscale(isDark),
+                      child: t.car(),
+                    ),
+                  ),
+                  Container(
+                    width: 26,
+                    height: 26,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isDark
+                          ? const Color(0x24FFFFFF)
+                          : const Color(0xBF0F172A),
+                    ),
+                    child: Icon(Icons.lock_rounded,
+                        size: 14,
+                        color: isDark ? CheerDs.inkD : Colors.white),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(t.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    color: CheerDs.secondary(isDark))),
+            const SizedBox(height: 3),
+            Text('${t.threshold}회 · ${t.threshold - total}회 남음',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    TextStyle(fontSize: 10, color: CheerDs.muted(isDark))),
+          ],
         ),
       ),
     );
   }
 
-  Widget _nextCard(
-      CheerTierTheme next, int total, double progress, bool isDark) {
+  /// grayscale(1) + brightness/contrast — 시안 필터값 그대로 합성한 매트릭스.
+  ColorFilter _grayscale(bool isDark) {
+    // 라이트 brightness1.9·contrast0.5 / 다크 brightness3·contrast0.35
+    final s = isDark ? 3 * 0.35 : 1.9 * 0.5;
+    final off = isDark ? 0.5 * (1 - 0.35) * 255 : 0.5 * (1 - 0.5) * 255;
+    final r = 0.2126 * s, g = 0.7152 * s, b = 0.0722 * s;
+    return ColorFilter.matrix(<double>[
+      r, g, b, 0, off, //
+      r, g, b, 0, off, //
+      r, g, b, 0, off, //
+      0, 0, 0, 1, 0,
+    ]);
+  }
+
+  // ─── 다음 입고 ───
+  Widget _nextCard(CheerTierTheme next, CheerTierTheme? cur, int total,
+      double progress, bool isDark) {
+    final from = cur?.threshold ?? 0;
     return Container(
       decoration: BoxDecoration(
         color: CheerDs.card(isDark),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: CheerDs.cardBorder(isDark), width: 0.5),
       ),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -282,32 +396,242 @@ class _GarageScreenState extends State<GarageScreen> {
                       fontSize: 12, color: CheerDs.secondary(isDark))),
             ),
             Text('${next.threshold - total}회 남음',
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: CheerDs.success)),
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? CheerDs.success : CheerDs.ev)),
           ]),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: SizedBox(
-              height: 6,
-              child: Stack(children: [
-                Container(color: CheerDs.iconBg(isDark)),
-                FractionallySizedBox(
-                  widthFactor: progress == 0 ? 0.015 : progress,
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      gradient:
-                          LinearGradient(colors: [CheerDs.gas, CheerDs.ev]),
+          const SizedBox(height: 8),
+          // 진행바 8px + 진행점 위에 다음 등급 차 미니 아이콘
+          SizedBox(
+            height: 8,
+            child: AnimatedBuilder(
+              animation: _bar,
+              builder: (_, __) {
+                final w = Curves.easeOut.transform(_bar.value) * progress;
+                return LayoutBuilder(builder: (_, c) {
+                  return Stack(clipBehavior: Clip.none, children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0x14FFFFFF)
+                            : const Color(0xFFEEF1F4),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
                     ),
+                    FractionallySizedBox(
+                      widthFactor: w.clamp(0.0, 1.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                              colors: [CheerDs.ev, CheerDs.gas]),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: (c.maxWidth * w).clamp(0.0, c.maxWidth) - 14,
+                      top: -11,
+                      child: SizedBox(
+                        width: 28,
+                        height: 11,
+                        child: Opacity(
+                          opacity: 0.9,
+                          child: isDark
+                              ? ColorFiltered(
+                                  colorFilter: const ColorFilter.matrix(
+                                      <double>[
+                                        2.4, 0, 0, 0, 0, //
+                                        0, 2.4, 0, 0, 0, //
+                                        0, 0, 2.4, 0, 0, //
+                                        0, 0, 0, 1, 0,
+                                      ]),
+                                  child: next.car())
+                              : next.car(),
+                        ),
+                      ),
+                    ),
+                  ]);
+                });
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('$from회',
+                  style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      color: CheerDs.slash(isDark))),
+              Text('${next.threshold}회',
+                  style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      color: CheerDs.slash(isDark))),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 명예의 전당 — 월간 왕관 확정 기록. 하이퍼카 이후에도 매달 모을 게 남는다.
+  Widget _hallOfFame(CheerStatus st, bool isDark) {
+    final c = st.crownCounts;
+    final headAccent =
+        isDark ? const Color(0xFFFDE68A) : const Color(0xFFB45309);
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        gradient: LinearGradient(
+          begin: const Alignment(-0.35, -1),
+          end: const Alignment(0.35, 1),
+          colors: isDark
+              ? [const Color(0x2EFBBF24), const Color(0x08FBBF24)]
+              : [const Color(0xFFFEF7E0), const Color(0xFFFBE9B9)],
+        ),
+        border: isDark
+            ? Border.all(color: const Color(0x40FBBF24), width: 0.5)
+            : null,
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -30,
+            top: -30,
+            child: Container(
+              width: 110,
+              height: 110,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(colors: [
+                  const Color(0xFFFBBF24)
+                      .withValues(alpha: isDark ? 0.35 : 0.5),
+                  const Color(0x00FBBF24),
+                ]),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Icon(Icons.emoji_events_rounded,
+                      size: 16,
+                      color: isDark
+                          ? const Color(0xFFFDE68A)
+                          : const Color(0xFFD97706)),
+                  const SizedBox(width: 6),
+                  Text('명예의 전당',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: CheerDs.ink(isDark))),
+                  const Spacer(),
+                  Text(
+                    [
+                      if ((c['gold'] ?? 0) > 0) '금 ${c['gold']}',
+                      if ((c['silver'] ?? 0) > 0) '은 ${c['silver']}',
+                      if ((c['bronze'] ?? 0) > 0) '동 ${c['bronze']}',
+                    ].join(' · '),
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: headAccent),
                   ),
-                ),
-              ]),
+                ]),
+                for (var i = 0; i < st.crowns.length; i++) ...[
+                  if (i == 0)
+                    const SizedBox(height: 9)
+                  else
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 9),
+                      child: Container(
+                          height: 0.5,
+                          color: isDark
+                              ? const Color(0x1AFFFFFF)
+                              : const Color(0x26B45309)),
+                    ),
+                  _crownRow(st.crowns[i], isDark),
+                ],
+              ],
             ),
           ),
         ],
       ),
     );
   }
+
+  Widget _crownRow(CheerCrown crown, bool isDark) {
+    final theme = CrownTheme.of(crown.rank);
+    final parts = crown.month.split('-');
+    final label = parts.length == 2
+        ? '${parts[0]}년 ${parts[1]}월'
+        : crown.month;
+    return Row(children: [
+      Container(
+        width: 22,
+        height: 22,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            begin: const Alignment(-0.4, -1),
+            end: const Alignment(0.4, 1),
+            colors: [theme.glow, theme.deep],
+          ),
+        ),
+        child: Icon(Icons.workspace_premium_rounded,
+            size: 12,
+            color: isDark ? const Color(0xFF2A1608) : Colors.white),
+      ),
+      const SizedBox(width: 8),
+      Text(label,
+          style: TextStyle(fontSize: 12, color: CheerDs.secondary(isDark))),
+      const Spacer(),
+      Text(crown.rank == 1 ? '응원왕' : '${crown.rank}위',
+          style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: isDark ? theme.glow : theme.deep)),
+      const SizedBox(width: 6),
+      Text('${crown.count}회',
+          style: TextStyle(fontSize: 12, color: CheerDs.muted(isDark))),
+    ]);
+  }
+}
+
+/// 잠금 카드용 1px 대시 보더 (시안 border:1px dashed).
+class _DashedBorder extends CustomPainter {
+  final Color color;
+  final double radius;
+  const _DashedBorder({required this.color, required this.radius});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rrect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(0.5, 0.5, size.width - 1, size.height - 1),
+        Radius.circular(radius));
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = color;
+    const dash = 4.0, gap = 3.0;
+    for (final metric in (Path()..addRRect(rrect)).computeMetrics()) {
+      var d = 0.0;
+      while (d < metric.length) {
+        canvas.drawPath(
+            metric.extractPath(d, math.min(d + dash, metric.length)), paint);
+        d += dash + gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedBorder old) =>
+      old.color != color || old.radius != radius;
 }

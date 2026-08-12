@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:dio/dio.dart';
 import 'package:dksw_app_core/dksw_app_core.dart';
@@ -19,6 +20,7 @@ class CheerBadge {
 
   const CheerBadge._(this.level, this.name, this.threshold);
 
+  // 코드 기본값 — 서버 원격설정(cheer.tier_thresholds)이 오면 effectiveTiers 가 덮는다.
   static const tiers = [
     CheerBadge._(1, '쿠페 서포터', 1),
     CheerBadge._(2, '스포츠카 서포터', 10),
@@ -28,10 +30,50 @@ class CheerBadge {
 
   static const none = CheerBadge._(0, '', 0);
 
+  // 서버 임계값 override — status 응답에서 applyThresholds 로 반영, Hive 유지.
+  // UI 쪽 CheerTierTheme 도 같은 키를 읽는다(양쪽 판정 일치 보장).
+  static List<CheerBadge>? _overridden;
+  static bool _loaded = false;
+  static const hiveThresholdsKey = 'cheer_tier_thresholds';
+
+  static List<CheerBadge> get effectiveTiers {
+    if (!_loaded) {
+      _loaded = true;
+      try {
+        final raw = Hive.box('settings').get(hiveThresholdsKey);
+        if (raw is List) _applyList(raw.whereType<int>().toList(), persist: false);
+      } catch (_) {}
+    }
+    return _overridden ?? tiers;
+  }
+
+  /// 서버 status 의 tierThresholds 반영 + Hive 저장. 형식이 깨져 있으면 무시.
+  static void applyThresholds(List<int>? t) {
+    if (t == null) return;
+    _loaded = true;
+    _applyList(t, persist: true);
+  }
+
+  static void _applyList(List<int> t, {required bool persist}) {
+    if (t.length != tiers.length) return;
+    for (var i = 0; i < t.length; i++) {
+      if (t[i] <= 0 || (i > 0 && t[i] <= t[i - 1])) return;
+    }
+    _overridden = [
+      for (var i = 0; i < tiers.length; i++)
+        CheerBadge._(tiers[i].level, tiers[i].name, t[i]),
+    ];
+    if (persist) {
+      try {
+        Hive.box('settings').put(hiveThresholdsKey, t);
+      } catch (_) {}
+    }
+  }
+
   /// 누적 횟수 → 현재 뱃지 (0회면 none)
   static CheerBadge of(int total) {
     CheerBadge cur = none;
-    for (final t in tiers) {
+    for (final t in effectiveTiers) {
       if (total >= t.threshold) cur = t;
     }
     return cur;
@@ -39,7 +81,7 @@ class CheerBadge {
 
   /// 다음 등급 (만땅이면 null)
   static CheerBadge? nextOf(int total) {
-    for (final t in tiers) {
+    for (final t in effectiveTiers) {
       if (total < t.threshold) return t;
     }
     return null;
@@ -114,10 +156,29 @@ class CheerCrown {
       );
 }
 
+/// {'3': 'blue'} → {3: 'blue'} — 서버는 JSON 키 제약으로 문자열 등급을 준다.
+/// 서버 carPaints 파싱. **null 과 {} 는 뜻이 다르다.**
+///   {}   저장된 색이 없음(정상) → 첫 로그인 1회에 한해 로컬 값을 서버로 올린다
+///   null 서버가 모름(조회 실패) → 아무것도 하지 않는다. 올리지도, 지우지도 않는다
+/// 예전엔 둘 다 {} 로 접혀서, 서버 DB 가 삐끗한 순간 앱이 "저장 없음"으로 읽고
+/// 로컬 값을 올려 계정 색을 덮어쓸 수 있었다.
+Map<int, String>? parseCarPaints(dynamic raw) {
+  if (raw is! Map) return null;
+  final out = <int, String>{};
+  raw.forEach((k, v) {
+    final lv = int.tryParse(k.toString());
+    if (lv != null && v is String && v.isNotEmpty) out[lv] = v;
+  });
+  return out;
+}
+
 /// GET /api/cheer/status 응답
 class CheerStatus {
   final int today;
   final int dailyLimit;
+  /// 등급별 승급 임계값 — 콘솔 원격설정(cheer.tier_thresholds). null=구서버.
+  /// UI 진입 시 CheerTierTheme.applyThresholds 로 반영한다.
+  final List<int>? tierThresholds;
   final int total;
   final int streak; // 연속 응원 일수 (오늘 포함)
   /// 등급별 획득일 {'1': 'YYYY-MM-DD', ...} — 등급 상세 팝업 표시용
@@ -136,9 +197,15 @@ class CheerStatus {
   final Map<String, int> crownCounts;
   final CheerCrown? newCrown;
 
+  /// 등급별 차 바디 컬러 {등급: paintId} — 저장한 등급만 들어온다.
+  /// 로그인 사용자는 계정 저장분, 비회원은 기기 저장분(앱은 로컬 Hive 를 쓴다).
+  /// **null = 서버가 모름**(조회 실패). {} 인 '저장 없음'과 구분해야 한다 — parseCarPaints 참고.
+  final Map<int, String>? carPaints;
+
   const CheerStatus({
     required this.today,
     required this.dailyLimit,
+    this.tierThresholds,
     required this.total,
     required this.streak,
     this.tierAcquiredAt = const {},
@@ -151,6 +218,7 @@ class CheerStatus {
     this.crowns = const [],
     this.crownCounts = const {},
     this.newCrown,
+    this.carPaints, // 기본 null = 모름 (const {} 로 두면 '저장 없음'으로 오독된다)
   });
 
   factory CheerStatus.fromJson(Map<String, dynamic> j) {
@@ -158,6 +226,11 @@ class CheerStatus {
     return CheerStatus(
       today: (j['today'] as num?)?.toInt() ?? 0,
       dailyLimit: (j['dailyLimit'] as num?)?.toInt() ?? 3,
+      tierThresholds: j['tierThresholds'] is List
+          ? (j['tierThresholds'] as List)
+              .map((v) => (v as num).toInt())
+              .toList()
+          : null,
       total: (j['total'] as num?)?.toInt() ?? 0,
       streak: (j['streak'] as num?)?.toInt() ?? 0,
       tierAcquiredAt: (j['tierAcquiredAt'] as Map?)
@@ -182,6 +255,7 @@ class CheerStatus {
       newCrown: j['newCrown'] is Map
           ? CheerCrown.fromJson(Map<String, dynamic>.from(j['newCrown'] as Map))
           : null,
+      carPaints: parseCarPaints(j['carPaints']),
     );
   }
 
@@ -248,10 +322,13 @@ class CheerService {
   }
 
   Future<CheerStatus?> status() async {
+    // 미전송 적립을 먼저 흘려보낸다 — 이번 status 에 반영돼서 내려오도록.
+    await flushPendingCheers();
     try {
       final res = await _dio.get('/cheer/status', options: await _authOptions());
       final st = CheerStatus.fromJson(
           Map<String, dynamic>.from(res.data['data'] as Map));
+      CheerBadge.applyThresholds(st.tierThresholds); // 원격설정 임계값 반영(+Hive)
       _cacheTotal(st.total);
       lastStatus = st;
       return st;
@@ -263,6 +340,27 @@ class CheerService {
   /// 최근 status 의 왕관 스냅샷 — 프로필/개러지가 네트워크 없이 그린다.
   CheerStatus? lastStatus;
 
+  /// 로그인 여부 — 차 컬러를 서버에 저장할지(회원) 로컬에만 둘지(비회원) 가른다.
+  Future<bool> get signedIn async => (await AuthService.accessToken()) != null;
+
+  /// 개러지 차 바디 컬러 저장. paintId 'default' 면 서버에서 지운다.
+  /// 실패해도 앱 사용을 막지 않는다 — 로컬 값은 이미 반영돼 있다.
+  Future<bool> saveCarPaint(int tierLevel, String paintId) async {
+    try {
+      await _dio.post('/cheer/car-paint',
+          data: {
+            'device_id': DkswCore.deviceId,
+            'tier': tierLevel,
+            'paint': paintId,
+          },
+          options: await _authOptions());
+      return true;
+    } catch (e) {
+      if (kDebugMode) debugPrint('[Cheer] 차 컬러 저장 실패: $e');
+      return false;
+    }
+  }
+
   /// 축하 연출을 봤다고 서버에 알린다(다음 진입부터 안 뜨게). 실패해도 조용히.
   Future<void> markCrownSeen() async {
     try {
@@ -272,18 +370,80 @@ class CheerService {
     } catch (_) {}
   }
 
+  // ─── 적립 보장 큐 ──────────────────────────────────────────────────────────
+  // 광고는 이미 끝까지 봤다 — 적립이 유실되면 안 된다(형 지시). 광고 1회마다 고유
+  // client_key 를 만들어 큐에 넣고 전송하고, 성공해야 큐에서 뺀다. 실패분은 다음
+  // preload/status 때 재전송한다. 서버가 같은 키를 dedupe 하므로 몇 번을 다시 보내도
+  // 중복 적립이 없다 — "기록은 됐는데 응답만 깨진" 경우도 재전송이 성공으로 돌아온다.
+  static const _pendingKey = 'cheer_pending_keys';
+
+  List<String> _pendingKeys() {
+    try {
+      final raw = Hive.box('settings').get(_pendingKey);
+      if (raw is List) return raw.whereType<String>().toList();
+    } catch (_) {}
+    return [];
+  }
+
+  void _setPendingKeys(List<String> keys) {
+    try {
+      // 폭주 방지 — 하루 한도가 3회라 20개면 이미 비정상. 오래된 것부터 버린다.
+      Hive.box('settings').put(_pendingKey, keys.take(20).toList());
+    } catch (_) {}
+  }
+
+  String _newClientKey() {
+    final r = math.Random();
+    final rand = List.generate(4, (_) => r.nextInt(0x10000).toRadixString(16));
+    return 'c${DateTime.now().millisecondsSinceEpoch}-${rand.join()}';
+  }
+
+  bool _flushing = false;
+
+  /// 미전송 적립 재시도 — 화면 진입·광고 preload 시 호출. 조용히, 최대 1개씩 순서대로.
+  Future<void> flushPendingCheers() async {
+    if (_flushing) return;
+    final keys = _pendingKeys();
+    if (keys.isEmpty) return;
+    _flushing = true;
+    try {
+      for (final key in List<String>.from(keys)) {
+        final st = await _postCheer(key);
+        if (st == null) break; // 여전히 실패 — 네트워크 문제. 다음 기회에.
+        final remain = _pendingKeys()..remove(key);
+        _setPendingKeys(remain);
+        lastStatus = st;
+      }
+    } finally {
+      _flushing = false;
+    }
+  }
+
   /// 광고 시청 완료 후 적립. 성공/한도초과 모두 최신 상태를 돌려준다.
+  /// 실패(null)여도 client_key 가 큐에 남아 나중에 자동 재전송된다.
   Future<CheerStatus?> cheer() async {
+    final key = _newClientKey();
+    _setPendingKeys(_pendingKeys()..add(key)); // 먼저 큐에 — 전송 중 크래시에도 생존
+    final st = await _postCheer(key);
+    if (st != null) {
+      _setPendingKeys(_pendingKeys()..remove(key));
+    }
+    return st;
+  }
+
+  Future<CheerStatus?> _postCheer(String clientKey) async {
     try {
       final res = await _dio.post('/cheer',
-          data: {'device_id': DkswCore.deviceId},
+          data: {'device_id': DkswCore.deviceId, 'client_key': clientKey},
           options: await _authOptions());
       final st = CheerStatus.fromJson(
           Map<String, dynamic>.from(res.data['data'] as Map));
+      CheerBadge.applyThresholds(st.tierThresholds);
       _cacheTotal(st.total);
       return st;
     } on DioException catch (e) {
-      // 429 = 오늘 한도 — 서버가 현재 상태를 같이 준다.
+      // 429 = 오늘 한도 — 서버가 현재 상태를 같이 준다. 적립 자체가 거절된 것이므로
+      // 이 키는 재시도해도 영영 안 들어간다 → 큐에서 지우도록 상태를 돌려준다.
       final d = e.response?.data;
       if (d is Map && d['data'] is Map) {
         final st =
@@ -318,6 +478,7 @@ class CheerService {
 
   void preload({VoidCallback? onChanged}) {
     if (onChanged != null) _onChanged = onChanged;
+    flushPendingCheers(); // 미전송 적립 재시도 — 광고 준비 시점마다 조용히 (fire-and-forget)
     if (AdNetworkConfig.current != AdNetwork.admob) return;
     if (_ad != null || _loading) return;
     _loading = true;

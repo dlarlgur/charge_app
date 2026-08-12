@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../data/services/cheer_service.dart';
+import 'car_paint.dart';
+import 'car_paint_screen.dart';
 import 'cheer_flow.dart';
 import 'cheer_tier_theme.dart';
 
@@ -103,7 +105,7 @@ class _TierDetailDialog extends StatelessWidget {
                         width: 216,
                         height: 86,
                         child: owned
-                            ? tier.car()
+                            ? CarImage(tier: tier)
                             : tier.silhouette(
                                 CheerDs.silhouette(isDark, popup: true)),
                       ),
@@ -155,9 +157,35 @@ class _TierDetailDialog extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 12, height: 1.55, color: muted)),
               const SizedBox(height: 14),
-              if (owned && status != null)
-                _ownedStats(status!, isDark)
-              else ...[
+              if (owned && status != null) ...[
+                _ownedStats(status!, isDark),
+                const SizedBox(height: 10),
+                // 보유 차는 바디 컬러를 바꿀 수 있다 (handoff 2 컬러 꾸미기)
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: TextButton.icon(
+                    style: TextButton.styleFrom(
+                      backgroundColor: CheerDs.iconBg(isDark),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) =>
+                              CarPaintScreen(tier: tier, total: total)));
+                    },
+                    icon: Icon(Icons.format_paint_rounded,
+                        size: 17, color: CheerDs.secondary(isDark)),
+                    label: Text('컬러 꾸미기',
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: CheerDs.ink(isDark))),
+                  ),
+                ),
+              ] else ...[
                 ClipRRect(
                   borderRadius: BorderRadius.circular(999),
                   child: SizedBox(

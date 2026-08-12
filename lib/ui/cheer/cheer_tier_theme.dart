@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 /// 응원하기 디자인 시스템 — design_handoff_supporter_badges 확정 시안의 토큰.
 /// 등급 라벨 컬러: 1 실버 · 2 레드 · 3 골드 · 4 블랙. 모든 색은 라이트/다크 검증값
@@ -29,6 +30,39 @@ class CheerDs {
   static const iconBgD = Color(0xFF1E293B);
   // 반투명 다크 카드 위에 불투명이 필요한 곳(게이지 허브) — bg+card 합성 근사
   static const cardSolidD = Color(0xFF14161B);
+  // 계기판 허브·존 갭처럼 '카드색 그대로'가 필요한 자리 (handoff 2 시안 #15171D)
+  static const gaugeSolidD = Color(0xFF15171D);
+
+  // ─── handoff 2 · 계기판(컬러 존 세그먼트) ───
+  /// E→F 존 5색. 각 33°(첫 존 34°·끝 존 35°), 갭 3° — 합 180°
+  static const gaugeZones = [
+    Color(0xFFEF4444),
+    Color(0xFFF59E0B),
+    Color(0xFFFBBF24),
+    Color(0xFFA3E635),
+    Color(0xFF10B981),
+  ];
+  static const gaugeTrackL = Color(0xFFEEF1F4);
+  static const gaugeTrackD = Color(0x0FFFFFFF); // rgba(255,255,255,0.06)
+  static const needleFrom = Color(0xFFEF4444);
+  static const needleTo = Color(0xFFF87171);
+  static const efLabelL = Color(0xFF94A3B8);
+  static const efLabelD = Color(0xFF7C8798);
+  /// 숫자 옆 '/ 300' 슬래시 톤
+  static const slashL = Color(0xFFCBD5E1);
+  static const slashD = Color(0xFF475569);
+  /// CTA 블루 그라디언트 (135°)
+  static const ctaBlue = [Color(0xFF60A5FA), Color(0xFF2563EB)];
+  /// 리워드 연출 강조 (숫자 스왑·+100·카피)
+  static const rewardAccentL = Color(0xFF2563EB);
+  static const rewardAccentD = Color(0xFF93C5FD);
+
+  static Color gaugeTrack(bool d) => d ? gaugeTrackD : gaugeTrackL;
+  static Color efLabel(bool d) => d ? efLabelD : efLabelL;
+  static Color slash(bool d) => d ? slashD : slashL;
+  static Color rewardAccent(bool d) => d ? rewardAccentD : rewardAccentL;
+  /// 존 사이 갭 = 카드 바탕색
+  static Color gaugeGap(bool d) => d ? gaugeSolidD : Colors.white;
 
   static const gas = Color(0xFF3B82F6);
   static const ev = Color(0xFF10B981);
@@ -60,7 +94,51 @@ class CheerDs {
 class CheerTierTheme {
   final int level;
   final String name;
-  final int threshold;
+
+  /// 코드 기본 임계값 — 실제 판정은 아래 threshold getter 가 서버 override 를 우선한다.
+  final int _threshold;
+
+  /// 승급 임계값 — 콘솔 원격설정(cheer.tier_thresholds)이 있으면 그 값.
+  /// status 응답 tierThresholds → applyThresholds() 로 반영되고 Hive 에 남아
+  /// 다음 실행(오프라인 포함)에도 유지된다.
+  int get threshold {
+    _ensureOverridesLoaded();
+    return _overrides[level] ?? _threshold;
+  }
+
+  static Map<int, int> _overrides = {};
+  static bool _overridesLoaded = false;
+  static const _hiveThresholdsKey = 'cheer_tier_thresholds';
+
+  static void _ensureOverridesLoaded() {
+    if (_overridesLoaded) return;
+    _overridesLoaded = true;
+    try {
+      final raw = Hive.box('settings').get(_hiveThresholdsKey);
+      if (raw is List) _applyList(raw.whereType<int>().toList(), persist: false);
+    } catch (_) {}
+  }
+
+  /// 서버 status 의 tierThresholds 반영. 형식이 깨져 있으면 무시(기존 값 유지).
+  static void applyThresholds(List<int>? t) {
+    if (t == null) return;
+    _ensureOverridesLoaded();
+    _applyList(t, persist: true);
+  }
+
+  static void _applyList(List<int> t, {required bool persist}) {
+    // 등급 수 일치 + 양수 + 순증 — 아니면 판정이 꼬이므로 통째로 무시.
+    if (t.length != tiers.length) return;
+    for (var i = 0; i < t.length; i++) {
+      if (t[i] <= 0 || (i > 0 && t[i] <= t[i - 1])) return;
+    }
+    _overrides = {for (var i = 0; i < t.length; i++) i + 1: t[i]};
+    if (persist) {
+      try {
+        Hive.box('settings').put(_hiveThresholdsKey, t);
+      } catch (_) {}
+    }
+  }
   final String carAsset;
   final String silAsset;
 
@@ -79,10 +157,20 @@ class CheerTierTheme {
   final List<Color> _cta; // 1개면 단색, 2개면 그라데이션
   final Color _ctaD; // 1단계만 다크에서 CTA 색이 다름
 
+  // ─── handoff 2 ───
+  /// 히어로 스테이지 글로우 기준색 — 차 바디색을 따라간다.
+  final Color heroGlow;
+  final List<Color> _garageBgL, _garageBgD;
+  final Color _garageBorderL, _garageBorderD;
+  /// 보유 카드 우상단 뱃지 원 — 1개면 단색, 2개면 그라데이션
+  final List<Color> _garageBadgeL, _garageBadgeD;
+  final Color _garageSubL, _garageSubD;
+  final Color _garageGlowL, _garageGlowD;
+
   const CheerTierTheme._({
     required this.level,
     required this.name,
-    required this.threshold,
+    required int threshold,
     required this.carAsset,
     required this.silAsset,
     required this.popupDesc,
@@ -98,7 +186,19 @@ class CheerTierTheme {
     required Color glowD,
     required List<Color> cta,
     Color? ctaD,
-  })  : _labelL = labelL,
+    required this.heroGlow,
+    required List<Color> garageBgL,
+    required List<Color> garageBgD,
+    required Color garageBorderL,
+    required Color garageBorderD,
+    required List<Color> garageBadgeL,
+    required List<Color> garageBadgeD,
+    required Color garageSubL,
+    required Color garageSubD,
+    required Color garageGlowL,
+    required Color garageGlowD,
+  })  : _threshold = threshold,
+        _labelL = labelL,
         _labelD = labelD,
         _cardBgL = cardBgL,
         _cardBgD = cardBgD,
@@ -107,7 +207,24 @@ class CheerTierTheme {
         _glowL = glowL,
         _glowD = glowD,
         _cta = cta,
-        _ctaD = ctaD ?? const Color(0x00000000);
+        _ctaD = ctaD ?? const Color(0x00000000),
+        _garageBgL = garageBgL,
+        _garageBgD = garageBgD,
+        _garageBorderL = garageBorderL,
+        _garageBorderD = garageBorderD,
+        _garageBadgeL = garageBadgeL,
+        _garageBadgeD = garageBadgeD,
+        _garageSubL = garageSubL,
+        _garageSubD = garageSubD,
+        _garageGlowL = garageGlowL,
+        _garageGlowD = garageGlowD;
+
+  /// 개러지 보유 카드 — 160° 그라데이션 배경 / 보더 / 뱃지 / 글로우 / 서브 텍스트
+  List<Color> garageBg(bool d) => d ? _garageBgD : _garageBgL;
+  Color garageBorder(bool d) => d ? _garageBorderD : _garageBorderL;
+  List<Color> garageBadge(bool d) => d ? _garageBadgeD : _garageBadgeL;
+  Color garageSub(bool d) => d ? _garageSubD : _garageSubL;
+  Color garageGlow(bool d) => d ? _garageGlowD : _garageGlowL;
 
   Color label(bool d) => d ? _labelD : _labelL;
 
@@ -157,6 +274,17 @@ class CheerTierTheme {
       glowD: Color(0x4D94A3B8),
       cta: [Color(0xFF475569)],
       ctaD: Color(0xFF64748B),
+      heroGlow: Color(0xFF94A3B8),
+      garageBgL: [Color(0xFFF4F6F9), Color(0xFFE6EAF0)],
+      garageBgD: [Color(0x08FFFFFF), Color(0x08FFFFFF)],
+      garageBorderL: Color(0xFFE8ECF0),
+      garageBorderD: Color(0x14FFFFFF),
+      garageBadgeL: [Color(0xFF94A3B8)],
+      garageBadgeD: [Color(0xFF64748B)],
+      garageSubL: Color(0xFF94A3B8),
+      garageSubD: Color(0xFF64748B),
+      garageGlowL: Color(0x7394A3B8), // rgba(148,163,184,0.45)
+      garageGlowD: Color(0x47CBD5E1), // rgba(203,213,225,0.28)
     ),
     CheerTierTheme._(
       level: 2,
@@ -176,6 +304,17 @@ class CheerTierTheme {
       glowL: Color(0x29DC2626),
       glowD: Color(0x33DC2626),
       cta: [Color(0xFFDC2626)],
+      heroGlow: Color(0xFFEF4444),
+      garageBgL: [Color(0xFFFEEEEC), Color(0xFFFBDAD5)],
+      garageBgD: [Color(0x29EF4444), Color(0x08EF4444)],
+      garageBorderL: Color(0xFFF87171),
+      garageBorderD: Color(0x80EF4444),
+      garageBadgeL: [Color(0xFFEF4444)],
+      garageBadgeD: [Color(0xFFEF4444)],
+      garageSubL: Color(0xFFB91C1C),
+      garageSubD: Color(0xFFFCA5A5),
+      garageGlowL: Color(0x66EF4444), // rgba(239,68,68,0.40)
+      garageGlowD: Color(0x59EF4444), // rgba(239,68,68,0.35)
     ),
     CheerTierTheme._(
       level: 3,
@@ -195,6 +334,17 @@ class CheerTierTheme {
       glowL: Color(0x33CA8A04),
       glowD: Color(0x38CA8A04),
       cta: [Color(0xFFCA8A04)],
+      heroGlow: Color(0xFFF97316),
+      garageBgL: [Color(0xFFFEF3E2), Color(0xFFFBE3C2)],
+      garageBgD: [Color(0x2EF97316), Color(0x08F97316)],
+      garageBorderL: Color(0xFFF59E0B),
+      garageBorderD: Color(0x8CF97316),
+      garageBadgeL: [Color(0xFFFBBF24), Color(0xFFEA580C)],
+      garageBadgeD: [Color(0xFFFDE68A), Color(0xFFEA580C)],
+      garageSubL: Color(0xFFB45309),
+      garageSubD: Color(0xFFFDBA74),
+      garageGlowL: Color(0x73F97316), // rgba(249,115,22,0.45)
+      garageGlowD: Color(0x66F97316), // rgba(249,115,22,0.40)
     ),
     CheerTierTheme._(
       level: 4,
@@ -214,6 +364,18 @@ class CheerTierTheme {
       glowL: Color(0x33475569),
       glowD: Color(0x3394A3B8),
       cta: [Color(0xFF4A515C), Color(0xFF14171D)],
+      // 시안에 하이퍼카 '보유' 카드는 없다(잠금 상태만) — 실버 톤으로 같은 규칙 적용
+      heroGlow: Color(0xFF94A3B8),
+      garageBgL: [Color(0xFFF3F4F6), Color(0xFFE3E6EB)],
+      garageBgD: [Color(0x2994A3B8), Color(0x0894A3B8)],
+      garageBorderL: Color(0xFF94A3B8),
+      garageBorderD: Color(0x8094A3B8),
+      garageBadgeL: [Color(0xFF64748B), Color(0xFF1F2937)],
+      garageBadgeD: [Color(0xFFCBD5E1), Color(0xFF64748B)],
+      garageSubL: Color(0xFF334155),
+      garageSubD: Color(0xFFCBD5E1),
+      garageGlowL: Color(0x59475569),
+      garageGlowD: Color(0x4D94A3B8),
     ),
   ];
 

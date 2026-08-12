@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../data/services/cheer_service.dart';
+import '../cheer/car_paint.dart';
 import '../cheer/cheer_tier_theme.dart';
 import '../cheer/garage_screen.dart';
 import '../../core/app_dialog.dart';
@@ -186,7 +187,8 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                   GestureDetector(
                     onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const GarageScreen())),
-                    child: SizedBox(width: 88, height: 36, child: tier.car()),
+                    child: SizedBox(
+                        width: 88, height: 36, child: CarImage(tier: tier)),
                   ),
                 IconButton(
                   icon: Icon(Icons.edit_rounded, size: 20, color: textSecondary),
