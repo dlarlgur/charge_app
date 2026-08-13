@@ -9,6 +9,13 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  exclude:
+    # 디자인 시안 조각 모음 — 앱에 빌드되지 않는 스크래치라 상수(kInk 등)·import 가
+    # 일부러 비어 있다. 여기서 나오는 error 105건이 실제 신호를 덮어서 제외한다.
+    # (파일은 참고용으로 남겨둔다 — 지우지 말 것)
+    - flutter_renewal/**
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`
