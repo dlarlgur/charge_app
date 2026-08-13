@@ -16,6 +16,8 @@ class NotifPrefsService {
   static const keyReport = 'report';
   static const keyNotice = 'notice';
   static const keyEvent = 'event';
+  /// 내 소식함 — 쿠폰·관리자 메시지 도착 알림
+  static const keyInbox = 'inbox';
 
   static const _boxName = 'settings';
   static String _hiveKey(String key) => 'notif_pref_$key';
@@ -47,7 +49,7 @@ class NotifPrefsService {
       final res = await _dio.get('/alerts/notif-prefs/${DkswCore.deviceId}');
       final p = (res.data['prefs'] as Map?) ?? const {};
       final out = <String, bool>{};
-      for (final k in [keyReport, keyNotice, keyEvent]) {
+      for (final k in [keyReport, keyNotice, keyEvent, keyInbox]) {
         final v = p[k] != false;
         out[k] = v;
         _cache(k, v);

@@ -3651,6 +3651,8 @@ class _NotifCategoryTileState extends State<_NotifCategoryTile> {
     (NotifPrefsService.keyReport, '유가·충전 리포트', '주간 분석과 오늘의 유가'),
     (NotifPrefsService.keyNotice, '공지사항', '점검·업데이트 안내'),
     (NotifPrefsService.keyEvent, '이벤트·혜택', '이벤트 소식'),
+    // 끄더라도 소식함에는 그대로 쌓인다 — 알림만 안 올 뿐 쿠폰을 못 받진 않는다.
+    (NotifPrefsService.keyInbox, '내 소식함', '쿠폰·관리자 메시지 도착'),
   ];
 
   bool _expanded = false;
