@@ -1350,13 +1350,15 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 52,
+              // 52 는 '2,500'(10px, 배율 1.2 에서도 ~34px)에 비해 과했다 — 왼쪽에
+              // 죽은 여백이 생겨 차트 전체가 오른쪽으로 쏠려 보였다(형 지적).
+              reservedSize: 42,
               interval: _niceYInterval(yMax - yMin),
               getTitlesWidget: (v, meta) {
                 // 최상단/최하단 라벨은 그리지 않음 (border 와 겹쳐서 잘리는 시각 문제).
                 if (v <= yMin + 0.5 || v >= yMax - 0.5) return const SizedBox.shrink();
                 return Padding(
-                  padding: const EdgeInsets.only(right: 6),
+                  padding: const EdgeInsets.only(right: 4),
                   child: Text(
                     _formatPrice(v),
                     textAlign: TextAlign.right,
