@@ -52,6 +52,10 @@ final navigateToInquiryNotifier = ValueNotifier<int>(0);
 // 제보 처리/사유 안내 알림 탭 → 내 제보 내역 (increment 트리거)
 final navigateToMyReportsNotifier = ValueNotifier<int>(0);
 
+/// 소식함 알림 탭 → 그 항목 상세. 0 이면 목록만 연다.
+/// -1 은 '목록으로'(id 없이 온 경우) — 0 은 '이동 없음'이라 구분이 필요하다.
+final navigateToInboxNotifier = ValueNotifier<int>(0);
+
 /// 유가·충전 리포트 알림 탭 시 그 리포트 id 전달 → HomeScreen이 리포트 상세로 이동.
 final navigateToFuelReportNotifier = ValueNotifier<int>(0);
 
@@ -459,6 +463,32 @@ void showInquiryReplyNotification({String? title, String? body, int? inquiryId})
       ),
     ),
     payload: 'inquiry_reply:${inquiryId ?? ''}',
+  );
+}
+
+/// 소식함(쿠폰·관리자 메시지) 도착 — 문의 답변 채널 재사용.
+/// 서버가 v2 data-only 로 보내므로 포그라운드·백그라운드 모두 앱이 직접 그린다.
+void showInboxNotification({String? title, String? body, int? inboxId}) {
+  if (_isWithinDnd()) return;
+  final t = (title == null || title.isEmpty) ? '새 소식이 도착했어요' : title;
+  final b = body ?? '';
+  notificationPlugin.show(
+    1007,
+    t,
+    b,
+    NotificationDetails(
+      iOS: _iosForegroundDetails,
+      android: AndroidNotificationDetails(
+        inquiryReplyChannel.id,
+        inquiryReplyChannel.name,
+        channelDescription: inquiryReplyChannel.description,
+        importance: inquiryReplyChannel.importance,
+        priority: Priority.high,
+        visibility: NotificationVisibility.public,
+        styleInformation: BigTextStyleInformation(b),
+      ),
+    ),
+    payload: 'inbox:${inboxId ?? ''}',
   );
 }
 

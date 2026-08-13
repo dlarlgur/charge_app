@@ -61,6 +61,7 @@ import '../cheer/gold_profile.dart';
 import '../cheer/cheer_screen.dart';
 import '../cheer/cheer_tier_theme.dart';
 import '../cheer/awards_screen.dart';
+import '../inbox/inbox_screen.dart';
 import '../widgets/settings_value.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -137,6 +138,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // 1:1 문의 답변 알림 탭 → 그 문의 상세로 이동
     navigateToInquiryNotifier.addListener(_onNavigateToInquiry);
     navigateToMyReportsNotifier.addListener(_onNavigateToMyReports);
+    navigateToInboxNotifier.addListener(_onNavigateToInbox);
     // 이벤트/공지 포그라운드 로컬알림 탭 → 그 상세로 이동
     navigateToEventNotifier.addListener(_onNavigateToEvent);
     navigateToNoticeNotifier.addListener(_onNavigateToNotice);
@@ -152,6 +154,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       if (navigateToNoticeNotifier.value > 0) _onNavigateToNotice();
       if (navigateToEventNotifier.value > 0) _onNavigateToEvent();
       if (navigateToInquiryNotifier.value > 0) _onNavigateToInquiry();
+      if (navigateToInboxNotifier.value != 0) _onNavigateToInbox();
     });
 
     // 포그라운드 FCM 메시지 수신 → 로컬 알림 표시 + 내역 저장.
@@ -478,6 +481,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (!mounted) return;
     Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
       builder: (_) => const MyReportsScreen(),
+    ));
+  }
+
+  /// 소식함 알림 탭 → 항목 상세(id>0) 또는 목록(-1).
+  /// 완전 종료 상태에서 탭한 경우 initState 의 postFrame 훑기가 같은 값을 다시
+  /// 태우므로, 값을 먼저 소비해 두 번 열리지 않게 한다.
+  void _onNavigateToInbox() {
+    final v = navigateToInboxNotifier.value;
+    if (v == 0 || !mounted) return;
+    navigateToInboxNotifier.value = 0; // 소비
+    InboxService.instance.refreshUnread();
+    Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
+      builder: (_) => InboxScreen(openId: v > 0 ? v : null),
     ));
   }
 
@@ -3169,12 +3185,6 @@ class SettingsScreenEmbed extends ConsumerWidget {
           ]),
           // AI 추천 관련 설정은 별도 섹션 — '앱 설정' 한 카드에 9개가 몰려 있어
           // 뭐가 어디 있는지 못 찾았다(형 지적).
-          // 개발자 응원하기 — 응원 진입은 위 강조 카드로 올라갔고, 여기엔 리뷰만 남는다.
-          _sectionHeader(context, '개발자 응원하기'),
-          settingsCard(isDark, [
-            _tile(context, isDark, Icons.star_rounded, '스토어 리뷰 남겨주기', '',
-                () => RatingPromptService.openReview()),
-          ]),
           _sectionHeader(context, 'AI 추천'),
           settingsCard(isDark, [
             _RouteEngineTileEmbed(isDark: isDark),
@@ -3561,6 +3571,22 @@ class _SupportEmbedState extends State<_SupportEmbed> {
             tile(Icons.celebration_rounded, '이벤트', c!.events, '/events'),
           if (hasF)
             tile(Icons.help_outline_rounded, '자주 묻는 질문', c!.faqs, '/faq'),
+          // 스토어 리뷰 — '개발자 응원하기' 섹션엔 이것 하나만 남아 섹션이 과했다.
+          // 성격이 같은 '정보' 로 합친다(응원 진입은 위 강조 카드가 맡는다).
+          ListTile(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            leading: SettingsScreenEmbed.settingsIconChip(
+                Icons.star_rounded, isDark),
+            title: Text('스토어 리뷰 남겨주기',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w600)),
+            trailing:
+                Icon(Icons.chevron_right_rounded, size: 20, color: muted),
+            onTap: () => RatingPromptService.openReview(),
+          ),
           // 1:1 문의하기 — 항상 노출
           ListTile(
             contentPadding:

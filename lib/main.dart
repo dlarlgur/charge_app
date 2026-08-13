@@ -222,6 +222,12 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       case 'fuel_report':
         showFuelReportNotification(title: t, body: b, reportId: id);
         break;
+      case 'inbox':
+        showInboxNotification(
+            title: t,
+            body: b,
+            inboxId: int.tryParse(message.data['inboxId']?.toString() ?? ''));
+        break;
       default: // notice·free_push 등
         showNoticeNotification(title: t, body: b, noticeId: id);
     }
@@ -408,6 +414,12 @@ void routeNotificationPayload(String payload, String? actionId) {
   } else if (payload.startsWith('report_done')) {
     // 제보 처리/사유 안내 알림 탭 → 내 제보 내역
     navigateToMyReportsNotifier.value++;
+  } else if (payload.startsWith('inbox:')) {
+    // 소식함 알림 탭 → 그 항목 상세(없으면 목록). id 0 은 '이동 없음'이라
+    // 목록만 열 때는 -1 을 쓴다.
+    final idStr = payload.substring('inbox:'.length);
+    final id = int.tryParse(idStr) ?? 0;
+    navigateToInboxNotifier.value = id > 0 ? id : -1;
   } else if (payload.startsWith('inquiry_reply')) {
     // 1:1 문의 답변 알림 탭 → 그 문의 상세 (payload: inquiry_reply:id)
     final idStr =
