@@ -129,8 +129,11 @@ void main() {
     expect(tile.contains('SettingsValue('), isTrue,
         reason: 'home_screen._tile 이 값 폭 상한을 건너뛴다');
 
+    // stopAt 은 그 함수 **바로 다음 멤버**여야 한다. '\n  Widget ' 로 두면 뒤따르는
+    // void 멤버들을 못 걸러 슬라이스가 133줄 더 먹고, 그 안 아무 데나 SettingsValue 가
+    // 생기면 정작 _settingTile 의 호출이 사라져도 통과한다.
     final settingTile = body('lib/ui/settings/settings_screen.dart',
-        'Widget _settingTile(', '\n  Widget ');
+        'Widget _settingTile(', '\n  void _showPickerSheet(');
     expect(settingTile.contains('SettingsValue('), isTrue,
         reason: 'settings_screen._settingTile 이 값 폭 상한을 건너뛴다');
   });

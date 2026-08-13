@@ -160,13 +160,15 @@ class _PromotionOverlayState extends State<_PromotionOverlay>
                                         ? const Color(0xFF60A5FA)
                                         : const Color(0xFF3B82F6)),
                                 const SizedBox(width: 5),
-                                Text('${widget.status.streak}일째 연속 응원',
+                                Flexible(child: Text('${widget.status.streak}일째 연속 응원',
                                     style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w700,
                                         color: isDark
                                             ? const Color(0xFF93C5FD)
-                                            : const Color(0xFF2563EB))),
+                                            : const Color(0xFF2563EB)),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis),)
                               ],
                             ),
                           ),

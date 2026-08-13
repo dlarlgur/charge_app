@@ -580,17 +580,18 @@ class _CheerScreenState extends State<CheerScreen>
               color: CheerDs.iconBg(isDark),
               borderRadius: BorderRadius.circular(12),
             ),
+            // 등수 숫자('3위')를 쓰지 않는다 — 하위권은 의욕만 꺾이고 상위권은
+            // 안심한다. 위·아래와 몇 회 차이인지만 말해 오늘 한 번 더 볼 이유를 준다.
+            // 문구 생성은 cheerChaseCopy 한 곳에만 있다(테스트가 그걸 덮는다).
             child: Row(children: [
               Text('내 기록',
                   style: TextStyle(
                       fontSize: 11.5, color: CheerDs.secondary(isDark))),
-              const Spacer(),
-              Flexible(
-                child: Text(
-                    ev.myCount == 0
-                        ? '아직 이번 달 응원이 없어요'
-                        : '이번 달 ${ev.myCount}회'
-                            '${ev.myRank != null ? ' · ${ev.myRank}위' : ''}',
+              const SizedBox(width: 10),
+              // Spacer 를 쓰면 Expanded 와 여유폭을 나눠 가져 문구가 반만 받는다.
+              Expanded(
+                child: Text(cheerChaseCopy(ev),
+                    textAlign: TextAlign.right,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(

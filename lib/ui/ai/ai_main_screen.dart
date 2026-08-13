@@ -2220,11 +2220,13 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                     size: 14,
                     color: selected ? accent : const Color(0xFFB0BAC9)),
                 const SizedBox(width: 4),
-                Text('$timeStr · ${km}km',
+                Flexible(child: Text('$timeStr · ${km}km',
                     style: TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w700,
-                        color: ink)),
+                        color: ink),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),)
               ],
             ),
           ],

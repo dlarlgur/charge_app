@@ -144,11 +144,13 @@ class _TierDetailDialog extends StatelessWidget {
                       Icon(Icons.lock_rounded,
                           size: 12, color: tier.label(isDark)),
                       const SizedBox(width: 4),
-                      Text('누적 ${tier.threshold}회 달성 시 획득',
+                      Flexible(child: Text('누적 ${tier.threshold}회 달성 시 획득',
                           style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
-                              color: tier.label(isDark))),
+                              color: tier.label(isDark)),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis),)
                     ],
                   ),
                 ),

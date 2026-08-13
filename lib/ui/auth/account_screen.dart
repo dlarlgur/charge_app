@@ -132,7 +132,10 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
         user: user,
         onUpdated: (u) => ref.read(authProvider.notifier).setUser(u),
         child: GoldAvatar(
-          size: 64,
+          // 지시문 1a: 아바타 108 / 링 3px(Blue→Green) / 카메라 배지 34
+          size: 108,
+          ringWidth: 3,
+          badgeSize: 34,
           isDark: isDark,
           photoUrl: user.profileImageAbsolute,
           cameraBadge: true,
@@ -299,22 +302,13 @@ class _PlainCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkCard : Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(20),
+        // 지시문: 흰 배경 유지(그라데이션 금지), border 0.5, 그림자 없음
         border: Border.all(
             color: isDark
                 ? AppColors.darkCardBorder
-                : const Color(0xFFEDE6D8),
+                : const Color(0xFFE8ECF0),
             width: 0.5),
-        // 골드 카드만 떠 있고 나머지가 가라앉아 보이지 않게, 같은 계열의
-        // 더 옅은 그림자를 준다(라이트 전용).
-        boxShadow: isDark
-            ? null
-            : const [
-                BoxShadow(
-                    color: Color(0x0F94896B),
-                    blurRadius: 10,
-                    offset: Offset(0, 3)),
-              ],
       ),
       padding: padding,
       child: child,

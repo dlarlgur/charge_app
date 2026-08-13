@@ -1009,11 +1009,13 @@ class _StationCardState extends State<_StationCard> {
                       color: labelColor)),
               if (unitPriceWon != null) ...[
                 const SizedBox(width: 6),
-                Text('· ${evPriceText(unitPriceWon)}원/kWh',
+                Flexible(child: Text('· ${evPriceText(unitPriceWon)}원/kWh',
                     style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
-                        color: labelColor.withValues(alpha: 0.8))),
+                        color: labelColor.withValues(alpha: 0.8)),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),)
               ],
               if (kwhLabel != null) ...[
                 const Spacer(),
