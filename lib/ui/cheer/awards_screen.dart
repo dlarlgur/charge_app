@@ -168,81 +168,86 @@ class _AwardsScreenState extends State<AwardsScreen> with SingleTickerProviderSt
                                 const SizedBox(height: 9),
                                 _chickenBanner(isDark, d),
                               ],
-                              const SizedBox(height: 9),
+                              const SizedBox(height: 11),
                               _rankCard(isDark, d, ink),
+                              // CTA 를 바닥에 고정하면 큰 화면에서 순위 카드와 버튼
+                              // 사이가 텅 빈다(형 지적). 콘텐츠 뒤에 붙여 한 덩어리로
+                              // 가운데 오게 하고, 작은 화면에선 같이 스크롤된다.
+                              const SizedBox(height: 18),
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    SizedBox(
+                                      width: double.infinity,
+                                      height: 46,
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(12),
+                                          gradient: const LinearGradient(
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                            colors: [Color(0xFFF6E4B8), Color(0xFFC9962B)],
+                                          ),
+                                        ),
+                                        child: TextButton(
+                                          style: TextButton.styleFrom(
+                                            shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(12)),
+                                          ),
+                                          onPressed: _sharing ? null : _share,
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              if (_sharing)
+                                                const SizedBox(
+                                                    width: 17,
+                                                    height: 17,
+                                                    child: CircularProgressIndicator(
+                                                        strokeWidth: 2, color: Color(0xFF3A2A05)))
+                                              else
+                                                const Icon(Icons.ios_share_rounded,
+                                                    size: 18, color: Color(0xFF3A2A05)),
+                                              const SizedBox(width: 7),
+                                              const Text('수상 결과 공유',
+                                                  style: TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight: FontWeight.w800,
+                                                      color: Color(0xFF3A2A05))),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      height: 32,
+                                      child: TextButton(
+                                        // 닫기만 하던 버튼 — '응원 시작하기' 인데 아무 데도 안 갔다.
+                                        // 시상식을 닫고 응원 화면으로 넘긴다.
+                                        onPressed: () {
+                                          Navigator.of(context).maybePop();
+                                          Navigator.of(context, rootNavigator: true).push(
+                                              MaterialPageRoute(
+                                                  builder: (_) => const CheerScreen()));
+                                        },
+                                        child: Text(
+                                            '${cheerMonthLabel(_nextMonth(d.month))} 응원 시작하기',
+                                            style: TextStyle(
+                                                fontSize: 12.5,
+                                                fontWeight: FontWeight.w700,
+                                                color: isDark
+                                                    ? const Color(0xFF94A3B8)
+                                                    : const Color(0xFF8A7C60))),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                  // CTA — 320dp 에서도 잘리지 않게 고정 높이 46 + 32
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          width: double.infinity,
-                          height: 46,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              gradient: const LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [Color(0xFFF6E4B8), Color(0xFFC9962B)],
-                              ),
-                            ),
-                            child: TextButton(
-                              style: TextButton.styleFrom(
-                                shape:
-                                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                              onPressed: _sharing ? null : _share,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  if (_sharing)
-                                    const SizedBox(
-                                        width: 17,
-                                        height: 17,
-                                        child: CircularProgressIndicator(
-                                            strokeWidth: 2, color: Color(0xFF3A2A05)))
-                                  else
-                                    const Icon(Icons.ios_share_rounded,
-                                        size: 18, color: Color(0xFF3A2A05)),
-                                  const SizedBox(width: 7),
-                                  const Text('수상 결과 공유',
-                                      style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w800,
-                                          color: Color(0xFF3A2A05))),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        SizedBox(
-                          height: 32,
-                          child: TextButton(
-                            // 닫기만 하던 버튼 — '응원 시작하기' 인데 아무 데도 안 갔다.
-                            // 시상식을 닫고 응원 화면으로 넘긴다.
-                            onPressed: () {
-                              Navigator.of(context).maybePop();
-                              Navigator.of(context, rootNavigator: true)
-                                  .push(MaterialPageRoute(builder: (_) => const CheerScreen()));
-                            },
-                            child: Text('${cheerMonthLabel(_nextMonth(d.month))} 응원 시작하기',
-                                style: TextStyle(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: isDark
-                                        ? const Color(0xFF94A3B8)
-                                        : const Color(0xFF8A7C60))),
-                          ),
-                        ),
-                      ],
                     ),
                   ),
                 ],
@@ -297,9 +302,10 @@ class _AwardsScreenState extends State<AwardsScreen> with SingleTickerProviderSt
 
   Widget _chickenBox(bool isDark, CheerAwards d) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+      // 얇아서 답답했다(형 지적) — 세로 여백과 아이콘을 키워 카드답게.
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -313,14 +319,14 @@ class _AwardsScreenState extends State<AwardsScreen> with SingleTickerProviderSt
       child: Row(
         children: [
           Container(
-            width: 26,
-            height: 26,
+            width: 34,
+            height: 34,
             decoration: BoxDecoration(
               color: isDark ? const Color(0x33F97316) : const Color(0xFFFFE0C2),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(Icons.redeem_rounded,
-                size: 15, color: isDark ? const Color(0xFFFDBA74) : const Color(0xFFC2410C)),
+                size: 19, color: isDark ? const Color(0xFFFDBA74) : const Color(0xFFC2410C)),
           ),
           const SizedBox(width: 9),
           Expanded(
@@ -331,10 +337,10 @@ class _AwardsScreenState extends State<AwardsScreen> with SingleTickerProviderSt
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                        fontSize: 11.5,
+                        fontSize: 13,
                         fontWeight: FontWeight.w800,
                         color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A))),
-                const SizedBox(height: 1),
+                const SizedBox(height: 3),
                 // 안내 문구는 잘리면 안 된다 — '며칠 안에 소식함으로' 가 잘리면
                 // 언제 어디로 오는지가 사라져 배너가 의미를 잃는다. 320dp·배율 1.2
                 // 에서는 한 줄에 안 들어가므로 두 줄까지 허용한다.
@@ -366,10 +372,11 @@ class _AwardsScreenState extends State<AwardsScreen> with SingleTickerProviderSt
     final meInTop = d.top.any((r) => r.me);
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      // 행이 다닥다닥 붙어 얇아 보였다 — 안팎 여백을 키운다.
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
       decoration: BoxDecoration(
         color: isDark ? const Color(0x0AFFFFFF) : Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
             color: isDark ? const Color(0x14FFFFFF) : const Color(0xFFEDE6D8), width: 0.5),
       ),
@@ -377,7 +384,7 @@ class _AwardsScreenState extends State<AwardsScreen> with SingleTickerProviderSt
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(2, 0, 2, 3),
+            padding: const EdgeInsets.fromLTRB(2, 0, 2, 7),
             child: Row(
               children: [
                 Text('${cheerMonthLabel(d.month)} 최종 순위',
@@ -418,10 +425,10 @@ class _AwardsScreenState extends State<AwardsScreen> with SingleTickerProviderSt
   Widget _rankRow(bool isDark, CheerAwardRank r, Color ink) {
     final isFirst = r.rank == 1;
     return Container(
-      margin: const EdgeInsets.only(top: 5),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      margin: const EdgeInsets.only(top: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(11),
         gradient: isFirst
             ? LinearGradient(
                 begin: Alignment.topLeft,
@@ -439,8 +446,8 @@ class _AwardsScreenState extends State<AwardsScreen> with SingleTickerProviderSt
       child: Row(
         children: [
           Container(
-            width: 19,
-            height: 19,
+            width: 22,
+            height: 22,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: LinearGradient(
@@ -480,9 +487,9 @@ class _AwardsScreenState extends State<AwardsScreen> with SingleTickerProviderSt
   Widget _myRow(bool isDark, CheerAwards d, Color ink) {
     final blue = isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(11),
         color: isDark ? const Color(0x1A3B82F6) : const Color(0xFFF3F8FF),
         border: Border.all(color: isDark ? const Color(0x593B82F6) : const Color(0xFFB9D6F7)),
       ),
