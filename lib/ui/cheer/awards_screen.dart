@@ -26,8 +26,7 @@ Future<void> showCheerAwards(
     barrierLabel: 'cheer-awards',
     barrierColor: Colors.black.withValues(alpha: 0.35),
     transitionDuration: const Duration(milliseconds: 220),
-    pageBuilder: (_, __, ___) =>
-        AwardsScreen(data: data, nickname: nickname),
+    pageBuilder: (_, __, ___) => AwardsScreen(data: data, nickname: nickname),
     transitionBuilder: (_, anim, __, child) => FadeTransition(
       opacity: anim,
       child: ScaleTransition(
@@ -49,10 +48,9 @@ class AwardsScreen extends StatefulWidget {
   State<AwardsScreen> createState() => _AwardsScreenState();
 }
 
-class _AwardsScreenState extends State<AwardsScreen>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _anim = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 5000));
+class _AwardsScreenState extends State<AwardsScreen> with SingleTickerProviderStateMixin {
+  late final AnimationController _anim =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 5000));
 
   bool _sharing = false;
 
@@ -84,8 +82,7 @@ class _AwardsScreenState extends State<AwardsScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final d = widget.data;
     final ink = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
-    final capColor =
-        isDark ? const Color(0xFF64748B) : const Color(0xFFA79573);
+    final capColor = isDark ? const Color(0xFF64748B) : const Color(0xFFA79573);
 
     return Material(
       color: isDark ? const Color(0xFF0B0D12) : null,
@@ -118,8 +115,7 @@ class _AwardsScreenState extends State<AwardsScreen>
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: RadialGradient(colors: [
-                        const Color(0xFFE3B54C)
-                            .withValues(alpha: isDark ? 0.18 : 0.20),
+                        const Color(0xFFE3B54C).withValues(alpha: isDark ? 0.18 : 0.20),
                         const Color(0x00E3B54C),
                       ]),
                     ),
@@ -141,34 +137,43 @@ class _AwardsScreenState extends State<AwardsScreen>
                                 color: capColor)),
                         const Spacer(),
                         IconButton(
-                          icon: Icon(Icons.close_rounded,
-                              size: 19, color: capColor),
+                          icon: Icon(Icons.close_rounded, size: 19, color: capColor),
                           onPressed: () => Navigator.of(context).maybePop(),
                         ),
                       ],
                     ),
                   ),
+                  // 큰 화면에선 내용이 위로 쏠리고 아래가 텅 빈다(형 지적).
+                  // 뷰포트보다 짧으면 세로 가운데, 길면 그대로 스크롤 — 320dp 에서도
+                  // 안 눌리게 minHeight 만 주고 카드 크기는 건드리지 않는다.
                   Expanded(
-                    child: ListView(
-                      padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
-                      children: [
-                        CertificateCard(
-                          anim: _anim,
-                          isDark: isDark,
-                          title: '${cheerMonthLabel(d.month)}의 응원왕',
-                          name: widget.nickname,
-                          count: d.first?.count ?? d.myCount,
-                          footer: CertificateFooter.stamp,
-                          stampLabel:
-                              '전기차 기름차 · ${cheerMonthLabel(d.month)} 결산',
+                    child: LayoutBuilder(
+                      builder: (context, c) => SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(minHeight: c.maxHeight - 8),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              CertificateCard(
+                                anim: _anim,
+                                isDark: isDark,
+                                title: '${cheerMonthLabel(d.month)}의 응원왕',
+                                name: widget.nickname,
+                                count: d.first?.count ?? d.myCount,
+                                footer: CertificateFooter.stamp,
+                                stampLabel: '전기차 기름차 · ${cheerMonthLabel(d.month)} 결산',
+                              ),
+                              if (d.chickenOn) ...[
+                                const SizedBox(height: 9),
+                                _chickenBanner(isDark, d),
+                              ],
+                              const SizedBox(height: 9),
+                              _rankCard(isDark, d, ink),
+                            ],
+                          ),
                         ),
-                        if (d.chickenOn) ...[
-                          const SizedBox(height: 9),
-                          _chickenBanner(isDark, d),
-                        ],
-                        const SizedBox(height: 9),
-                        _rankCard(isDark, d, ink),
-                      ],
+                      ),
                     ),
                   ),
                   // CTA — 320dp 에서도 잘리지 않게 고정 높이 46 + 32
@@ -191,8 +196,8 @@ class _AwardsScreenState extends State<AwardsScreen>
                             ),
                             child: TextButton(
                               style: TextButton.styleFrom(
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12)),
+                                shape:
+                                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               ),
                               onPressed: _sharing ? null : _share,
                               child: Row(
@@ -203,8 +208,7 @@ class _AwardsScreenState extends State<AwardsScreen>
                                         width: 17,
                                         height: 17,
                                         child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Color(0xFF3A2A05)))
+                                            strokeWidth: 2, color: Color(0xFF3A2A05)))
                                   else
                                     const Icon(Icons.ios_share_rounded,
                                         size: 18, color: Color(0xFF3A2A05)),
@@ -226,12 +230,10 @@ class _AwardsScreenState extends State<AwardsScreen>
                             // 시상식을 닫고 응원 화면으로 넘긴다.
                             onPressed: () {
                               Navigator.of(context).maybePop();
-                              Navigator.of(context, rootNavigator: true).push(
-                                  MaterialPageRoute(
-                                      builder: (_) => const CheerScreen()));
+                              Navigator.of(context, rootNavigator: true)
+                                  .push(MaterialPageRoute(builder: (_) => const CheerScreen()));
                             },
-                            child: Text(
-                                '${cheerMonthLabel(_nextMonth(d.month))} 응원 시작하기',
+                            child: Text('${cheerMonthLabel(_nextMonth(d.month))} 응원 시작하기',
                                 style: TextStyle(
                                     fontSize: 12.5,
                                     fontWeight: FontWeight.w700,
@@ -270,9 +272,7 @@ class _AwardsScreenState extends State<AwardsScreen>
     if (parts.length != 2) return month;
     final y = int.tryParse(parts[0]), m = int.tryParse(parts[1]);
     if (y == null || m == null) return month;
-    return m == 12
-        ? '${y + 1}-01'
-        : '$y-${(m + 1).toString().padLeft(2, '0')}';
+    return m == 12 ? '${y + 1}-01' : '$y-${(m + 1).toString().padLeft(2, '0')}';
   }
 
   // ─── 치킨 이벤트 배너 (운영한 달에만) ───
@@ -287,8 +287,8 @@ class _AwardsScreenState extends State<AwardsScreen>
         borderRadius: BorderRadius.circular(12),
         onTap: () {
           Navigator.of(context).maybePop(); // 시상식을 닫고
-          Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
-              builder: (_) => InboxScreen(openId: d.chickenInboxId)));
+          Navigator.of(context, rootNavigator: true)
+              .push(MaterialPageRoute(builder: (_) => InboxScreen(openId: d.chickenInboxId)));
         },
         child: banner,
       ),
@@ -308,8 +308,7 @@ class _AwardsScreenState extends State<AwardsScreen>
               : const [Color(0xFFFFF4E8), Color(0xFFFFE8D2)],
         ),
         border: Border.all(
-            color: isDark ? const Color(0x59FDBA74) : const Color(0xFFF4D6BA),
-            width: 0.5),
+            color: isDark ? const Color(0x59FDBA74) : const Color(0xFFF4D6BA), width: 0.5),
       ),
       child: Row(
         children: [
@@ -321,9 +320,7 @@ class _AwardsScreenState extends State<AwardsScreen>
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(Icons.redeem_rounded,
-                size: 15,
-                color:
-                    isDark ? const Color(0xFFFDBA74) : const Color(0xFFC2410C)),
+                size: 15, color: isDark ? const Color(0xFFFDBA74) : const Color(0xFFC2410C)),
           ),
           const SizedBox(width: 9),
           Expanded(
@@ -336,25 +333,18 @@ class _AwardsScreenState extends State<AwardsScreen>
                     style: TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w800,
-                        color: isDark
-                            ? const Color(0xFFF1F5F9)
-                            : const Color(0xFF0F172A))),
+                        color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A))),
                 const SizedBox(height: 1),
                 // 안내 문구는 잘리면 안 된다 — '며칠 안에 소식함으로' 가 잘리면
                 // 언제 어디로 오는지가 사라져 배너가 의미를 잃는다. 320dp·배율 1.2
                 // 에서는 한 줄에 안 들어가므로 두 줄까지 허용한다.
-                Text(
-                    d.chickenSent
-                        ? '소식함에서 확인하세요'
-                        : '치킨 기프티콘은 며칠 안에 소식함으로 보내드려요',
+                Text(d.chickenSent ? '소식함에서 확인하세요' : '치킨 기프티콘은 며칠 안에 소식함으로 보내드려요',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
-                        color: isDark
-                            ? const Color(0xFFA89B7E)
-                            : const Color(0xFF8A6A4A))),
+                        color: isDark ? const Color(0xFFA89B7E) : const Color(0xFF8A6A4A))),
               ],
             ),
           ),
@@ -363,8 +353,7 @@ class _AwardsScreenState extends State<AwardsScreen>
               style: TextStyle(
                   fontSize: 10.5,
                   fontWeight: FontWeight.w800,
-                  color:
-                      isDark ? const Color(0xFFFDBA74) : const Color(0xFFB45309))),
+                  color: isDark ? const Color(0xFFFDBA74) : const Color(0xFFB45309))),
         ],
       ),
     );
@@ -382,9 +371,7 @@ class _AwardsScreenState extends State<AwardsScreen>
         color: isDark ? const Color(0x0AFFFFFF) : Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-            color:
-                isDark ? const Color(0x14FFFFFF) : const Color(0xFFEDE6D8),
-            width: 0.5),
+            color: isDark ? const Color(0x14FFFFFF) : const Color(0xFFEDE6D8), width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -394,16 +381,10 @@ class _AwardsScreenState extends State<AwardsScreen>
             child: Row(
               children: [
                 Text('${cheerMonthLabel(d.month)} 최종 순위',
-                    style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w800,
-                        color: ink)),
+                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: ink)),
                 const Spacer(),
                 Text('총 ${_comma(d.total)}회',
-                    style: TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w700,
-                        color: muted)),
+                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: muted)),
               ],
             ),
           ),
@@ -421,9 +402,7 @@ class _AwardsScreenState extends State<AwardsScreen>
                       margin: const EdgeInsets.symmetric(horizontal: 2),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: isDark
-                            ? const Color(0xFF475569)
-                            : const Color(0xFFCBD5E1),
+                        color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
                       ),
                     ),
                 ],
@@ -454,10 +433,7 @@ class _AwardsScreenState extends State<AwardsScreen>
             : null,
         border: isFirst
             ? Border.all(
-                color: isDark
-                    ? const Color(0x5AE3B54C)
-                    : const Color(0xFFEBDCB8),
-                width: 0.5)
+                color: isDark ? const Color(0x5AE3B54C) : const Color(0xFFEBDCB8), width: 0.5)
             : null,
       ),
       child: Row(
@@ -476,9 +452,7 @@ class _AwardsScreenState extends State<AwardsScreen>
             alignment: Alignment.center,
             child: Text('${r.rank}',
                 style: TextStyle(
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w800,
-                    color: CheerGold.medalInk(r.rank))),
+                    fontSize: 9.5, fontWeight: FontWeight.w800, color: CheerGold.medalInk(r.rank))),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -496,12 +470,8 @@ class _AwardsScreenState extends State<AwardsScreen>
                   fontWeight: FontWeight.w800,
                   fontFeatures: const [ui.FontFeature.tabularFigures()],
                   color: isFirst
-                      ? (isDark
-                          ? const Color(0xFFFCEBB6)
-                          : const Color(0xFF8A6A2E))
-                      : (isDark
-                          ? const Color(0xFF94A3B8)
-                          : const Color(0xFF43556B)))),
+                      ? (isDark ? const Color(0xFFFCEBB6) : const Color(0xFF8A6A2E))
+                      : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF43556B)))),
         ],
       ),
     );
@@ -514,9 +484,7 @@ class _AwardsScreenState extends State<AwardsScreen>
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(9),
         color: isDark ? const Color(0x1A3B82F6) : const Color(0xFFF3F8FF),
-        border: Border.all(
-            color:
-                isDark ? const Color(0x593B82F6) : const Color(0xFFB9D6F7)),
+        border: Border.all(color: isDark ? const Color(0x593B82F6) : const Color(0xFFB9D6F7)),
       ),
       child: Row(
         children: [
@@ -544,33 +512,24 @@ class _AwardsScreenState extends State<AwardsScreen>
                     style: TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w800,
-                        color: isDark
-                            ? const Color(0xFFE2E8F0)
-                            : const Color(0xFF1E2A38))),
+                        color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF1E2A38))),
                 TextSpan(
                     text: ' (나)',
                     style: TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600,
-                        color: isDark
-                            ? const Color(0xFF64748B)
-                            : const Color(0xFF94A3B8))),
+                        color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8))),
               ]),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),
           if (d.delta != null && d.delta != 0) ...[
-            Text(
-                d.delta! > 0
-                    ? '▲${d.delta}'
-                    : '▼${d.delta!.abs()}',
+            Text(d.delta! > 0 ? '▲${d.delta}' : '▼${d.delta!.abs()}',
                 style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
-                    color: d.delta! > 0
-                        ? const Color(0xFF10B981)
-                        : const Color(0xFFEF4444))),
+                    color: d.delta! > 0 ? const Color(0xFF10B981) : const Color(0xFFEF4444))),
             const SizedBox(width: 6),
           ],
           Text('${d.myCount}',
@@ -668,8 +627,7 @@ class CertificateCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(radius - 6),
                     border: Border.all(
-                        color: const Color(0xFFC9A354)
-                            .withValues(alpha: isDark ? 0.45 : 0.5)),
+                        color: const Color(0xFFC9A354).withValues(alpha: isDark ? 0.45 : 0.5)),
                   ),
                 ),
               ),
@@ -679,11 +637,7 @@ class CertificateCard extends StatelessWidget {
                 left: 26,
                 top: 16,
                 child: GoldTwinkle(
-                    anim: anim,
-                    size: 9,
-                    color: isDark
-                        ? CheerGold.twinkleD
-                        : CheerGold.twinkleL)),
+                    anim: anim, size: 9, color: isDark ? CheerGold.twinkleD : CheerGold.twinkleL)),
             Positioned(
                 right: 26,
                 top: 16,
@@ -691,9 +645,7 @@ class CertificateCard extends StatelessWidget {
                     anim: anim,
                     size: 9,
                     delaySec: 0.5,
-                    color: isDark
-                        ? CheerGold.twinkleD2
-                        : CheerGold.twinkleL2)),
+                    color: isDark ? CheerGold.twinkleD2 : CheerGold.twinkleL2)),
             Positioned(
                 right: 26,
                 bottom: 16,
@@ -701,9 +653,7 @@ class CertificateCard extends StatelessWidget {
                     anim: anim,
                     size: 9,
                     delaySec: 1.1,
-                    color: isDark
-                        ? CheerGold.twinkleD
-                        : CheerGold.twinkleL)),
+                    color: isDark ? CheerGold.twinkleD : CheerGold.twinkleL)),
             Positioned(
                 left: 26,
                 bottom: 16,
@@ -711,14 +661,10 @@ class CertificateCard extends StatelessWidget {
                     anim: anim,
                     size: 9,
                     delaySec: 1.7,
-                    color: isDark
-                        ? CheerGold.twinkleD2
-                        : CheerGold.twinkleL2)),
+                    color: isDark ? CheerGold.twinkleD2 : CheerGold.twinkleL2)),
             Padding(
               padding: padding,
-              child: footer == CertificateFooter.stamp
-                  ? _stampBody()
-                  : _shareBody(),
+              child: footer == CertificateFooter.stamp ? _stampBody() : _shareBody(),
             ),
           ],
         ),
@@ -744,27 +690,22 @@ class CertificateCard extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
           decoration: BoxDecoration(
-            color: const Color(0xFFC9A354)
-                .withValues(alpha: isDark ? 0.18 : 0.14),
+            color: const Color(0xFFC9A354).withValues(alpha: isDark ? 0.18 : 0.14),
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-                color: const Color(0xFFC9A354).withValues(alpha: 0.42),
-                width: 0.5),
+            border: Border.all(color: const Color(0xFFC9A354).withValues(alpha: 0.42), width: 0.5),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               ClipOval(
-                  child: Image.asset(CheerGold.iconAsset,
-                      width: 17, height: 17, fit: BoxFit.cover)),
+                  child:
+                      Image.asset(CheerGold.iconAsset, width: 17, height: 17, fit: BoxFit.cover)),
               const SizedBox(width: 7),
               Text(stampLabel ?? '전기차 기름차',
                   style: TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w700,
-                      color: isDark
-                          ? const Color(0xFFE8CE93)
-                          : const Color(0xFF8A6A2E))),
+                      color: isDark ? const Color(0xFFE8CE93) : const Color(0xFF8A6A2E))),
             ],
           ),
         ),
@@ -792,8 +733,7 @@ class CertificateCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: const Color(0xFFF97316)
-                  .withValues(alpha: isDark ? 0.18 : 0.12),
+              color: const Color(0xFFF97316).withValues(alpha: isDark ? 0.18 : 0.12),
               borderRadius: BorderRadius.circular(999),
               border: Border.all(
                   color: isDark
@@ -805,18 +745,13 @@ class CertificateCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.redeem_rounded,
-                    size: 13,
-                    color: isDark
-                        ? const Color(0xFFFDBA74)
-                        : const Color(0xFFC2410C)),
+                    size: 13, color: isDark ? const Color(0xFFFDBA74) : const Color(0xFFC2410C)),
                 const SizedBox(width: 6),
                 Text('치킨 기프티콘 수상',
                     style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
-                        color: isDark
-                            ? const Color(0xFFFDBA74)
-                            : const Color(0xFFC2410C))),
+                        color: isDark ? const Color(0xFFFDBA74) : const Color(0xFFC2410C))),
               ],
             ),
           ),
@@ -825,28 +760,22 @@ class CertificateCard extends StatelessWidget {
         // 점선 + 푸터
         CustomPaint(
           size: const Size(double.infinity, 1),
-          painter: _DashedLine(
-              color: const Color(0xFFC9A354).withValues(alpha: 0.35)),
+          painter: _DashedLine(color: const Color(0xFFC9A354).withValues(alpha: 0.35)),
         ),
         const SizedBox(height: 11),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ClipOval(
-                child: Image.asset(CheerGold.iconAsset,
-                    width: 18, height: 18, fit: BoxFit.cover)),
+                child: Image.asset(CheerGold.iconAsset, width: 18, height: 18, fit: BoxFit.cover)),
             const SizedBox(width: 7),
             Text('전기차 기름차',
                 style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
-                    color: isDark
-                        ? const Color(0xFFFCEBB6)
-                        : const Color(0xFF8A6A2E))),
+                    color: isDark ? const Color(0xFFFCEBB6) : const Color(0xFF8A6A2E))),
             const SizedBox(width: 5),
-            Text('· 충전·주유 최저가',
-                style: TextStyle(
-                    fontSize: 10, color: CheerGold.subOnGold(isDark))),
+            Text('· 충전·주유 최저가', style: TextStyle(fontSize: 10, color: CheerGold.subOnGold(isDark))),
           ],
         ),
       ],
@@ -864,9 +793,7 @@ class CertificateCard extends StatelessWidget {
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: TextStyle(
-          fontSize: 11.5,
-          fontWeight: FontWeight.w700,
-          color: CheerGold.subOnGold(isDark)));
+          fontSize: 11.5, fontWeight: FontWeight.w700, color: CheerGold.subOnGold(isDark)));
 
   Widget _name(double size) => ShaderMask(
         shaderCallback: (r) => LinearGradient(
@@ -969,8 +896,7 @@ class _DashedLine extends CustomPainter {
       ..strokeWidth = 1;
     const dash = 4.0, gap = 3.0;
     for (var x = 0.0; x < size.width; x += dash + gap) {
-      canvas.drawLine(
-          Offset(x, 0), Offset(math.min(x + dash, size.width), 0), paint);
+      canvas.drawLine(Offset(x, 0), Offset(math.min(x + dash, size.width), 0), paint);
     }
   }
 
@@ -1012,15 +938,14 @@ class AwardsShare {
       final bytes = await _render(card, context);
       if (bytes == null) return;
       final dir = await getTemporaryDirectory();
-      final file = File(
-          '${dir.path}/award_${DateTime.now().millisecondsSinceEpoch}.png');
+      final file = File('${dir.path}/award_${DateTime.now().millisecondsSinceEpoch}.png');
       await file.writeAsBytes(bytes);
       await Share.shareXFiles([XFile(file.path)],
           text: '${cheerMonthLabel(data.month)}의 응원왕 · 전기차 기름차');
     } catch (_) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('이미지를 만들지 못했어요. 잠시 후 다시 시도해 주세요.')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('이미지를 만들지 못했어요. 잠시 후 다시 시도해 주세요.')));
     }
   }
 
@@ -1033,8 +958,7 @@ class AwardsShare {
     final renderView = RenderView(
       view: view,
       configuration: ViewConfiguration(
-        physicalConstraints:
-            BoxConstraints.tight(const Size(cardW, cardH) * pixelRatio),
+        physicalConstraints: BoxConstraints.tight(const Size(cardW, cardH) * pixelRatio),
         logicalConstraints: BoxConstraints.tight(const Size(cardW, cardH)),
         devicePixelRatio: pixelRatio,
       ),
