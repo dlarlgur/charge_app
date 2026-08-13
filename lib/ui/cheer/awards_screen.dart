@@ -147,107 +147,105 @@ class _AwardsScreenState extends State<AwardsScreen> with SingleTickerProviderSt
                   // 뷰포트보다 짧으면 세로 가운데, 길면 그대로 스크롤 — 320dp 에서도
                   // 안 눌리게 minHeight 만 주고 카드 크기는 건드리지 않는다.
                   Expanded(
-                    child: LayoutBuilder(
-                      builder: (context, c) => SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(minHeight: c.maxHeight - 8),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              CertificateCard(
-                                anim: _anim,
-                                isDark: isDark,
-                                title: '${cheerMonthLabel(d.month)}의 응원왕',
-                                name: widget.nickname,
-                                count: d.first?.count ?? d.myCount,
-                                footer: CertificateFooter.stamp,
-                                stampLabel: '전기차 기름차 · ${cheerMonthLabel(d.month)} 결산',
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+                      children: [
+                        CertificateCard(
+                          anim: _anim,
+                          isDark: isDark,
+                          title: '${cheerMonthLabel(d.month)}의 응원왕',
+                          name: widget.nickname,
+                          count: d.first?.count ?? d.myCount,
+                          footer: CertificateFooter.stamp,
+                          stampLabel: '전기차 기름차 · ${cheerMonthLabel(d.month)} 결산',
+                        ),
+                        if (d.chickenOn) ...[
+                          const SizedBox(height: 9),
+                          _chickenBanner(isDark, d),
+                        ],
+                        const SizedBox(height: 11),
+                        _rankCard(isDark, d, ink),
+                      ],
+                    ),
+                  ),
+                  // 하단 CTA — 바닥에 고정. 아래 여백을 넉넉히 둔다(형 지시).
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 6, 14, 24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: double.infinity,
+                          height: 46,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [Color(0xFFF6E4B8), Color(0xFFC9962B)],
                               ),
-                              if (d.chickenOn) ...[
-                                const SizedBox(height: 9),
-                                _chickenBanner(isDark, d),
-                              ],
-                              const SizedBox(height: 11),
-                              _rankCard(isDark, d, ink),
-                              // CTA 를 바닥에 고정하면 큰 화면에서 순위 카드와 버튼
-                              // 사이가 텅 빈다(형 지적). 콘텐츠 뒤에 붙여 한 덩어리로
-                              // 가운데 오게 하고, 작은 화면에선 같이 스크롤된다.
-                              const SizedBox(height: 18),
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    SizedBox(
-                                      width: double.infinity,
-                                      height: 46,
-                                      child: DecoratedBox(
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(12),
-                                          gradient: const LinearGradient(
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                            colors: [Color(0xFFF6E4B8), Color(0xFFC9962B)],
-                                          ),
-                                        ),
-                                        child: TextButton(
-                                          style: TextButton.styleFrom(
-                                            shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(12)),
-                                          ),
-                                          onPressed: _sharing ? null : _share,
-                                          child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              if (_sharing)
-                                                const SizedBox(
-                                                    width: 17,
-                                                    height: 17,
-                                                    child: CircularProgressIndicator(
-                                                        strokeWidth: 2, color: Color(0xFF3A2A05)))
-                                              else
-                                                const Icon(Icons.ios_share_rounded,
-                                                    size: 18, color: Color(0xFF3A2A05)),
-                                              const SizedBox(width: 7),
-                                              const Text('수상 결과 공유',
-                                                  style: TextStyle(
-                                                      fontSize: 14,
-                                                      fontWeight: FontWeight.w800,
-                                                      color: Color(0xFF3A2A05))),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    SizedBox(
-                                      height: 32,
-                                      child: TextButton(
-                                        // 닫기만 하던 버튼 — '응원 시작하기' 인데 아무 데도 안 갔다.
-                                        // 시상식을 닫고 응원 화면으로 넘긴다.
-                                        onPressed: () {
-                                          Navigator.of(context).maybePop();
-                                          Navigator.of(context, rootNavigator: true).push(
-                                              MaterialPageRoute(
-                                                  builder: (_) => const CheerScreen()));
-                                        },
-                                        child: Text(
-                                            '${cheerMonthLabel(_nextMonth(d.month))} 응원 시작하기',
-                                            style: TextStyle(
-                                                fontSize: 12.5,
-                                                fontWeight: FontWeight.w700,
-                                                color: isDark
-                                                    ? const Color(0xFF94A3B8)
-                                                    : const Color(0xFF8A7C60))),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                            ),
+                            child: TextButton(
+                              style: TextButton.styleFrom(
+                                shape:
+                                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               ),
-                            ],
+                              onPressed: _sharing ? null : _share,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  if (_sharing)
+                                    const SizedBox(
+                                        width: 17,
+                                        height: 17,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2, color: Color(0xFF3A2A05)))
+                                  else
+                                    const Icon(Icons.ios_share_rounded,
+                                        size: 18, color: Color(0xFF3A2A05)),
+                                  const SizedBox(width: 7),
+                                  const Text('수상 결과 공유',
+                                      style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF3A2A05))),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                        const SizedBox(height: 9),
+                        // 맨 텍스트라 버튼으로 안 보였다(형 지적) — 테두리를 줘서
+                        // 누를 수 있는 것으로 읽히게 한다. 공유가 주 CTA 라 채우진 않는다.
+                        SizedBox(
+                          width: double.infinity,
+                          height: 44,
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              shape:
+                                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              side: BorderSide(
+                                  color:
+                                      isDark ? const Color(0x3DFCEBB6) : const Color(0xFFE0D3AE)),
+                            ),
+                            // 닫기만 하던 버튼 — '응원 시작하기' 인데 아무 데도 안 갔다.
+                            // 시상식을 닫고 응원 화면으로 넘긴다.
+                            onPressed: () {
+                              Navigator.of(context).maybePop();
+                              Navigator.of(context, rootNavigator: true)
+                                  .push(MaterialPageRoute(builder: (_) => const CheerScreen()));
+                            },
+                            child: Text('${cheerMonthLabel(_nextMonth(d.month))} 응원 시작하기',
+                                style: TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF8A7C60))),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
