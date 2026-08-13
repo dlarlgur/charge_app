@@ -121,81 +121,22 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   // ─── 골드 프로필 카드 ─────────────────────────────────────────────────────
   Widget _goldProfile(
       BuildContext context, WidgetRef ref, AuthUser user, bool isDark) {
-    final ink = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
-    final sub = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
-
-    return _GoldFrame(
+    return BrandProfileCard(
       isDark: isDark,
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _EditablePhoto(
-            user: user,
-            onUpdated: (u) => ref.read(authProvider.notifier).setUser(u),
-            child: GoldAvatar(
-              size: 64,
-              isDark: isDark,
-              photoUrl: user.profileImageAbsolute,
-              cameraBadge: true,
-            ),
-          ),
-          const SizedBox(height: 8),
-          // 닉네임 + 연필 — 눌러서 바로 수정
-          InkWell(
-            borderRadius: BorderRadius.circular(8),
-            onTap: () => _editNickname(context, ref, user),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Flexible(
-                    child: Text('${user.nickname ?? '사용자'}님',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.3,
-                            color: ink)),
-                  ),
-                  const SizedBox(width: 6),
-                  Icon(Icons.edit_rounded,
-                      size: 15,
-                      color: isDark
-                          ? const Color(0xFFD9B871)
-                          : const Color(0xFFB08A45)),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(user.email ?? '이메일 미등록',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 11, color: sub)),
-          // 연령대는 시안에 없지만 기존 표시 정보라 유지 — 이메일 아래 작은 칩.
-          if (user.ageGroup?.isNotEmpty ?? false) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-              decoration: BoxDecoration(
-                color: AppColors.gasBlue.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(7),
-              ),
-              child: Text(user.ageGroup!,
-                  maxLines: 1,
-                  softWrap: false,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.gasBlue)),
-            ),
-          ],
-        ],
+      nickname: '${user.nickname ?? '사용자'}님',
+      email: user.email ?? '이메일 미등록',
+      // 연령대는 시안에 없지만 기존 표시 정보라 유지 — 이메일 아래 작은 칩.
+      ageGroup: user.ageGroup,
+      onEditNickname: () => _editNickname(context, ref, user),
+      avatar: _EditablePhoto(
+        user: user,
+        onUpdated: (u) => ref.read(authProvider.notifier).setUser(u),
+        child: GoldAvatar(
+          size: 64,
+          isDark: isDark,
+          photoUrl: user.profileImageAbsolute,
+          cameraBadge: true,
+        ),
       ),
     );
   }
@@ -339,98 +280,6 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                     : const Color(0xFFCBD5E1)),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// 골드 톤 카드 프레임 — ✦ 트윙클 + 우상단 글로우 (계정 관리 프로필용)
-class _GoldFrame extends StatefulWidget {
-  final bool isDark;
-  final EdgeInsets padding;
-  final Widget child;
-  const _GoldFrame(
-      {required this.isDark, required this.padding, required this.child});
-
-  @override
-  State<_GoldFrame> createState() => _GoldFrameState();
-}
-
-class _GoldFrameState extends State<_GoldFrame>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _tw = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 4000))
-    ..repeat();
-
-  @override
-  void dispose() {
-    _tw.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = widget.isDark;
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: LinearGradient(
-          begin: const Alignment(-0.5, -1),
-          end: const Alignment(0.5, 1),
-          colors: CheerGold.card(isDark),
-        ),
-        border: Border.all(color: CheerGold.border(isDark)),
-        boxShadow: CheerGold.shadow(isDark),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -30,
-            top: -30,
-            child: IgnorePointer(
-              child: Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(colors: [
-                    const Color(0xFFE3B54C)
-                        .withValues(alpha: isDark ? 0.20 : 0.38),
-                    const Color(0x00E3B54C),
-                  ]),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-              left: 14,
-              top: 14,
-              child: GoldTwinkle(
-                  anim: _tw,
-                  size: 10,
-                  color:
-                      isDark ? CheerGold.twinkleD : CheerGold.twinkleL)),
-          Positioned(
-              right: 16,
-              top: 26,
-              child: GoldTwinkle(
-                  anim: _tw,
-                  size: 8,
-                  delaySec: 0.6,
-                  color:
-                      isDark ? CheerGold.twinkleD2 : CheerGold.twinkleL2)),
-          Positioned(
-              right: 30,
-              bottom: 16,
-              child: GoldTwinkle(
-                  anim: _tw,
-                  size: 11,
-                  delaySec: 1.3,
-                  color:
-                      isDark ? CheerGold.twinkleD : CheerGold.twinkleL)),
-          Padding(padding: widget.padding, child: widget.child),
-        ],
       ),
     );
   }

@@ -6,30 +6,47 @@ import 'package:flutter/material.dart';
 class CheerGold {
   CheerGold._();
 
-  // 카드 배경 (150~160° 그라데이션) / 보더
+  // 카드 배경 / 보더
   //
-  // 라이트는 앱 배경이 #F8FAFB(차가운 회백)이다. 여기에 거의 흰 크림을 얹으면
-  // 명도 차가 없어 카드가 안 떠 보이고 골드도 베이지 종이처럼 죽는다. 그래서
-  // ① 끝색을 샴페인까지 내리고 ② 보더를 실제 금색 라인으로 세우고
-  // ③ 아주 옅은 골드 그림자로 배경에서 띄운다. 다크는 어두운 바탕에서 알파 골드가
-  // 이미 발광하므로 그대로 둔다.
-  static const cardL = [Color(0xFFFFFEFA), Color(0xFFF7E8C8)];
+  // 라이트는 **브랜드 메쉬**다 — 좌상단 블루 → 가운데 화이트 → 우하단 그린.
+  // 골드 크림을 썼더니 앱 배경(#F8FAFB, 차가운 회백) 위에서 베이지 종이처럼
+  // 죽었고, 무엇보다 이 앱의 색이 아니었다(로고가 블루→그린). 골드는 상장에만 남긴다.
+  // 다크는 어두운 바탕에서 알파 골드가 실제로 발광하므로 그대로 둔다.
+  static const cardL = [
+    Color(0xFFEDF3FE), // 좌상단 블루 기운
+    Color(0xFFFDFEFF), // 가운데 화이트
+    Color(0xFFE9F7F0), // 우하단 그린 기운
+  ];
   static const cardD = [Color(0x24E3B54C), Color(0x08E3B54C)];
-  static const borderL = Color(0xFFE4CFA2);
+  static const borderL = Color(0xFFDFE9F6);
   static const borderD = Color(0x47E3B54C);
 
-  /// 카드를 배경에서 띄우는 골드 톤 그림자 — 라이트 전용(다크는 그림자가 안 보인다).
-  /// 순검정이 아니라 금빛이라 크림 카드와 같은 계열로 번진다.
+  /// 카드를 배경에서 띄우는 그림자 — 라이트 전용(다크는 그림자가 안 보인다).
+  /// 순검정이 아니라 브랜드 블루 계열이라 메쉬와 같은 톤으로 번진다.
   static List<BoxShadow> shadow(bool d) => d
       ? const []
       : const [
           BoxShadow(
-              color: Color(0x1FA07828), blurRadius: 16, offset: Offset(0, 6)),
+              color: Color(0x143B82F6), blurRadius: 18, offset: Offset(0, 6)),
           BoxShadow(
-              color: Color(0x0F8C6A10), blurRadius: 3, offset: Offset(0, 1)),
+              color: Color(0x0F64748B), blurRadius: 3, offset: Offset(0, 1)),
         ];
 
-  /// 원형 골드 링 — CSS conic-gradient(from 210deg, …) 를 그대로 옮긴 값
+  /// 라이트 카드의 메쉬 글로우 — 좌상단 블루 · 우하단 그린.
+  /// 단색 그라데이션만으로는 '메쉬'가 안 나와서 두 겹을 얹는다.
+  static const meshBlue = Color(0xFF3B82F6);
+  static const meshGreen = Color(0xFF10B981);
+
+  /// 라이트 아바타 링 — 브랜드 블루→그린. 골드 링은 라이트 메쉬 위에서 튄다.
+  static const ringL = [
+    Color(0xFF60A5FA),
+    Color(0xFF10B981),
+    Color(0xFF34D399),
+    Color(0xFF3B82F6),
+    Color(0xFF60A5FA),
+  ];
+
+  /// 원형 골드 링(다크) — CSS conic-gradient(from 210deg, …) 를 그대로 옮긴 값
   static const ring = [
     Color(0xFFFDF3D0),
     Color(0xFFC9962B),
@@ -39,7 +56,7 @@ class CheerGold {
   ];
 
   /// 링 안쪽 원 — 카드 바탕과 같은 색이어야 링이 테두리처럼 보인다
-  static const innerL = Color(0xFFFFFEFA);
+  static const innerL = Color(0xFFFFFFFF);
   static const innerD = Color(0xFF141A14);
 
   static const twinkleL = Color(0xFFE3B54C);
@@ -88,6 +105,7 @@ class CheerGold {
       };
 
   static List<Color> card(bool d) => d ? cardD : cardL;
+  static List<Color> avatarRing(bool d) => d ? ring : ringL;
   static Color border(bool d) => d ? borderD : borderL;
   static Color inner(bool d) => d ? innerD : innerL;
   static Color inkOnGold(bool d) => d ? inkOnGoldD : inkOnGoldL;
@@ -136,12 +154,12 @@ class GoldAvatar extends StatelessWidget {
           Container(
             width: size,
             height: size,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: SweepGradient(
-                colors: CheerGold.ring,
+                colors: CheerGold.avatarRing(isDark),
                 // CSS conic 의 0° 는 12시, Flutter 는 3시 — 210° → 120°
-                transform: GradientRotation(120 * math.pi / 180),
+                transform: const GradientRotation(120 * math.pi / 180),
               ),
             ),
             padding: EdgeInsets.all(ringW),
@@ -183,6 +201,211 @@ class GoldAvatar extends StatelessWidget {
 
   Widget _icon() =>
       Image.asset(CheerGold.iconAsset, fit: BoxFit.cover);
+}
+
+/// 계정 관리 프로필 카드 — 라이트는 **브랜드 메쉬**(블루→그린), 다크는 골드.
+///
+/// ★ 정렬 주의: 닉네임 옆 연필 아이콘 때문에 이름이 왼쪽으로 밀린다.
+///   [이름 + 6 + 아이콘15] 묶음을 Column 이 가운데 놓으면 **이름 자체는 10.5px
+///   왼쪽**이 되고, 아래 이메일(정중앙)과 어긋나 보인다. 그래서 왼쪽에 아이콘과
+///   같은 폭을 비워 이름이 실제 카드 중앙에 오게 한다.
+class BrandProfileCard extends StatefulWidget {
+  final bool isDark;
+
+  /// 아바타 위젯 — 사진 변경 시트 같은 동작을 감싸서 넘긴다.
+  final Widget avatar;
+  final String nickname;
+  final String email;
+  final String? ageGroup;
+  final VoidCallback? onEditNickname;
+
+  const BrandProfileCard({
+    super.key,
+    required this.isDark,
+    required this.avatar,
+    required this.nickname,
+    required this.email,
+    this.ageGroup,
+    this.onEditNickname,
+  });
+
+  @override
+  State<BrandProfileCard> createState() => _BrandProfileCardState();
+}
+
+class _BrandProfileCardState extends State<BrandProfileCard>
+    with SingleTickerProviderStateMixin {
+  /// ★ initState 에서 반드시 만든다. `late final ... = AnimationController(...)` 로
+  ///   두면 지연 초기화라, build 가 이 필드를 안 쓰는 경우(라이트 모드 — 트윙클이
+  ///   다크 전용)에 한 번도 생성되지 않는다. 그 상태로 화면을 나가면 dispose 가
+  ///   필드를 **처음** 건드리면서 이미 비활성화된 element 에서 ticker 를 만들다
+  ///   크래시한다("Looking up a deactivated widget's ancestor is unsafe").
+  late final AnimationController _tw;
+
+  /// 연필 아이콘 폭 + 간격 — 왼쪽에 같은 만큼 비워 이름을 실제 중앙에 놓는다.
+  static const _pencil = 15.0;
+  static const _gap = 6.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _tw = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 4000));
+    // 라이트는 트윙클이 없다 — 안 돌려서 불필요한 프레임을 만들지 않는다.
+    if (widget.isDark) _tw.repeat();
+  }
+
+  @override
+  void didUpdateWidget(BrandProfileCard old) {
+    super.didUpdateWidget(old);
+    // 화면을 열어둔 채 테마를 바꿔도 따라오게.
+    if (widget.isDark && !_tw.isAnimating) {
+      _tw.repeat();
+    } else if (!widget.isDark && _tw.isAnimating) {
+      _tw.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _tw.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = widget.isDark;
+    final ink = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final sub = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          begin: const Alignment(-0.9, -1),
+          end: const Alignment(0.9, 1),
+          colors: CheerGold.card(isDark),
+        ),
+        border: Border.all(color: CheerGold.border(isDark)),
+        boxShadow: CheerGold.shadow(isDark),
+      ),
+      child: Stack(
+        children: [
+          // 메쉬 글로우 — 좌상단 블루 / 우하단 그린 (라이트 전용).
+          // 단색 그라데이션만으로는 시안의 '메쉬' 느낌이 안 난다.
+          if (!isDark) ...[
+            _glow(const Alignment(-1.1, -1.3), CheerGold.meshBlue, 0.16),
+            _glow(const Alignment(1.2, 1.4), CheerGold.meshGreen, 0.14),
+          ] else ...[
+            Positioned(
+                left: 14,
+                top: 14,
+                child: GoldTwinkle(
+                    anim: _tw, size: 10, color: CheerGold.twinkleD)),
+            Positioned(
+                right: 16,
+                top: 26,
+                child: GoldTwinkle(
+                    anim: _tw,
+                    size: 8,
+                    delaySec: 0.6,
+                    color: CheerGold.twinkleD2)),
+          ],
+          SizedBox(
+            width: double.infinity,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  widget.avatar,
+                  const SizedBox(height: 10),
+                  _nameRow(ink, isDark),
+                  const SizedBox(height: 3),
+                  Text(widget.email,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 11.5, color: sub)),
+                  if (widget.ageGroup?.isNotEmpty ?? false) ...[
+                    const SizedBox(height: 9),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 9, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3B82F6)
+                            .withValues(alpha: isDark ? 0.20 : 0.10),
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                      child: Text(widget.ageGroup!,
+                          maxLines: 1,
+                          softWrap: false,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: isDark
+                                  ? const Color(0xFF93C5FD)
+                                  : const Color(0xFF2563EB))),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _glow(Alignment align, Color color, double alpha) => Positioned.fill(
+        child: IgnorePointer(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: align,
+                radius: 1.1,
+                colors: [color.withValues(alpha: alpha), color.withValues(alpha: 0)],
+              ),
+            ),
+          ),
+        ),
+      );
+
+  /// 왼쪽 여백(_pencil + _gap)이 오른쪽 아이콘과 균형을 맞춰 **이름이 실제 중앙**에 온다.
+  Widget _nameRow(Color ink, bool isDark) => Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: widget.onEditNickname,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(width: _pencil + _gap),
+                Flexible(
+                  child: Text(widget.nickname,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
+                          color: ink)),
+                ),
+                const SizedBox(width: _gap),
+                Icon(Icons.edit_rounded,
+                    size: _pencil,
+                    color: isDark
+                        ? const Color(0xFFD9B871)
+                        : const Color(0xFF3B82F6)),
+              ],
+            ),
+          ),
+        ),
+      );
 }
 
 /// 수상 메달 줄 — 최대 3개를 가로로. 3개를 못 채워도 **가운데 정렬**이다.

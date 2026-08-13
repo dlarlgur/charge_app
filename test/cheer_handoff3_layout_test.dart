@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart'; // RenderParagraph
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -140,6 +141,32 @@ void main() {
           expect(o, isEmpty, reason: o.join(' / '));
         });
       }
+    }
+  }
+
+  // 치킨 배너 안내 문구가 '…' 로 잘리면 어디로 오는지가 사라진다(형 제보 2026-08-13).
+  // 오버플로우 검사만으로는 말줄임을 못 잡는다 — RenderParagraph 로 직접 확인한다.
+  for (final e in sizes.entries) {
+    for (final scale in [1.0, 1.2]) {
+      testWidgets('치킨 배너 안내 문구가 안 잘린다 ${e.key} scale=$scale',
+          (tester) async {
+        const guide = '치킨 기프티콘은 며칠 안에 소식함으로 보내드려요';
+        final o = await render(
+          tester,
+          AwardsScreen(
+              data: awards(chicken: true, name: '전기차왕'),
+              nickname: '전기차왕'),
+          size: e.value,
+          scale: scale,
+          dark: false,
+          fullScreen: true,
+        );
+        expect(o, isEmpty, reason: o.join(' / '));
+
+        final p = tester.renderObject<RenderParagraph>(find.text(guide));
+        expect(p.didExceedMaxLines, isFalse,
+            reason: '${e.key}/$scale 에서 안내 문구가 잘렸다');
+      });
     }
   }
 

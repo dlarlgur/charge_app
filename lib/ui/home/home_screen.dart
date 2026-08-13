@@ -2339,35 +2339,38 @@ class _GoldProfileCardState extends State<_GoldProfileCard>
             borderRadius: BorderRadius.circular(16),
             child: Stack(
               children: [
-                Positioned(
-                    left: 14,
-                    top: 14,
-                    child: GoldTwinkle(
-                        anim: _tw,
-                        size: 10,
-                        color: isDark
-                            ? CheerGold.twinkleD
-                            : CheerGold.twinkleL)),
-                Positioned(
-                    right: 16,
-                    top: 26,
-                    child: GoldTwinkle(
-                        anim: _tw,
-                        size: 8,
-                        delaySec: 0.6,
-                        color: isDark
-                            ? CheerGold.twinkleD2
-                            : CheerGold.twinkleL2)),
-                Positioned(
-                    right: 30,
-                    bottom: 16,
-                    child: GoldTwinkle(
-                        anim: _tw,
-                        size: 11,
-                        delaySec: 1.3,
-                        color: isDark
-                            ? CheerGold.twinkleD
-                            : CheerGold.twinkleL)),
+                // 트윙클은 다크 전용 — 라이트 카드는 브랜드 메쉬라 골드 반짝이가 튄다.
+                if (isDark) ...[
+                  Positioned(
+                      left: 14,
+                      top: 14,
+                      child: GoldTwinkle(
+                          anim: _tw,
+                          size: 10,
+                          color: isDark
+                              ? CheerGold.twinkleD
+                              : CheerGold.twinkleL)),
+                  Positioned(
+                      right: 16,
+                      top: 26,
+                      child: GoldTwinkle(
+                          anim: _tw,
+                          size: 8,
+                          delaySec: 0.6,
+                          color: isDark
+                              ? CheerGold.twinkleD2
+                              : CheerGold.twinkleL2)),
+                  Positioned(
+                      right: 30,
+                      bottom: 16,
+                      child: GoldTwinkle(
+                          anim: _tw,
+                          size: 11,
+                          delaySec: 1.3,
+                          color: isDark
+                              ? CheerGold.twinkleD
+                              : CheerGold.twinkleL)),
+                ],
                 Padding(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 14, vertical: 13),
