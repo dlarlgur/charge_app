@@ -10,6 +10,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../data/services/cheer_service.dart';
 import '../inbox/inbox_screen.dart';
+import 'cheer_screen.dart';
 import 'gold_profile.dart';
 
 /// 월간 시상식 — handoff 3 (CheerAwards.html). 매월 결산 후 1등에게 1회 노출.
@@ -221,7 +222,14 @@ class _AwardsScreenState extends State<AwardsScreen>
                         SizedBox(
                           height: 32,
                           child: TextButton(
-                            onPressed: () => Navigator.of(context).maybePop(),
+                            // 닫기만 하던 버튼 — '응원 시작하기' 인데 아무 데도 안 갔다.
+                            // 시상식을 닫고 응원 화면으로 넘긴다.
+                            onPressed: () {
+                              Navigator.of(context).maybePop();
+                              Navigator.of(context, rootNavigator: true).push(
+                                  MaterialPageRoute(
+                                      builder: (_) => const CheerScreen()));
+                            },
                             child: Text(
                                 '${cheerMonthLabel(_nextMonth(d.month))} 응원 시작하기',
                                 style: TextStyle(
