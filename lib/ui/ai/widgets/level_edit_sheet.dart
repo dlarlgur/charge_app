@@ -14,8 +14,7 @@ class LevelEditSheet extends StatefulWidget {
   final String initialMode;
   final TextEditingController priceController;
   final TextEditingController literController;
-  final void Function(double level, String mode, double targetChargePercent)
-      onSave;
+  final void Function(double level, String mode, double targetChargePercent) onSave;
   final bool isEv;
   final double capacity; // 가스 L / EV kWh
   final double efficiency; // 가스 km/L / EV km/kWh
@@ -54,8 +53,8 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
     _level = widget.initialLevel;
     _mode = widget.initialMode;
     _targetChargePercent = widget.initialTargetChargePercent;
-    _customTarget = widget.initialTargetChargePercent != 80 &&
-        widget.initialTargetChargePercent != 100;
+    _customTarget =
+        widget.initialTargetChargePercent != 80 && widget.initialTargetChargePercent != 100;
   }
 
   @override
@@ -93,8 +92,7 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
     }
     // 만충 주행거리 = 용량 × 효율 (선택 차량 기준). 글로벌값 쓰면 다차량에서 % 틀어짐.
     final fullRangeKm = _cap * _eff;
-    final pct =
-        fullRangeKm > 0 ? (dte / fullRangeKm * 100).clamp(0.0, 100.0) : 0.0;
+    final pct = fullRangeKm > 0 ? (dte / fullRangeKm * 100).clamp(0.0, 100.0) : 0.0;
     setState(() {
       _level = pct.toDouble();
       _dteError = null;
@@ -110,8 +108,7 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
     final inkColor = isDark ? AppColors.darkTextPrimary : kInk;
 
     return Padding(
-      padding:
-          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
@@ -158,10 +155,7 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                             shape: BoxShape.circle,
                           ),
                           child: Icon(Icons.close_rounded,
-                              size: 18,
-                              color: isDark
-                                  ? AppColors.darkTextSecondary
-                                  : kMuted),
+                              size: 18, color: isDark ? AppColors.darkTextSecondary : kMuted),
                         ),
                       ),
                     ],
@@ -178,23 +172,11 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                         // 다크: 파스텔 대신 accent 힌트 프리블렌드 (라이트 블록 방지)
                         colors: widget.isEv
                             ? (isDark
-                                ? [
-                                    const Color(0xFF14261E),
-                                    const Color(0xFF173028)
-                                  ]
-                                : [
-                                    const Color(0xFFECFDF5),
-                                    const Color(0xFFD1FAE5)
-                                  ])
+                                ? [const Color(0xFF14261E), const Color(0xFF173028)]
+                                : [const Color(0xFFECFDF5), const Color(0xFFD1FAE5)])
                             : (isDark
-                                ? [
-                                    const Color(0xFF2A2416),
-                                    const Color(0xFF2E2A18)
-                                  ]
-                                : [
-                                    const Color(0xFFFFFBEB),
-                                    const Color(0xFFFEF3C7)
-                                  ]),
+                                ? [const Color(0xFF2A2416), const Color(0xFF2E2A18)]
+                                : [const Color(0xFFFFFBEB), const Color(0xFFFEF3C7)]),
                       ),
                       borderRadius: BorderRadius.circular(20),
                     ),
@@ -243,9 +225,7 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                           children: [
                             const Text('주행 가능',
                                 style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: kMute2)),
+                                    fontSize: 11, fontWeight: FontWeight.w600, color: kMute2)),
                             const SizedBox(height: 2),
                             RichText(
                               text: TextSpan(children: [
@@ -268,9 +248,7 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                             Text(
                               '약 ${_remainUnit.toStringAsFixed(1)} $unitLabel 남음',
                               style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: kMute2),
+                                  fontSize: 11, fontWeight: FontWeight.w600, color: kMute2),
                             ),
                           ],
                         ),
@@ -284,10 +262,8 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                     children: [
                       Text(
                         _useDte ? '주행가능거리로 입력' : '슬라이더로 조절',
-                        style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: inkColor),
+                        style:
+                            TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: inkColor),
                       ),
                       const Spacer(),
                       GestureDetector(
@@ -296,21 +272,16 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                           _dteError = null;
                         }),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 11, vertical: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
                           decoration: BoxDecoration(
-                            color: _useDte
-                                ? accent.withValues(alpha: 0.1)
-                                : kLineSoft,
+                            color: _useDte ? accent.withValues(alpha: 0.1) : kLineSoft,
                             borderRadius: BorderRadius.circular(99),
-                            border: Border.all(
-                                color: _useDte ? accent : kLine, width: 1),
+                            border: Border.all(color: _useDte ? accent : kLine, width: 1),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.speed_rounded,
-                                  size: 14, color: _useDte ? accent : kMuted),
+                              Icon(Icons.speed_rounded, size: 14, color: _useDte ? accent : kMuted),
                               const SizedBox(width: 4),
                               Text(
                                 _useDte ? '슬라이더로' : '주행가능거리로 입력',
@@ -330,18 +301,15 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                   if (_useDte) ...[
                     TextField(
                       controller: _dteController,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       style: const TextStyle(fontSize: 14),
                       decoration: InputDecoration(
                         labelText: '계기판 주행가능거리 (km)',
                         hintText: '예: 120',
                         suffixText: 'km',
                         errorText: _dteError,
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       ),
                       onChanged: _applyDte,
                     ),
@@ -361,9 +329,7 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                         children: [
                           Text('0%',
                               style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: kLine)),
+                                  fontSize: 10, fontWeight: FontWeight.w600, color: kLine)),
                           Text('위험',
                               style: TextStyle(
                                   fontSize: 10,
@@ -371,14 +337,10 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                                   color: Color(0xFFEF4444))),
                           Text('50%',
                               style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: kLine)),
+                                  fontSize: 10, fontWeight: FontWeight.w600, color: kLine)),
                           Text('100%',
                               style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: kLine)),
+                                  fontSize: 10, fontWeight: FontWeight.w600, color: kLine)),
                         ],
                       ),
                     ),
@@ -388,10 +350,8 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                   if (widget.isEv) ...[
                     const SizedBox(height: 24),
                     Text('목표 충전',
-                        style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: inkColor)),
+                        style:
+                            TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: inkColor)),
                     const SizedBox(height: 11),
                     Row(
                       children: [
@@ -404,11 +364,10 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                     ),
                     if (_isCustomTarget) ...[
                       const SizedBox(height: 12),
-                      Text('목표 ${_targetChargePercent.round()}%',
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                              color: accentDeep)),
+                      Flexible(
+                          child: Text('목표 ${_targetChargePercent.round()}%',
+                              style: TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w800, color: accentDeep))),
                       SliderTheme(
                         data: SliderTheme.of(context).copyWith(
                           activeTrackColor: accent,
@@ -421,23 +380,20 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                           max: 100,
                           divisions: 100,
                           label: '${_targetChargePercent.round()}%',
-                          onChanged: (v) =>
-                              setState(() => _targetChargePercent = v),
+                          onChanged: (v) => setState(() => _targetChargePercent = v),
                         ),
                       ),
                     ],
                     const SizedBox(height: 10),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       decoration: BoxDecoration(
                         color: accent.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.info_outline_rounded,
-                              size: 15, color: accentDeep),
+                          Icon(Icons.info_outline_rounded, size: 15, color: accentDeep),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
@@ -445,9 +401,7 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                                   ? '목표 ${_targetChargePercent.round()}%까지 약 ${_needKwh.toStringAsFixed(1)} kWh 더 충전하면 돼요'
                                   : '이미 목표 충전량 이상이에요',
                               style: TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: accentDeep),
+                                  fontSize: 12.5, fontWeight: FontWeight.w600, color: accentDeep),
                             ),
                           ),
                         ],
@@ -457,10 +411,8 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                     // ── 목표 주유량 (주유 전용) ──
                     const SizedBox(height: 24),
                     Text('목표 주유량',
-                        style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: inkColor)),
+                        style:
+                            TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: inkColor)),
                     const SizedBox(height: 11),
                     Row(
                       children: [
@@ -481,8 +433,7 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                                   boxShadow: _mode == entry.$1
                                       ? [
                                           BoxShadow(
-                                            color:
-                                                accent.withValues(alpha: 0.3),
+                                            color: accent.withValues(alpha: 0.3),
                                             blurRadius: 12,
                                             offset: const Offset(0, 4),
                                           )
@@ -494,9 +445,7 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w800,
-                                    color: _mode == entry.$1
-                                        ? Colors.white
-                                        : kMuted,
+                                    color: _mode == entry.$1 ? Colors.white : kMuted,
                                   ),
                                 ),
                               ),
@@ -513,10 +462,8 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           labelText: '목표 금액 (원)',
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 12),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         ),
                       ),
                     ] else if (_mode == 'LITER') ...[
@@ -526,10 +473,8 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           labelText: '목표 리터 (L)',
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 12),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         ),
                       ),
                     ],
@@ -541,18 +486,15 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
                     width: double.infinity,
                     height: 54,
                     child: ElevatedButton(
-                      onPressed: () =>
-                          widget.onSave(_level, _mode, _targetChargePercent),
+                      onPressed: () => widget.onSave(_level, _mode, _targetChargePercent),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: accent,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         elevation: 0,
                       ),
                       child: const Text('저장',
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w800)),
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
                     ),
                   ),
                 ],
@@ -566,9 +508,8 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
 
   // EV 목표충전 세그먼트 — value null = 직접(커스텀).
   Widget _evTargetSeg(String label, double? value, Color accent) {
-    final selected = value == null
-        ? _customTarget
-        : (!_customTarget && _targetChargePercent == value);
+    final selected =
+        value == null ? _customTarget : (!_customTarget && _targetChargePercent == value);
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() {
@@ -620,8 +561,7 @@ class _ZoneSlider extends StatelessWidget {
   final double level; // 0-100
   final Color zoneColor;
   final ValueChanged<double> onChanged;
-  const _ZoneSlider(
-      {required this.level, required this.zoneColor, required this.onChanged});
+  const _ZoneSlider({required this.level, required this.zoneColor, required this.onChanged});
 
   static const double _h = 26; // 전체 높이
   static const double _track = 9; // 트랙 두께

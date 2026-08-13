@@ -78,9 +78,7 @@ class _TierDetailDialog extends StatelessWidget {
                     Positioned.fill(
                       child: CustomPaint(
                         painter: _SpotlightPainter(
-                          color: (owned
-                                  ? tier.ring(isDark).first
-                                  : CheerDs.faint(isDark))
+                          color: (owned ? tier.ring(isDark).first : CheerDs.faint(isDark))
                               .withValues(alpha: isDark ? 0.10 : 0.09),
                         ),
                       ),
@@ -106,8 +104,7 @@ class _TierDetailDialog extends StatelessWidget {
                         height: 86,
                         child: owned
                             ? CarImage(tier: tier)
-                            : tier.silhouette(
-                                CheerDs.silhouette(isDark, popup: true)),
+                            : tier.silhouette(CheerDs.silhouette(isDark, popup: true)),
                       ),
                     ),
                   ],
@@ -115,40 +112,31 @@ class _TierDetailDialog extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(tier.name,
-                  style: TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.w700, color: ink)),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: ink)),
               const SizedBox(height: 10),
               // 조건 칩 or 획득일
               if (owned)
-                Text(
-                    acquiredAt != null
-                        ? '획득일 ${_fmtDate(acquiredAt)}'
-                        : '보유 중',
+                Text(acquiredAt != null ? '획득일 ${_fmtDate(acquiredAt)}' : '보유 중',
                     style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        color: tier.label(isDark)))
+                        fontSize: 12.5, fontWeight: FontWeight.w600, color: tier.label(isDark)))
               else
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: tier
-                        .label(isDark)
-                        .withValues(alpha: isDark ? 0.16 : 0.10),
+                    color: tier.label(isDark).withValues(alpha: isDark ? 0.16 : 0.10),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.lock_rounded,
-                          size: 12, color: tier.label(isDark)),
+                      Icon(Icons.lock_rounded, size: 12, color: tier.label(isDark)),
                       const SizedBox(width: 4),
-                      Text('누적 ${tier.threshold}회 달성 시 획득',
-                          style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: tier.label(isDark))),
+                      Flexible(
+                          child: Text('누적 ${tier.threshold}회 달성 시 획득',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: tier.label(isDark)))),
                     ],
                   ),
                 ),
@@ -168,22 +156,18 @@ class _TierDetailDialog extends StatelessWidget {
                   child: TextButton.icon(
                     style: TextButton.styleFrom(
                       backgroundColor: CheerDs.iconBg(isDark),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
                     onPressed: () {
                       Navigator.of(context).pop();
                       Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) =>
-                              CarPaintScreen(tier: tier, total: total)));
+                          builder: (_) => CarPaintScreen(tier: tier, total: total)));
                     },
                     icon: Icon(Icons.format_paint_rounded,
                         size: 17, color: CheerDs.secondary(isDark)),
                     label: Text('컬러 꾸미기',
                         style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: CheerDs.ink(isDark))),
+                            fontSize: 14, fontWeight: FontWeight.w700, color: CheerDs.ink(isDark))),
                   ),
                 ),
               ] else ...[
@@ -203,19 +187,13 @@ class _TierDetailDialog extends StatelessWidget {
                 ),
                 const SizedBox(height: 7),
                 Row(children: [
-                  Text('지금 $total회',
-                      style: TextStyle(fontSize: 12, color: muted)),
+                  Text('지금 $total회', style: TextStyle(fontSize: 12, color: muted)),
                   const Spacer(),
                   Text.rich(TextSpan(children: [
                     TextSpan(
                         text: '$remaining회',
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: ink)),
-                    TextSpan(
-                        text: ' 남음',
-                        style: TextStyle(fontSize: 12, color: muted)),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: ink)),
+                    TextSpan(text: ' 남음', style: TextStyle(fontSize: 12, color: muted)),
                   ])),
                 ]),
                 const SizedBox(height: 16),
@@ -226,8 +204,7 @@ class _TierDetailDialog extends StatelessWidget {
                     style: FilledButton.styleFrom(
                       backgroundColor: CheerDs.gas,
                       disabledBackgroundColor: CheerDs.iconBg(isDark),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
                     // 형 확정: 팝업 닫고 그 자리에서 바로 광고 → 완주 시 감사/승급 연출
                     onPressed: canAd
@@ -240,9 +217,7 @@ class _TierDetailDialog extends StatelessWidget {
                         style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
-                            color: canAd
-                                ? Colors.white
-                                : CheerDs.muted(isDark))),
+                            color: canAd ? Colors.white : CheerDs.muted(isDark))),
                   ),
                 ),
               ],
@@ -260,13 +235,9 @@ class _TierDetailDialog extends StatelessWidget {
           child: Column(children: [
             Text(v,
                 style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: CheerDs.ink(isDark))),
+                    fontSize: 16, fontWeight: FontWeight.w800, color: CheerDs.ink(isDark))),
             const SizedBox(height: 2),
-            Text(label,
-                style:
-                    TextStyle(fontSize: 11, color: CheerDs.muted(isDark))),
+            Text(label, style: TextStyle(fontSize: 11, color: CheerDs.muted(isDark))),
           ]),
         );
     return Container(

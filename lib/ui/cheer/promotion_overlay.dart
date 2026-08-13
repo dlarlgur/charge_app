@@ -24,8 +24,7 @@ Future<void> showCheerPromotionOverlay(
     transitionDuration: const Duration(milliseconds: 180),
     pageBuilder: (_, __, ___) =>
         _PromotionOverlay(tier: tier, status: status, onSeeGarage: onSeeGarage),
-    transitionBuilder: (_, anim, __, child) =>
-        FadeTransition(opacity: anim, child: child),
+    transitionBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
   );
 }
 
@@ -33,24 +32,21 @@ class _PromotionOverlay extends StatefulWidget {
   final CheerTierTheme tier;
   final CheerStatus status;
   final VoidCallback onSeeGarage;
-  const _PromotionOverlay(
-      {required this.tier, required this.status, required this.onSeeGarage});
+  const _PromotionOverlay({required this.tier, required this.status, required this.onSeeGarage});
 
   @override
   State<_PromotionOverlay> createState() => _PromotionOverlayState();
 }
 
-class _PromotionOverlayState extends State<_PromotionOverlay>
-    with SingleTickerProviderStateMixin {
+class _PromotionOverlayState extends State<_PromotionOverlay> with SingleTickerProviderStateMixin {
   static const _total = 3900; // ms — 시안 5초 루프의 유효 구간(0~76%)
 
-  late final AnimationController _ctrl = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: _total));
+  late final AnimationController _ctrl =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: _total));
 
   /// 이전 등급 차 — 첫 뱃지(쿠페)면 퇴장할 차가 없다.
-  CheerTierTheme? get _prevTier => widget.tier.level > 1
-      ? CheerTierTheme.byLevel(widget.tier.level - 1)
-      : null;
+  CheerTierTheme? get _prevTier =>
+      widget.tier.level > 1 ? CheerTierTheme.byLevel(widget.tier.level - 1) : null;
 
   @override
   void initState() {
@@ -88,8 +84,7 @@ class _PromotionOverlayState extends State<_PromotionOverlay>
           child: BackdropFilter(
             filter: ui.ImageFilter.blur(sigmaX: 11, sigmaY: 11),
             child: Container(
-              color: (isDark ? CheerDs.bgD : CheerDs.bgL)
-                  .withValues(alpha: isDark ? 0.93 : 0.92),
+              color: (isDark ? CheerDs.bgD : CheerDs.bgL).withValues(alpha: isDark ? 0.93 : 0.92),
             ),
           ),
         ),
@@ -108,21 +103,17 @@ class _PromotionOverlayState extends State<_PromotionOverlay>
                       children: [
                         // 오버라인 필 — 앱 톤(블루)로 통일 (형 지시: 주황이 앱 톤과 안 맞음)
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 5),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                           decoration: BoxDecoration(
-                            color: isDark
-                                ? const Color(0x263B82F6)
-                                : const Color(0xFFEAF2FE),
+                            color: isDark ? const Color(0x263B82F6) : const Color(0xFFEAF2FE),
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(t.promoOverline,
                               style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
-                                  color: isDark
-                                      ? const Color(0xFF93C5FD)
-                                      : const Color(0xFF2563EB))),
+                                  color:
+                                      isDark ? const Color(0xFF93C5FD) : const Color(0xFF2563EB))),
                         ),
                         const SizedBox(height: 24),
                         _stage(isDark),
@@ -137,18 +128,14 @@ class _PromotionOverlayState extends State<_PromotionOverlay>
                         const SizedBox(height: 8),
                         Text(t.promoSubEffective,
                             textAlign: TextAlign.center,
-                            style: TextStyle(
-                                fontSize: 13, height: 1.45, color: sub)),
+                            style: TextStyle(fontSize: 13, height: 1.45, color: sub)),
                         if (widget.status.streak >= 1) ...[
                           const SizedBox(height: 14),
                           // 연속 응원 뱃지 — 앱 시그니처(⚡ 블루) 톤
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 13, vertical: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
                             decoration: BoxDecoration(
-                              color: isDark
-                                  ? const Color(0x2660A5FA)
-                                  : const Color(0xFFEAF2FE),
+                              color: isDark ? const Color(0x2660A5FA) : const Color(0xFFEAF2FE),
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Row(
@@ -156,17 +143,17 @@ class _PromotionOverlayState extends State<_PromotionOverlay>
                               children: [
                                 Icon(Icons.bolt_rounded,
                                     size: 15,
-                                    color: isDark
-                                        ? const Color(0xFF60A5FA)
-                                        : const Color(0xFF3B82F6)),
+                                    color:
+                                        isDark ? const Color(0xFF60A5FA) : const Color(0xFF3B82F6)),
                                 const SizedBox(width: 5),
-                                Text('${widget.status.streak}일째 연속 응원',
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        color: isDark
-                                            ? const Color(0xFF93C5FD)
-                                            : const Color(0xFF2563EB))),
+                                Flexible(
+                                    child: Text('${widget.status.streak}일째 연속 응원',
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: isDark
+                                                ? const Color(0xFF93C5FD)
+                                                : const Color(0xFF2563EB)))),
                               ],
                             ),
                           ),
@@ -198,8 +185,8 @@ class _PromotionOverlayState extends State<_PromotionOverlay>
                           ),
                           child: TextButton(
                             style: TextButton.styleFrom(
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
+                              shape:
+                                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                             onPressed: () {
                               Navigator.of(context).pop();
@@ -262,9 +249,7 @@ class _PromotionOverlayState extends State<_PromotionOverlay>
                       top: 44,
                       width: 230,
                       height: 3,
-                      color: isDark
-                          ? const Color(0xFFFDBA74)
-                          : const Color(0xFFF97316),
+                      color: isDark ? const Color(0xFFFDBA74) : const Color(0xFFF97316),
                       maxAlpha: isDark ? 0.7 : 0.55),
                   _speedLine(
                       left: -8,
@@ -283,9 +268,7 @@ class _PromotionOverlayState extends State<_PromotionOverlay>
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(999),
                         gradient: RadialGradient(colors: [
-                          isDark
-                              ? const Color(0x8C000000)
-                              : const Color(0x260F172A),
+                          isDark ? const Color(0x8C000000) : const Color(0x260F172A),
                           const Color(0x00000000),
                         ]),
                       ),
@@ -305,46 +288,29 @@ class _PromotionOverlayState extends State<_PromotionOverlay>
                     ),
                   ),
                   _sweep(isDark),
-                  _twinkleAt(
-                      left: 30, top: 2, size: 15, delayMs: 0, isDark: isDark),
-                  _twinkleAt(
-                      right: 22,
-                      top: 12,
-                      size: 11,
-                      delayMs: 250,
-                      isDark: isDark),
-                  _twinkleAt(
-                      right: 52,
-                      top: -6,
-                      size: 13,
-                      delayMs: 500,
-                      isDark: isDark),
+                  _twinkleAt(left: 30, top: 2, size: 15, delayMs: 0, isDark: isDark),
+                  _twinkleAt(right: 22, top: 12, size: 11, delayMs: 250, isDark: isDark),
+                  _twinkleAt(right: 52, top: -6, size: 13, delayMs: 500, isDark: isDark),
                   _confetti(
                       left: 64,
                       bottom: 6,
                       size: 7,
                       square: true,
-                      color: isDark
-                          ? const Color(0xFF60A5FA)
-                          : const Color(0xFF3B82F6),
+                      color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF3B82F6),
                       delayMs: 0),
                   _confetti(
                       right: 68,
                       bottom: 4,
                       size: 6,
                       square: false,
-                      color: isDark
-                          ? const Color(0xFF34D399)
-                          : const Color(0xFF10B981),
+                      color: isDark ? const Color(0xFF34D399) : const Color(0xFF10B981),
                       delayMs: 200),
                   _confetti(
                       left: 120,
                       bottom: 10,
                       size: 6,
                       square: false,
-                      color: isDark
-                          ? const Color(0xFFFBBF24)
-                          : const Color(0xFFF59E0B),
+                      color: isDark ? const Color(0xFFFBBF24) : const Color(0xFFF59E0B),
                       delayMs: 400),
                 ],
               ),
@@ -470,8 +436,7 @@ class _PromotionOverlayState extends State<_PromotionOverlay>
     return Positioned(
       left: 6 + dx,
       top: 14,
-      child: IgnorePointer(
-          child: CarImage(tier: widget.tier, width: 240, height: 96)),
+      child: IgnorePointer(child: CarImage(tier: widget.tier, width: 240, height: 96)),
     );
   }
 
