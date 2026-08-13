@@ -332,11 +332,14 @@ class _AwardsScreenState extends State<AwardsScreen>
                             ? const Color(0xFFF1F5F9)
                             : const Color(0xFF0F172A))),
                 const SizedBox(height: 1),
+                // 안내 문구는 잘리면 안 된다 — '며칠 안에 소식함으로' 가 잘리면
+                // 언제 어디로 오는지가 사라져 배너가 의미를 잃는다. 320dp·배율 1.2
+                // 에서는 한 줄에 안 들어가므로 두 줄까지 허용한다.
                 Text(
                     d.chickenSent
                         ? '소식함에서 확인하세요'
                         : '치킨 기프티콘은 며칠 안에 소식함으로 보내드려요',
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                         fontSize: 10,

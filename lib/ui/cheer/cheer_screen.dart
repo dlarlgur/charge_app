@@ -569,11 +569,8 @@ class _CheerScreenState extends State<CheerScreen>
                           fontWeight: r.me ? FontWeight.w800 : FontWeight.w600,
                           color: r.me ? CheerDs.gas : CheerDs.ink(isDark))),
                 ),
-                Text('${r.count}회',
-                    style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
-                        color: CheerDs.secondary(isDark))),
+                // 남의 응원 횟수는 서버가 아예 안 내려준다(옆 세션 작업) —
+                // 격차는 CheerEvent.chase* 로만 표현한다.
               ]),
             ),
           Container(
