@@ -34,8 +34,8 @@ const _kCard = Color(0xFFFFFFFF);
 // 유종별 — HTML 양식
 const _kFuelRegular = Color(0xFF2563EB); // 휘발유
 const _kFuelPremium = Color(0xFFF59E0B); // 고급휘발유
-const _kFuelDiesel  = Color(0xFF10B981); // 경유
-const _kFuelLpg     = Color(0xFF7C3AED); // LPG (HTML 외 추가)
+const _kFuelDiesel = Color(0xFF10B981); // 경유
+const _kFuelLpg = Color(0xFF7C3AED); // LPG (HTML 외 추가)
 const _kFuelKerosene = Color(0xFF0D9488); // 등유 (teal — 기존 4색과 구분)
 const _kGreen = Color(0xFF047857);
 const _kGreenBg = Color(0xFFECFDF5);
@@ -109,19 +109,28 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
 
   static const List<String> _fuelOrder = ['B027', 'B034', 'D047', 'K015', 'C004'];
   static const Map<String, String> _fuelLabel = {
-    'B027': '휘발유', 'B034': '고급휘발유', 'D047': '경유', 'K015': 'LPG',
+    'B027': '휘발유',
+    'B034': '고급휘발유',
+    'D047': '경유',
+    'K015': 'LPG',
     'C004': '등유',
   };
 
   // 유종별 색상 (HTML 양식)
   static Color _fuelColor(String code) {
     switch (code) {
-      case 'B027': return _kFuelRegular;
-      case 'B034': return _kFuelPremium;
-      case 'D047': return _kFuelDiesel;
-      case 'K015': return _kFuelLpg;
-      case 'C004': return _kFuelKerosene;
-      default:     return AppColors.gasBlue;
+      case 'B027':
+        return _kFuelRegular;
+      case 'B034':
+        return _kFuelPremium;
+      case 'D047':
+        return _kFuelDiesel;
+      case 'K015':
+        return _kFuelLpg;
+      case 'C004':
+        return _kFuelKerosene;
+      default:
+        return AppColors.gasBlue;
     }
   }
 
@@ -132,12 +141,18 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
       return _fuelColor(code).withValues(alpha: 0.18);
     }
     switch (code) {
-      case 'B027': return const Color(0xFFEFF6FF);
-      case 'B034': return const Color(0xFFFEF3C7);
-      case 'D047': return const Color(0xFFECFDF5);
-      case 'K015': return const Color(0xFFF3E8FF);
-      case 'C004': return const Color(0xFFCCFBF1);
-      default:     return _kLineSoft;
+      case 'B027':
+        return const Color(0xFFEFF6FF);
+      case 'B034':
+        return const Color(0xFFFEF3C7);
+      case 'D047':
+        return const Color(0xFFECFDF5);
+      case 'K015':
+        return const Color(0xFFF3E8FF);
+      case 'C004':
+        return const Color(0xFFCCFBF1);
+      default:
+        return _kLineSoft;
     }
   }
 
@@ -237,7 +252,11 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
   }
 
   static const Map<String, String> _fuelLabelByCode = {
-    'B027': '휘발유', 'B034': '고급휘발유', 'D047': '경유', 'C004': 'LPG', 'K015': '등유',
+    'B027': '휘발유',
+    'B034': '고급휘발유',
+    'D047': '경유',
+    'C004': 'LPG',
+    'K015': '등유',
   };
 
   // 사용자 유종 미판매 시 실제 표시 기준 유종 (null = 사용자 유종 그대로)
@@ -255,7 +274,11 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
         data = await ApiService().getGasStationDetail(widget.stationId, fuelType: basis);
         _fuelBasisFallback = basis;
       }
-      if (mounted) setState(() { _detail = data; _loading = false; });
+      if (mounted)
+        setState(() {
+          _detail = data;
+          _loading = false;
+        });
       // detail 로드 후 차트 미리 fetch (4w 기본)
       _loadChart(_chartPeriod);
     } catch (e) {
@@ -265,28 +288,44 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
   }
 
   Future<void> _loadChart(String period) async {
-    setState(() { _chartPeriod = period; _chartLoading = true; _touchedChartIndex = null; });
+    setState(() {
+      _chartPeriod = period;
+      _chartLoading = true;
+      _touchedChartIndex = null;
+    });
     try {
       // _detail 의 availableFuelTypes 중 그릴 만한 유종만 전달.
       // 그래프는 휘발유/고급/경유 3종이 표준 (HTML 양식). LPG/등유는 사용자가 보기 헷갈리므로 제외.
-      final available = ((_detail?['availableFuelTypes'] as List?) ?? const [])
-          .map((e) => e.toString()).toSet();
+      final available =
+          ((_detail?['availableFuelTypes'] as List?) ?? const []).map((e) => e.toString()).toSet();
       final fuels = ['B027', 'B034', 'D047'].where(available.contains).toList();
       if (fuels.isEmpty) {
-        if (mounted) setState(() { _chartData = null; _chartLoading = false; });
+        if (mounted)
+          setState(() {
+            _chartData = null;
+            _chartLoading = false;
+          });
         return;
       }
       final data = await ApiService().getGasPriceHistory(
-        widget.stationId, period: period, fuels: fuels,
+        widget.stationId,
+        period: period,
+        fuels: fuels,
       );
       // 기간탭 연타 시 늦게 도착한 이전 기간 응답이 현재 탭 데이터를 덮는 race 방지.
       if (mounted && _chartPeriod == period) {
-        setState(() { _chartData = data; _chartLoading = false; });
+        setState(() {
+          _chartData = data;
+          _chartLoading = false;
+        });
       }
     } catch (e) {
       if (kDebugMode) debugPrint('[gas-detail] chart 로드 실패: $e');
       if (mounted && _chartPeriod == period) {
-        setState(() { _chartData = null; _chartLoading = false; });
+        setState(() {
+          _chartData = null;
+          _chartLoading = false;
+        });
       }
     }
   }
@@ -295,13 +334,18 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
     final d = _detail;
     final name = d?['OS_NM'] ?? d?['name'] ?? widget.station?.name ?? '주유소';
     final address = d?['NEW_ADR'] ?? d?['address'] ?? widget.station?.address ?? '';
-    final brand = (d?['brand'] ?? d?['POLL_DIV_CD'] ?? d?['POLL_DIV_CO'] ?? widget.station?.brand ?? '').toString();
+    final brand =
+        (d?['brand'] ?? d?['POLL_DIV_CD'] ?? d?['POLL_DIV_CO'] ?? widget.station?.brand ?? '')
+            .toString();
     // provider.toggle 이 로컬 저장 + 서버 동기화(회원) + 위젯/상태 갱신 모두 처리.
     // (기존 FavoriteService.toggle 은 로컬 전용 → 서버 미동기화로 재설치/재로그인 시 풀림)
     final result = ref.read(favoritesProvider.notifier).toggle(
-      id: widget.stationId, type: 'gas', name: name, subtitle: address,
-      extra: brand.isNotEmpty ? {'brand': brand} : null,
-    );
+          id: widget.stationId,
+          type: 'gas',
+          name: name,
+          subtitle: address,
+          extra: brand.isNotEmpty ? {'brand': brand} : null,
+        );
     setState(() => _isFavorite = result);
   }
 
@@ -421,7 +465,8 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
   Widget _dragHandle(bool isDark) => Center(
         child: Container(
           margin: const EdgeInsets.only(top: 8, bottom: 6),
-          width: 40, height: 4,
+          width: 40,
+          height: 4,
           decoration: BoxDecoration(
             color: isDark ? Colors.white24 : Colors.black26,
             borderRadius: BorderRadius.circular(2),
@@ -430,10 +475,10 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
       );
 
   Widget _headerCard(String name, String brand, Map<String, dynamic> d, bool isDark) {
-    final isSelf    = d['SELF_DIV_CD'] == 'Y' || d['isSelf'] == true;
+    final isSelf = d['SELF_DIV_CD'] == 'Y' || d['isSelf'] == true;
     final hasCarWash = d['CAR_WASH_YN'] == 'Y' || d['hasCarWash'] == true;
     final distanceText = widget.station?.distanceText ?? '';
-    final address   = (d['NEW_ADR'] ?? d['address'] ?? widget.station?.address ?? '').toString();
+    final address = (d['NEW_ADR'] ?? d['address'] ?? widget.station?.address ?? '').toString();
     final lat = (d['lat'] ?? d['GIS_Y_COOR'])?.toDouble() ?? widget.station?.lat ?? 0.0;
     final lng = (d['lng'] ?? d['GIS_X_COOR'])?.toDouble() ?? widget.station?.lng ?? 0.0;
 
@@ -441,21 +486,24 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
     const actionColor = AppColors.gasBlue;
     final brandColor = _brandColor(brand);
 
-    final cardBg     = isDark ? const Color(0xFF151B22) : _kCard;
+    final cardBg = isDark ? const Color(0xFF151B22) : _kCard;
     final titleColor = isDark ? Colors.white : _kInk;
-    final subColor   = isDark ? AppColors.darkTextMuted : _kMuted;
+    final subColor = isDark ? AppColors.darkTextMuted : _kMuted;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 10),
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: isDark ? null : [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12, offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 12,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
       padding: const EdgeInsets.all(18),
       child: Column(
@@ -471,11 +519,13 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                 child: Text(
                   widget.station?.brandName ?? brand,
                   style: TextStyle(
-                    fontSize: 14, fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
                     color: isDark ? Colors.white70 : _kInk2,
                     letterSpacing: -0.2,
                   ),
-                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               if (isSelf) _topChip('셀프', isPrimary: true, isDark: isDark),
@@ -498,11 +548,14 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                       child: Text(
                         displayName,
                         style: TextStyle(
-                          fontSize: 22, fontWeight: FontWeight.w800,
-                          letterSpacing: -0.7, height: 1.15,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.7,
+                          height: 1.15,
                           color: titleColor,
                         ),
-                        maxLines: 2, overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(width: 4),
@@ -530,7 +583,8 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                       fontSize: 12,
                       color: isDark ? AppColors.darkTextMuted : _kMute2,
                     ),
-                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ],
@@ -548,10 +602,13 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                     child: Text(
                       address,
                       style: TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w500,
-                        color: isDark ? Colors.white70 : _kInk2, height: 1.35,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: isDark ? Colors.white70 : _kInk2,
+                        height: 1.35,
                       ),
-                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -564,8 +621,10 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                   Text(
                     distanceText,
                     style: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w700,
-                      color: _kRed, letterSpacing: -0.3,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: _kRed,
+                      letterSpacing: -0.3,
                     ),
                   ),
                 ],
@@ -605,40 +664,45 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                     boxShadow: [
                       BoxShadow(
                         color: actionColor.withValues(alpha: 0.28),
-                        blurRadius: 14, offset: const Offset(0, 6),
+                        blurRadius: 14,
+                        offset: const Offset(0, 6),
                       ),
                     ],
                   ),
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      onTap: () =>
-                          showNavigationSheet(context, lat: lat, lng: lng, name: name),
+                      onTap: () => showNavigationSheet(context, lat: lat, lng: lng, name: name),
                       borderRadius: BorderRadius.circular(14),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.navigation_rounded, size: 18, color: Colors.white),
-                          const SizedBox(width: 8),
-                          // 거리 문자열이 붙으면(길 안내 시작 · 1.3km) 좁은 화면·큰 글자에서
-                          // 버튼 폭을 넘어 오른쪽이 잘렸다. EV 상세와 같은 FittedBox 로 —
-                          // CTA 라 '…' 로 자르기보다 살짝 줄여서 다 읽히게 하는 게 맞다.
-                          Flexible(
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(
-                                distanceText.isNotEmpty
-                                    ? '길 안내 시작 · $distanceText'
-                                    : '길 안내 시작',
-                                maxLines: 1,
-                                style: const TextStyle(
-                                  fontSize: 15, fontWeight: FontWeight.w800,
-                                  color: Colors.white, letterSpacing: -0.3,
+                      // 좌우 여백 — FittedBox 로 안 넘치게는 했지만 글자가 버튼 끝에
+                      // 닿아 답답했다(형 지적). 여백을 주고 그 안에서 줄어들게 한다.
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.navigation_rounded, size: 18, color: Colors.white),
+                            const SizedBox(width: 8),
+                            // 거리 문자열이 붙으면(길 안내 시작 · 1.3km) 좁은 화면·큰 글자에서
+                            // 버튼 폭을 넘어 오른쪽이 잘렸다. EV 상세와 같은 FittedBox 로 —
+                            // CTA 라 '…' 로 자르기보다 살짝 줄여서 다 읽히게 하는 게 맞다.
+                            Flexible(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  distanceText.isNotEmpty ? '길 안내 시작 · $distanceText' : '길 안내 시작',
+                                  maxLines: 1,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                    letterSpacing: -0.3,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -652,9 +716,7 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
   }
 
   Widget _topChip(String label, {required bool isPrimary, required bool isDark}) {
-    final fg = isPrimary
-        ? _kFuelRegular
-        : (isDark ? AppColors.darkTextSecondary : _kMuted);
+    final fg = isPrimary ? _kFuelRegular : (isDark ? AppColors.darkTextSecondary : _kMuted);
     final bg = isPrimary
         ? (isDark ? _kFuelRegular.withValues(alpha: 0.18) : const Color(0xFFEFF6FF))
         : (isDark ? Colors.white.withValues(alpha: 0.06) : _kLineSoft);
@@ -684,7 +746,8 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
     if (realLogo != null) {
       final isSvg = realLogo.toLowerCase().endsWith('.svg');
       return Container(
-        width: 46, height: 46,
+        width: 46,
+        height: 46,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(13),
@@ -700,7 +763,8 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
       );
     }
     return Container(
-      width: 46, height: 46,
+      width: 46,
+      height: 46,
       decoration: BoxDecoration(
         color: color.withValues(alpha: isDark ? 0.18 : 0.10),
         borderRadius: BorderRadius.circular(13),
@@ -710,7 +774,8 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
       child: Text(
         _brandShortLabel(brand),
         style: TextStyle(
-          fontSize: 12, fontWeight: FontWeight.w900,
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
           color: isDark ? color : _brandColorDark(brand),
           letterSpacing: -0.3,
         ),
@@ -720,37 +785,61 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
 
   static Color _brandColor(String brand) {
     switch (brand) {
-      case 'SKE': return const Color(0xFFFF6600);   // SK 주황
-      case 'GSC': return const Color(0xFF00A651);   // GS 초록
-      case 'HDO': return const Color(0xFF003DA5);   // 현대 파랑
-      case 'SOL': return const Color(0xFFE31E25);   // S-OIL 빨강
-      case 'RTO': case 'RTX': return const Color(0xFF6D28D9); // 알뜰 보라
-      case 'NHO': return const Color(0xFF16A34A);   // NH 초록
-      default:    return AppColors.gasBlue;
+      case 'SKE':
+        return const Color(0xFFFF6600); // SK 주황
+      case 'GSC':
+        return const Color(0xFF00A651); // GS 초록
+      case 'HDO':
+        return const Color(0xFF003DA5); // 현대 파랑
+      case 'SOL':
+        return const Color(0xFFE31E25); // S-OIL 빨강
+      case 'RTO':
+      case 'RTX':
+        return const Color(0xFF6D28D9); // 알뜰 보라
+      case 'NHO':
+        return const Color(0xFF16A34A); // NH 초록
+      default:
+        return AppColors.gasBlue;
     }
   }
 
   static Color _brandColorDark(String brand) {
     switch (brand) {
-      case 'SKE': return const Color(0xFFCC5200);
-      case 'GSC': return const Color(0xFF007A3D);
-      case 'HDO': return const Color(0xFF002E80);
-      case 'SOL': return const Color(0xFFB71418);
-      case 'RTO': case 'RTX': return const Color(0xFF5B21B6);
-      case 'NHO': return const Color(0xFF15803D);
-      default:    return AppColors.gasBlueDark;
+      case 'SKE':
+        return const Color(0xFFCC5200);
+      case 'GSC':
+        return const Color(0xFF007A3D);
+      case 'HDO':
+        return const Color(0xFF002E80);
+      case 'SOL':
+        return const Color(0xFFB71418);
+      case 'RTO':
+      case 'RTX':
+        return const Color(0xFF5B21B6);
+      case 'NHO':
+        return const Color(0xFF15803D);
+      default:
+        return AppColors.gasBlueDark;
     }
   }
 
   static String _brandShortLabel(String brand) {
     switch (brand) {
-      case 'SKE': return 'SK';
-      case 'GSC': return 'GS';
-      case 'HDO': return 'HD';
-      case 'SOL': return 'S-OIL';
-      case 'RTO': case 'RTX': return '알뜰';
-      case 'NHO': return 'NH';
-      default:    return brand.isNotEmpty ? brand.substring(0, brand.length.clamp(0, 3)) : '주유';
+      case 'SKE':
+        return 'SK';
+      case 'GSC':
+        return 'GS';
+      case 'HDO':
+        return 'HD';
+      case 'SOL':
+        return 'S-OIL';
+      case 'RTO':
+      case 'RTX':
+        return '알뜰';
+      case 'NHO':
+        return 'NH';
+      default:
+        return brand.isNotEmpty ? brand.substring(0, brand.length.clamp(0, 3)) : '주유';
     }
   }
 
@@ -759,19 +848,20 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
     final cardBg = isDark ? const Color(0xFF151B22) : _kCard;
     // 어제 대비 delta — 서버 응답: { B027: -12, D047: +5, ... }. 누락된 유종은 null.
     final deltaMap = (d['price_delta_vs_yesterday'] is Map)
-        ? Map<String, dynamic>.from(d['price_delta_vs_yesterday'] as Map) : <String, dynamic>{};
+        ? Map<String, dynamic>.from(d['price_delta_vs_yesterday'] as Map)
+        : <String, dynamic>{};
     // 지역 평균 + 지역 대비 + 최저가 순위 — 모두 휘발유(B027) 기준 노출.
     final regionAvg = (d['region_avg'] is Map)
-        ? Map<String, dynamic>.from(d['region_avg'] as Map) : <String, dynamic>{};
+        ? Map<String, dynamic>.from(d['region_avg'] as Map)
+        : <String, dynamic>{};
     final vsRegion = (d['vs_region_won'] is Map)
-        ? Map<String, dynamic>.from(d['vs_region_won'] as Map) : <String, dynamic>{};
-    final rank = (d['region_rank'] is Map)
-        ? Map<String, dynamic>.from(d['region_rank'] as Map) : null;
+        ? Map<String, dynamic>.from(d['vs_region_won'] as Map)
+        : <String, dynamic>{};
+    final rank =
+        (d['region_rank'] is Map) ? Map<String, dynamic>.from(d['region_rank'] as Map) : null;
 
-    final priceEntries = _fuelOrder
-        .where((k) => prices.containsKey(k))
-        .map((k) => MapEntry(k, prices[k]!))
-        .toList();
+    final priceEntries =
+        _fuelOrder.where((k) => prices.containsKey(k)).map((k) => MapEntry(k, prices[k]!)).toList();
 
     return Container(
       key: _kPrice,
@@ -779,10 +869,14 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: isDark ? null : [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 12, offset: const Offset(0, 2)),
-        ],
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 12,
+                    offset: const Offset(0, 2)),
+              ],
       ),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
       child: Column(
@@ -794,7 +888,9 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
             textBaseline: TextBaseline.alphabetic,
             children: [
               Text('오늘 주유 가격',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800,
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
                       letterSpacing: -0.3,
                       color: isDark ? Colors.white : _kInk)),
               const SizedBox(width: 8),
@@ -839,8 +935,10 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      width: 6, height: 6,
-                      decoration: BoxDecoration(color: _fuelColor(_userFuelCode), shape: BoxShape.circle),
+                      width: 6,
+                      height: 6,
+                      decoration:
+                          BoxDecoration(color: _fuelColor(_userFuelCode), shape: BoxShape.circle),
                     ),
                     const SizedBox(width: 5),
                     Text(
@@ -848,8 +946,10 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                           ? '${_fuelLabelByCode[_userFuelCode] ?? ''} 미판매 · ${_fuelLabelByCode[_fuelBasisFallback!] ?? ''} 기준'
                           : '내 차량 ${_fuelLabelByCode[_userFuelCode] ?? '휘발유'} 기준',
                       style: TextStyle(
-                        fontSize: 11, fontWeight: FontWeight.w800,
-                        color: _fuelColor(_userFuelCode), letterSpacing: -0.2,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: _fuelColor(_userFuelCode),
+                        letterSpacing: -0.2,
                       ),
                     ),
                   ],
@@ -888,9 +988,7 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
               Expanded(
                 child: Text(
                   '실제 주유소 가격과 다를 수 있습니다',
-                  style: TextStyle(
-                      fontSize: 11,
-                      color: isDark ? AppColors.darkTextMuted : _kMute2),
+                  style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextMuted : _kMute2),
                 ),
               ),
               const SizedBox(width: 8),
@@ -916,8 +1014,11 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
 
   // 어제 대비 delta chip + 큰 가격
   Widget _priceRow({
-    required String code, required double price, required int? delta,
-    required bool isLast, required bool isDark,
+    required String code,
+    required double price,
+    required int? delta,
+    required bool isLast,
+    required bool isDark,
   }) {
     final label = _fuelLabel[code] ?? code;
     final fuelColor = _fuelColor(code);
@@ -925,9 +1026,11 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 4),
       decoration: BoxDecoration(
-        border: isLast ? null : Border(
-          bottom: BorderSide(color: isDark ? Colors.white12 : _kLineSoft),
-        ),
+        border: isLast
+            ? null
+            : Border(
+                bottom: BorderSide(color: isDark ? Colors.white12 : _kLineSoft),
+              ),
       ),
       child: Row(
         children: [
@@ -944,7 +1047,8 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 6, height: 6,
+                    width: 6,
+                    height: 6,
                     decoration: BoxDecoration(color: fuelColor, shape: BoxShape.circle),
                   ),
                   const SizedBox(width: 6),
@@ -952,7 +1056,8 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                     child: Text(
                       label,
                       style: TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
                         color: fuelColor.computeLuminance() > 0.5
                             ? fuelColor.withValues(alpha: 0.8)
                             : fuelColor,
@@ -975,7 +1080,9 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                 TextSpan(
                   text: _formatPrice(price),
                   style: TextStyle(
-                    fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.7,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.7,
                     fontFeatures: const [FontFeature.tabularFigures()],
                     color: isDark ? Colors.white : _kInk,
                   ),
@@ -1010,7 +1117,8 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
             color: neutralBg,
             borderRadius: BorderRadius.circular(6),
           ),
-          child: Text('─', style: TextStyle(fontSize: 11, color: neutralFg, fontWeight: FontWeight.w700)),
+          child: Text('─',
+              style: TextStyle(fontSize: 11, color: neutralFg, fontWeight: FontWeight.w700)),
         ),
       );
     }
@@ -1045,13 +1153,16 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
     );
   }
 
-  Widget _todayChip({required String label, required String value, _ChipTone? tone, required bool isDark}) {
+  Widget _todayChip(
+      {required String label, required String value, _ChipTone? tone, required bool isDark}) {
     // up/down 톤도 다크에서 light pastel 위 진한 빨강/초록 그대로면 콘트라스트 깨짐 → 살짝 밝게.
     final upFg = isDark ? const Color(0xFFFCA5A5) : _kRed;
     final downFg = isDark ? const Color(0xFF6EE7B7) : _kGreen;
-    final valColor = tone == _ChipTone.up ? upFg
-                   : tone == _ChipTone.down ? downFg
-                   : (isDark ? Colors.white : _kInk);
+    final valColor = tone == _ChipTone.up
+        ? upFg
+        : tone == _ChipTone.down
+            ? downFg
+            : (isDark ? Colors.white : _kInk);
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -1079,8 +1190,10 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
               child: Text(
                 value,
                 style: TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.w800,
-                  letterSpacing: -0.3, color: valColor,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
+                  color: valColor,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
                 maxLines: 1,
@@ -1122,8 +1235,8 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
     final t = rank['total'];
     if (r is num && t is num && t > 0) {
       // chip 폭 좁아서 '위'/'곳' 단어 제거 — 직관적 'N위/M' 양식 (수치는 천단위 콤마).
-      String fmt(int n) => n.toString().replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
+      String fmt(int n) =>
+          n.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
       return '${fmt(r.toInt())}위/${fmt(t.toInt())}';
     }
     return '─';
@@ -1137,10 +1250,14 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: isDark ? null : [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 12, offset: const Offset(0, 2)),
-        ],
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 12,
+                    offset: const Offset(0, 2)),
+              ],
       ),
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
       child: Column(
@@ -1148,7 +1265,9 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
         children: [
           // 헤더 — 범례는 타이틀 옆이 아니라 차트 위 별도 줄 (좁은 폰에서 잘리던 문제 원천 차단)
           Text('가격 추이',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800,
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
                   letterSpacing: -0.3,
                   color: isDark ? Colors.white : _kInk)),
           const SizedBox(height: 12),
@@ -1186,8 +1305,8 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
           SizedBox(
             height: 180,
             child: _chartLoading
-                ? const Center(child: CircularProgressIndicator(
-                    color: _kFuelRegular, strokeWidth: 2))
+                ? const Center(
+                    child: CircularProgressIndicator(color: _kFuelRegular, strokeWidth: 2))
                 : _buildChart(isDark),
           ),
         ],
@@ -1199,14 +1318,19 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(width: 8, height: 8, decoration: BoxDecoration(
-          color: color, borderRadius: BorderRadius.circular(2),
-        )),
+        Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(2),
+            )),
         const SizedBox(width: 5),
-        Text(label, style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: isDark ? AppColors.darkTextPrimary : _kInk2)),
+        Text(label,
+            style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: isDark ? AppColors.darkTextPrimary : _kInk2)),
       ],
     );
   }
@@ -1221,23 +1345,25 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
           curve: Curves.easeOut,
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: active
-                ? (isDark ? const Color(0xFF2B3757) : _kCard)
-                : Colors.transparent,
+            color: active ? (isDark ? const Color(0xFF2B3757) : _kCard) : Colors.transparent,
             borderRadius: BorderRadius.circular(19),
-            boxShadow: active && !isDark ? [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 6, offset: const Offset(0, 1)),
-            ] : null,
+            boxShadow: active && !isDark
+                ? [
+                    BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 6,
+                        offset: const Offset(0, 1)),
+                  ]
+                : null,
           ),
           alignment: Alignment.center,
-          child: Text(label, style: TextStyle(
-            fontSize: 12.5, height: 1.1,
-            fontWeight: active ? FontWeight.w800 : FontWeight.w600,
-            color: active
-                ? (isDark ? Colors.white : _kInk)
-                : _kMuted,
-          )),
+          child: Text(label,
+              style: TextStyle(
+                fontSize: 12.5,
+                height: 1.1,
+                fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+                color: active ? (isDark ? Colors.white : _kInk) : _kMuted,
+              )),
         ),
       ),
     );
@@ -1322,7 +1448,7 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
         final p = points[i] as Map;
         final date = (p['date'] ?? '').toString();
         if (date.length >= 8) {
-          xLabels[i] = '${int.parse(date.substring(4,6))}/${int.parse(date.substring(6,8))}';
+          xLabels[i] = '${int.parse(date.substring(4, 6))}/${int.parse(date.substring(6, 8))}';
         }
       }
       // 마지막은 항상 "오늘"
@@ -1343,7 +1469,8 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
           horizontalInterval: _niceYInterval(yMax - yMin),
           getDrawingHorizontalLine: (_) => FlLine(
             color: isDark ? Colors.white.withValues(alpha: 0.08) : _kLine,
-            strokeWidth: 1, dashArray: const [2, 4],
+            strokeWidth: 1,
+            dashArray: const [2, 4],
           ),
         ),
         titlesData: FlTitlesData(
@@ -1406,8 +1533,7 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                 ShowingTooltipIndicators([
                   for (int bi = 0; bi < lineBars.length; bi++)
                     for (final sp in lineBars[bi].spots)
-                      if (sp.x.toInt() == _touchedChartIndex)
-                        LineBarSpot(lineBars[bi], bi, sp),
+                      if (sp.x.toInt() == _touchedChartIndex) LineBarSpot(lineBars[bi], bi, sp),
                 ]),
               ],
         lineTouchData: LineTouchData(
@@ -1445,20 +1571,15 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
             getTooltipItems: (spots) => spots.asMap().entries.map((e) {
               final s = e.value;
               final fuelIdx = lineBars.indexOf(s.bar);
-              final fuelCode =
-                  fuelIdx >= 0 && fuelIdx < fuels.length ? fuels[fuelIdx] : '';
+              final fuelCode = fuelIdx >= 0 && fuelIdx < fuels.length ? fuels[fuelIdx] : '';
               final label = _fuelLabel[fuelCode] ?? fuelCode;
               final lineText = '$label  ${_formatPrice(s.y)}원';
-              final lineStyle = TextStyle(
-                  color: _fuelColor(fuelCode),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700);
+              final lineStyle =
+                  TextStyle(color: _fuelColor(fuelCode), fontSize: 11, fontWeight: FontWeight.w700);
               // 첫 줄 위에 날짜 헤더 한 줄 (어느 유종이 첫 항목이든 날짜는 동일).
               if (e.key == 0) {
                 final pi = s.x.toInt(); // 글로벌 날짜 index — spotIndex 는 결측 시 어긋남
-                final dateRaw = (pi >= 0 &&
-                        pi < points.length &&
-                        points[pi] is Map)
+                final dateRaw = (pi >= 0 && pi < points.length && points[pi] is Map)
                     ? ((points[pi] as Map)['date'] ?? '').toString()
                     : '';
                 final dateStr = dateRaw.length >= 8
@@ -1501,41 +1622,42 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: isDark ? null : [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 12, offset: const Offset(0, 2)),
-        ],
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 12,
+                    offset: const Offset(0, 2)),
+              ],
       ),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('주유소 정보',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800,
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
                   letterSpacing: -0.3,
                   color: isDark ? Colors.white : _kInk)),
           const SizedBox(height: 8),
           // 위치 미니맵 — EV 상세와 동일 패턴. 탭=길안내.
           Builder(builder: (_) {
-            final mLat =
-                (d['lat'] ?? d['GIS_Y_COOR'])?.toDouble() ?? widget.station?.lat ?? 0.0;
-            final mLng =
-                (d['lng'] ?? d['GIS_X_COOR'])?.toDouble() ?? widget.station?.lng ?? 0.0;
+            final mLat = (d['lat'] ?? d['GIS_Y_COOR'])?.toDouble() ?? widget.station?.lat ?? 0.0;
+            final mLng = (d['lng'] ?? d['GIS_X_COOR'])?.toDouble() ?? widget.station?.lng ?? 0.0;
             if (mLat == 0.0 || mLng == 0.0) return const SizedBox.shrink();
             final mName = (d['name'] ?? d['OS_NM'] ?? '주유소').toString();
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
-              child: DetailMiniMap(
-                  lat: mLat, lng: mLng, name: mName, accent: AppColors.gasBlue),
+              child: DetailMiniMap(lat: mLat, lng: mLng, name: mName, accent: AppColors.gasBlue),
             );
           }),
           if (address.isNotEmpty) _infoRow('주소', address, isDark),
           _infoRow('영업시간', openTime, isDark,
               valueColor: isSel24 ? _kGreen : (openTime == '정보 없음' ? _kMute2 : null)),
-          _infoRow('셀프', isSelf ? '가능' : '불가', isDark,
-              valueColor: isSelf ? _kGreen : null),
-          _infoRow('세차', hasCarWash ? '가능' : '불가', isDark,
-              valueColor: hasCarWash ? _kGreen : null),
+          _infoRow('셀프', isSelf ? '가능' : '불가', isDark, valueColor: isSelf ? _kGreen : null),
+          _infoRow('세차', hasCarWash ? '가능' : '불가', isDark, valueColor: hasCarWash ? _kGreen : null),
           if (hasCvs) _infoRow('편의점', '있음', isDark, valueColor: _kGreen),
           // 이용자 제보로 등록된 공개 안내문 — 오피넷 원천엔 없는 현장 정보
           // (지역화폐 사용 가능 등). 운영자 확인 후에만 노출된다.
@@ -1551,8 +1673,7 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
           StationReportButton(
             stationType: 'gas',
             stationId: widget.stationId,
-            stationName:
-                (d['OS_NM'] ?? d['name'] ?? widget.station?.name ?? '주유소').toString(),
+            stationName: (d['OS_NM'] ?? d['name'] ?? widget.station?.name ?? '주유소').toString(),
           ),
         ],
       ),
@@ -1576,8 +1697,7 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
             const SizedBox(
               width: 80,
               child: Text('안내',
-                  style: TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w600, color: _kMuted)),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kMuted)),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1595,8 +1715,7 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                   if (source == 'report') ...[
                     const SizedBox(height: 6),
                     Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                       decoration: BoxDecoration(
                         color: _kMuted.withValues(alpha: isDark ? 0.16 : 0.10),
                         borderRadius: BorderRadius.circular(6),
@@ -1616,14 +1735,16 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
         ),
       );
 
-
   Widget _infoRow(String label, String value, bool isDark,
-      {Color? valueColor, bool isLast = false}) => Container(
+          {Color? valueColor, bool isLast = false}) =>
+      Container(
         padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 4),
         decoration: BoxDecoration(
-          border: isLast ? null : Border(
-            bottom: BorderSide(color: isDark ? Colors.white12 : _kLineSoft),
-          ),
+          border: isLast
+              ? null
+              : Border(
+                  bottom: BorderSide(color: isDark ? Colors.white12 : _kLineSoft),
+                ),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1631,13 +1752,16 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
             SizedBox(
               width: 80,
               child: Text(label,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kMuted)),
+                  style:
+                      const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kMuted)),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(value,
                   textAlign: TextAlign.end,
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
                       letterSpacing: -0.2,
                       color: valueColor ?? (isDark ? Colors.white : _kInk))),
             ),
@@ -1645,7 +1769,9 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
         ),
       );
 
-  String _formatPrice(double price) => price.toInt().toString()
+  String _formatPrice(double price) => price
+      .toInt()
+      .toString()
       .replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
 
   // y축 간격을 깔끔한 100/200/500/1000 단위로. 라벨 4-5개 분포 + 겹침 방지.
@@ -1668,8 +1794,11 @@ class _ActionIconBtn extends StatelessWidget {
   final VoidCallback onTap;
   final bool isDark;
   const _ActionIconBtn({
-    required this.icon, this.color, this.loading = false,
-    required this.onTap, required this.isDark,
+    required this.icon,
+    this.color,
+    this.loading = false,
+    required this.onTap,
+    required this.isDark,
   });
   @override
   Widget build(BuildContext context) {
@@ -1679,16 +1808,20 @@ class _ActionIconBtn extends StatelessWidget {
       onTap: loading ? null : onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        width: 48, height: 48,
+        width: 48,
+        height: 48,
         decoration: BoxDecoration(
-          color: bg, borderRadius: BorderRadius.circular(12),
+          color: bg,
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: border, width: 0.6),
         ),
         child: loading
-            ? const Center(child: SizedBox(width: 18, height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.gasBlue)))
-            : Icon(icon, size: 22,
-                color: color ?? (isDark ? Colors.white70 : Colors.black54)),
+            ? const Center(
+                child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.gasBlue)))
+            : Icon(icon, size: 22, color: color ?? (isDark ? Colors.white70 : Colors.black54)),
       ),
     );
   }
@@ -1700,11 +1833,13 @@ class _GasTabsDelegate extends SliverPersistentHeaderDelegate {
   final int activeIndex;
   final ValueChanged<int> onTap;
   final bool isDark;
-  _GasTabsDelegate({required this.labels, required this.activeIndex,
-      required this.onTap, required this.isDark});
+  _GasTabsDelegate(
+      {required this.labels, required this.activeIndex, required this.onTap, required this.isDark});
 
-  @override double get minExtent => 48;
-  @override double get maxExtent => 48;
+  @override
+  double get minExtent => 48;
+  @override
+  double get maxExtent => 48;
 
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
