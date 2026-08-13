@@ -33,7 +33,8 @@ class FuelReportScreen extends ConsumerStatefulWidget {
   ConsumerState<FuelReportScreen> createState() => _FuelReportScreenState();
 }
 
-class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with TickerProviderStateMixin {
+class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
+    with TickerProviderStateMixin {
   TabController? _tab;
   List<String> _topics = const ['fuel'];
 
@@ -72,8 +73,10 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
       VehicleType.both => const ['fuel', 'ev'],
     };
     final want = widget.initialTopic;
-    final initial = (want != null && _topics.contains(want)) ? _topics.indexOf(want) : 0;
-    _tab = TabController(length: _topics.length, initialIndex: initial, vsync: this);
+    final initial =
+        (want != null && _topics.contains(want)) ? _topics.indexOf(want) : 0;
+    _tab = TabController(
+        length: _topics.length, initialIndex: initial, vsync: this);
     _tab!.addListener(() {
       if (_tab!.indexIsChanging) return;
       // 스와이프로 넘겨도 탭 강조색(유가=파랑/충전=초록)이 따라오게 리빌드
@@ -94,7 +97,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
     super.dispose();
   }
 
-  Color _accent(String topic) => topic == 'ev' ? AppColors.evGreen : AppColors.gasBlue;
+  Color _accent(String topic) =>
+      topic == 'ev' ? AppColors.evGreen : AppColors.gasBlue;
 
   String _todayYmd() {
     final now = DateTime.now();
@@ -130,7 +134,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
     });
     try {
       final fuel = ref.read(settingsProvider).fuelType.code;
-      final r = await ApiService().getLocalFuelBrief(lat: lat, lng: lng, fuel: fuel);
+      final r =
+          await ApiService().getLocalFuelBrief(lat: lat, lng: lng, fuel: fuel);
       if (!mounted) return;
       if (r == null) {
         setState(() {
@@ -169,8 +174,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
   }
 
   void _openLocalDetail(Map<String, dynamic> d) {
-    Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => LocalFuelBriefDetailScreen(data: d)));
+    Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => LocalFuelBriefDetailScreen(data: d)));
   }
 
   Future<void> _load(String topic, {bool force = false}) async {
@@ -186,7 +191,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
       // 일간(수치만)은 목록에서 제외돼 오므로 따로 1건 — 유가 탭에서만 쓴다
       Map<String, dynamic>? daily;
       if (topic == 'fuel') {
-        final d = await ApiService().getFuelReports(topic: topic, kind: 'daily', limit: 1);
+        final d = await ApiService()
+            .getFuelReports(topic: topic, kind: 'daily', limit: 1);
         if (d.isNotEmpty) daily = d.first;
       }
       if (!mounted) return;
@@ -243,16 +249,20 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
     final accent = _accent(_topics[single ? 0 : (_tab?.index ?? 0)]);
     return Scaffold(
       appBar: AppBar(
-        title: Text(single ? (_topics.first == 'ev' ? '충전 리포트' : '유가 리포트') : '유가 · 충전 리포트'),
+        title: Text(single
+            ? (_topics.first == 'ev' ? '충전 리포트' : '유가 리포트')
+            : '유가 · 충전 리포트'),
         bottom: single
             ? null
             : TabBar(
                 controller: _tab,
                 labelColor: accent,
-                unselectedLabelColor: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                unselectedLabelColor:
+                    isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
                 indicatorColor: accent,
                 indicatorSize: TabBarIndicatorSize.tab,
-                labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                labelStyle:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
                 tabs: const [Tab(text: '유가'), Tab(text: '충전')],
               ),
       ),
@@ -265,7 +275,9 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
 
   Widget _list(String topic, bool isDark) {
     if (_loading[topic] == true && !_cache.containsKey(topic)) {
-      return Center(child: CircularProgressIndicator(strokeWidth: 2, color: _accent(topic)));
+      return Center(
+          child:
+              CircularProgressIndicator(strokeWidth: 2, color: _accent(topic)));
     }
     final err = _error[topic];
     final items = _cache[topic] ?? const <Map<String, dynamic>>[];
@@ -298,11 +310,12 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
       final t3 = _top3Card(isDark);
       if (t3 != null) rows.add(t3);
       if (items.isEmpty) {
-        final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+        final muted =
+            isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
         rows.add(Padding(
           padding: const EdgeInsets.fromLTRB(4, 14, 4, 0),
-          child:
-              Text('주간 · 월간 분석 리포트는 매주 월요일에 올라와요', style: TextStyle(fontSize: 12.5, color: muted)),
+          child: Text('주간 · 월간 분석 리포트는 매주 월요일에 올라와요',
+              style: TextStyle(fontSize: 12.5, color: muted)),
         ));
       } else {
         // 히어로: 최신 큰 카드 + 지난 그룹 / 대시: 전부 슬림 그룹 (시안 4c)
@@ -341,7 +354,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
   }
 
   /// 최신 큰 카드(firstBig) + 월별 그룹 슬림 행 — 카드 반복 스캔 피로 해소(형 제보).
-  void _appendGroups(List<Widget> rows, List<Map<String, dynamic>> items, bool isDark, String topic,
+  void _appendGroups(List<Widget> rows, List<Map<String, dynamic>> items,
+      bool isDark, String topic,
       {required bool firstBig}) {
     var rest = items;
     if (firstBig) {
@@ -353,8 +367,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
     var group = <Map<String, dynamic>>[];
     void flush() {
       if (group.isNotEmpty) {
-        rows.add(
-            _monthGroup(cur ?? '', group, isDark, topic, headSuffix: firstBig ? '지난 리포트' : '리포트'));
+        rows.add(_monthGroup(cur ?? '', group, isDark, topic,
+            headSuffix: firstBig ? '지난 리포트' : '리포트'));
       }
       group = [];
     }
@@ -379,14 +393,16 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: () => Navigator.of(context)
-            .push(MaterialPageRoute(builder: (_) => FuelReportArchiveScreen(topic: topic))),
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => FuelReportArchiveScreen(topic: topic))),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border:
-                Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
+            border: Border.all(
+                color: isDark
+                    ? AppColors.darkCardBorder
+                    : AppColors.lightCardBorder),
           ),
           child: Row(
             children: [
@@ -396,7 +412,9 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
                   style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary)),
               const Spacer(),
               Icon(Icons.chevron_right_rounded, size: 19, color: muted),
             ],
@@ -407,7 +425,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
   }
 
   /// 지난 리포트 월 그룹 — 카드 하나 안에 [월 헤더 + 슬림 행들] (퀵메뉴 카드와 같은 문법).
-  Widget _monthGroup(String month, List<Map<String, dynamic>> list, bool isDark, String topic,
+  Widget _monthGroup(
+      String month, List<Map<String, dynamic>> list, bool isDark, String topic,
       {String headSuffix = '지난 리포트'}) {
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     final line = isDark ? AppColors.darkCardBorder : const Color(0xFFF0F3F6);
@@ -421,7 +440,9 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface1 : AppColors.lightCard,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
+        border: Border.all(
+            color:
+                isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -430,7 +451,10 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 2),
             child: Text('$label $headSuffix',
                 style: TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: -0.2, color: muted)),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
+                    color: muted)),
           ),
           for (var i = 0; i < list.length; i++) ...[
             if (i > 0)
@@ -449,7 +473,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
     final accent = _accent((r['topic'] ?? topic).toString());
     final monthly = r['kind'] == 'monthly';
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    final primary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final primary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     // 주차 배지 — "1주차". 월간은 "월간".
     String badge = monthly ? '월간' : '주간';
     final d = (r['date'] ?? '').toString();
@@ -461,8 +486,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
       onTap: () {
         final id = int.tryParse(r['id']?.toString() ?? '');
         if (id == null) return;
-        Navigator.of(context)
-            .push(MaterialPageRoute(builder: (_) => FuelReportDetailScreen(reportId: id)));
+        Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => FuelReportDetailScreen(reportId: id)));
       },
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
@@ -476,7 +501,10 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: -0.2, color: primary),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.2,
+                    color: primary),
               ),
             ),
             const SizedBox(width: 6),
@@ -492,14 +520,17 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
     return ListView(
       padding: const EdgeInsets.fromLTRB(28, 80, 28, 28),
       children: [
-        Icon(Icons.insights_rounded, size: 44, color: muted.withValues(alpha: 0.5)),
+        Icon(Icons.insights_rounded,
+            size: 44, color: muted.withValues(alpha: 0.5)),
         const SizedBox(height: 14),
         Text(title,
             textAlign: TextAlign.center,
             style: TextStyle(
                 fontSize: 14.5,
                 fontWeight: FontWeight.w700,
-                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
+                color: isDark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.lightTextSecondary)),
         if (sub != null) ...[
           const SizedBox(height: 6),
           Text(sub,
@@ -521,20 +552,23 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
     const accent = AppColors.gasBlue;
     final id = int.tryParse(r['id']?.toString() ?? '');
     return Material(
-      color: isDark ? AppColors.darkGasActiveCard : AppColors.lightGasActiveCard,
+      color:
+          isDark ? AppColors.darkGasActiveCard : AppColors.lightGasActiveCard,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: id == null
             ? null
-            : () => Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => FuelReportDetailScreen(reportId: id))),
+            : () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => FuelReportDetailScreen(reportId: id))),
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 13, 14, 14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-                color: isDark ? AppColors.darkGasActiveBorder : AppColors.lightGasActiveBorder),
+                color: isDark
+                    ? AppColors.darkGasActiveBorder
+                    : AppColors.lightGasActiveBorder),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -547,10 +581,15 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
                       style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                          color: isDark
+                              ? AppColors.darkTextMuted
+                              : AppColors.lightTextMuted)),
                   const Spacer(),
                   Icon(Icons.chevron_right_rounded,
-                      size: 20, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                      size: 20,
+                      color: isDark
+                          ? AppColors.darkTextMuted
+                          : AppColors.lightTextMuted),
                 ],
               ),
               const SizedBox(height: 8),
@@ -562,7 +601,9 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
                       fontWeight: FontWeight.w800,
                       height: 1.35,
                       letterSpacing: -0.3,
-                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.lightTextPrimary)),
               if ((r['summary'] ?? '').toString().trim().isNotEmpty) ...[
                 const SizedBox(height: 5),
                 Text(r['summary'].toString(),
@@ -571,8 +612,9 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
                     style: TextStyle(
                         fontSize: 12.5,
                         height: 1.55,
-                        color:
-                            isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary)),
               ],
             ],
           ),
@@ -588,11 +630,15 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
   Widget _localCard(bool isDark) {
     const accent = AppColors.gasBlue;
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    final primary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final secondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final primary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final secondary =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
     Widget shell({required Widget child, VoidCallback? onTap}) => Material(
-          color: isDark ? AppColors.darkGasActiveCard : AppColors.lightGasActiveCard,
+          color: isDark
+              ? AppColors.darkGasActiveCard
+              : AppColors.lightGasActiveCard,
           borderRadius: BorderRadius.circular(16),
           child: InkWell(
             borderRadius: BorderRadius.circular(16),
@@ -602,7 +648,9 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                    color: isDark ? AppColors.darkGasActiveBorder : AppColors.lightGasActiveBorder),
+                    color: isDark
+                        ? AppColors.darkGasActiveBorder
+                        : AppColors.lightGasActiveBorder),
               ),
               child: child,
             ),
@@ -637,7 +685,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
             ),
             const SizedBox(width: 8),
             const Text('집 등록',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: accent)),
+                style: TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w800, color: accent)),
             Icon(Icons.chevron_right_rounded, size: 20, color: muted),
           ],
         ),
@@ -660,7 +709,10 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
                   child: Text('$homeName 기준',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: muted)),
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: muted)),
                 ),
               ],
             ),
@@ -679,7 +731,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
                               color: primary)),
                       const SizedBox(height: 3),
                       Text('동네 평균가 · 전국 비교 · 집 근처 최저가 TOP3',
-                          style: TextStyle(fontSize: 12, height: 1.4, color: secondary)),
+                          style: TextStyle(
+                              fontSize: 12, height: 1.4, color: secondary)),
                     ],
                   ),
                 ),
@@ -688,16 +741,20 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
                     ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: accent))
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: accent))
                     : Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 13, vertical: 7),
                         decoration: BoxDecoration(
                           color: accent,
                           borderRadius: BorderRadius.circular(9),
                         ),
                         child: const Text('받기',
                             style: TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w800, color: Colors.white)),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white)),
                       ),
               ],
             ),
@@ -706,7 +763,9 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
               Text(_localError!,
                   style: TextStyle(
                       fontSize: 11.5,
-                      color: isDark ? AppColors.darkOrangeBright : const Color(0xFFE07000))),
+                      color: isDark
+                          ? AppColors.darkOrangeBright
+                          : const Color(0xFFE07000))),
             ],
           ],
         ),
@@ -724,7 +783,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
     final avg = (price['avg_won_per_liter'] as num?)?.round();
     final vsNation = (cmp['vs_nation_won'] as num?)?.toDouble();
     final stations = (nearby['stations'] as List?) ?? const [];
-    final best = stations.isNotEmpty ? Map<String, dynamic>.from(stations.first) : null;
+    final best =
+        stations.isNotEmpty ? Map<String, dynamic>.from(stations.first) : null;
 
     return shell(
       onTap: () => _openLocalDetail(d),
@@ -739,7 +799,10 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
                 child: Text('$label · 집 기준',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: muted)),
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: muted)),
               ),
               const Spacer(),
               Icon(Icons.chevron_right_rounded, size: 20, color: muted),
@@ -757,7 +820,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
                     color: primary),
               ),
               const SizedBox(width: 8),
-              if (vsNation != null) _localDeltaChip(vsNation, isDark, suffix: '원 (전국 대비)'),
+              if (vsNation != null)
+                _localDeltaChip(vsNation, isDark, suffix: '원 (전국 대비)'),
             ],
           ),
           if (best != null) ...[
@@ -808,12 +872,15 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
     final c = flat
         ? (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)
         : (up ? const Color(0xFFEF4444) : AppColors.evGreen);
-    final txt = flat ? '전국 평균과 비슷' : '${up ? '▲' : '▼'} ${_comma(v.abs().round())}$suffix';
+    final txt = flat
+        ? '전국 평균과 비슷'
+        : '${up ? '▲' : '▼'} ${_comma(v.abs().round())}$suffix';
     return Flexible(
       child: Text(txt,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: c)),
+          style:
+              TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: c)),
     );
   }
 
@@ -834,8 +901,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
   void _openDailyDetail() {
     final id = int.tryParse(_today?['id']?.toString() ?? '');
     if (id == null) return;
-    Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => FuelReportDetailScreen(reportId: id)));
+    Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => FuelReportDetailScreen(reportId: id)));
   }
 
   /// 충전 히어로 — 이번 주 급속 회원가 평균 큰 숫자 + 최저/최고/운영사 타일 (형 요청).
@@ -848,7 +915,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
     final maxV = (f['max'] as num?)?.round();
     final ops = (f['operators'] as List?)?.length;
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    final primary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final primary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
 
     Widget tile(String label, String? value) {
       if (value == null) return const SizedBox.shrink();
@@ -886,15 +954,17 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
         onTap: () {
           final id = int.tryParse(latest['id']?.toString() ?? '');
           if (id == null) return;
-          Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => FuelReportDetailScreen(reportId: id)));
+          Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => FuelReportDetailScreen(reportId: id)));
         },
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 13, 14, 14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-                color: isDark ? AppColors.darkEvActiveBorder : AppColors.lightEvActiveBorder),
+                color: isDark
+                    ? AppColors.darkEvActiveBorder
+                    : AppColors.lightEvActiveBorder),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -907,10 +977,14 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
                   const SizedBox(width: 6),
                   Flexible(
                     child: Text(
-                        _weeklyPeriod(_evFactsDate ?? latest['date']) ?? _fmtDate(latest['date']),
+                        _weeklyPeriod(_evFactsDate ?? latest['date']) ??
+                            _fmtDate(latest['date']),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: muted)),
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: muted)),
                   ),
                   const Spacer(),
                   Icon(Icons.chevron_right_rounded, size: 20, color: muted),
@@ -921,7 +995,10 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text('급속 평균',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: muted)),
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: muted)),
                   const SizedBox(width: 8),
                   Text(_comma(avg),
                       style: TextStyle(
@@ -934,7 +1011,10 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
                   Padding(
                     padding: const EdgeInsets.only(bottom: 3),
                     child: Text('원/kWh · 회원가',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: muted)),
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: muted)),
                   ),
                 ],
               ),
@@ -955,7 +1035,9 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                       letterSpacing: -0.2,
-                      color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary)),
             ],
           ),
         ),
@@ -972,7 +1054,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
       return _todayCard(_today ?? {}, isDark);
     }
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    final primary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final primary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
 
     Widget tile(String label, dynamic v) {
       final price = (v is Map ? v['price'] as num? : null)?.round();
@@ -1004,7 +1087,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
     }
 
     return Material(
-      color: isDark ? AppColors.darkGasActiveCard : AppColors.lightGasActiveCard,
+      color:
+          isDark ? AppColors.darkGasActiveCard : AppColors.lightGasActiveCard,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -1014,7 +1098,9 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-                color: isDark ? AppColors.darkGasActiveBorder : AppColors.lightGasActiveBorder),
+                color: isDark
+                    ? AppColors.darkGasActiveBorder
+                    : AppColors.lightGasActiveBorder),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1023,10 +1109,11 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
                 children: [
                   _pill('오늘', accent, isDark),
                   const SizedBox(width: 6),
-                  Flexible(
-                      child: Text('${_fmtDate(_today?['date'])} · 전국 평균',
-                          style:
-                              TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: muted))),
+                  Text('${_fmtDate(_today?['date'])} · 전국 평균',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: muted)),
                   const Spacer(),
                   Icon(Icons.chevron_right_rounded, size: 20, color: muted),
                 ],
@@ -1036,7 +1123,10 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text('휘발유',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: muted)),
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: muted)),
                   const SizedBox(width: 8),
                   Text(_comma((g['price'] as num).round()),
                       style: TextStyle(
@@ -1049,11 +1139,14 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
                   Padding(
                     padding: const EdgeInsets.only(bottom: 3),
                     child: Text('원/L',
-                        style:
-                            TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: muted)),
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: muted)),
                   ),
                   const Spacer(),
-                  _localDeltaChip(((g['diff'] as num?) ?? 0).toDouble(), isDark, suffix: '원'),
+                  _localDeltaChip(((g['diff'] as num?) ?? 0).toDouble(), isDark,
+                      suffix: '원'),
                 ],
               ),
               const SizedBox(height: 11),
@@ -1086,7 +1179,9 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
           decoration: BoxDecoration(
-            color: on ? (isDark ? AppColors.darkSurface2 : Colors.white) : Colors.transparent,
+            color: on
+                ? (isDark ? AppColors.darkSurface2 : Colors.white)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(9),
             boxShadow: on && !isDark
                 ? [
@@ -1102,16 +1197,23 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
             children: [
               Icon(icon,
                   size: 14,
-                  color:
-                      on ? accent : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                  color: on
+                      ? accent
+                      : (isDark
+                          ? AppColors.darkTextMuted
+                          : AppColors.lightTextMuted)),
               const SizedBox(width: 5),
               Text(label,
                   style: TextStyle(
                       fontSize: 12,
                       fontWeight: on ? FontWeight.w800 : FontWeight.w600,
                       color: on
-                          ? (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)
-                          : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted))),
+                          ? (isDark
+                              ? AppColors.darkTextPrimary
+                              : AppColors.lightTextPrimary)
+                          : (isDark
+                              ? AppColors.darkTextMuted
+                              : AppColors.lightTextMuted))),
             ],
           ),
         ),
@@ -1124,7 +1226,9 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
         Container(
           padding: const EdgeInsets.all(3),
           decoration: BoxDecoration(
-            color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFEDF1F5),
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.05)
+                : const Color(0xFFEDF1F5),
             borderRadius: BorderRadius.circular(11),
           ),
           child: Row(
@@ -1154,16 +1258,21 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
                 onTap: () => setState(() => _dashFuel = c),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 150),
-                  padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
                   decoration: BoxDecoration(
                     color: _dashFuel == c
                         ? accent
-                        : (isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white),
+                        : (isDark
+                            ? Colors.white.withValues(alpha: 0.06)
+                            : Colors.white),
                     borderRadius: BorderRadius.circular(99),
                     border: _dashFuel == c
                         ? null
                         : Border.all(
-                            color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
+                            color: isDark
+                                ? AppColors.darkCardBorder
+                                : AppColors.lightCardBorder),
                   ),
                   child: Text(
                     _fuelChipLabel[c]!,
@@ -1172,7 +1281,9 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
                       fontWeight: FontWeight.w800,
                       color: _dashFuel == c
                           ? Colors.white
-                          : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                          : (isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.lightTextSecondary),
                     ),
                   ),
                 ),
@@ -1194,7 +1305,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
     final diff = ((v as Map)['diff'] as num?)?.toDouble() ?? 0;
     const accent = AppColors.gasBlue;
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    final primary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final primary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
 
     // 7일 시계열 — facts.week[key] = [{date, price}...] (과거→최신)
     final weekRaw = f['week'] is Map ? (f['week'] as Map)[key] : null;
@@ -1230,18 +1342,21 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
           padding: const EdgeInsets.fromLTRB(16, 13, 14, 14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border:
-                Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
+            border: Border.all(
+                color: isDark
+                    ? AppColors.darkCardBorder
+                    : AppColors.lightCardBorder),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Flexible(
-                      child: Text('전국 평균 · ${_fmtDate(_today?['date'])}',
-                          style:
-                              TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: muted))),
+                  Text('전국 평균 · ${_fmtDate(_today?['date'])}',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: muted)),
                   const Spacer(),
                   _localDeltaChip(diff, isDark, suffix: '원'),
                 ],
@@ -1261,8 +1376,10 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
                   Padding(
                     padding: const EdgeInsets.only(bottom: 3),
                     child: Text('원/L',
-                        style:
-                            TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: muted)),
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: muted)),
                   ),
                 ],
               ),
@@ -1286,19 +1403,23 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
                                   decoration: BoxDecoration(
                                     color: i == pts.length - 1
                                         ? accent
-                                        : accent.withValues(alpha: isDark ? 0.32 : 0.18),
+                                        : accent.withValues(
+                                            alpha: isDark ? 0.32 : 0.18),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  i == pts.length - 1 ? '오늘' : dayLabel(pts[i].d),
+                                  i == pts.length - 1
+                                      ? '오늘'
+                                      : dayLabel(pts[i].d),
                                   maxLines: 1,
                                   overflow: TextOverflow.clip,
                                   style: TextStyle(
                                     fontSize: 9.5,
-                                    fontWeight:
-                                        i == pts.length - 1 ? FontWeight.w800 : FontWeight.w500,
+                                    fontWeight: i == pts.length - 1
+                                        ? FontWeight.w800
+                                        : FontWeight.w500,
                                     color: i == pts.length - 1 ? accent : muted,
                                   ),
                                 ),
@@ -1326,7 +1447,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
     if (stations.isEmpty) return null;
     const accent = AppColors.gasBlue;
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    final primary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final primary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     final line = isDark ? AppColors.darkCardBorder : const Color(0xFFF0F3F6);
     final radiusKm = ((nearby['radius_m'] as num?) ?? 5000) / 1000;
 
@@ -1334,7 +1456,9 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface1 : AppColors.lightCard,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
+        border: Border.all(
+            color:
+                isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1347,10 +1471,11 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
                 children: [
                   _pill('내 주변', accent, isDark),
                   const SizedBox(width: 6),
-                  Flexible(
-                      child: Text('최저가 TOP3 · ${radiusKm.toStringAsFixed(0)}km',
-                          style:
-                              TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: muted))),
+                  Text('최저가 TOP3 · ${radiusKm.toStringAsFixed(0)}km',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: muted)),
                   const Spacer(),
                   Icon(Icons.chevron_right_rounded, size: 19, color: muted),
                 ],
@@ -1371,8 +1496,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
               return InkWell(
                 onTap: stId.isEmpty
                     ? null
-                    : () => Navigator.of(ctx)
-                        .push(MaterialPageRoute(builder: (_) => GasDetailScreen(stationId: stId))),
+                    : () => Navigator.of(ctx).push(MaterialPageRoute(
+                        builder: (_) => GasDetailScreen(stationId: stId))),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 9, 16, 9),
                   child: Row(
@@ -1407,7 +1532,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
                         Text('${(dist / 1000).toStringAsFixed(1)}km',
                             style: TextStyle(fontSize: 11.5, color: muted)),
                       const SizedBox(width: 9),
-                      Text('${_comma((st['price_won_per_liter'] as num).round())}원',
+                      Text(
+                          '${_comma((st['price_won_per_liter'] as num).round())}원',
                           style: TextStyle(
                               fontSize: 13.5,
                               fontWeight: FontWeight.w800,
@@ -1441,15 +1567,17 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
         onTap: () {
           final id = int.tryParse(r['id']?.toString() ?? '');
           if (id == null) return;
-          Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => FuelReportDetailScreen(reportId: id)));
+          Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => FuelReportDetailScreen(reportId: id)));
         },
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 14, 14, 15),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border:
-                Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
+            border: Border.all(
+                color: isDark
+                    ? AppColors.darkCardBorder
+                    : AppColors.lightCardBorder),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1463,10 +1591,15 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
                       style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                          color: isDark
+                              ? AppColors.darkTextMuted
+                              : AppColors.lightTextMuted)),
                   const Spacer(),
                   Icon(Icons.chevron_right_rounded,
-                      size: 20, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                      size: 20,
+                      color: isDark
+                          ? AppColors.darkTextMuted
+                          : AppColors.lightTextMuted),
                 ],
               ),
               const SizedBox(height: 9),
@@ -1477,7 +1610,9 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
                       fontSize: 15,
                       fontWeight: FontWeight.w800,
                       height: 1.35,
-                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.lightTextPrimary)),
               if ((r['summary'] ?? '').toString().trim().isNotEmpty) ...[
                 const SizedBox(height: 6),
                 Text(r['summary'].toString(),
@@ -1486,8 +1621,9 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen> with Ticker
                     style: TextStyle(
                         fontSize: 12.5,
                         height: 1.55,
-                        color:
-                            isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary)),
               ],
             ],
           ),
@@ -1503,7 +1639,9 @@ Widget _pill(String text, Color accent, bool isDark) => Container(
         color: accent.withValues(alpha: isDark ? 0.18 : 0.10),
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Text(text, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: accent)),
+      child: Text(text,
+          style: TextStyle(
+              fontSize: 11, fontWeight: FontWeight.w800, color: accent)),
     );
 
 /// 리포트 종류 배지 색 — 주간·월간이 본문 파랑(액션 색)과 섞여 안 보이던 문제.
@@ -1606,7 +1744,8 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
         title: Text(topic == 'ev' ? '충전 리포트' : '유가 리포트'),
       ),
       body: _loading
-          ? Center(child: CircularProgressIndicator(strokeWidth: 2, color: accent))
+          ? Center(
+              child: CircularProgressIndicator(strokeWidth: 2, color: accent))
           : (r == null
               ? Center(
                   child: Padding(
@@ -1616,7 +1755,9 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                     children: [
                       Icon(Icons.insights_rounded,
                           size: 40,
-                          color: (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)
+                          color: (isDark
+                                  ? AppColors.darkTextMuted
+                                  : AppColors.lightTextMuted)
                               .withValues(alpha: 0.5)),
                       const SizedBox(height: 14),
                       Text(_error ?? _kGone,
@@ -1636,7 +1777,9 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                           style: TextStyle(
                               fontSize: 12.5,
                               height: 1.5,
-                              color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                              color: isDark
+                                  ? AppColors.darkTextMuted
+                                  : AppColors.lightTextMuted)),
                       const SizedBox(height: 14),
                       TextButton(
                         onPressed: () {
@@ -1660,13 +1803,15 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                         const SizedBox(width: 6),
                         Text(
                             kind == 'weekly'
-                                ? (_weeklyPeriod(r['date']) ?? _fmtDate(r['date']))
+                                ? (_weeklyPeriod(r['date']) ??
+                                    _fmtDate(r['date']))
                                 : _fmtDate(r['date'], monthly: monthly),
                             style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color:
-                                    isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                                color: isDark
+                                    ? AppColors.darkTextMuted
+                                    : AppColors.lightTextMuted)),
                       ],
                     ),
                     const SizedBox(height: 10),
@@ -1676,8 +1821,9 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                             fontWeight: FontWeight.w900,
                             height: 1.3,
                             letterSpacing: -0.4,
-                            color:
-                                isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
+                            color: isDark
+                                ? AppColors.darkTextPrimary
+                                : AppColors.lightTextPrimary)),
                     if ((r['summary'] ?? '').toString().trim().isNotEmpty) ...[
                       const SizedBox(height: 10),
                       Text(r['summary'].toString(),
@@ -1694,11 +1840,15 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                     if (topic == 'ev')
                       ..._evVisuals(r['facts'], isDark, accent)
                     else
-                      ..._fuelVisuals(r['facts'], isDark, kind: (r['kind'] ?? 'weekly').toString()),
+                      ..._fuelVisuals(r['facts'], isDark,
+                          kind: (r['kind'] ?? 'weekly').toString()),
 
                     // ── 섹션 본문 ──
                     for (final e in _sections.entries)
-                      if (((r['detail'] as Map?)?[e.key] ?? '').toString().trim().isNotEmpty)
+                      if (((r['detail'] as Map?)?[e.key] ?? '')
+                          .toString()
+                          .trim()
+                          .isNotEmpty)
                         _sectionCard(
                           isDark: isDark,
                           accent: accent,
@@ -1715,7 +1865,8 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
 
   /* ── 유가: 오늘 가격 + 7일 추이 + 시도별 ── */
 
-  List<Widget> _fuelVisuals(dynamic factsRaw, bool isDark, {String kind = 'weekly'}) {
+  List<Widget> _fuelVisuals(dynamic factsRaw, bool isDark,
+      {String kind = 'weekly'}) {
     final f = factsRaw is Map ? factsRaw : const {};
     final g = f['gasoline'] is Map ? f['gasoline'] as Map : null;
     final d = f['diesel'] is Map ? f['diesel'] as Map : null;
@@ -1750,11 +1901,14 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
     final cells = <(String, Map, Color, num?)>[
       if (g != null) ('휘발유', g, AppColors.gasBlue, periodDiff('gasoline', g)),
       if (d != null) ('경유', d, const Color(0xFF8B5CF6), periodDiff('diesel', d)),
-      if (prem != null) ('고급휘발유', prem, const Color(0xFFEF4444), periodDiff('premium', prem)),
-      if (lpg != null) ('LPG', lpg, const Color(0xFF0EA5E9), periodDiff('lpg', lpg)),
+      if (prem != null)
+        ('고급휘발유', prem, const Color(0xFFEF4444), periodDiff('premium', prem)),
+      if (lpg != null)
+        ('LPG', lpg, const Color(0xFF0EA5E9), periodDiff('lpg', lpg)),
     ];
     if (cells.isNotEmpty) {
-      final divider = isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder;
+      final divider =
+          isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder;
       final rows = <Widget>[];
       for (var i = 0; i < cells.length; i += 2) {
         final pair = cells.skip(i).take(2).toList();
@@ -1767,12 +1921,15 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
         rows.add(Row(
           children: [
             Expanded(
-                child: _priceCell(pair[0].$1, pair[0].$2['price'], pair[0].$4, pair[0].$3, isDark,
+                child: _priceCell(pair[0].$1, pair[0].$2['price'], pair[0].$4,
+                    pair[0].$3, isDark,
                     suffix: suffix)),
-            if (pair.length > 1) Container(width: 1, height: 46, color: divider),
+            if (pair.length > 1)
+              Container(width: 1, height: 46, color: divider),
             if (pair.length > 1)
               Expanded(
-                  child: _priceCell(pair[1].$1, pair[1].$2['price'], pair[1].$4, pair[1].$3, isDark,
+                  child: _priceCell(pair[1].$1, pair[1].$2['price'],
+                      pair[1].$4, pair[1].$3, isDark,
                       suffix: suffix)),
             if (pair.length == 1) const Expanded(child: SizedBox()),
           ],
@@ -1793,7 +1950,8 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
         ],
         child: SizedBox(
           height: 168,
-          child: _lineChart(gPts, AppColors.gasBlue, dPts, const Color(0xFF8B5CF6), isDark),
+          child: _lineChart(
+              gPts, AppColors.gasBlue, dPts, const Color(0xFF8B5CF6), isDark),
         ),
       ));
     }
@@ -1803,7 +1961,8 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
     final brent = _series(intl?['brent'], key: 'usd');
     final wti = _series(intl?['wti'], key: 'usd');
     if (brent.length >= 2 || wti.length >= 2) {
-      final last = brent.isNotEmpty ? brent.last : (wti.isNotEmpty ? wti.last : null);
+      final last =
+          brent.isNotEmpty ? brent.last : (wti.isNotEmpty ? wti.last : null);
       out.add(_panel(
         isDark: isDark,
         title: '국제유가 (달러/배럴)',
@@ -1815,8 +1974,8 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
           children: [
             SizedBox(
               height: 168,
-              child: _lineChart(
-                  brent, const Color(0xFFF59E0B), wti, const Color(0xFF06B6D4), isDark,
+              child: _lineChart(brent, const Color(0xFFF59E0B), wti,
+                  const Color(0xFF06B6D4), isDark,
                   usd: true),
             ),
             const SizedBox(height: 6),
@@ -1842,10 +2001,13 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
         child: Column(
           children: [
             for (final row in cheap)
-              _bar(row.$1, row.$2, minV, maxV, AppColors.evGreen, isDark, unit: '원'),
-            if (cheap.isNotEmpty && pricey.isNotEmpty) const SizedBox(height: 10),
+              _bar(row.$1, row.$2, minV, maxV, AppColors.evGreen, isDark,
+                  unit: '원'),
+            if (cheap.isNotEmpty && pricey.isNotEmpty)
+              const SizedBox(height: 10),
             for (final row in pricey)
-              _bar(row.$1, row.$2, minV, maxV, const Color(0xFFEF4444), isDark, unit: '원'),
+              _bar(row.$1, row.$2, minV, maxV, const Color(0xFFEF4444), isDark,
+                  unit: '원'),
             const SizedBox(height: 4),
             _caption('초록 = 저렴한 지역 · 빨강 = 비싼 지역', isDark),
           ],
@@ -1865,7 +2027,8 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
     final max = _num(ev['max']);
     final prev = _num(f['prev_ev_avg']);
     final ops = <(String, double, int?)>[];
-    for (final o in (ev['operators'] is List ? ev['operators'] as List : const [])) {
+    for (final o
+        in (ev['operators'] is List ? ev['operators'] as List : const [])) {
       if (o is! Map) continue;
       final v = _num(o['fast']);
       if (v == null) continue;
@@ -1879,18 +2042,23 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
         child: Row(
           children: [
             Expanded(
-                child:
-                    _statCell('평균', avg, accent, isDark, delta: prev == null ? null : avg - prev)),
+                child: _statCell('평균', avg, accent, isDark,
+                    delta: prev == null ? null : avg - prev)),
             Container(
                 width: 1,
                 height: 46,
-                color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
+                color: isDark
+                    ? AppColors.darkCardBorder
+                    : AppColors.lightCardBorder),
             Expanded(child: _statCell('최저', min, AppColors.evGreen, isDark)),
             Container(
                 width: 1,
                 height: 46,
-                color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
-            Expanded(child: _statCell('최고', max, const Color(0xFFEF4444), isDark)),
+                color: isDark
+                    ? AppColors.darkCardBorder
+                    : AppColors.lightCardBorder),
+            Expanded(
+                child: _statCell('최고', max, const Color(0xFFEF4444), isDark)),
           ],
         ),
       ));
@@ -1930,7 +2098,9 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface1 : AppColors.lightCard,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
+        border: Border.all(
+            color:
+                isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1946,8 +2116,9 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                           fontSize: 12.5,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.1,
-                          color:
-                              isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.lightTextSecondary)),
                 ),
                 if (legend != null)
                   for (final l in legend) ...[
@@ -1955,13 +2126,16 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                     Container(
                         width: 7,
                         height: 7,
-                        decoration: BoxDecoration(color: l.$2, shape: BoxShape.circle)),
+                        decoration:
+                            BoxDecoration(color: l.$2, shape: BoxShape.circle)),
                     const SizedBox(width: 4),
                     Text(l.$1,
                         style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
-                            color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                            color: isDark
+                                ? AppColors.darkTextMuted
+                                : AppColors.lightTextMuted)),
                   ],
               ],
             ),
@@ -1973,7 +2147,8 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
     );
   }
 
-  Widget _priceCell(String label, dynamic price, dynamic diff, Color color, bool isDark,
+  Widget _priceCell(
+      String label, dynamic price, dynamic diff, Color color, bool isDark,
       {String suffix = '원 (어제 대비)'}) {
     final p = _num(price);
     final dv = _num(diff);
@@ -1984,7 +2159,9 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
             style: TextStyle(
                 fontSize: 11.5,
                 fontWeight: FontWeight.w700,
-                color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                color: isDark
+                    ? AppColors.darkTextMuted
+                    : AppColors.lightTextMuted)),
         const SizedBox(height: 5),
         Row(
           crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -2005,7 +2182,9 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                 style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
-                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                    color: isDark
+                        ? AppColors.darkTextMuted
+                        : AppColors.lightTextMuted)),
           ],
         ),
         if (dv != null) ...[
@@ -2016,14 +2195,17 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
     );
   }
 
-  Widget _statCell(String label, double? v, Color color, bool isDark, {double? delta}) {
+  Widget _statCell(String label, double? v, Color color, bool isDark,
+      {double? delta}) {
     return Column(
       children: [
         Text(label,
             style: TextStyle(
                 fontSize: 11.5,
                 fontWeight: FontWeight.w700,
-                color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                color: isDark
+                    ? AppColors.darkTextMuted
+                    : AppColors.lightTextMuted)),
         const SizedBox(height: 5),
         FittedBox(
           child: Row(
@@ -2041,7 +2223,9 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                   style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                      color: isDark
+                          ? AppColors.darkTextMuted
+                          : AppColors.lightTextMuted)),
             ],
           ),
         ),
@@ -2069,7 +2253,8 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
   }
 
   /// 가로 바 — 값 차이가 작아도 보이게 최소/최대 사이를 0.35~1.0 폭으로 매핑.
-  Widget _bar(String label, double value, double minV, double maxV, Color color, bool isDark,
+  Widget _bar(String label, double value, double minV, double maxV, Color color,
+      bool isDark,
       {String unit = '', String? sub}) {
     final span = (maxV - minV).abs();
     final ratio = span < 0.01 ? 1.0 : 0.35 + 0.65 * ((value - minV) / span);
@@ -2085,7 +2270,9 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                 style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.lightTextSecondary)),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -2094,7 +2281,8 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                 Container(
                   height: 8,
                   decoration: BoxDecoration(
-                    color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.05),
+                    color: (isDark ? Colors.white : Colors.black)
+                        .withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -2124,14 +2312,18 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                         fontSize: 12.5,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.2,
-                        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.lightTextPrimary)),
                 if (sub != null)
                   Text(sub,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                           fontSize: 10.5,
-                          color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                          color: isDark
+                              ? AppColors.darkTextMuted
+                              : AppColors.lightTextMuted)),
               ],
             ),
           ),
@@ -2141,8 +2333,8 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
   }
 
   /// 두 시리즈 라인차트 — 국내(원/L)와 국제유가(달러/배럴)를 같은 스타일로 그린다.
-  Widget _lineChart(List<(String, double)> gas, Color colorA, List<(String, double)> diesel,
-      Color colorB, bool isDark,
+  Widget _lineChart(List<(String, double)> gas, Color colorA,
+      List<(String, double)> diesel, Color colorB, bool isDark,
       {bool usd = false}) {
     final all = [...gas.map((e) => e.$2), ...diesel.map((e) => e.$2)];
     if (all.isEmpty) return const SizedBox.shrink();
@@ -2159,8 +2351,11 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
     final dotFill = isDark ? AppColors.darkSurface1 : AppColors.lightCard;
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
 
-    LineChartBarData bar(List<(String, double)> pts, Color c, double w) => LineChartBarData(
-          spots: [for (var i = 0; i < pts.length; i++) FlSpot(i.toDouble(), pts[i].$2)],
+    LineChartBarData bar(List<(String, double)> pts, Color c, double w) =>
+        LineChartBarData(
+          spots: [
+            for (var i = 0; i < pts.length; i++) FlSpot(i.toDouble(), pts[i].$2)
+          ],
           isCurved: true,
           curveSmoothness: 0.25,
           preventCurveOverShooting: true,
@@ -2196,14 +2391,17 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
           drawVerticalLine: false,
           horizontalInterval: yStep,
           getDrawingHorizontalLine: (_) => FlLine(
-            color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.07),
+            color:
+                (isDark ? Colors.white : Colors.black).withValues(alpha: 0.07),
             strokeWidth: 1,
             dashArray: const [2, 4],
           ),
         ),
         titlesData: FlTitlesData(
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
@@ -2217,7 +2415,10 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                   padding: const EdgeInsets.only(right: 6),
                   child: Text(fmtY(v),
                       textAlign: TextAlign.right,
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: muted)),
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: muted)),
                 );
               },
             ),
@@ -2236,7 +2437,10 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                 return Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: Text(last ? '최근' : _mmdd(base[i].$1),
-                      style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: muted)),
+                      style: TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w600,
+                          color: muted)),
                 );
               },
             ),
@@ -2258,7 +2462,9 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
             style: TextStyle(
                 fontSize: 10.5,
                 height: 1.4,
-                color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                color: isDark
+                    ? AppColors.darkTextMuted
+                    : AppColors.lightTextMuted)),
       );
 
   Widget _sectionCard({
@@ -2274,7 +2480,9 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface1 : AppColors.lightCard,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
+        border: Border.all(
+            color:
+                isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2299,7 +2507,9 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                         fontSize: 13.5,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.2,
-                        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.lightTextPrimary)),
               ),
             ],
           ),
@@ -2313,7 +2523,9 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                 style: TextStyle(
                     fontSize: 13.5,
                     height: 1.75,
-                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.lightTextSecondary)),
             const SizedBox(height: 11),
           ],
         ],
@@ -2326,7 +2538,9 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
   Widget _refCard(Map s, bool isDark, Color accent) {
     final url = (s['link'] ?? '').toString();
     final host = Uri.tryParse((s['source_url'] ?? '').toString())?.host ?? '';
-    final favicon = host.isEmpty ? null : 'https://www.google.com/s2/favicons?sz=64&domain=$host';
+    final favicon = host.isEmpty
+        ? null
+        : 'https://www.google.com/s2/favicons?sz=64&domain=$host';
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -2344,8 +2558,10 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
             padding: const EdgeInsets.fromLTRB(12, 11, 10, 11),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              border:
-                  Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
+              border: Border.all(
+                  color: isDark
+                      ? AppColors.darkCardBorder
+                      : AppColors.lightCardBorder),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2359,7 +2575,8 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                         ? _refFallback(accent, isDark)
                         : Image.network(favicon,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _refFallback(accent, isDark)),
+                            errorBuilder: (_, __, ___) =>
+                                _refFallback(accent, isDark)),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -2374,14 +2591,17 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                               fontSize: 12.5,
                               height: 1.4,
                               fontWeight: FontWeight.w600,
-                              color:
-                                  isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
+                              color: isDark
+                                  ? AppColors.darkTextPrimary
+                                  : AppColors.lightTextPrimary)),
                       const SizedBox(height: 3),
                       Text(
                           [
                             (s['source'] ?? '').toString(),
                             if ((s['date'] ?? '').toString().length >= 10)
-                              (s['date'] as String).substring(5).replaceAll('-', '.'),
+                              (s['date'] as String)
+                                  .substring(5)
+                                  .replaceAll('-', '.'),
                           ].where((e) => e.isNotEmpty).join(' · '),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -2416,7 +2636,9 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
               style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
-                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.lightTextSecondary)),
           const SizedBox(height: 8),
           for (final s in list)
             if (s is Map) _refCard(s, isDark, accent),
@@ -2437,8 +2659,9 @@ double? _num(dynamic v) {
   return double.tryParse(v.toString());
 }
 
-String _comma(int v) =>
-    v.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},');
+String _comma(int v) => v
+    .toString()
+    .replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},');
 
 /// [{date:'20260730', price:1868.1}, ...] → [('20260730', 1868.1)]
 /// 국제유가는 값 키가 'usd' 라 key 로 지정한다.
@@ -2492,10 +2715,13 @@ class LocalFuelBriefDetailScreen extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     const accent = AppColors.gasBlue;
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    final primary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final secondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final primary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final secondary =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
     final cardBg = isDark ? AppColors.darkCard : Colors.white;
-    final cardBorder = isDark ? AppColors.darkCardBorder : const Color(0xFFE8ECF0);
+    final cardBorder =
+        isDark ? AppColors.darkCardBorder : const Color(0xFFE8ECF0);
 
     final region = (data['region'] as Map?) ?? const {};
     final price = (data['region_price'] as Map?) ?? const {};
@@ -2577,7 +2803,8 @@ class LocalFuelBriefDetailScreen extends StatelessWidget {
               _pill('우리 동네', const Color(0xFF14B8A6), isDark),
               const SizedBox(width: 7),
               Text(_fmtYmd(data['stats_date']),
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: muted)),
+                  style: TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600, color: muted)),
             ],
           ),
           const SizedBox(height: 9),
@@ -2611,14 +2838,20 @@ class LocalFuelBriefDetailScreen extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 3),
                     child: Text('원/L',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: muted)),
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: muted)),
                   ),
                   const Spacer(),
                   if (vsNation != null)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 9, vertical: 5),
                       decoration: BoxDecoration(
-                        color: (vsNation > 0 ? const Color(0xFFEF4444) : AppColors.evGreen)
+                        color: (vsNation > 0
+                                ? const Color(0xFFEF4444)
+                                : AppColors.evGreen)
                             .withValues(alpha: isDark ? 0.18 : 0.10),
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -2629,7 +2862,9 @@ class LocalFuelBriefDetailScreen extends StatelessWidget {
                         style: TextStyle(
                             fontSize: 11.5,
                             fontWeight: FontWeight.w800,
-                            color: vsNation > 0 ? const Color(0xFFEF4444) : AppColors.evGreen),
+                            color: vsNation > 0
+                                ? const Color(0xFFEF4444)
+                                : AppColors.evGreen),
                       ),
                     ),
                 ],
@@ -2647,7 +2882,8 @@ class LocalFuelBriefDetailScreen extends StatelessWidget {
             sectionCard(Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                sectionHead(Icons.format_list_bulleted_rounded, '유종별 $label 평균'),
+                sectionHead(
+                    Icons.format_list_bulleted_rounded, '유종별 $label 평균'),
                 for (final raw in (data['fuels'] as List))
                   if (raw is Map)
                     Builder(builder: (_) {
@@ -2663,19 +2899,25 @@ class LocalFuelBriefDetailScreen extends StatelessWidget {
                             Text((f['label'] ?? '').toString(),
                                 style: TextStyle(
                                     fontSize: 12.5,
-                                    fontWeight: isPrimary ? FontWeight.w800 : FontWeight.w500,
+                                    fontWeight: isPrimary
+                                        ? FontWeight.w800
+                                        : FontWeight.w500,
                                     color: isPrimary ? primary : muted)),
                             if (isPrimary) ...[
                               const SizedBox(width: 5),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 5, vertical: 1),
                                 decoration: BoxDecoration(
-                                  color: accent.withValues(alpha: isDark ? 0.2 : 0.1),
+                                  color: accent.withValues(
+                                      alpha: isDark ? 0.2 : 0.1),
                                   borderRadius: BorderRadius.circular(5),
                                 ),
                                 child: const Text('내 유종',
                                     style: TextStyle(
-                                        fontSize: 9.5, fontWeight: FontWeight.w800, color: accent)),
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: accent)),
                               ),
                             ],
                             const Spacer(),
@@ -2685,14 +2927,18 @@ class LocalFuelBriefDetailScreen extends StatelessWidget {
                                 style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
-                                    color: fVs > 0 ? const Color(0xFFEF4444) : AppColors.evGreen),
+                                    color: fVs > 0
+                                        ? const Color(0xFFEF4444)
+                                        : AppColors.evGreen),
                               ),
                               const SizedBox(width: 10),
                             ],
                             Text('${_comma(fAvg)}원',
                                 style: TextStyle(
                                     fontSize: 13,
-                                    fontWeight: isPrimary ? FontWeight.w800 : FontWeight.w600,
+                                    fontWeight: isPrimary
+                                        ? FontWeight.w800
+                                        : FontWeight.w600,
                                     color: isPrimary ? primary : secondary)),
                           ],
                         ),
@@ -2712,7 +2958,10 @@ class LocalFuelBriefDetailScreen extends StatelessWidget {
                   styleSheet: MarkdownStyleSheet(
                     p: TextStyle(fontSize: 13.5, height: 1.7, color: secondary),
                     strong: TextStyle(
-                        fontSize: 13.5, height: 1.7, fontWeight: FontWeight.w800, color: primary),
+                        fontSize: 13.5,
+                        height: 1.7,
+                        fontWeight: FontWeight.w800,
+                        color: primary),
                   ),
                 ),
               ],
@@ -2722,10 +2971,11 @@ class LocalFuelBriefDetailScreen extends StatelessWidget {
           sectionCard(Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              sectionHead(
-                  Icons.local_gas_station_rounded, '집 근처 ${radiusKm.toStringAsFixed(0)}km 최저가'),
+              sectionHead(Icons.local_gas_station_rounded,
+                  '집 근처 ${radiusKm.toStringAsFixed(0)}km 최저가'),
               if (stations.isEmpty)
-                Text('주변에서 판매 중인 주유소를 찾지 못했어요', style: TextStyle(fontSize: 12.5, color: muted))
+                Text('주변에서 판매 중인 주유소를 찾지 못했어요',
+                    style: TextStyle(fontSize: 12.5, color: muted))
               else
                 for (var i = 0; i < stations.length; i++)
                   Builder(builder: (ctx) {
@@ -2738,15 +2988,20 @@ class LocalFuelBriefDetailScreen extends StatelessWidget {
                     return _NearRow(
                       onTap: stId.isEmpty
                           ? null
-                          : () => Navigator.of(ctx).push(
-                              MaterialPageRoute(builder: (_) => GasDetailScreen(stationId: stId))),
+                          : () => Navigator.of(ctx).push(MaterialPageRoute(
+                              builder: (_) =>
+                                  GasDetailScreen(stationId: stId))),
                       onNavigate: (stLat == null || stLng == null)
                           ? null
                           : () => showNavigationSheet(ctx,
-                              lat: stLat, lng: stLng, name: (st['name'] ?? '').toString()),
+                              lat: stLat,
+                              lng: stLng,
+                              name: (st['name'] ?? '').toString()),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-                        margin: EdgeInsets.only(bottom: i == stations.length - 1 ? 0 : 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 9),
+                        margin: EdgeInsets.only(
+                            bottom: i == stations.length - 1 ? 0 : 6),
                         decoration: BoxDecoration(
                           color: top
                               ? accent.withValues(alpha: isDark ? 0.10 : 0.06)
@@ -2760,7 +3015,9 @@ class LocalFuelBriefDetailScreen extends StatelessWidget {
                               height: 22,
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
-                                color: top ? accent : muted.withValues(alpha: 0.15),
+                                color: top
+                                    ? accent
+                                    : muted.withValues(alpha: 0.15),
                                 shape: BoxShape.circle,
                               ),
                               child: Text('${i + 1}',
@@ -2783,13 +3040,16 @@ class LocalFuelBriefDetailScreen extends StatelessWidget {
                                           letterSpacing: -0.2,
                                           color: primary)),
                                   if (dist != null)
-                                    Text('${(dist / 1000).toStringAsFixed(1)}km',
-                                        style: TextStyle(fontSize: 11.5, color: muted)),
+                                    Text(
+                                        '${(dist / 1000).toStringAsFixed(1)}km',
+                                        style: TextStyle(
+                                            fontSize: 11.5, color: muted)),
                                 ],
                               ),
                             ),
                             const SizedBox(width: 10),
-                            Text('${_comma((st['price_won_per_liter'] as num).round())}원',
+                            Text(
+                                '${_comma((st['price_won_per_liter'] as num).round())}원',
                                 style: TextStyle(
                                     fontSize: 14.5,
                                     fontWeight: FontWeight.w800,
@@ -2802,7 +3062,10 @@ class LocalFuelBriefDetailScreen extends StatelessWidget {
               if (saveWon != null && saveWon > 0) ...[
                 const SizedBox(height: 10),
                 Text('1위에서 넣으면 동네 평균보다 리터당 ${_comma(saveWon)}원 아껴요',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: secondary)),
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: secondary)),
               ],
             ],
           )),
@@ -2811,21 +3074,27 @@ class LocalFuelBriefDetailScreen extends StatelessWidget {
           if (minName.isNotEmpty && minPrice != null)
             sectionCard(Row(
               children: [
-                const Icon(Icons.emoji_events_rounded, size: 18, color: Color(0xFFF59E0B)),
+                const Icon(Icons.emoji_events_rounded,
+                    size: 18, color: Color(0xFFF59E0B)),
                 const SizedBox(width: 9),
                 Expanded(
                   child: Text('$label 전체 최저가는 $minName',
-                      style: TextStyle(fontSize: 12.5, height: 1.4, color: secondary)),
+                      style: TextStyle(
+                          fontSize: 12.5, height: 1.4, color: secondary)),
                 ),
                 const SizedBox(width: 8),
                 Text('${_comma(minPrice)}원',
-                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: primary)),
+                    style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                        color: primary)),
               ],
             )),
 
           const SizedBox(height: 6),
           Text('오피넷 판매가 기준 · 하루 한 번 갱신돼요',
-              textAlign: TextAlign.center, style: TextStyle(fontSize: 11.5, color: muted)),
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11.5, color: muted)),
         ],
       ),
     );
@@ -2868,7 +3137,8 @@ class _NearRow extends StatelessWidget {
                 color: AppColors.gasBlue.withValues(alpha: isDark ? 0.2 : 0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.navigation_rounded, size: 17, color: AppColors.gasBlue),
+              child: const Icon(Icons.navigation_rounded,
+                  size: 17, color: AppColors.gasBlue),
             ),
           ),
         ],
@@ -2887,7 +3157,8 @@ class FuelReportArchiveScreen extends StatefulWidget {
   final String topic;
 
   @override
-  State<FuelReportArchiveScreen> createState() => _FuelReportArchiveScreenState();
+  State<FuelReportArchiveScreen> createState() =>
+      _FuelReportArchiveScreenState();
 }
 
 class _FuelReportArchiveScreenState extends State<FuelReportArchiveScreen> {
@@ -2903,7 +3174,8 @@ class _FuelReportArchiveScreenState extends State<FuelReportArchiveScreen> {
 
   Future<void> _load() async {
     try {
-      final list = await ApiService().getFuelReports(topic: widget.topic, limit: 300);
+      final list =
+          await ApiService().getFuelReports(topic: widget.topic, limit: 300);
       if (!mounted) return;
       setState(() {
         _items = list;
@@ -2923,7 +3195,8 @@ class _FuelReportArchiveScreenState extends State<FuelReportArchiveScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = widget.topic == 'ev' ? AppColors.evGreen : AppColors.gasBlue;
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    final primary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final primary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     final line = isDark ? AppColors.darkCardBorder : const Color(0xFFF0F3F6);
 
     // 년 → 월 그룹핑 (최신 우선 정렬은 서버가 보장)
@@ -2941,7 +3214,10 @@ class _FuelReportArchiveScreenState extends State<FuelReportArchiveScreen> {
         decoration: BoxDecoration(
           color: isDark ? AppColors.darkSurface1 : AppColors.lightCard,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
+          border: Border.all(
+              color: isDark
+                  ? AppColors.darkCardBorder
+                  : AppColors.lightCardBorder),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2949,7 +3225,8 @@ class _FuelReportArchiveScreenState extends State<FuelReportArchiveScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 2),
               child: Text('$m월',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: muted)),
+                  style: TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w800, color: muted)),
             ),
             for (var i = 0; i < list.length; i++) ...[
               if (i > 0)
@@ -2977,7 +3254,10 @@ class _FuelReportArchiveScreenState extends State<FuelReportArchiveScreen> {
           padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
           child: Text('$y년',
               style: TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: -0.3, color: primary)),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
+                  color: primary)),
         ));
       }
       if (m != curMonth) {
@@ -2989,9 +3269,11 @@ class _FuelReportArchiveScreenState extends State<FuelReportArchiveScreen> {
     flushMonth();
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.topic == 'ev' ? '지난 충전 리포트' : '지난 유가 리포트')),
+      appBar:
+          AppBar(title: Text(widget.topic == 'ev' ? '지난 충전 리포트' : '지난 유가 리포트')),
       body: _loading
-          ? Center(child: CircularProgressIndicator(strokeWidth: 2, color: accent))
+          ? Center(
+              child: CircularProgressIndicator(strokeWidth: 2, color: accent))
           : (_items.isEmpty
               ? Center(
                   child: Text(_error ?? '아직 쌓인 리포트가 없어요',
@@ -3003,7 +3285,8 @@ class _FuelReportArchiveScreenState extends State<FuelReportArchiveScreen> {
     );
   }
 
-  Widget _row(Map<String, dynamic> r, bool isDark, Color accent, Color primary, Color muted) {
+  Widget _row(Map<String, dynamic> r, bool isDark, Color accent, Color primary,
+      Color muted) {
     final monthly = r['kind'] == 'monthly';
     String badge = monthly ? '월간' : '주간';
     final d = (r['date'] ?? '').toString();
@@ -3015,8 +3298,8 @@ class _FuelReportArchiveScreenState extends State<FuelReportArchiveScreen> {
       onTap: () {
         final id = int.tryParse(r['id']?.toString() ?? '');
         if (id == null) return;
-        Navigator.of(context)
-            .push(MaterialPageRoute(builder: (_) => FuelReportDetailScreen(reportId: id)));
+        Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => FuelReportDetailScreen(reportId: id)));
       },
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
@@ -3030,7 +3313,10 @@ class _FuelReportArchiveScreenState extends State<FuelReportArchiveScreen> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: -0.2, color: primary),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.2,
+                    color: primary),
               ),
             ),
             const SizedBox(width: 6),

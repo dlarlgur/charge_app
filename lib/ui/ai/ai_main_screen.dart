@@ -78,7 +78,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   DateTime? _lastGestureAt;
   bool get _gestureActive =>
       _lastGestureAt != null &&
-      DateTime.now().difference(_lastGestureAt!) < const Duration(milliseconds: 220);
+      DateTime.now().difference(_lastGestureAt!) <
+          const Duration(milliseconds: 220);
 
   /// 마커 탭을 잠깐 유예 후 실행 — 탭 직후 핀치로 이어졌으면 무시.
   Future<bool> _tapGuard() async {
@@ -152,7 +153,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
   /// 널·빈 값을 빼고 ' · ' 로 잇는다. 전부 비면 null → 카드가 그 줄을 통째로 생략.
   static String? _joinMeta(List<dynamic> parts) {
-    final out = parts.map((e) => e?.toString().trim() ?? '').where((e) => e.isNotEmpty).toList();
+    final out = parts
+        .map((e) => e?.toString().trim() ?? '')
+        .where((e) => e.isNotEmpty)
+        .toList();
     return out.isEmpty ? null : out.join(' · ');
   }
 
@@ -199,23 +203,30 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
     final rec = data['recommendation'];
     final trace = rec is Map ? rec['decision_trace'] : null;
-    final ca =
-        (trace is Map && trace['cost_analysis'] is Map) ? trace['cost_analysis'] as Map : null;
+    final ca = (trace is Map && trace['cost_analysis'] is Map)
+        ? trace['cost_analysis'] as Map
+        : null;
     final caSavings = ca == null
         ? 0
-        : (ca['net_benefit_won'] is num ? i(ca['net_benefit_won']) : i(ca['savings_won']));
+        : (ca['net_benefit_won'] is num
+            ? i(ca['net_benefit_won'])
+            : i(ca['savings_won']));
 
     // 추천 아이템 공통 추출 (이름/가격/예상비용/우회시간)
     final choice = rec is Map ? rec['choice']?.toString() : null;
-    final recItem = choice == 'best_detour' ? data['best_detour'] : data['on_route'];
+    final recItem =
+        choice == 'best_detour' ? data['best_detour'] : data['on_route'];
     final recSt = recItem is Map ? recItem['station'] : null;
     String name = '';
     double? recPrice;
     _stationSub = null;
     if (recSt is Map) {
       final dn = recSt['display_name']?.toString().trim();
-      final raw = (dn != null && dn.isNotEmpty) ? dn : (recSt['name']?.toString() ?? '');
-      name = StationAliasService.resolveGas((recSt['id'] ?? '').toString(), raw);
+      final raw = (dn != null && dn.isNotEmpty)
+          ? dn
+          : (recSt['name']?.toString() ?? '');
+      name =
+          StationAliasService.resolveGas((recSt['id'] ?? '').toString(), raw);
       recPrice = d(recSt['price_won_per_liter']);
       // 공유 카드 부제 — 서버가 주는 것 중 있는 것만 ' · ' 로 잇는다.
       _stationSub = _joinMeta([
@@ -244,25 +255,35 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       }
     }
     final others = prices.where((p) => p != recPrice).toList();
-    final avgPrice = others.isEmpty ? null : others.reduce((a, b) => a + b) / others.length;
+    final avgPrice =
+        others.isEmpty ? null : others.reduce((a, b) => a + b) / others.length;
 
     // 공유 카드(영수증형)가 시안대로 채워지려면 항목이 다 있어야 한다.
     // 절약은 '-' 가 아니라 ▼ 로 표기 — 카드·오버레이 공통 규칙.
     final computedMap = data['computed'];
-    final goalLiters = computedMap is Map ? d(computedMap['goal_liters']) : null;
+    final goalLiters =
+        computedMap is Map ? d(computedMap['goal_liters']) : null;
     final routeDistM = recItem is Map ? d(recItem['detour_distance_m']) : null;
     final fuelLabel = _fuelLabelOf(recSt is Map ? recSt['fuel_type'] : null);
 
     final facts = <RevealFact>[
       if (fuelLabel != null) (label: '유종', value: fuelLabel),
-      if (recPrice != null) (label: '리터당 단가', value: '${wonFmt.format(recPrice.round())}원/L'),
+      if (recPrice != null)
+        (label: '리터당 단가', value: '${wonFmt.format(recPrice.round())}원/L'),
       if (recPrice != null && avgPrice != null && avgPrice > recPrice)
-        (label: '주변 평균 대비', value: '▼${wonFmt.format((avgPrice - recPrice).round())}원/L'),
-      if (avgPrice != null) (label: '주변 평균가', value: '${wonFmt.format(avgPrice.round())}원/L'),
+        (
+          label: '주변 평균 대비',
+          value: '▼${wonFmt.format((avgPrice - recPrice).round())}원/L'
+        ),
+      if (avgPrice != null)
+        (label: '주변 평균가', value: '${wonFmt.format(avgPrice.round())}원/L'),
       if (goalLiters != null && goalLiters > 0)
         (label: '주유량', value: '${goalLiters.toStringAsFixed(1)}L'),
       if (routeDistM != null && routeDistM > 0)
-        (label: '거리', value: '경로에서 ${(routeDistM / 1000).toStringAsFixed(1)}km'),
+        (
+          label: '거리',
+          value: '경로에서 ${(routeDistM / 1000).toStringAsFixed(1)}km'
+        ),
       if (recCost != null && recCost > 0)
         (label: '예상 주유비', value: '${wonFmt.format(recCost.round())}원'),
       if (detourMin > 0) (label: '추가 시간', value: '+$detourMin분'),
@@ -287,8 +308,13 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final computed = data['computed'];
     final liters = computed is Map ? d(computed['goal_liters']) : null;
     final effLiters = liters ??
-        ((recCost != null && recPrice != null && recPrice > 0) ? recCost / recPrice : null);
-    if (recPrice != null && avgPrice != null && effLiters != null && effLiters > 0) {
+        ((recCost != null && recPrice != null && recPrice > 0)
+            ? recCost / recPrice
+            : null);
+    if (recPrice != null &&
+        avgPrice != null &&
+        effLiters != null &&
+        effLiters > 0) {
       final save = ((avgPrice - recPrice) * effLiters).round();
       if (save >= 500) {
         _showReveal(
@@ -340,7 +366,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       unit = m['unit_price_member'] is num
           ? (m['unit_price_member'] as num).round()
           : (m['unit_price'] is num ? (m['unit_price'] as num).round() : null);
-      final kwh = m['est_charge_kwh'] is num ? (m['est_charge_kwh'] as num).toDouble() : null;
+      final kwh = m['est_charge_kwh'] is num
+          ? (m['est_charge_kwh'] as num).toDouble()
+          : null;
       if (recCost != null) {
         facts.add((label: '예상 충전요금', value: '${wonFmt.format(recCost)}원'));
       }
@@ -424,7 +452,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   bool _userSelecting = false; // 사용자 선택 탭 로딩
   String _userSelectingMessage = '불러오는 중...';
   bool _isSelectSheetVisible = false;
-  final DraggableScrollableController _selectSheetCtrl = DraggableScrollableController();
+  final DraggableScrollableController _selectSheetCtrl =
+      DraggableScrollableController();
   String? _errorMessage;
   bool _onboardingPushed = false;
 
@@ -481,10 +510,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     box.put(_kEvDestMinSocKey, _evDestMinSoc);
     box.put(_kEvSocUserSetKey, _socConditionUserSet);
   }
-
   bool _evHighwayOnly = true; // 고속도로 충전소만
   bool _gasHighwayOnly = true; // 고속도로 휴게소 주유소만
-  final Set<String> _preferredGasBrands = {}; // 선호 브랜드(OPINET pollDivCo 키). 빈 set = 전체.
+  final Set<String> _preferredGasBrands =
+      {}; // 선호 브랜드(OPINET pollDivCo 키). 빈 set = 전체.
 
   // EV 충전 사업자 필터 — 선택한 사업자 충전소만 추천. 빈 set = 전체.
   final Set<String> _preferredEvOperators = {};
@@ -511,7 +540,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           _evDestMinSoc != SocConditionSheet.defaultDestMinSoc);
 
   // 반폭 타일에 들어가야 해서 최대한 압축 (가로 배치 — 형 지시)
-  String get _socConditionSummary => '도착 $_evMinArrivalSoc%·목적지 $_evDestMinSoc%';
+  String get _socConditionSummary =>
+      '도착 $_evMinArrivalSoc%·목적지 $_evDestMinSoc%';
 
   void _toggleEvFastOutput(String key) {
     setState(() {
@@ -532,7 +562,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   }
 
   // EV 결과 시트의 카드 스크롤 제어용 (지도 마커 탭 → 해당 카드로 이동)
-  final GlobalKey<EvResultBodyState> _evResultBodyKey = GlobalKey<EvResultBodyState>();
+  final GlobalKey<EvResultBodyState> _evResultBodyKey =
+      GlobalKey<EvResultBodyState>();
 
   // ── 검색 기록 ──
   List<String> _searchHistory = [];
@@ -542,7 +573,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   String? _lastSyncedVehicleId;
 
   // ── 결과 패널 시트 크기 추적 ──
-  final DraggableScrollableController _sheetController = DraggableScrollableController();
+  final DraggableScrollableController _sheetController =
+      DraggableScrollableController();
   double _sheetSize = 0.45;
   DateTime? _lastInScreenBackHandledAt;
 
@@ -682,10 +714,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     if (rawVehicles == null) return null;
     try {
       final List decoded = jsonDecode(rawVehicles as String);
-      final all = decoded.map((e) => VehicleProfile.fromJson(e as Map<String, dynamic>)).toList();
-      return all
-          .cast<VehicleProfile?>()
-          .firstWhere((v) => v?.id == selectedId, orElse: () => all.isNotEmpty ? all.first : null);
+      final all = decoded
+          .map((e) => VehicleProfile.fromJson(e as Map<String, dynamic>))
+          .toList();
+      return all.cast<VehicleProfile?>().firstWhere((v) => v?.id == selectedId,
+          orElse: () => all.isNotEmpty ? all.first : null);
     } catch (_) {
       return null;
     }
@@ -701,7 +734,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     if (rawVehicles != null) {
       try {
         final List decoded = jsonDecode(rawVehicles as String);
-        all = decoded.map((e) => VehicleProfile.fromJson(e as Map<String, dynamic>)).toList();
+        all = decoded
+            .map((e) => VehicleProfile.fromJson(e as Map<String, dynamic>))
+            .toList();
       } catch (_) {}
     }
 
@@ -735,7 +770,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       if (!mounted) return;
       await Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => AiVehicleSetupScreen(initialType: ev ? 'ev' : 'gas')),
+        MaterialPageRoute(
+            builder: (_) =>
+                AiVehicleSetupScreen(initialType: ev ? 'ev' : 'gas')),
       );
       if (mounted) setState(() {});
     }
@@ -743,22 +780,29 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
   // 차량 프로필 currentLevelPercent / targetMode / targetValue / targetChargePercent 저장
   void _saveVehicleLevel(Box box,
-      {required double level, required String mode, double? price, double? targetChargePercent}) {
+      {required double level,
+      required String mode,
+      double? price,
+      double? targetChargePercent}) {
     final rawVehicles = box.get(AppConstants.keyAiVehicles);
     final selectedId = box.get(AppConstants.keyAiSelectedVehicleId) as String?;
     if (rawVehicles == null || selectedId == null) return;
     try {
       final List decoded = jsonDecode(rawVehicles as String);
-      final all = decoded.map((e) => VehicleProfile.fromJson(e as Map<String, dynamic>)).toList();
+      final all = decoded
+          .map((e) => VehicleProfile.fromJson(e as Map<String, dynamic>))
+          .toList();
       final idx = all.indexWhere((v) => v.id == selectedId);
       if (idx < 0) return;
       all[idx] = all[idx].copyWith(
         currentLevelPercent: level,
         targetMode: mode,
         targetValue: price ?? all[idx].targetValue,
-        targetChargePercent: targetChargePercent ?? all[idx].targetChargePercent,
+        targetChargePercent:
+            targetChargePercent ?? all[idx].targetChargePercent,
       );
-      box.put(AppConstants.keyAiVehicles, jsonEncode(all.map((v) => v.toJson()).toList()));
+      box.put(AppConstants.keyAiVehicles,
+          jsonEncode(all.map((v) => v.toJson()).toList()));
       mirrorAiVehiclesToServer(); // 로그인 회원이면 서버 미러
     } catch (_) {}
   }
@@ -773,25 +817,32 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     // AI 탭 필터 — 마지막 사용값 복원 (없으면 기존 기본: 전체/급속)
     _preferredEvOperators
       ..clear()
-      ..addAll(List<String>.from(box.get(_kEvOperatorsKey, defaultValue: const <String>[])));
+      ..addAll(List<String>.from(
+          box.get(_kEvOperatorsKey, defaultValue: const <String>[])));
     _preferredEvBrands
       ..clear()
-      ..addAll(List<String>.from(box.get(_kEvBrandsKey, defaultValue: const <String>[])));
-    _evChargerType = box.get(_kEvChargerTypeKey, defaultValue: 'FAST') == 'SLOW' ? 'SLOW' : 'FAST';
+      ..addAll(List<String>.from(
+          box.get(_kEvBrandsKey, defaultValue: const <String>[])));
+    _evChargerType =
+        box.get(_kEvChargerTypeKey, defaultValue: 'FAST') == 'SLOW'
+            ? 'SLOW'
+            : 'FAST';
     _evFastOutputs
       ..clear()
-      ..addAll(List<String>.from(box.get(_kEvFastOutputsKey, defaultValue: const <String>[])));
+      ..addAll(List<String>.from(
+          box.get(_kEvFastOutputsKey, defaultValue: const <String>[])));
     _preferredGasBrands
       ..clear()
-      ..addAll(List<String>.from(box.get(_kGasPrefBrandsKey, defaultValue: const <String>[])));
-    _evMinArrivalSoc =
-        (box.get(_kEvMinArrivalSocKey, defaultValue: SocConditionSheet.defaultMinArrivalSoc) as num)
-            .round()
-            .clamp(0, 50);
-    _evDestMinSoc =
-        (box.get(_kEvDestMinSocKey, defaultValue: SocConditionSheet.defaultDestMinSoc) as num)
-            .round()
-            .clamp(0, 50);
+      ..addAll(List<String>.from(
+          box.get(_kGasPrefBrandsKey, defaultValue: const <String>[])));
+    _evMinArrivalSoc = (box.get(_kEvMinArrivalSocKey,
+            defaultValue: SocConditionSheet.defaultMinArrivalSoc) as num)
+        .round()
+        .clamp(0, 50);
+    _evDestMinSoc = (box.get(_kEvDestMinSocKey,
+            defaultValue: SocConditionSheet.defaultDestMinSoc) as num)
+        .round()
+        .clamp(0, 50);
     _socConditionUserSet = box.get(_kEvSocUserSetKey, defaultValue: false) == true;
 
     // 선택된 차량 프로필 기준으로 로드
@@ -801,19 +852,26 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       _targetMode = vehicle.targetMode;
       _priceController.text = vehicle.targetValue.toStringAsFixed(0);
       final liter = vehicle.targetValue; // 리터 모드일 때도 targetValue 사용
-      _literController.text =
-          liter == liter.roundToDouble() ? liter.toStringAsFixed(0) : liter.toStringAsFixed(1);
+      _literController.text = liter == liter.roundToDouble()
+          ? liter.toStringAsFixed(0)
+          : liter.toStringAsFixed(1);
     } else {
       // 차량 없을 때 글로벌 fallback
-      _currentLevelPercent =
-          (box.get(AppConstants.keyAiCurrentLevelPercent, defaultValue: 25.0) as num).toDouble();
-      _targetMode = box.get(AppConstants.keyAiTargetMode, defaultValue: 'FULL') as String;
+      _currentLevelPercent = (box.get(AppConstants.keyAiCurrentLevelPercent,
+              defaultValue: 25.0) as num)
+          .toDouble();
+      _targetMode =
+          box.get(AppConstants.keyAiTargetMode, defaultValue: 'FULL') as String;
       final price =
-          (box.get(AppConstants.keyAiTargetValue, defaultValue: 50000.0) as num).toDouble();
+          (box.get(AppConstants.keyAiTargetValue, defaultValue: 50000.0) as num)
+              .toDouble();
       _priceController.text = price.toStringAsFixed(0);
-      final liter = (box.get(AppConstants.keyAiLiterTarget, defaultValue: 20.0) as num).toDouble();
-      _literController.text =
-          liter == liter.roundToDouble() ? liter.toStringAsFixed(0) : liter.toStringAsFixed(1);
+      final liter =
+          (box.get(AppConstants.keyAiLiterTarget, defaultValue: 20.0) as num)
+              .toDouble();
+      _literController.text = liter == liter.roundToDouble()
+          ? liter.toStringAsFixed(0)
+          : liter.toStringAsFixed(1);
     }
 
     // 검색 기록: 지도 탭과 동일 키 — Hive에는 List<String> (각 요소는 jsonEncode(장소 Map)) 로 저장됨
@@ -1012,7 +1070,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       }
       final target = NLatLng(loc.lat, loc.lng);
       _suppressCameraChange = true;
-      _mapController?.updateCamera(NCameraUpdate.withParams(target: target, zoom: 14));
+      _mapController
+          ?.updateCamera(NCameraUpdate.withParams(target: target, zoom: 14));
       final overlay = _mapController?.getLocationOverlay();
       overlay?.setIsVisible(true);
       overlay?.setPosition(target);
@@ -1041,13 +1100,14 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     // 피커 모드: 드래그 중 역지오코딩 준비 표시 (이미 표시 중이면 setState 스킵)
     if (!_isReverseGeocoding) setState(() => _isReverseGeocoding = true);
     _reverseGeocodeDebounce?.cancel();
-    _reverseGeocodeDebounce = Timer(const Duration(milliseconds: 500), () async {
+    _reverseGeocodeDebounce =
+        Timer(const Duration(milliseconds: 500), () async {
       if (_mapController == null || !mounted) return;
       final camPos = await _mapController!.getCameraPosition();
       if (!mounted) return;
       setState(() => _pickerLatLng = camPos.target);
-      final addr =
-          await ApiService().reverseGeocode(camPos.target.latitude, camPos.target.longitude);
+      final addr = await ApiService()
+          .reverseGeocode(camPos.target.latitude, camPos.target.longitude);
       if (mounted) {
         setState(() {
           _pickerAddress = addr ?? '주소를 가져올 수 없습니다';
@@ -1088,7 +1148,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   // ── 카메라 정지 → 피커 모드에서 역지오코딩 ──
   void _onCameraIdle() async {
     unawaited(_maybeSwapViaMarkerStyle()); // 경유 마커 줌 스타일 전환
-    if (!_isPickerMode || _mapController == null || _suppressCameraChange) return;
+    if (!_isPickerMode || _mapController == null || _suppressCameraChange)
+      return;
     final NCameraPosition pos;
     try {
       pos = await _mapController!.getCameraPosition();
@@ -1101,8 +1162,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       _isReverseGeocoding = true;
     });
     _reverseGeocodeDebounce?.cancel();
-    _reverseGeocodeDebounce = Timer(const Duration(milliseconds: 400), () async {
-      final addr = await ApiService().reverseGeocode(pos.target.latitude, pos.target.longitude);
+    _reverseGeocodeDebounce =
+        Timer(const Duration(milliseconds: 400), () async {
+      final addr = await ApiService()
+          .reverseGeocode(pos.target.latitude, pos.target.longitude);
       if (mounted) {
         setState(() {
           _pickerAddress = addr ?? '주소를 가져올 수 없습니다';
@@ -1159,7 +1222,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   }
 
   // ── 위치 선택 시트 ──
-  void _showLocationSheet({required bool isOrigin, bool forVia = false, int? viaIndex}) {
+  void _showLocationSheet(
+      {required bool isOrigin, bool forVia = false, int? viaIndex}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
@@ -1180,7 +1244,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             // 경유지 = 현재 위치 (드물지만 흐름 통일)
             ref.read(locationProvider.future).then((loc) {
               if (loc == null || !mounted) return;
-              _setVia(loc.lat, loc.lng, _currentLocationAddress ?? '현재 위치', index: viaIndex);
+              _setVia(loc.lat, loc.lng, _currentLocationAddress ?? '현재 위치',
+                  index: viaIndex);
             });
             return;
           }
@@ -1195,10 +1260,13 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             ref.read(locationProvider.future).then((baseLoc) async {
               final loc = baseLoc ??
                   await LocationService().getFreshPosition().then(
-                        (p) => p == null ? null : (lat: p.latitude, lng: p.longitude),
+                        (p) => p == null
+                            ? null
+                            : (lat: p.latitude, lng: p.longitude),
                       );
               if (loc == null || !mounted) return;
-              final resolved = await ApiService().reverseGeocode(loc.lat, loc.lng);
+              final resolved =
+                  await ApiService().reverseGeocode(loc.lat, loc.lng);
               final address = (resolved != null && resolved.isNotEmpty)
                   ? resolved
                   : (_currentLocationAddress ?? '현재 위치');
@@ -1219,14 +1287,15 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           if (forVia) {
             // 경유지 지도 선택 — 즐겨찾기 지도선택 화면 재사용 (크로스헤어+현위치 버튼)
             Navigator.of(context)
-                .push<Map<String, dynamic>>(
-                    MaterialPageRoute(builder: (_) => const PlaceMapPickScreen(title: '경유지 선택')))
+                .push<Map<String, dynamic>>(MaterialPageRoute(
+                    builder: (_) => const PlaceMapPickScreen(title: '경유지 선택')))
                 .then((picked) {
               if (picked == null || !mounted) return;
               final lat = _asDouble(picked['lat']);
               final lng = _asDouble(picked['lng']);
               if (lat == null || lng == null) return;
-              _setVia(lat, lng, (picked['name'] ?? '선택한 위치').toString(), index: viaIndex);
+              _setVia(lat, lng, (picked['name'] ?? '선택한 위치').toString(),
+                  index: viaIndex);
             });
             return;
           }
@@ -1445,7 +1514,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       );
       final raw = res['routes'];
       final routes = raw is List
-          ? raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList()
+          ? raw
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList()
           : <Map<String, dynamic>>[];
       if (!mounted) return;
       if (routes.isEmpty) {
@@ -1532,14 +1604,17 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   List<Map<String, dynamic>> get _viaCoords {
     final out = [
       for (final v in _vias)
-        if (v['lat'] is num && v['lng'] is num) {'lat': v['lat'], 'lng': v['lng']},
+        if (v['lat'] is num && v['lng'] is num)
+          {'lat': v['lat'], 'lng': v['lng']},
     ];
     // 내비 호출(결과 화면·상세 시트)이 파라미터 없이도 같은 경유지를 쓰도록 세션에 반영
     AiRouteSession.set([
       for (final v in _vias)
         if (v['lat'] is num && v['lng'] is num)
           NavStop(
-            name: (v['name'] ?? '경유지').toString().trim().isEmpty ? '경유지' : v['name'].toString(),
+            name: (v['name'] ?? '경유지').toString().trim().isEmpty
+                ? '경유지'
+                : v['name'].toString(),
             lat: (v['lat'] as num).toDouble(),
             lng: (v['lng'] as num).toDouble(),
           ),
@@ -1576,7 +1651,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                     borderRadius: BorderRadius.circular(15),
                     border: Border.all(color: const Color(0xFFD5DAE0)),
                     boxShadow: const [
-                      BoxShadow(color: Color(0x2E000000), blurRadius: 4, offset: Offset(0, 1)),
+                      BoxShadow(
+                          color: Color(0x2E000000),
+                          blurRadius: 4,
+                          offset: Offset(0, 1)),
                     ],
                   ),
                   child: Row(
@@ -1586,8 +1664,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                         width: 15,
                         height: 15,
                         alignment: Alignment.center,
-                        decoration:
-                            const BoxDecoration(shape: BoxShape.circle, color: Color(0xFF8B95A1)),
+                        decoration: const BoxDecoration(
+                            shape: BoxShape.circle, color: Color(0xFF8B95A1)),
                         child: Text('${i + 1}',
                             style: const TextStyle(
                                 fontSize: 9,
@@ -1612,7 +1690,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
                     boxShadow: const [
-                      BoxShadow(color: Color(0x33000000), blurRadius: 3, offset: Offset(0, 1)),
+                      BoxShadow(
+                          color: Color(0x33000000),
+                          blurRadius: 3,
+                          offset: Offset(0, 1)),
                     ],
                   ),
                   child: Text('${i + 1}',
@@ -1625,7 +1706,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         );
         final m = NMarker(
           id: 'ai_via_point_$i',
-          position: NLatLng((v['lat'] as num).toDouble(), (v['lng'] as num).toDouble()),
+          position: NLatLng(
+              (v['lat'] as num).toDouble(), (v['lng'] as num).toDouble()),
           icon: icon,
           size: bubble ? const Size(64, 30) : const Size(22, 22),
           anchor: const NPoint(0.5, 0.5),
@@ -1697,7 +1779,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       _destName = last['name'] as String?;
       _vias
         ..clear()
-        ..addAll(slots.sublist(1, slots.length - 1).whereType<Map<String, dynamic>>());
+        ..addAll(slots
+            .sublist(1, slots.length - 1)
+            .whereType<Map<String, dynamic>>());
       _errorMessage = null;
     });
     _updateViaMarkers();
@@ -1742,7 +1826,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   /// 대안 API는 교통 세그먼트를 안 주므로 단색 폴리라인으로 그린다.
   void _applySelectedRoute() {
     final pts = _selectedRoutePoints();
-    if (pts == null || pts.length < 2 || _destLat == null || _destLng == null) return;
+    if (pts == null || pts.length < 2 || _destLat == null || _destLng == null)
+      return;
     final segs = _selectedRouteSegments();
     _lastPathPoints = pts;
     _lastPathSegments = segs;
@@ -1799,12 +1884,15 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           decoration: BoxDecoration(
             color: onMap
                 ? (isDark ? AppColors.darkMapOverlay : Colors.white)
-                : (isDark ? Colors.white.withValues(alpha: 0.07) : const Color(0xFFF1F3F6)),
+                : (isDark
+                    ? Colors.white.withValues(alpha: 0.07)
+                    : const Color(0xFFF1F3F6)),
             borderRadius: BorderRadius.circular(11),
             boxShadow: onMap
                 ? [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.08),
+                      color:
+                          Colors.black.withValues(alpha: isDark ? 0.18 : 0.08),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     )
@@ -1812,9 +1900,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 : null,
           ),
           child: Icon(
-            _heroCollapsed ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+            _heroCollapsed
+                ? Icons.keyboard_arrow_up_rounded
+                : Icons.keyboard_arrow_down_rounded,
             size: 19,
-            color: isDark ? AppColors.darkTextSecondary : const Color(0xFF64748B),
+            color:
+                isDark ? AppColors.darkTextSecondary : const Color(0xFF64748B),
           ),
         ),
       ),
@@ -1844,7 +1935,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(16),
-          border: isDark ? Border.all(color: AppColors.darkCardBorder, width: 0.5) : null,
+          border: isDark
+              ? Border.all(color: AppColors.darkCardBorder, width: 0.5)
+              : null,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.08),
@@ -1855,20 +1948,27 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         ),
         child: Row(
           children: [
-            Icon(isEv ? Icons.ev_station_rounded : Icons.local_gas_station_rounded,
-                size: 18, color: accent),
+            Icon(
+                isEv
+                    ? Icons.ev_station_rounded
+                    : Icons.local_gas_station_rounded,
+                size: 18,
+                color: accent),
             const SizedBox(width: 8),
             Flexible(
               child: Text(vehicleName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: ink)),
+                  style: TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w800, color: ink)),
             ),
             const SizedBox(width: 8),
             Text('${level.round()}%',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: accent)),
+                style: TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w800, color: accent)),
             const Spacer(),
-            Text('~${reachableKm.round()}km', style: TextStyle(fontSize: 12, color: muted)),
+            Text('~${reachableKm.round()}km',
+                style: TextStyle(fontSize: 12, color: muted)),
             const SizedBox(width: 6),
             Icon(Icons.keyboard_arrow_up_rounded, size: 20, color: muted),
           ],
@@ -1902,8 +2002,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor:
-          Theme.of(context).brightness == Brightness.dark ? AppColors.darkCard : Colors.white,
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? AppColors.darkCard
+          : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -1920,8 +2021,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             // 기본값 그대로 적용했으면 '서버 추종' 으로 되돌린다.
             // 무조건 true 로 두면, 시트를 한 번 열어보고 기본값으로 되돌린 사용자까지
             // 앱 하드코딩 15/20 에 영구히 고정돼 원격설정 튜닝이 죽는다(복귀 경로 없음).
-            _socConditionUserSet = minArrival != SocConditionSheet.defaultMinArrivalSoc ||
-                destMin != SocConditionSheet.defaultDestMinSoc;
+            _socConditionUserSet =
+                minArrival != SocConditionSheet.defaultMinArrivalSoc ||
+                    destMin != SocConditionSheet.defaultDestMinSoc;
           });
           _saveAiFilters();
         },
@@ -1953,7 +2055,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
               const SizedBox(width: 10),
               const Text('경로 비교 중…',
                   style: TextStyle(
-                      fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF64748B))),
             ],
           ),
         ),
@@ -1972,7 +2076,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         decoration: BoxDecoration(
           color: isDark ? AppColors.darkCard : Colors.white,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: isDark ? AppColors.darkCardBorder : const Color(0xFFE2E8F0)),
+          border: Border.all(
+              color:
+                  isDark ? AppColors.darkCardBorder : const Color(0xFFE2E8F0)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.08),
@@ -2017,25 +2123,33 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
         child: Row(
           children: [
-            const Icon(Icons.alt_route_rounded, size: 14, color: Color(0xFF3B82F6)),
+            const Icon(Icons.alt_route_rounded,
+                size: 14, color: Color(0xFF3B82F6)),
             const SizedBox(width: 5),
             Text('$label 기준',
                 style: const TextStyle(
-                    fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF334155))),
-            const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Color(0xFF64748B)),
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF334155))),
+            const Icon(Icons.keyboard_arrow_down_rounded,
+                size: 16, color: Color(0xFF64748B)),
             const Spacer(),
             const Text('변경',
                 style: TextStyle(
-                    fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF94A3B8))),
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF94A3B8))),
           ],
         ),
       ),
     );
   }
 
-  Widget _routeChip(Map<String, dynamic> r, bool isEv, {bool sameRoute = false}) {
+  Widget _routeChip(Map<String, dynamic> r, bool isEv,
+      {bool sameRoute = false}) {
     final accent = isEv ? const Color(0xFF10B981) : const Color(0xFF3B82F6);
-    final accentLight = isEv ? const Color(0xFFECFDF5) : const Color(0xFFEFF6FF);
+    final accentLight =
+        isEv ? const Color(0xFFECFDF5) : const Color(0xFFEFF6FF);
     final selected = r['key'] == _selectedRouteKey;
     final label = (r['label'] ?? '경로').toString();
     final totalMin = ((r['duration_ms'] ?? 0) as num) ~/ 60000;
@@ -2053,7 +2167,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           color: selected ? accentLight : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: selected ? accent.withValues(alpha: 0.45) : const Color(0xFFE2E8F0),
+            color: selected
+                ? accent.withValues(alpha: 0.45)
+                : const Color(0xFFE2E8F0),
             width: selected ? 1.5 : 1,
           ),
         ),
@@ -2082,14 +2198,17 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 if (sameRoute) ...[
                   const SizedBox(width: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF1F5F9),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: const Text('동일 경로',
                         style: TextStyle(
-                            fontSize: 9.5, fontWeight: FontWeight.w700, color: Color(0xFF94A3B8))),
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF94A3B8))),
                   ),
                 ],
               ],
@@ -2098,11 +2217,14 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             Row(
               children: [
                 Icon(Icons.schedule_rounded,
-                    size: 14, color: selected ? accent : const Color(0xFFB0BAC9)),
+                    size: 14,
+                    color: selected ? accent : const Color(0xFFB0BAC9)),
                 const SizedBox(width: 4),
-                Flexible(
-                    child: Text('$timeStr · ${km}km',
-                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: ink))),
+                Text('$timeStr · ${km}km',
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: ink)),
               ],
             ),
           ],
@@ -2120,12 +2242,15 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     // 선택 차량 프로필 = 단일 소스. 글로벌 키는 차량 없을 때만 fallback.
     final sv = _readSelectedVehicle(box);
     final fuelCode = sv?.fuelType ??
-        (box.get(AppConstants.keyAiFuelType, defaultValue: FuelType.gasoline.code) as String);
+        (box.get(AppConstants.keyAiFuelType,
+            defaultValue: FuelType.gasoline.code) as String);
     final tankCapacity = sv == null
-        ? (box.get(AppConstants.keyAiTankCapacity, defaultValue: 55.0) as num).toDouble()
+        ? (box.get(AppConstants.keyAiTankCapacity, defaultValue: 55.0) as num)
+            .toDouble()
         : (sv.isEV ? sv.batteryCapacity : sv.tankCapacity);
     final efficiency = sv == null
-        ? (box.get(AppConstants.keyAiEfficiency, defaultValue: 12.5) as num).toDouble()
+        ? (box.get(AppConstants.keyAiEfficiency, defaultValue: 12.5) as num)
+            .toDouble()
         : (sv.isEV ? sv.evEfficiency : sv.efficiency);
 
     if (_destLat == null || _destLng == null) {
@@ -2134,14 +2259,16 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     }
 
     if (_targetMode == 'PRICE') {
-      final p = double.tryParse(_priceController.text.replaceAll(',', '.')) ?? 0;
+      final p =
+          double.tryParse(_priceController.text.replaceAll(',', '.')) ?? 0;
       if (p <= 0) {
         setState(() => _errorMessage = '목표 금액을 올바르게 입력해주세요.');
         return;
       }
     }
     if (_targetMode == 'LITER') {
-      final l = double.tryParse(_literController.text.replaceAll(',', '.')) ?? 0;
+      final l =
+          double.tryParse(_literController.text.replaceAll(',', '.')) ?? 0;
       if (l <= 0) {
         setState(() => _errorMessage = '목표 리터를 올바르게 입력해주세요.');
         return;
@@ -2169,19 +2296,23 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final literTarget = _targetMode == 'LITER'
         ? (double.tryParse(_literController.text.replaceAll(',', '.')) ?? 0.0)
         : 0.0;
-    final apiTargetValue =
-        _targetMode == 'PRICE' ? priceTarget : (_targetMode == 'LITER' ? literTarget : 0.0);
+    final apiTargetValue = _targetMode == 'PRICE'
+        ? priceTarget
+        : (_targetMode == 'LITER' ? literTarget : 0.0);
 
     _saveVehicleLevel(box,
         level: _currentLevelPercent,
         mode: _targetMode,
-        price:
-            _targetMode == 'PRICE' ? priceTarget : (_targetMode == 'LITER' ? literTarget : null));
+        price: _targetMode == 'PRICE'
+            ? priceTarget
+            : (_targetMode == 'LITER' ? literTarget : null));
     // 글로벌 fallback
     box.put(AppConstants.keyAiCurrentLevelPercent, _currentLevelPercent);
     box.put(AppConstants.keyAiTargetMode, _targetMode);
-    if (_targetMode == 'PRICE') box.put(AppConstants.keyAiTargetValue, priceTarget);
-    if (_targetMode == 'LITER') box.put(AppConstants.keyAiLiterTarget, literTarget);
+    if (_targetMode == 'PRICE')
+      box.put(AppConstants.keyAiTargetValue, priceTarget);
+    if (_targetMode == 'LITER')
+      box.put(AppConstants.keyAiLiterTarget, literTarget);
 
     setState(() {
       _aiAnalyzing = true;
@@ -2236,7 +2367,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     _lastStartLng = startLng;
     _lastPathPoints = pathPoints;
 
-    final requestId = '${DateTime.now().millisecondsSinceEpoch}-${Random().nextInt(999999999)}';
+    final requestId =
+        '${DateTime.now().millisecondsSinceEpoch}-${Random().nextInt(999999999)}';
     final body = <String, dynamic>{
       'request_id': requestId,
       'ai_text': aiOk, // 서드파티 AI 문구 동의 — false 면 서버가 Gemini 스킵
@@ -2263,8 +2395,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'route_key': _selectedRouteKey,
         'highway_only': _gasHighwayOnly,
         if (_preferredGasBrands.isNotEmpty)
-          'preferred_brands':
-              _preferredGasBrands.expand((k) => k == 'RTO' ? const ['RTO', 'RTX'] : [k]).toList(),
+          'preferred_brands': _preferredGasBrands
+              .expand((k) => k == 'RTO' ? const ['RTO', 'RTX'] : [k])
+              .toList(),
       },
       'recommendation': {'top_n_candidates_returned': 3},
     };
@@ -2278,33 +2411,44 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         String msg = '';
         if (raw is Map) {
           final err = raw['error'];
-          if (err is Map && err['message'] != null) msg = err['message'].toString();
+          if (err is Map && err['message'] != null)
+            msg = err['message'].toString();
         }
-        final isPrimaryInitError = msg.toLowerCase().contains('primary station') &&
-            msg.toLowerCase().contains('before initialization');
+        final isPrimaryInitError =
+            msg.toLowerCase().contains('primary station') &&
+                msg.toLowerCase().contains('before initialization');
         if (!isPrimaryInitError) rethrow;
 
         // 서버 특정 케이스 회피: recommendation 필드를 제거해 1회 재시도
-        final retryBody = Map<String, dynamic>.from(body)..remove('recommendation');
+        final retryBody = Map<String, dynamic>.from(body)
+          ..remove('recommendation');
         data = await ApiService().postRefuelAnalyze(retryBody);
       }
       if (!mounted) return;
-      final status = data['meta'] is Map ? (data['meta'] as Map)['status']?.toString() : null;
+      final status = data['meta'] is Map
+          ? (data['meta'] as Map)['status']?.toString()
+          : null;
       if (status == 'ok') {
         // 통합 랭킹(ranked 1·2위) 있으면 기존 on_route/best_detour 슬롯에 치환 —
         // 렌더·지도 배선 그대로 재사용. 구서버 응답(ranked 없음)은 원본 유지.
         data = _applyRankedFrame(data);
         final originLabel = _originName ?? _currentLocationAddress ?? '현재 위치';
-        final rec =
-            data['recommendation'] is Map ? data['recommendation'] as Map<String, dynamic> : null;
+        final rec = data['recommendation'] is Map
+            ? data['recommendation'] as Map<String, dynamic>
+            : null;
         final choice = rec?['choice']?.toString() ?? 'on_route';
-        final onRoute = data['on_route'] is Map ? data['on_route'] as Map<String, dynamic> : null;
-        final bestDetour =
-            data['best_detour'] is Map ? data['best_detour'] as Map<String, dynamic> : null;
-        final onRouteSt =
-            onRoute?['station'] is Map ? onRoute!['station'] as Map<String, dynamic> : null;
-        final detourSt =
-            bestDetour?['station'] is Map ? bestDetour!['station'] as Map<String, dynamic> : null;
+        final onRoute = data['on_route'] is Map
+            ? data['on_route'] as Map<String, dynamic>
+            : null;
+        final bestDetour = data['best_detour'] is Map
+            ? data['best_detour'] as Map<String, dynamic>
+            : null;
+        final onRouteSt = onRoute?['station'] is Map
+            ? onRoute!['station'] as Map<String, dynamic>
+            : null;
+        final detourSt = bestDetour?['station'] is Map
+            ? bestDetour!['station'] as Map<String, dynamic>
+            : null;
 
         // 지도 표시는 타입 기준으로 고정:
         // - 경로상 최저가(on_route) = 파랑
@@ -2318,8 +2462,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
         // st = 우회 최저가 (분석 UI·지도 모두 파랑 #1D6FE0)
         if (detourSt != null) {
-          stLat = detourSt['lat'] is num ? (detourSt['lat'] as num).toDouble() : null;
-          stLng = detourSt['lng'] is num ? (detourSt['lng'] as num).toDouble() : null;
+          stLat = detourSt['lat'] is num
+              ? (detourSt['lat'] as num).toDouble()
+              : null;
+          stLng = detourSt['lng'] is num
+              ? (detourSt['lng'] as num).toDouble()
+              : null;
           final rawName = detourSt['name']?.toString() ?? '우회 최저가';
           stName = isRecDetour ? '추천 · $rawName' : rawName;
           final p = detourSt['price_won_per_liter'];
@@ -2328,8 +2476,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
         // st2 = 경로상 최저가 (순위 배지로 표시)
         if (onRouteSt != null) {
-          st2Lat = onRouteSt['lat'] is num ? (onRouteSt['lat'] as num).toDouble() : null;
-          st2Lng = onRouteSt['lng'] is num ? (onRouteSt['lng'] as num).toDouble() : null;
+          st2Lat = onRouteSt['lat'] is num
+              ? (onRouteSt['lat'] as num).toDouble()
+              : null;
+          st2Lng = onRouteSt['lng'] is num
+              ? (onRouteSt['lng'] as num).toDouble()
+              : null;
           final rawName = onRouteSt['name']?.toString() ?? '경로상 최저가';
           st2Name = !isRecDetour ? '추천 · $rawName' : rawName;
           final p2 = onRouteSt['price_won_per_liter'];
@@ -2346,12 +2498,15 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         // 추천 주유소 경유 경로: 서버에서 미리 받은 전체 길찾기 우선, 없으면 클라이언트 네이버 호출
         var viaPathPoints = _lastPathPoints;
         List<Map<String, dynamic>>? viaSegments;
-        final nav = data['navigation'] is Map ? data['navigation'] as Map<String, dynamic> : null;
+        final nav = data['navigation'] is Map
+            ? data['navigation'] as Map<String, dynamic>
+            : null;
         final vpr = nav?['via_primary_route'] is Map
             ? nav!['via_primary_route'] as Map<String, dynamic>
             : null;
-        final onRouteVia =
-            onRoute?['via_route'] is Map ? onRoute!['via_route'] as Map<String, dynamic> : null;
+        final onRouteVia = onRoute?['via_route'] is Map
+            ? onRoute!['via_route'] as Map<String, dynamic>
+            : null;
         final detourVia = bestDetour?['via_route'] is Map
             ? bestDetour!['via_route'] as Map<String, dynamic>
             : null;
@@ -2417,7 +2572,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             );
           }
         }
-        if (!usedServerPrimaryRoute && primaryStLat != null && primaryStLng != null) {
+        if (!usedServerPrimaryRoute &&
+            primaryStLat != null &&
+            primaryStLng != null) {
           try {
             final vr = await ApiService().getDrivingRoute(
               startLat: _lastStartLat,
@@ -2441,12 +2598,15 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
               );
             }
           } catch (e) {
-            if (kDebugMode) debugPrint('[ai-analyze] viaRoute fallback getDrivingRoute 실패: $e');
+            if (kDebugMode)
+              debugPrint(
+                  '[ai-analyze] viaRoute fallback getDrivingRoute 실패: $e');
           }
         }
 
         // AI 추천 복원용 파라미터 저장
-        final recAlts = data['alternatives'] is List ? data['alternatives'] as List : null;
+        final recAlts =
+            data['alternatives'] is List ? data['alternatives'] as List : null;
         _lastRecPathPoints = viaPathPoints;
         _lastRecSegments = viaSegments;
         _lastRecStLat = stLat;
@@ -2493,7 +2653,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       final rl = rateLimitMessage(e, feature: 'AI 주유소 추천');
       if (rl != null) {
         showAppDialog<void>(context,
-            icon: Icons.schedule_rounded, title: '오늘은 여기까지!', message: rl, primaryLabel: '확인');
+            icon: Icons.schedule_rounded,
+            title: '오늘은 여기까지!',
+            message: rl,
+            primaryLabel: '확인');
       } else {
         setState(() => _errorMessage = '서버와 통신이 원활하지 않아요. 잠시 후 다시 시도해주세요.');
       }
@@ -2576,12 +2739,16 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     }
   }
 
-  static double _haversineM(double lat1, double lng1, double lat2, double lng2) {
+  static double _haversineM(
+      double lat1, double lng1, double lat2, double lng2) {
     const r = 6371000.0;
     final dLat = (lat2 - lat1) * pi / 180.0;
     final dLng = (lng2 - lng1) * pi / 180.0;
     final a = sin(dLat / 2) * sin(dLat / 2) +
-        cos(lat1 * pi / 180.0) * cos(lat2 * pi / 180.0) * sin(dLng / 2) * sin(dLng / 2);
+        cos(lat1 * pi / 180.0) *
+            cos(lat2 * pi / 180.0) *
+            sin(dLng / 2) *
+            sin(dLng / 2);
     return r * 2.0 * atan2(sqrt(a), sqrt(1.0 - a));
   }
 
@@ -2705,7 +2872,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     }
 
     await _mapController!.clearOverlays(type: NOverlayType.pathOverlay);
-    await _mapController!.clearOverlays(type: NOverlayType.multipartPathOverlay);
+    await _mapController!
+        .clearOverlays(type: NOverlayType.multipartPathOverlay);
     await _mapController!.clearOverlays(type: NOverlayType.marker);
 
     // ── 경로 라인 ──
@@ -2737,8 +2905,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
     // path_segments 가 없으면(예: AI 결과 via 경로) 목적지 선택 때 받은 혼잡도 세그먼트
     // (_lastPathSegments)를 재사용 → 단색 대신 목적지 경로와 동일한 혼잡도 색으로 통일.
-    final segs =
-        (pathSegments != null && pathSegments.isNotEmpty) ? pathSegments : _lastPathSegments;
+    final segs = (pathSegments != null && pathSegments.isNotEmpty)
+        ? pathSegments
+        : _lastPathSegments;
     if (segs != null && segs.isNotEmpty) {
       // ① NMultipartPathOverlay: 교통 정보 세그먼트별 색상
       final multiPaths = <NMultipartPath>[];
@@ -2756,7 +2925,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             .toList();
         if (coordsRaw.length < 2) continue;
         final coords = _densifyPath(_smoothPath(coordsRaw));
-        final congestion = seg['congestion'] is num ? (seg['congestion'] as num).toInt() : -1;
+        final congestion =
+            seg['congestion'] is num ? (seg['congestion'] as num).toInt() : -1;
         final color = _congestionColor(congestion);
         multiPaths.add(NMultipartPath(
           coords: coords,
@@ -2777,7 +2947,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           patternInterval: 30,
         ));
       } else {
-        debugPrint('[AI_MAP_SEGMENTS] path_segments 존재하지만 유효 coords가 없어 multipart 렌더 실패');
+        debugPrint(
+            '[AI_MAP_SEGMENTS] path_segments 존재하지만 유효 coords가 없어 multipart 렌더 실패');
       }
     } else if (pathPoints.length >= 2) {
       debugPrint('[AI_MAP_SEGMENTS] path_segments 없음/비어있음 -> 단색 경로로 폴백');
@@ -2811,13 +2982,16 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
     // 우회 최저가 마커 (파랑) — ai_result_screen 태그·비교 테이블과 동일
     if (stLat != null && stLng != null) {
-      final stLabel = stPrice != null && stPrice > 0 ? '${_wonFmt.format(stPrice)}원' : stName;
+      final stLabel = stPrice != null && stPrice > 0
+          ? '${_wonFmt.format(stPrice)}원'
+          : stName;
       // 색으로 역할(주황=추천/파랑=비교/보라=선택) 구분하던 것 폐기(형 확정: 짜침) —
       // 후보는 전부 같은 톤, 1·2순위만 '추천 N위' 메달 배지 + 1순위 볼드 강조.
       final stIsTop = _lastRecIsDetour; // 추천이 우회면 st 가 1순위
       final c = stIsTop ? const Color(0xFF3B82F6) : const Color(0xFF64748B);
       // 사용자가 대안 선택 시 primary 강조는 짙은 파랑 (보라 폐기 — 파랑 단일 축)
-      final isAltSelected = _selectedAltStationId != null && _selectedAltStationId!.isNotEmpty;
+      final isAltSelected =
+          _selectedAltStationId != null && _selectedAltStationId!.isNotEmpty;
       final markerColor = isAltSelected ? const Color(0xFF2563EB) : c;
       final stMarker = NMarker(
         id: 'result_station',
@@ -2839,7 +3013,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
     // st2=경로상. 추천이 경로상(우회 아님)이면 주황(추천색), 아니면 파랑(비교).
     if (st2Lat != null && st2Lng != null && st2Name.isNotEmpty) {
-      final st2Label = st2Price != null && st2Price > 0 ? '${_wonFmt.format(st2Price)}원' : st2Name;
+      final st2Label = st2Price != null && st2Price > 0
+          ? '${_wonFmt.format(st2Price)}원'
+          : st2Name;
       final st2IsTop = !_lastRecIsDetour; // 추천이 경로상이면 st2 가 1순위
       final c2 = st2IsTop ? const Color(0xFF3B82F6) : const Color(0xFF64748B);
       final st2Marker = NMarker(
@@ -2886,8 +3062,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           altIdx++;
           continue;
         }
-        final altLat = altSt['lat'] is num ? (altSt['lat'] as num).toDouble() : null;
-        final altLng = altSt['lng'] is num ? (altSt['lng'] as num).toDouble() : null;
+        final altLat =
+            altSt['lat'] is num ? (altSt['lat'] as num).toDouble() : null;
+        final altLng =
+            altSt['lng'] is num ? (altSt['lng'] as num).toDouble() : null;
         if (altLat == null || altLng == null) {
           altIdx++;
           continue;
@@ -2904,13 +3082,17 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         if (!isNearPrimary && !isNearSecondary) {
           final altPriceRaw = altSt['price_won_per_liter'];
           final altPriceVal = altPriceRaw is num ? altPriceRaw.round() : null;
-          final altLabel =
-              altPriceVal != null ? '${_wonFmt.format(altPriceVal)}원' : '후보${altIdx + 1}';
-          final isSelected = altStationId.isNotEmpty && altStationId == _selectedAltStationId;
+          final altLabel = altPriceVal != null
+              ? '${_wonFmt.format(altPriceVal)}원'
+              : '후보${altIdx + 1}';
+          final isSelected =
+              altStationId.isNotEmpty && altStationId == _selectedAltStationId;
           // 서버가 잔량 부족 후보로 표시한 휴게소 — 마커도 빨강 톤 + ⚠ 로 명확히 구분.
           final isUnreachable = alt['unreachable'] == true;
-          final altBorder = isSelected ? _kSelectedPurple : const Color(0xFFDDDDDD);
-          final altText = isSelected ? _kSelectedPurple : const Color(0xFF1a1a1a);
+          final altBorder =
+              isSelected ? _kSelectedPurple : const Color(0xFFDDDDDD);
+          final altText =
+              isSelected ? _kSelectedPurple : const Color(0xFF1a1a1a);
           final altMarker = NMarker(
             id: 'result_alt_$altIdx',
             position: NLatLng(altLat, altLng),
@@ -2984,7 +3166,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   }
 
   /// EV 직접선택 모드 — 후보 충전소 마커를 지도에 표시
-  Future<void> _drawEvCandidateMarkers(List<Map<String, dynamic>> candidates) async {
+  Future<void> _drawEvCandidateMarkers(
+      List<Map<String, dynamic>> candidates) async {
     if (_mapController == null || candidates.isEmpty) return;
     // 아이콘(위젯 래스터) 병렬 생성 후 한 번에 addOverlayAll — 순차 await + 개별 add 제거.
     final futures = <Future<NMarker?>>[];
@@ -2996,7 +3179,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       final avail = (c['available_count'] as num?)?.toInt() ?? 0;
       final total = (c['total_count'] as num?)?.toInt() ?? 0;
       final label = '$avail/$total';
-      final color = avail > 0 ? const Color(0xFF1D9E75) : const Color(0xFFE8700A);
+      final color =
+          avail > 0 ? const Color(0xFF1D9E75) : const Color(0xFFE8700A);
       futures.add(() async {
         final marker = NMarker(
           id: 'ev_candidate_$i',
@@ -3186,8 +3370,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         final c = (item[2] as num?)?.toInt();
         if (s != null && e != null && c != null) out.add([s, e, c]);
       } else if (item is String) {
-        final parts = item.split(',').map((v) => int.tryParse(v.trim())).toList();
-        if (parts.length >= 3 && parts[0] != null && parts[1] != null && parts[2] != null) {
+        final parts =
+            item.split(',').map((v) => int.tryParse(v.trim())).toList();
+        if (parts.length >= 3 &&
+            parts[0] != null &&
+            parts[1] != null &&
+            parts[2] != null) {
           out.add([parts[0]!, parts[1]!, parts[2]!]);
         }
       }
@@ -3230,11 +3418,13 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         if (s > cursor) {
           // 갭은 원활(0)로 채움
           final slice = coords.sublist(cursor, s + 1);
-          if (slice.length >= 2) segments.add({'coords': slice, 'congestion': 0});
+          if (slice.length >= 2)
+            segments.add({'coords': slice, 'congestion': 0});
         }
         final segStart = s > cursor ? s : cursor;
         final slice = coords.sublist(segStart, e + 1);
-        if (slice.length >= 2) segments.add({'coords': slice, 'congestion': cong});
+        if (slice.length >= 2)
+          segments.add({'coords': slice, 'congestion': cong});
         cursor = e;
       }
       if (cursor < lastIdx) {
@@ -3252,17 +3442,20 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     return _parsePathSegments(payload['path_segments']);
   }
 
-  static double _haversineMeters(double lat1, double lng1, double lat2, double lng2) {
+  static double _haversineMeters(
+      double lat1, double lng1, double lat2, double lng2) {
     const earthM = 6371000.0;
     final r1 = lat1 * pi / 180, r2 = lat2 * pi / 180;
     final dLat = (lat2 - lat1) * pi / 180;
     final dLng = (lng2 - lng1) * pi / 180;
-    final a = sin(dLat / 2) * sin(dLat / 2) + cos(r1) * cos(r2) * sin(dLng / 2) * sin(dLng / 2);
+    final a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(r1) * cos(r2) * sin(dLng / 2) * sin(dLng / 2);
     final c = 2 * asin(min(1.0, sqrt(a)));
     return earthM * c;
   }
 
-  static int _closestPathPointIndex(List<Map<String, dynamic>> pts, double lat, double lng) {
+  static int _closestPathPointIndex(
+      List<Map<String, dynamic>> pts, double lat, double lng) {
     var bestI = 0;
     var bestD = double.infinity;
     for (var i = 0; i < pts.length; i++) {
@@ -3346,7 +3539,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
     /// 서버가 내려준 via_route 전체 (polyline_order 검사용)
     Map<String, dynamic>? serverViaRoute,
-    required void Function(List<Map<String, dynamic>> pts, List<Map<String, dynamic>>? seg) apply,
+    required void Function(
+            List<Map<String, dynamic>> pts, List<Map<String, dynamic>>? seg)
+        apply,
   }) async {
     if (_destLat == null || _destLng == null) {
       apply(serverPts, serverSeg);
@@ -3375,37 +3570,46 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   /// 지도 마커 탭 시 표시되는 미니 카드 sheet — 이름·주소·가격·우회 정보 +
   /// "이걸로 선택" 버튼 (선택 시 _showAltRouteOnMap 호출 → 보라색 강조 + 결과 카드 갱신).
   Future<void> _showStationMiniSheet(Map<String, dynamic> altItem) async {
-    final st =
-        altItem['station'] is Map ? Map<String, dynamic>.from(altItem['station'] as Map) : null;
+    final st = altItem['station'] is Map
+        ? Map<String, dynamic>.from(altItem['station'] as Map)
+        : null;
     if (st == null) return;
     final id = (st['id'] ?? '').toString();
     final origName = (st['name'] ?? '').toString();
-    final name = id.isEmpty ? origName : StationAliasService.resolveGas(id, origName);
+    final name =
+        id.isEmpty ? origName : StationAliasService.resolveGas(id, origName);
     final addr = (st['address'] ?? '').toString();
     final priceRaw = st['price_won_per_liter'];
     final price = priceRaw is num ? priceRaw.round() : 0;
-    final detourMin =
-        altItem['detour_time_min'] is num ? (altItem['detour_time_min'] as num).round() : null;
-    final detourIsNone = altItem['detour_is_none'] == true || (detourMin != null && detourMin <= 0);
+    final detourMin = altItem['detour_time_min'] is num
+        ? (altItem['detour_time_min'] as num).round()
+        : null;
+    final detourIsNone = altItem['detour_is_none'] == true ||
+        (detourMin != null && detourMin <= 0);
     // 유종 — 이 추천이 계산된 유종(선택 차량 or 글로벌 설정). 가격이 어느 유종 기준인지 표시.
     final box = Hive.box(AppConstants.settingsBox);
     final sv = _readSelectedVehicle(box);
     final fuelCode = sv?.fuelType ??
-        (box.get(AppConstants.keyAiFuelType, defaultValue: FuelType.gasoline.code) as String);
+        (box.get(AppConstants.keyAiFuelType,
+            defaultValue: FuelType.gasoline.code) as String);
     final fuel = FuelType.fromCode(fuelCode);
     final fuelColor = _fuelColor(fuel);
     if (!mounted) return;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     // 주유=파랑 단일 축 (형 확정 — 시트가 주황톤이라 지적). 유종 칩만 유종색 유지.
-    final accentBlue = isDark ? AppColors.darkBlueBright : const Color(0xFF2563EB);
+    final accentBlue =
+        isDark ? AppColors.darkBlueBright : const Color(0xFF2563EB);
     await showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        final metricBg = isDark ? const Color(0x14FFFFFF) : const Color(0xFFF6F8FA);
-        final divider = isDark ? const Color(0x1FFFFFFF) : const Color(0xFFE5E7EB);
+        final metricBg =
+            isDark ? const Color(0x14FFFFFF) : const Color(0xFFF6F8FA);
+        final divider =
+            isDark ? const Color(0x1FFFFFFF) : const Color(0xFFE5E7EB);
         return Container(
-          padding: EdgeInsets.fromLTRB(20, 14, 20, MediaQuery.of(ctx).padding.bottom + 20),
+          padding: EdgeInsets.fromLTRB(
+              20, 14, 20, MediaQuery.of(ctx).padding.bottom + 20),
           decoration: BoxDecoration(
             color: isDark ? AppColors.darkBg : Colors.white,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
@@ -3419,7 +3623,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                    color: const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(2)),
+                    color: const Color(0xFFE5E7EB),
+                    borderRadius: BorderRadius.circular(2)),
               )),
               const SizedBox(height: 16),
               // 이름 + 유종 칩
@@ -3432,13 +3637,17 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             fontSize: 16.5,
                             height: 1.25,
                             fontWeight: FontWeight.w800,
-                            color: isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A2E))),
+                            color: isDark
+                                ? AppColors.darkTextPrimary
+                                : const Color(0xFF1A1A2E))),
                   ),
                   const SizedBox(width: 10),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                     decoration: BoxDecoration(
-                        color: fuelColor.withValues(alpha: isDark ? 0.22 : 0.12),
+                        color:
+                            fuelColor.withValues(alpha: isDark ? 0.22 : 0.12),
                         borderRadius: BorderRadius.circular(20)),
                     child: Text(fuel.label,
                         style: TextStyle(
@@ -3452,16 +3661,20 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
               if (addr.isNotEmpty) ...[
                 const SizedBox(height: 5),
                 Text(addr,
-                    style: const TextStyle(fontSize: 12, height: 1.35, color: Color(0xFF6B7280))),
+                    style: const TextStyle(
+                        fontSize: 12, height: 1.35, color: Color(0xFF6B7280))),
               ],
               const SizedBox(height: 16),
               // 리터당 · 우회 메트릭 (소프트 카드 + 구분선)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-                decoration: BoxDecoration(color: metricBg, borderRadius: BorderRadius.circular(14)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                decoration: BoxDecoration(
+                    color: metricBg, borderRadius: BorderRadius.circular(14)),
                 child: Row(children: [
                   Expanded(
-                      child: _miniSheetMetric('리터당', '${_wonFmt.format(price)}원',
+                      child: _miniSheetMetric(
+                          '리터당', '${_wonFmt.format(price)}원',
                           valueColor: accentBlue, big: true)),
                   const SizedBox(width: 12),
                   Container(width: 1, height: 30, color: divider),
@@ -3469,7 +3682,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                   Expanded(
                       child: _miniSheetMetric(
                     '우회',
-                    detourIsNone ? '우회 없음' : (detourMin != null ? '+$detourMin분' : '—'),
+                    detourIsNone
+                        ? '우회 없음'
+                        : (detourMin != null ? '+$detourMin분' : '—'),
                   )),
                 ]),
               ),
@@ -3483,17 +3698,23 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                     onPressed: () {
                       Navigator.of(ctx).pop();
                       Navigator.of(context, rootNavigator: true).push(
-                        MaterialPageRoute(builder: (_) => GasDetailScreen(stationId: id)),
+                        MaterialPageRoute(
+                            builder: (_) => GasDetailScreen(stationId: id)),
                       );
                     },
-                    icon: Icon(Icons.storefront_outlined, size: 17, color: accentBlue),
+                    icon: Icon(Icons.storefront_outlined,
+                        size: 17, color: accentBlue),
                     label: Text('주유소 상세보기',
                         style: TextStyle(
-                            fontSize: 13.5, fontWeight: FontWeight.w700, color: accentBlue)),
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: accentBlue)),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      side: BorderSide(color: accentBlue.withValues(alpha: 0.45)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      side:
+                          BorderSide(color: accentBlue.withValues(alpha: 0.45)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                 ),
@@ -3519,17 +3740,22 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     }
   }
 
-  Widget _miniSheetMetric(String label, String value, {Color? valueColor, bool big = false}) =>
+  Widget _miniSheetMetric(String label, String value,
+          {Color? valueColor, bool big = false}) =>
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label,
               style: const TextStyle(
-                  fontSize: 11, color: Color(0xFF9CA3AF), fontWeight: FontWeight.w600)),
+                  fontSize: 11,
+                  color: Color(0xFF9CA3AF),
+                  fontWeight: FontWeight.w600)),
           const SizedBox(height: 3),
           Text(value,
               style: TextStyle(
-                  fontSize: big ? 17 : 14, fontWeight: FontWeight.w800, color: valueColor)),
+                  fontSize: big ? 17 : 14,
+                  fontWeight: FontWeight.w800,
+                  color: valueColor)),
         ],
       );
 
@@ -3549,8 +3775,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final stLng = _asDouble(st['lng']);
     if (stLat == null || stLng == null) return;
     final stName = st['name']?.toString() ?? '';
-    final priceL =
-        st['price_won_per_liter'] is num ? (st['price_won_per_liter'] as num).round() : 0;
+    final priceL = st['price_won_per_liter'] is num
+        ? (st['price_won_per_liter'] as num).round()
+        : 0;
     // 보라색 강조용 stationId — _drawResultOnMap 안 (await chain) 내부에서 사용되므로
     // 가장 빨리 설정. await 후 set 하면 그 사이 다른 redraw 가 끼어들면 blue 로 그려진다.
     _selectedAltStationId = (st['id'] ?? '').toString();
@@ -3565,14 +3792,17 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           target: NLatLng(stLat, stLng),
           zoom: 14,
         )..setAnimation(
-            animation: NCameraAnimation.easing, duration: const Duration(milliseconds: 500)),
+            animation: NCameraAnimation.easing,
+            duration: const Duration(milliseconds: 500)),
       );
     } catch (_) {}
     if (gen != _mapDrawGen) return;
 
     var pathPoints = _lastPathPoints;
     List<Map<String, dynamic>>? pathSegments;
-    final vrMap = altItem['via_route'] is Map ? altItem['via_route'] as Map<String, dynamic> : null;
+    final vrMap = altItem['via_route'] is Map
+        ? altItem['via_route'] as Map<String, dynamic>
+        : null;
     var usedServerAlt = false;
     if (vrMap != null) {
       final parsed = _pathPointsFromServerJson(vrMap['path_points']);
@@ -3619,7 +3849,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           );
         }
       } catch (e) {
-        if (kDebugMode) debugPrint('[ai-alt] alternative getDrivingRoute 실패: $e');
+        if (kDebugMode)
+          debugPrint('[ai-alt] alternative getDrivingRoute 실패: $e');
       }
     }
 
@@ -3656,19 +3887,22 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   }
 
   // ── 비교 카드 탭 시 해당 경유 경로 지도에 그리기 ──
-  Future<void> _showCompareCardRouteOnMap(Map<String, dynamic> stationData) async {
+  Future<void> _showCompareCardRouteOnMap(
+      Map<String, dynamic> stationData) async {
     if (_destLat == null || _destLng == null) return;
     final gen = ++_mapDrawGen;
     await _collapseResultSheetForMapFocus();
     if (gen != _mapDrawGen) return;
-    final st = stationData['station'] is Map ? stationData['station'] as Map : null;
+    final st =
+        stationData['station'] is Map ? stationData['station'] as Map : null;
     if (st == null) return;
     final stLat = _asDouble(st['lat']);
     final stLng = _asDouble(st['lng']);
     if (stLat == null || stLng == null) return;
     final stName = st['name']?.toString() ?? '';
-    final priceL =
-        st['price_won_per_liter'] is num ? (st['price_won_per_liter'] as num).round() : 0;
+    final priceL = st['price_won_per_liter'] is num
+        ? (st['price_won_per_liter'] as num).round()
+        : 0;
 
     // 탭 즉시 카메라부터 (주유·충전 공통 규칙 — 형 확정 v2)
     if (!mounted || _mapController == null) return;
@@ -3678,15 +3912,17 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           target: NLatLng(stLat, stLng),
           zoom: 14,
         )..setAnimation(
-            animation: NCameraAnimation.easing, duration: const Duration(milliseconds: 500)),
+            animation: NCameraAnimation.easing,
+            duration: const Duration(milliseconds: 500)),
       );
     } catch (_) {}
     if (gen != _mapDrawGen) return;
 
     var pathPoints = _lastPathPoints;
     List<Map<String, dynamic>>? pathSegments;
-    final vrMap =
-        stationData['via_route'] is Map ? stationData['via_route'] as Map<String, dynamic> : null;
+    final vrMap = stationData['via_route'] is Map
+        ? stationData['via_route'] as Map<String, dynamic>
+        : null;
     if (vrMap != null) {
       final parsed = _pathPointsFromServerJson(vrMap['path_points']);
       if (parsed != null) {
@@ -3753,14 +3989,17 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final box = Hive.box(AppConstants.settingsBox);
     VehicleProfile? selectedVehicle;
     {
-      final selectedId = box.get(AppConstants.keyAiSelectedVehicleId) as String?;
+      final selectedId =
+          box.get(AppConstants.keyAiSelectedVehicleId) as String?;
       final rawVehicles = box.get(AppConstants.keyAiVehicles);
       if (rawVehicles != null) {
         try {
           final List decoded = jsonDecode(rawVehicles as String);
-          final all =
-              decoded.map((e) => VehicleProfile.fromJson(e as Map<String, dynamic>)).toList();
-          selectedVehicle = all.cast<VehicleProfile?>().firstWhere((v) => v?.id == selectedId,
+          final all = decoded
+              .map((e) => VehicleProfile.fromJson(e as Map<String, dynamic>))
+              .toList();
+          selectedVehicle = all.cast<VehicleProfile?>().firstWhere(
+              (v) => v?.id == selectedId,
               orElse: () => all.isNotEmpty ? all.first : null);
         } catch (_) {}
       }
@@ -3807,7 +4046,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     int? directDurationMs = _selectedRouteDurationMs();
 
     if (selPts == null &&
-        (pathPoints.length < 3 || _lastStartLat != startLat || _lastStartLng != startLng)) {
+        (pathPoints.length < 3 ||
+            _lastStartLat != startLat ||
+            _lastStartLng != startLng)) {
       try {
         final dr = await ApiService().getDrivingRoute(
           startLat: startLat,
@@ -3816,7 +4057,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           goalLng: _destLng!,
         );
         if (dr['success'] == true) {
-          if (dr['duration_ms'] is num) directDurationMs = (dr['duration_ms'] as num).round();
+          if (dr['duration_ms'] is num)
+            directDurationMs = (dr['duration_ms'] as num).round();
           final parsed = _pathPointsFromServerJson(dr['path_points']);
           if (parsed != null) pathPoints = parsed;
           pathSegments = _segmentsFromPayload(dr);
@@ -3854,10 +4096,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'engine': RouteEnginePref.get(),
         'route_key': _selectedRouteKey,
         'highwayOnly': _evHighwayOnly,
-        if (_preferredEvOperators.isNotEmpty) 'operators': _preferredEvOperators.toList(),
+        if (_preferredEvOperators.isNotEmpty)
+          'operators': _preferredEvOperators.toList(),
         // 브랜드 충전소 — AI 탭 사업자·브랜드 시트의 '자체 선택'만 전달
         // (지도·홈 필터의 brands 와 독립 — 몰래 좁혀지는 함정 방지, 형 확정)
-        if (_preferredEvBrands.isNotEmpty) 'brands': _preferredEvBrands.toList(),
+        if (_preferredEvBrands.isNotEmpty)
+          'brands': _preferredEvBrands.toList(),
         if (_evChargerType == 'FAST' && _evFastOutputs.isNotEmpty)
           'fastOutputs': _evFastOutputs.toList(),
         'ai_text': AiConsent.value == true, // 서드파티 AI 문구 동의
@@ -3887,10 +4131,13 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       _triggerEvSavingsReveal(data);
 
       // 지도에 경로 + 마커 그리기
-      final recommended =
-          data['recommended'] is Map ? data['recommended'] as Map<String, dynamic> : null;
+      final recommended = data['recommended'] is Map
+          ? data['recommended'] as Map<String, dynamic>
+          : null;
       final alternatives = data['alternatives'] is List
-          ? (data['alternatives'] as List).whereType<Map<String, dynamic>>().toList()
+          ? (data['alternatives'] as List)
+              .whereType<Map<String, dynamic>>()
+              .toList()
           : <Map<String, dynamic>>[];
 
       await _drawEvResultOnMap(
@@ -3908,7 +4155,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       final rl = rateLimitMessage(e, feature: 'AI 충전소 추천');
       if (rl != null) {
         showAppDialog<void>(context,
-            icon: Icons.schedule_rounded, title: '오늘은 여기까지!', message: rl, primaryLabel: '확인');
+            icon: Icons.schedule_rounded,
+            title: '오늘은 여기까지!',
+            message: rl,
+            primaryLabel: '확인');
       } else {
         setState(() => _errorMessage = '충전소 추천에 실패했습니다. 다시 시도해 주세요.');
         unawaited(RatingPromptService.markNegativeSignal()); // 짜증 직후 평점 안내 스킵
@@ -3971,7 +4221,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           target: NLatLng(stLat, stLng),
           zoom: 14,
         )..setAnimation(
-            animation: NCameraAnimation.easing, duration: const Duration(milliseconds: 500)),
+            animation: NCameraAnimation.easing,
+            duration: const Duration(milliseconds: 500)),
       );
     } catch (_) {}
 
@@ -4047,14 +4298,17 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final box = Hive.box(AppConstants.settingsBox);
     VehicleProfile? selectedVehicle;
     {
-      final selectedId = box.get(AppConstants.keyAiSelectedVehicleId) as String?;
+      final selectedId =
+          box.get(AppConstants.keyAiSelectedVehicleId) as String?;
       final rawVehicles = box.get(AppConstants.keyAiVehicles);
       if (rawVehicles != null) {
         try {
           final List decoded = jsonDecode(rawVehicles as String);
-          final all =
-              decoded.map((e) => VehicleProfile.fromJson(e as Map<String, dynamic>)).toList();
-          selectedVehicle = all.cast<VehicleProfile?>().firstWhere((v) => v?.id == selectedId,
+          final all = decoded
+              .map((e) => VehicleProfile.fromJson(e as Map<String, dynamic>))
+              .toList();
+          selectedVehicle = all.cast<VehicleProfile?>().firstWhere(
+              (v) => v?.id == selectedId,
               orElse: () => all.isNotEmpty ? all.first : null);
         } catch (_) {}
       }
@@ -4087,7 +4341,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             {'lat': _destLat!, 'lng': _destLng!},
           ];
 
-    if (pathPoints.length < 3 || _lastStartLat != startLat || _lastStartLng != startLng) {
+    if (pathPoints.length < 3 ||
+        _lastStartLat != startLat ||
+        _lastStartLng != startLng) {
       try {
         final dr = await ApiService().getDrivingRoute(
           startLat: startLat,
@@ -4126,10 +4382,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'engine': RouteEnginePref.get(),
         'route_key': _selectedRouteKey,
         'highwayOnly': _evHighwayOnly,
-        if (_preferredEvOperators.isNotEmpty) 'operators': _preferredEvOperators.toList(),
+        if (_preferredEvOperators.isNotEmpty)
+          'operators': _preferredEvOperators.toList(),
         // 브랜드 충전소 — AI 탭 사업자·브랜드 시트의 '자체 선택'만 전달
         // (지도·홈 필터의 brands 와 독립 — 몰래 좁혀지는 함정 방지, 형 확정)
-        if (_preferredEvBrands.isNotEmpty) 'brands': _preferredEvBrands.toList(),
+        if (_preferredEvBrands.isNotEmpty)
+          'brands': _preferredEvBrands.toList(),
         if (_evChargerType == 'FAST' && _evFastOutputs.isNotEmpty)
           'fastOutputs': _evFastOutputs.toList(),
         'ai_text': AiConsent.value == true, // 서드파티 AI 문구 동의
@@ -4137,7 +4395,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       if (!mounted) return;
 
       final candidates = data['candidates'] is List
-          ? (data['candidates'] as List).whereType<Map<String, dynamic>>().toList()
+          ? (data['candidates'] as List)
+              .whereType<Map<String, dynamic>>()
+              .toList()
           : <Map<String, dynamic>>[];
 
       if (candidates.isEmpty) {
@@ -4177,7 +4437,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       final rl = rateLimitMessage(e, feature: 'AI 충전소 추천');
       if (rl != null) {
         showAppDialog<void>(context,
-            icon: Icons.schedule_rounded, title: '오늘은 여기까지!', message: rl, primaryLabel: '확인');
+            icon: Icons.schedule_rounded,
+            title: '오늘은 여기까지!',
+            message: rl,
+            primaryLabel: '확인');
       } else {
         setState(() => _errorMessage = '충전소 목록을 불러오는데 실패했습니다.');
       }
@@ -4243,13 +4506,16 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         child: _isLocating
             ? const Padding(
                 padding: EdgeInsets.all(11),
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white),
               )
             : Icon(Icons.my_location_rounded,
                 size: 22,
                 color: _isAtMyLocation
                     ? Colors.white
-                    : (isDark ? AppColors.darkTextSecondary : const Color(0xFF666666))),
+                    : (isDark
+                        ? AppColors.darkTextSecondary
+                        : const Color(0xFF666666))),
       ),
     );
   }
@@ -4274,8 +4540,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       _sheetSize = 0.45;
     });
     await _mapController?.clearOverlays(type: NOverlayType.pathOverlay);
-    await _mapController?.clearOverlays(type: NOverlayType.multipartPathOverlay);
-    await _mapController?.clearOverlays(type: NOverlayType.arrowheadPathOverlay);
+    await _mapController?.clearOverlays(
+        type: NOverlayType.multipartPathOverlay);
+    await _mapController?.clearOverlays(
+        type: NOverlayType.arrowheadPathOverlay);
     await _mapController?.clearOverlays(type: NOverlayType.marker);
     _moveToMyLocation();
   }
@@ -4382,12 +4650,15 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     // (글로벌 키는 가스/EV·다차량이 공유하는 단일 슬롯이라 프로필과 어긋났음 → 카드·계산 불일치 버그)
     final sv = _readSelectedVehicle(box);
     final fuelCode = sv?.fuelType ??
-        (box.get(AppConstants.keyAiFuelType, defaultValue: FuelType.gasoline.code) as String);
+        (box.get(AppConstants.keyAiFuelType,
+            defaultValue: FuelType.gasoline.code) as String);
     final tankCapacity = sv == null
-        ? (box.get(AppConstants.keyAiTankCapacity, defaultValue: 55.0) as num).toDouble()
+        ? (box.get(AppConstants.keyAiTankCapacity, defaultValue: 55.0) as num)
+            .toDouble()
         : (sv.isEV ? sv.batteryCapacity : sv.tankCapacity);
     final efficiency = sv == null
-        ? (box.get(AppConstants.keyAiEfficiency, defaultValue: 12.5) as num).toDouble()
+        ? (box.get(AppConstants.keyAiEfficiency, defaultValue: 12.5) as num)
+            .toDouble()
         : (sv.isEV ? sv.evEfficiency : sv.efficiency);
 
     final body = <String, dynamic>{
@@ -4410,8 +4681,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         'route_key': _selectedRouteKey,
         'highway_only': _gasHighwayOnly,
         if (_preferredGasBrands.isNotEmpty)
-          'preferred_brands':
-              _preferredGasBrands.expand((k) => k == 'RTO' ? const ['RTO', 'RTX'] : [k]).toList(),
+          'preferred_brands': _preferredGasBrands
+              .expand((k) => k == 'RTO' ? const ['RTO', 'RTX'] : [k])
+              .toList(),
       },
     };
 
@@ -4428,8 +4700,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         return;
       }
 
-      final stationList =
-          stations.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+      final stationList = stations
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
 
       setState(() {
         _userSelecting = false;
@@ -4449,7 +4723,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       final rl = rateLimitMessage(e, feature: 'AI 주유소 추천');
       if (rl != null) {
         showAppDialog<void>(context,
-            icon: Icons.schedule_rounded, title: '오늘은 여기까지!', message: rl, primaryLabel: '확인');
+            icon: Icons.schedule_rounded,
+            title: '오늘은 여기까지!',
+            message: rl,
+            primaryLabel: '확인');
       } else {
         setState(() => _errorMessage = '주유소 목록을 불러오는데 실패했습니다.');
         showAppToast(context, '오류: $e', isError: true);
@@ -4511,11 +4788,13 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         if (rawCoords is! List || rawCoords.length < 2) continue;
         final coordsRaw = rawCoords
             .whereType<Map>()
-            .map((c) => NLatLng((c['lat'] as num).toDouble(), (c['lng'] as num).toDouble()))
+            .map((c) => NLatLng(
+                (c['lat'] as num).toDouble(), (c['lng'] as num).toDouble()))
             .toList();
         if (coordsRaw.length < 2) continue;
         final coords = _densifyPath(_smoothPath(coordsRaw));
-        final congestion = seg['congestion'] is num ? (seg['congestion'] as num).toInt() : -1;
+        final congestion =
+            seg['congestion'] is num ? (seg['congestion'] as num).toInt() : -1;
         final color = _congestionColor(congestion);
         multiPaths.add(NMultipartPath(
           coords: coords,
@@ -4540,7 +4819,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
     if (pathPoints.length >= 2) {
       final coordsRaw = pathPoints
-          .map((p) => NLatLng((p['lat'] as num).toDouble(), (p['lng'] as num).toDouble()))
+          .map((p) => NLatLng(
+              (p['lat'] as num).toDouble(), (p['lng'] as num).toDouble()))
           .toList();
       final coords = _densifyPath(_smoothPath(coordsRaw));
       await _mapController!.addOverlay(NPathOverlay(
@@ -4590,15 +4870,18 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
     // 고속도로 필터 적용
     final visibleStations = _highwayFilterActive
-        ? _selectableStations!.where((s) => s['is_highway_rest_area'] == true).toList()
+        ? _selectableStations!
+            .where((s) => s['is_highway_rest_area'] == true)
+            .toList()
         : _selectableStations!;
 
     // 최저가 ID 찾기
     String? cheapestId;
     int? cheapestPrice;
     for (final st in visibleStations) {
-      final p =
-          st['price_won_per_liter'] is num ? (st['price_won_per_liter'] as num).round() : null;
+      final p = st['price_won_per_liter'] is num
+          ? (st['price_won_per_liter'] as num).round()
+          : null;
       if (p != null && (cheapestPrice == null || p < cheapestPrice)) {
         cheapestPrice = p;
         cheapestId = st['id']?.toString();
@@ -4611,8 +4894,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       final stId = st['id']?.toString() ?? '$i';
       final lat = st['lat'] is num ? (st['lat'] as num).toDouble() : null;
       final lng = st['lng'] is num ? (st['lng'] as num).toDouble() : null;
-      final price =
-          st['price_won_per_liter'] is num ? (st['price_won_per_liter'] as num).round() : null;
+      final price = st['price_won_per_liter'] is num
+          ? (st['price_won_per_liter'] as num).round()
+          : null;
 
       if (lat != null && lng != null) {
         final isA = _selectedStationAId == stId;
@@ -4742,8 +5026,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   Future<void> _runCompare() async {
     if (_selectedStationAId == null || _selectedStationBId == null) return;
 
-    final stA = _selectableStations!.firstWhere((s) => s['id']?.toString() == _selectedStationAId);
-    final stB = _selectableStations!.firstWhere((s) => s['id']?.toString() == _selectedStationBId);
+    final stA = _selectableStations!
+        .firstWhere((s) => s['id']?.toString() == _selectedStationAId);
+    final stB = _selectableStations!
+        .firstWhere((s) => s['id']?.toString() == _selectedStationBId);
 
     setState(() {
       _userSelecting = true;
@@ -4756,12 +5042,15 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     // (글로벌 키는 가스/EV·다차량이 공유하는 단일 슬롯이라 프로필과 어긋났음 → 카드·계산 불일치 버그)
     final sv = _readSelectedVehicle(box);
     final fuelCode = sv?.fuelType ??
-        (box.get(AppConstants.keyAiFuelType, defaultValue: FuelType.gasoline.code) as String);
+        (box.get(AppConstants.keyAiFuelType,
+            defaultValue: FuelType.gasoline.code) as String);
     final tankCapacity = sv == null
-        ? (box.get(AppConstants.keyAiTankCapacity, defaultValue: 55.0) as num).toDouble()
+        ? (box.get(AppConstants.keyAiTankCapacity, defaultValue: 55.0) as num)
+            .toDouble()
         : (sv.isEV ? sv.batteryCapacity : sv.tankCapacity);
     final efficiency = sv == null
-        ? (box.get(AppConstants.keyAiEfficiency, defaultValue: 12.5) as num).toDouble()
+        ? (box.get(AppConstants.keyAiEfficiency, defaultValue: 12.5) as num)
+            .toDouble()
         : (sv.isEV ? sv.evEfficiency : sv.efficiency);
 
     final priceTarget = _targetMode == 'PRICE'
@@ -4770,8 +5059,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final literTarget = _targetMode == 'LITER'
         ? (double.tryParse(_literController.text.replaceAll(',', '.')) ?? 0.0)
         : 0.0;
-    final apiTargetValue =
-        _targetMode == 'PRICE' ? priceTarget : (_targetMode == 'LITER' ? literTarget : 0.0);
+    final apiTargetValue = _targetMode == 'PRICE'
+        ? priceTarget
+        : (_targetMode == 'LITER' ? literTarget : 0.0);
 
     final body = <String, dynamic>{
       'vehicle_info': {
@@ -4823,7 +5113,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       final rl = rateLimitMessage(e, feature: 'AI 주유소 추천');
       if (rl != null) {
         showAppDialog<void>(context,
-            icon: Icons.schedule_rounded, title: '오늘은 여기까지!', message: rl, primaryLabel: '확인');
+            icon: Icons.schedule_rounded,
+            title: '오늘은 여기까지!',
+            message: rl,
+            primaryLabel: '확인');
       } else {
         showAppToast(context, '비교 실패: $e', isError: true);
       }
@@ -4866,8 +5159,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     // (기존엔 최상위에서 lat/lng 를 읽어 항상 null → 마커가 아예 안 찍히던 버그)
     final stAWrap = data['station_a'] is Map ? data['station_a'] as Map : null;
     final stBWrap = data['station_b'] is Map ? data['station_b'] as Map : null;
-    final winner =
-        data['comparison'] is Map ? (data['comparison'] as Map)['winner']?.toString() : null;
+    final winner = data['comparison'] is Map
+        ? (data['comparison'] as Map)['winner']?.toString()
+        : null;
 
     final stPoints = <NLatLng>[];
     Future<void> addStationMarker(Map? wrap, String tag, bool isWin) async {
@@ -4880,8 +5174,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       final lng = st['lng'] is num ? (st['lng'] as num).toDouble() : null;
       if (lat == null || lng == null) return;
       final color = isWin ? const Color(0xFF3B82F6) : const Color(0xFF64748B);
-      final p =
-          st['price_won_per_liter'] is num ? (st['price_won_per_liter'] as num).round() : null;
+      final p = st['price_won_per_liter'] is num
+          ? (st['price_won_per_liter'] as num).round()
+          : null;
       final label = p != null ? '$tag ${_wonFmt.format(p)}원' : tag;
       final marker = NMarker(
         id: 'compare_${tag.toLowerCase()}',
@@ -4920,7 +5215,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final minLng = pts.map((p) => p.longitude).reduce(min);
     final maxLng = pts.map((p) => p.longitude).reduce(max);
     await _mapController!.updateCamera(NCameraUpdate.fitBounds(
-      NLatLngBounds(southWest: NLatLng(minLat, minLng), northEast: NLatLng(maxLat, maxLng)),
+      NLatLngBounds(
+          southWest: NLatLng(minLat, minLng),
+          northEast: NLatLng(maxLat, maxLng)),
       padding: const EdgeInsets.all(80),
     ));
   }
@@ -4938,9 +5235,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   Map<String, dynamic> _applyRankedFrame(Map<String, dynamic> d) {
     final ranked = d['ranked'];
     if (ranked is! List || ranked.isEmpty) return d;
-    Map<String, dynamic>? entry(int i) => (i < ranked.length && ranked[i] is Map)
-        ? Map<String, dynamic>.from(ranked[i] as Map)
-        : null;
+    Map<String, dynamic>? entry(int i) =>
+        (i < ranked.length && ranked[i] is Map)
+            ? Map<String, dynamic>.from(ranked[i] as Map)
+            : null;
     final r1 = entry(0);
     if (r1 == null || r1['station'] is! Map) return d;
     final r2 = entry(1);
@@ -5025,7 +5323,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         final cap = isEv ? v.batteryCapacity : v.tankCapacity;
         final eff = isEv ? v.evEfficiency : v.efficiency;
         final full = cap * eff;
-        if (full > 0) level = (st.dteKm! / full * 100).clamp(0.0, 100.0).toDouble();
+        if (full > 0)
+          level = (st.dteKm! / full * 100).clamp(0.0, 100.0).toDouble();
         detail = '주행가능 ${st.dteKm}km';
       }
       if (level != null) {
@@ -5034,14 +5333,16 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           _currentLevelPercent = lv;
           _lastCarSyncAt = DateTime.now();
         });
-        Hive.box(AppConstants.settingsBox).put(AppConstants.keyAiCurrentLevelPercent, lv);
+        Hive.box(AppConstants.settingsBox)
+            .put(AppConstants.keyAiCurrentLevelPercent, lv);
         showAppToast(context, '차에서 불러왔어요 · $detail');
       } else {
         showAppToast(context, '차량 데이터를 가져오지 못했어요', isError: true);
       }
     } catch (e) {
       if (mounted)
-        showAppToast(context, ConnectedService.errorMessage(e, '불러오기 실패'), isError: true);
+        showAppToast(context, ConnectedService.errorMessage(e, '불러오기 실패'),
+            isError: true);
     } finally {
       if (mounted) setState(() => _fetchingFromCar = false);
     }
@@ -5081,9 +5382,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           // (기존엔 level/mode만 저장돼 목표값이 누락됐음).
           double? targetValue;
           if (mode == 'PRICE') {
-            targetValue = double.tryParse(_priceController.text.replaceAll(',', '.'));
+            targetValue =
+                double.tryParse(_priceController.text.replaceAll(',', '.'));
           } else if (mode == 'LITER') {
-            targetValue = double.tryParse(_literController.text.replaceAll(',', '.'));
+            targetValue =
+                double.tryParse(_literController.text.replaceAll(',', '.'));
           }
           _saveVehicleLevel(box,
               level: level,
@@ -5094,8 +5397,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           box.put(AppConstants.keyAiCurrentLevelPercent, level);
           box.put(AppConstants.keyAiTargetMode, mode);
           if (targetValue != null) {
-            if (mode == 'PRICE') box.put(AppConstants.keyAiTargetValue, targetValue);
-            if (mode == 'LITER') box.put(AppConstants.keyAiLiterTarget, targetValue);
+            if (mode == 'PRICE')
+              box.put(AppConstants.keyAiTargetValue, targetValue);
+            if (mode == 'LITER')
+              box.put(AppConstants.keyAiLiterTarget, targetValue);
           }
           Navigator.pop(ctx);
         },
@@ -5147,7 +5452,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           }
         });
       }
-      return Scaffold(backgroundColor: isDark ? AppColors.darkBg : AppColors.lightBg);
+      return Scaffold(
+          backgroundColor: isDark ? AppColors.darkBg : AppColors.lightBg);
     }
 
     final box = Hive.box(AppConstants.settingsBox);
@@ -5155,26 +5461,32 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     // (글로벌 키는 가스/EV·다차량이 공유하는 단일 슬롯이라 프로필과 어긋났음 → 카드·계산 불일치 버그)
     final sv = _readSelectedVehicle(box);
     final fuelCode = sv?.fuelType ??
-        (box.get(AppConstants.keyAiFuelType, defaultValue: FuelType.gasoline.code) as String);
+        (box.get(AppConstants.keyAiFuelType,
+            defaultValue: FuelType.gasoline.code) as String);
     final tankCapacity = sv == null
-        ? (box.get(AppConstants.keyAiTankCapacity, defaultValue: 55.0) as num).toDouble()
+        ? (box.get(AppConstants.keyAiTankCapacity, defaultValue: 55.0) as num)
+            .toDouble()
         : (sv.isEV ? sv.batteryCapacity : sv.tankCapacity);
     final efficiency = sv == null
-        ? (box.get(AppConstants.keyAiEfficiency, defaultValue: 12.5) as num).toDouble()
+        ? (box.get(AppConstants.keyAiEfficiency, defaultValue: 12.5) as num)
+            .toDouble()
         : (sv.isEV ? sv.evEfficiency : sv.efficiency);
     final fuelLabel = FuelType.fromCode(fuelCode).label;
 
     // 멀티 차량 — 선택된 차량 프로필
     VehicleProfile? selectedVehicle;
     {
-      final selectedId = box.get(AppConstants.keyAiSelectedVehicleId) as String?;
+      final selectedId =
+          box.get(AppConstants.keyAiSelectedVehicleId) as String?;
       final rawVehicles = box.get(AppConstants.keyAiVehicles);
       if (rawVehicles != null && selectedId != null) {
         try {
           final List decoded = jsonDecode(rawVehicles as String);
-          final all =
-              decoded.map((e) => VehicleProfile.fromJson(e as Map<String, dynamic>)).toList();
-          selectedVehicle = all.cast<VehicleProfile?>().firstWhere((v) => v?.id == selectedId,
+          final all = decoded
+              .map((e) => VehicleProfile.fromJson(e as Map<String, dynamic>))
+              .toList();
+          selectedVehicle = all.cast<VehicleProfile?>().firstWhere(
+              (v) => v?.id == selectedId,
               orElse: () => all.isNotEmpty ? all.first : null);
         } catch (_) {}
       }
@@ -5284,7 +5596,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             });
             // 후보 마커 + 기존 경로 다시 그리기
             _mapController?.clearOverlays(type: NOverlayType.pathOverlay);
-            _mapController?.clearOverlays(type: NOverlayType.multipartPathOverlay);
+            _mapController?.clearOverlays(
+                type: NOverlayType.multipartPathOverlay);
             _mapController?.clearOverlays(type: NOverlayType.marker);
             _drawResultOnMap(
               pathPoints: _lastPathPoints,
@@ -5420,14 +5733,19 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 13),
                       decoration: BoxDecoration(
                         color: isDark ? AppColors.darkMapOverlay : Colors.white,
                         borderRadius: BorderRadius.circular(14),
-                        border:
-                            isDark ? Border.all(color: AppColors.darkCardBorder, width: 1) : null,
+                        border: isDark
+                            ? Border.all(
+                                color: AppColors.darkCardBorder, width: 1)
+                            : null,
                         boxShadow: [
-                          BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 12)
+                          BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 12)
                         ],
                       ),
                       child: Row(
@@ -5439,7 +5757,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           ),
                           const SizedBox(width: 10),
                           Text(
-                            _pickingOrigin ? '지도에서 출발지를 선택하세요' : '지도에서 목적지를 선택하세요',
+                            _pickingOrigin
+                                ? '지도에서 출발지를 선택하세요'
+                                : '지도에서 목적지를 선택하세요',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
@@ -5467,10 +5787,14 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                       decoration: BoxDecoration(
                         color: isDark ? AppColors.darkMapOverlay : Colors.white,
                         borderRadius: BorderRadius.circular(16),
-                        border:
-                            isDark ? Border.all(color: AppColors.darkCardBorder, width: 1) : null,
+                        border: isDark
+                            ? Border.all(
+                                color: AppColors.darkCardBorder, width: 1)
+                            : null,
                         boxShadow: [
-                          BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 16)
+                          BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 16)
                         ],
                       ),
                       child: Column(
@@ -5480,7 +5804,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           Row(
                             children: [
                               Icon(Icons.location_on_rounded,
-                                  color: _pickingOrigin ? kPrimary : kDanger, size: 18),
+                                  color: _pickingOrigin ? kPrimary : kDanger,
+                                  size: 18),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: _isReverseGeocoding
@@ -5496,7 +5821,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                         style: TextStyle(
                                           fontSize: 13,
                                           fontWeight: FontWeight.w500,
-                                          color: isDark ? AppColors.darkTextPrimary : null,
+                                          color: isDark
+                                              ? AppColors.darkTextPrimary
+                                              : null,
                                         ),
                                       ),
                               ),
@@ -5509,10 +5836,13 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                 child: OutlinedButton(
                                   onPressed: _exitPickerMode,
                                   style: OutlinedButton.styleFrom(
-                                    side: const BorderSide(color: Color(0xFFDDDDDD)),
+                                    side: const BorderSide(
+                                        color: Color(0xFFDDDDDD)),
                                     shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10)),
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                        borderRadius:
+                                            BorderRadius.circular(10)),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 12),
                                   ),
                                   child: Text('취소',
                                       style: TextStyle(
@@ -5525,19 +5855,24 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                               Expanded(
                                 flex: 2,
                                 child: ElevatedButton(
-                                  onPressed: (_pickerLatLng != null && !_isReverseGeocoding)
+                                  onPressed: (_pickerLatLng != null &&
+                                          !_isReverseGeocoding)
                                       ? _confirmMapPick
                                       : null,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: _pickingOrigin ? kPrimary : kDanger,
+                                    backgroundColor:
+                                        _pickingOrigin ? kPrimary : kDanger,
                                     foregroundColor: Colors.white,
                                     shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10)),
+                                        borderRadius:
+                                            BorderRadius.circular(10)),
                                     elevation: 0,
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 12),
                                   ),
                                   child: const Text('이 위치로 설정',
-                                      style: TextStyle(fontWeight: FontWeight.w600)),
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w600)),
                                 ),
                               ),
                             ],
@@ -5575,21 +5910,27 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                 height: 46,
                                 padding: const EdgeInsets.all(4),
                                 decoration: BoxDecoration(
-                                  color: isDark ? AppColors.darkMapOverlay : Colors.white,
+                                  color: isDark
+                                      ? AppColors.darkMapOverlay
+                                      : Colors.white,
                                   borderRadius: BorderRadius.circular(14),
                                   border: isDark
-                                      ? Border.all(color: AppColors.darkCardBorder, width: 1)
+                                      ? Border.all(
+                                          color: AppColors.darkCardBorder,
+                                          width: 1)
                                       : null,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.08),
+                                      color:
+                                          Colors.black.withValues(alpha: 0.08),
                                       blurRadius: 18,
                                       offset: const Offset(0, 6),
                                     ),
                                   ],
                                 ),
                                 child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
                                   children: [
                                     Expanded(
                                       child: ModeSegment(
@@ -5616,22 +5957,31 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             const SizedBox(width: 8),
                             GestureDetector(
                               onTap: () async {
-                                await Navigator.push(context,
-                                    MaterialPageRoute(builder: (_) => const AiVehicleListScreen()));
+                                await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) =>
+                                            const AiVehicleListScreen()));
                                 setState(() {});
                               },
                               child: Container(
                                 width: 42,
                                 height: 42,
                                 decoration: BoxDecoration(
-                                  color: isDark ? AppColors.darkMapOverlay : Colors.white,
+                                  color: isDark
+                                      ? AppColors.darkMapOverlay
+                                      : Colors.white,
                                   borderRadius: BorderRadius.circular(11),
                                   border: isDark
-                                      ? Border.all(color: AppColors.darkCardBorder, width: 1)
+                                      ? Border.all(
+                                          color: AppColors.darkCardBorder,
+                                          width: 1)
                                       : null,
                                   boxShadow: [
                                     BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.08), blurRadius: 8)
+                                        color: Colors.black
+                                            .withValues(alpha: 0.08),
+                                        blurRadius: 8)
                                   ],
                                 ),
                                 child: Icon(
@@ -5650,16 +6000,19 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                         RouteCard(
                           originName: _originName,
                           destName: _destName,
-                          viaNames: [for (final v in _vias) (v['name'] ?? '').toString()],
+                          viaNames: [
+                            for (final v in _vias) (v['name'] ?? '').toString()
+                          ],
                           currentLocationAddress: _currentLocationAddress,
                           onSwap: _swapOriginDest,
                           onTapOrigin: () => _showLocationSheet(isOrigin: true),
                           onTapDest: () => _showLocationSheet(isOrigin: false),
-                          onTapVia: (i) =>
-                              _showLocationSheet(isOrigin: false, forVia: true, viaIndex: i),
+                          onTapVia: (i) => _showLocationSheet(
+                              isOrigin: false, forVia: true, viaIndex: i),
                           onAddVia: _addPendingVia,
                           onClearVia: _removeVia,
-                          onReorder: (o, n) => unawaited(_reorderRouteSlots(o, n)),
+                          onReorder: (o, n) =>
+                              unawaited(_reorderRouteSlots(o, n)),
                           collapsed: _routeCardCollapsed,
                           onToggleCollapsed: () => setState(() {
                             _routeCardCollapsed = !_routeCardCollapsed;
@@ -5718,20 +6071,24 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                         if (_errorMessage != null) ...[
                           Container(
                             width: double.infinity,
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 10),
                             margin: const EdgeInsets.only(bottom: 8),
                             decoration: BoxDecoration(
                               color: const Color(0xFFFFF0F0),
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: kDanger.withValues(alpha: 0.3)),
+                              border: Border.all(
+                                  color: kDanger.withValues(alpha: 0.3)),
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.error_outline_rounded, color: kDanger, size: 16),
+                                const Icon(Icons.error_outline_rounded,
+                                    color: kDanger, size: 16),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(_errorMessage!,
-                                      style: const TextStyle(fontSize: 12, color: kDanger)),
+                                      style: const TextStyle(
+                                          fontSize: 12, color: kDanger)),
                                 ),
                               ],
                             ),
@@ -5745,16 +6102,19 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           _buildCollapsedHeroBar(
                             isEv: isEvVehicle,
                             level: _currentLevelPercent,
-                            vehicleName: selectedVehicle?.name.isNotEmpty == true
-                                ? selectedVehicle!.name
-                                : (isEvVehicle ? '차량 선택' : fuelLabel),
+                            vehicleName:
+                                selectedVehicle?.name.isNotEmpty == true
+                                    ? selectedVehicle!.name
+                                    : (isEvVehicle ? '차량 선택' : fuelLabel),
                             reachableKm: _currentLevelPercent /
                                 100 *
                                 (isEvVehicle
-                                    ? (selectedVehicle?.batteryCapacity ?? tankCapacity)
+                                    ? (selectedVehicle?.batteryCapacity ??
+                                        tankCapacity)
                                     : tankCapacity) *
                                 (isEvVehicle
-                                    ? (selectedVehicle?.evEfficiency ?? efficiency)
+                                    ? (selectedVehicle?.evEfficiency ??
+                                        efficiency)
                                     : efficiency),
                           )
                         else
@@ -5764,41 +6124,49 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             isConnected: selectedVehicle?.isConnected ?? false,
                             isFetching: _fetchingFromCar,
                             lastSyncedAt: _lastCarSyncAt,
-                            onFetchFromCar: () =>
-                                _fetchFromConnectedCar(isEvVehicle, selectedVehicle),
+                            onFetchFromCar: () => _fetchFromConnectedCar(
+                                isEvVehicle, selectedVehicle),
                             currentLevel: _currentLevelPercent,
                             isEv: isEvVehicle,
                             reachableKm: _currentLevelPercent /
                                 100 *
                                 (isEvVehicle
-                                    ? (selectedVehicle?.batteryCapacity ?? tankCapacity)
+                                    ? (selectedVehicle?.batteryCapacity ??
+                                        tankCapacity)
                                     : tankCapacity) *
                                 (isEvVehicle
-                                    ? (selectedVehicle?.evEfficiency ?? efficiency)
+                                    ? (selectedVehicle?.evEfficiency ??
+                                        efficiency)
                                     : efficiency),
-                            vehicleName: selectedVehicle?.name.isNotEmpty == true
-                                ? selectedVehicle!.name
-                                : (isEvVehicle ? '차량 선택' : fuelLabel),
+                            vehicleName:
+                                selectedVehicle?.name.isNotEmpty == true
+                                    ? selectedVehicle!.name
+                                    : (isEvVehicle ? '차량 선택' : fuelLabel),
                             efficiency: isEvVehicle
                                 ? (selectedVehicle?.evEfficiency ?? efficiency)
                                 : efficiency,
                             tankCapacity: isEvVehicle
-                                ? (selectedVehicle?.batteryCapacity ?? tankCapacity)
+                                ? (selectedVehicle?.batteryCapacity ??
+                                    tankCapacity)
                                 : tankCapacity,
                             // 유종 배지 — 주유 차량만. 선택 차량 프로필 유종 우선(fuelLabel).
                             fuelTypeLabel: isEvVehicle ? null : fuelLabel,
-                            highwayOnly: isEvVehicle ? _evHighwayOnly : _gasHighwayOnly,
+                            highwayOnly:
+                                isEvVehicle ? _evHighwayOnly : _gasHighwayOnly,
                             chargerMode: isEvVehicle ? _evChargerType : null,
                             onTapLevel: () => _showLevelEditSheet(
                               isEv: isEvVehicle,
                               // 카드 표시와 동일한 차량 기준 용량/효율 (편집 시트 % 계산 일치)
                               capacity: isEvVehicle
-                                  ? (selectedVehicle?.batteryCapacity ?? tankCapacity)
+                                  ? (selectedVehicle?.batteryCapacity ??
+                                      tankCapacity)
                                   : tankCapacity,
                               efficiency: isEvVehicle
-                                  ? (selectedVehicle?.evEfficiency ?? efficiency)
+                                  ? (selectedVehicle?.evEfficiency ??
+                                      efficiency)
                                   : efficiency,
-                              targetChargePercent: selectedVehicle?.targetChargePercent ?? 80.0,
+                              targetChargePercent:
+                                  selectedVehicle?.targetChargePercent ?? 80.0,
                             ),
                             // 편집 아이콘 → 현재 차량 setup(편집) 화면 직접 진입.
                             // 차량 미등록(selectedVehicle==null) 시에만 신규 추가 모드로.
@@ -5807,7 +6175,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                 context,
                                 MaterialPageRoute(
                                   builder: (_) => selectedVehicle != null
-                                      ? AiVehicleSetupScreen(editVehicleId: selectedVehicle.id)
+                                      ? AiVehicleSetupScreen(
+                                          editVehicleId: selectedVehicle.id)
                                       : const AiVehicleSetupScreen(),
                                 ),
                               );
@@ -5830,7 +6199,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                   }
                                 : null,
                             fastOutputs: _evFastOutputs,
-                            onToggleFastOutput: isEvVehicle ? _toggleEvFastOutput : null,
+                            onToggleFastOutput:
+                                isEvVehicle ? _toggleEvFastOutput : null,
                             preferredBrands: _preferredGasBrands,
                             onToggleBrand: (k) {
                               setState(() {
@@ -5840,7 +6210,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                               });
                               _saveAiFilters();
                             },
-                            operatorCount: _preferredEvOperators.length + _preferredEvBrands.length,
+                            operatorCount: _preferredEvOperators.length +
+                                _preferredEvBrands.length,
                             operatorSummary: () {
                               final tokens = <String>[
                                 ..._preferredEvOperators,
@@ -5853,7 +6224,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             onTapOperators: _openEvOperatorSheet,
                             socConditionSummary: _socConditionSummary,
                             socConditionCustom: _socConditionCustom,
-                            onTapSocConditions: isEvVehicle ? _openSocConditionSheet : null,
+                            onTapSocConditions:
+                                isEvVehicle ? _openSocConditionSheet : null,
                           ),
                         _buildRouteSelector(isEv: isEvVehicle),
                         const SizedBox(height: 12),
@@ -5866,7 +6238,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                               child: GestureDetector(
                                 onTap: (_aiAnalyzing || _userSelecting)
                                     ? null
-                                    : (isEvVehicle ? _runEvAnalyze : _runAnalyze),
+                                    : (isEvVehicle
+                                        ? _runEvAnalyze
+                                        : _runAnalyze),
                                 child: Container(
                                   height: 54,
                                   decoration: BoxDecoration(
@@ -5881,7 +6255,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                     borderRadius: BorderRadius.circular(16),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: modeAccent(isEvVehicle).withValues(alpha: 0.30),
+                                        color: modeAccent(isEvVehicle)
+                                            .withValues(alpha: 0.30),
                                         blurRadius: 18,
                                         offset: const Offset(0, 8),
                                       ),
@@ -5893,15 +6268,20 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                           width: 24,
                                           height: 24,
                                           child: CircularProgressIndicator(
-                                              strokeWidth: 2.5, color: Colors.white))
+                                              strokeWidth: 2.5,
+                                              color: Colors.white))
                                       : Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            const Icon(Icons.auto_awesome_rounded,
-                                                size: 18, color: Colors.white),
+                                            const Icon(
+                                                Icons.auto_awesome_rounded,
+                                                size: 18,
+                                                color: Colors.white),
                                             const SizedBox(width: 8),
                                             Text(
-                                              isEvVehicle ? 'AI 충전소 추천' : 'AI 주유소 추천',
+                                              isEvVehicle
+                                                  ? 'AI 충전소 추천'
+                                                  : 'AI 주유소 추천',
                                               style: const TextStyle(
                                                 fontSize: 16,
                                                 fontWeight: FontWeight.w800,
@@ -5921,15 +6301,21 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                               child: GestureDetector(
                                 onTap: (_aiAnalyzing || _userSelecting)
                                     ? null
-                                    : (isEvVehicle ? _runEvUserSelect : _runUserSelect),
+                                    : (isEvVehicle
+                                        ? _runEvUserSelect
+                                        : _runUserSelect),
                                 child: Container(
                                   height: 54,
                                   decoration: BoxDecoration(
                                     // 다크: 주변은 전부 다크인데 혼자 순백이던 버튼
-                                    color: isDark ? AppColors.darkSurface1 : Colors.white,
+                                    color: isDark
+                                        ? AppColors.darkSurface1
+                                        : Colors.white,
                                     borderRadius: BorderRadius.circular(16),
                                     border: Border.all(
-                                        color: isDark ? AppColors.darkCardBorder : kLine,
+                                        color: isDark
+                                            ? AppColors.darkCardBorder
+                                            : kLine,
                                         width: 1.5),
                                   ),
                                   alignment: Alignment.center,
@@ -5938,20 +6324,27 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                           width: 22,
                                           height: 22,
                                           child: CircularProgressIndicator(
-                                              strokeWidth: 2.5, color: modeAccent(isEvVehicle)))
+                                              strokeWidth: 2.5,
+                                              color: modeAccent(isEvVehicle)))
                                       : Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Icon(Icons.format_list_bulleted_rounded,
+                                            Icon(
+                                                Icons
+                                                    .format_list_bulleted_rounded,
                                                 size: 16,
-                                                color: isDark ? AppColors.darkTextPrimary : kInk),
+                                                color: isDark
+                                                    ? AppColors.darkTextPrimary
+                                                    : kInk),
                                             const SizedBox(width: 6),
                                             Text(
                                               '직접 선택',
                                               style: TextStyle(
                                                 fontSize: 14,
                                                 fontWeight: FontWeight.w800,
-                                                color: isDark ? AppColors.darkTextPrimary : kInk,
+                                                color: isDark
+                                                    ? AppColors.darkTextPrimary
+                                                    : kInk,
                                                 letterSpacing: -0.3,
                                               ),
                                             ),
@@ -5971,7 +6364,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             // ── 결과 모드: 상단 뒤로가기 + 경로 요약 ──
             // 직접선택 결과(_isCompareResultMode)도 포함 — 없으면 iOS 에서 결과 화면을
             // 나갈 방법이 없음(하드웨어 back 부재).
-            if (_isResultMode || _isEvResultMode || _isEvSelectMode || _isCompareResultMode)
+            if (_isResultMode ||
+                _isEvResultMode ||
+                _isEvSelectMode ||
+                _isCompareResultMode)
               Positioned(
                 top: 0,
                 left: 0,
@@ -5987,10 +6383,13 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             width: 38,
                             height: 38,
                             decoration: BoxDecoration(
-                              color: isDark ? AppColors.darkMapOverlay : Colors.white,
+                              color: isDark
+                                  ? AppColors.darkMapOverlay
+                                  : Colors.white,
                               shape: BoxShape.circle,
                               border: isDark
-                                  ? Border.all(color: AppColors.darkCardBorder, width: 1)
+                                  ? Border.all(
+                                      color: AppColors.darkCardBorder, width: 1)
                                   : null,
                               boxShadow: [
                                 BoxShadow(
@@ -6002,19 +6401,24 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             ),
                             child: Icon(Icons.arrow_back_rounded,
                                 size: 18,
-                                color:
-                                    isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a)),
+                                color: isDark
+                                    ? AppColors.darkTextPrimary
+                                    : const Color(0xFF1a1a1a)),
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 9),
                             decoration: BoxDecoration(
-                              color: isDark ? AppColors.darkMapOverlay : Colors.white,
+                              color: isDark
+                                  ? AppColors.darkMapOverlay
+                                  : Colors.white,
                               borderRadius: BorderRadius.circular(12),
                               border: isDark
-                                  ? Border.all(color: AppColors.darkCardBorder, width: 1)
+                                  ? Border.all(
+                                      color: AppColors.darkCardBorder, width: 1)
                                   : null,
                               boxShadow: [
                                 BoxShadow(
@@ -6029,8 +6433,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                               style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
-                                  color:
-                                      isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a)),
+                                  color: isDark
+                                      ? AppColors.darkTextPrimary
+                                      : const Color(0xFF1a1a1a)),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
@@ -6046,13 +6451,16 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             if (((_isResultMode || _isCompareResultMode || _isEvResultMode) &&
                     _lastResultData != null) ||
                 (_isEvSelectMode && _evSelectCandidates.isNotEmpty) ||
-                (_isSelectMode && _isSelectSheetVisible && _selectableStations != null))
+                (_isSelectMode &&
+                    _isSelectSheetVisible &&
+                    _selectableStations != null))
               Positioned(
                 left: 0,
                 right: 0,
                 bottom: 0,
                 height: navPad,
-                child: ColoredBox(color: isDark ? AppColors.darkBg : Colors.white),
+                child: ColoredBox(
+                    color: isDark ? AppColors.darkBg : Colors.white),
               ),
 
             // ── 결과 모드: 드래그 가능한 분석 결과 패널 ──
@@ -6072,7 +6480,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                     return Container(
                       decoration: BoxDecoration(
                         color: isDark ? AppColors.darkBg : Colors.white,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(20)),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.15),
@@ -6087,11 +6496,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                               data: _lastResultData!,
                               scrollController: sc,
                               onStationMapTap: _showEvStationRouteOnMap,
-                              onClearBrandFilter: () {
-                                setState(() => _preferredEvBrands.clear());
-                                _saveAiFilters();
-                                _runEvAnalyze(); // 해제 즉시 재추천 — 한 탭 회복
-                              },
+                            onClearBrandFilter: () {
+                              setState(() => _preferredEvBrands.clear());
+                              _saveAiFilters();
+                              _runEvAnalyze(); // 해제 즉시 재추천 — 한 탭 회복
+                            },
                               originLat: _lastStartLat,
                               originLng: _lastStartLng,
                               destLat: _destLat,
@@ -6141,7 +6550,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                     return Container(
                       decoration: BoxDecoration(
                         color: isDark ? AppColors.darkBg : Colors.white,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(20)),
                         boxShadow: [
                           BoxShadow(
                               color: Colors.black.withValues(alpha: 0.15),
@@ -6184,7 +6594,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                           : (isDark ? AppColors.darkMapOverlay : Colors.white),
                       shape: BoxShape.circle,
                       border: isDark && !(_isLocating || _isAtMyLocation)
-                          ? Border.all(color: AppColors.darkCardBorder, width: 1)
+                          ? Border.all(
+                              color: AppColors.darkCardBorder, width: 1)
                           : null,
                       boxShadow: [
                         BoxShadow(
@@ -6197,19 +6608,24 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                     child: _isLocating
                         ? const Padding(
                             padding: EdgeInsets.all(11),
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
                           )
                         : Icon(Icons.my_location_rounded,
                             size: 22,
                             color: _isAtMyLocation
                                 ? Colors.white
-                                : (isDark ? AppColors.darkTextSecondary : const Color(0xFF666666))),
+                                : (isDark
+                                    ? AppColors.darkTextSecondary
+                                    : const Color(0xFF666666))),
                   ),
                 ),
               ),
 
             // ── 사용자 선택 모드: 인라인 드래그 가능 시트 ──
-            if (_isSelectMode && _isSelectSheetVisible && _selectableStations != null)
+            if (_isSelectMode &&
+                _isSelectSheetVisible &&
+                _selectableStations != null)
               Padding(
                 padding: EdgeInsets.only(bottom: navPad),
                 child: DraggableScrollableSheet(
@@ -6262,12 +6678,16 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                     color: Colors.black.withValues(alpha: 0.18),
                     child: Center(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 18, vertical: 14),
                         decoration: BoxDecoration(
-                          color: isDark ? AppColors.darkMapOverlay : Colors.white,
+                          color:
+                              isDark ? AppColors.darkMapOverlay : Colors.white,
                           borderRadius: BorderRadius.circular(12),
-                          border:
-                              isDark ? Border.all(color: AppColors.darkCardBorder, width: 1) : null,
+                          border: isDark
+                              ? Border.all(
+                                  color: AppColors.darkCardBorder, width: 1)
+                              : null,
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withValues(alpha: 0.12),
@@ -6289,11 +6709,15 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             ),
                             const SizedBox(width: 10),
                             Text(
-                              _aiAnalysisType == 'ev' ? 'AI 충전소 추천 중...' : 'AI 주유소 추천 중...',
+                              _aiAnalysisType == 'ev'
+                                  ? 'AI 충전소 추천 중...'
+                                  : 'AI 주유소 추천 중...',
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a),
+                                color: isDark
+                                    ? AppColors.darkTextPrimary
+                                    : const Color(0xFF1a1a1a),
                               ),
                             ),
                           ],
@@ -6312,12 +6736,16 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                     color: Colors.black.withValues(alpha: 0.18),
                     child: Center(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 18, vertical: 14),
                         decoration: BoxDecoration(
-                          color: isDark ? AppColors.darkMapOverlay : Colors.white,
+                          color:
+                              isDark ? AppColors.darkMapOverlay : Colors.white,
                           borderRadius: BorderRadius.circular(12),
-                          border:
-                              isDark ? Border.all(color: AppColors.darkCardBorder, width: 1) : null,
+                          border: isDark
+                              ? Border.all(
+                                  color: AppColors.darkCardBorder, width: 1)
+                              : null,
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withValues(alpha: 0.12),
@@ -6343,7 +6771,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: isDark ? AppColors.darkTextPrimary : const Color(0xFF1a1a1a),
+                                color: isDark
+                                    ? AppColors.darkTextPrimary
+                                    : const Color(0xFF1a1a1a),
                               ),
                             ),
                           ],

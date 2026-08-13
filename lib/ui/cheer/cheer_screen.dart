@@ -548,7 +548,6 @@ class _CheerScreenState extends State<CheerScreen>
                     color: CheerDs.secondary(isDark))),
           ],
           const SizedBox(height: 11),
-          // 순위표 — 등수 + (마스킹된) 이름만. 남의 응원 횟수는 서버가 안 내려준다.
           for (final r in ev.top)
             Padding(
               padding: const EdgeInsets.only(bottom: 6),
@@ -570,87 +569,39 @@ class _CheerScreenState extends State<CheerScreen>
                           fontWeight: r.me ? FontWeight.w800 : FontWeight.w600,
                           color: r.me ? CheerDs.gas : CheerDs.ink(isDark))),
                 ),
+                Text('${r.count}회',
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: CheerDs.secondary(isDark))),
               ]),
             ),
-          // 내 기록 — 회색 블록은 골드 카드 안에서 남의 옷 입은 것처럼 떴다.
-          // 카드와 같은 골드 톤으로 낮게 깔고, 내 응원 수만 숫자로 세운다.
           Container(
-            margin: const EdgeInsets.only(top: 4),
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            margin: const EdgeInsets.only(top: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
             decoration: BoxDecoration(
+              color: CheerDs.iconBg(isDark),
               borderRadius: BorderRadius.circular(12),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: isDark
-                    ? [
-                        gold.withValues(alpha: 0.16),
-                        gold.withValues(alpha: 0.05),
-                      ]
-                    : const [Color(0xFFFFF9EC), Color(0xFFFDF3DE)],
-              ),
-              border: Border.all(
-                  color: gold.withValues(alpha: isDark ? 0.28 : 0.22),
-                  width: 0.5),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
-                  Icon(Icons.local_fire_department_rounded,
-                      size: 14, color: gold),
-                  const SizedBox(width: 5),
-                  Text('내 기록',
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.2,
-                          color: gold)),
-                  const Spacer(),
-                  if (ev.myCount == 0)
-                    Text('아직 응원 전',
-                        style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
-                            color: CheerDs.secondary(isDark)))
-                  else
-                    Text.rich(TextSpan(children: [
-                      TextSpan(
-                          text: '이번 달 ',
-                          style: TextStyle(
-                              fontSize: 11,
-                              color: CheerDs.secondary(isDark))),
-                      TextSpan(
-                          text: '${ev.myCount}',
-                          style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.3,
-                              fontFeatures: const [
-                                ui.FontFeature.tabularFigures()
-                              ],
-                              color: CheerDs.ink(isDark))),
-                      TextSpan(
-                          text: '회',
-                          style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: CheerDs.ink(isDark))),
-                    ])),
-                ]),
-                const SizedBox(height: 4),
-                Text(cheerChaseCopy(ev),
-                    maxLines: 2,
+            child: Row(children: [
+              Text('내 기록',
+                  style: TextStyle(
+                      fontSize: 11.5, color: CheerDs.secondary(isDark))),
+              const Spacer(),
+              Flexible(
+                child: Text(
+                    ev.myCount == 0
+                        ? '아직 이번 달 응원이 없어요'
+                        : '이번 달 ${ev.myCount}회'
+                            '${ev.myRank != null ? ' · ${ev.myRank}위' : ''}',
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                        fontSize: 11,
-                        height: 1.35,
-                        fontWeight: FontWeight.w600,
-                        color: isDark
-                            ? const Color(0xFFE8CE93)
-                            : const Color(0xFF8A6A2E))),
-              ],
-            ),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: CheerDs.ink(isDark))),
+              ),
+            ]),
           ),
         ],
       ),

@@ -14,18 +14,12 @@ import '../../providers/providers.dart';
 
 String _fuelTypeLabel(String code) {
   switch (code) {
-    case 'B027':
-      return '휘발유';
-    case 'B034':
-      return '고급휘발유';
-    case 'D047':
-      return '경유';
-    case 'K015':
-      return 'LPG';
-    case 'C004':
-      return '등유';
-    default:
-      return '휘발유';
+    case 'B027': return '휘발유';
+    case 'B034': return '고급휘발유';
+    case 'D047': return '경유';
+    case 'K015': return 'LPG';
+    case 'C004': return '등유';
+    default: return '휘발유';
   }
 }
 
@@ -36,7 +30,6 @@ String _fuelTypeLabel(String code) {
 // 디테일 화면 등에서 풀 로고가 필요한 경우 assetName() 으로 'assets/brands/$code.png' 접근.
 class BrandLogo extends StatelessWidget {
   final String brand;
-
   /// 주유소 이름. '휴게소' 포함 시 도로공사 EX 로고 우선 사용.
   final String? stationName;
   final double size;
@@ -64,7 +57,8 @@ class BrandLogo extends StatelessWidget {
     'ETC': (color: Color(0xFF94A3B8), label: '기타'),
   };
 
-  static String assetName(String brand) => _validBrands.contains(brand) ? brand : 'ETC';
+  static String assetName(String brand) =>
+      _validBrands.contains(brand) ? brand : 'ETC';
 
   /// 주유소가 고속도로 휴게소 소속인지 판정.
   /// OPINET osNm 표기 패턴 두 가지:
@@ -74,7 +68,6 @@ class BrandLogo extends StatelessWidget {
   static final RegExp _highwayCityLabelRe = RegExp(
     r'\((?:서울|부산|인천|대구|광주|대전|울산|세종|일산|하남|양평|춘천|강릉|속초|삼척|영덕|포항|서부산|창원|통영|함양|광양|순천|장수|전주|완주|익산|목포|영암|무안|논산|당진|서천|천안|공주|청주|제천|남이|평택|양양|경산|마산|영천|상주|판교|충주|안동|경주|보령|군위|처인|산청|진영|포천|원주|동해|여주|횡성|평창|대관령)(?:방향)?\)',
   );
-
   /// 한국 고속도로 휴게소 상행/하행 표기 — "서창산업㈜죽전(상)주유소", "(주)괴산(상)주유소" 등.
   static final RegExp _updownRe = RegExp(r'\((?:상|하)\)');
   static bool isHighwayRestArea(String? name) {
@@ -100,8 +93,7 @@ class BrandLogo extends StatelessWidget {
     if (logoPath != null) {
       final isSvg = logoPath.toLowerCase().endsWith('.svg');
       return Container(
-        width: size,
-        height: size,
+        width: size, height: size,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(10),
@@ -119,8 +111,7 @@ class BrandLogo extends StatelessWidget {
 
     final fb = _fallback[_validBrands.contains(brand) ? brand : 'ETC']!;
     return Container(
-      width: size,
-      height: size,
+      width: size, height: size,
       decoration: BoxDecoration(
         color: fb.color,
         borderRadius: BorderRadius.circular(10),
@@ -143,27 +134,18 @@ class BrandLogo extends StatelessWidget {
 class GasStationCard extends ConsumerWidget {
   final GasStation station;
   final bool isTop;
-
   /// 1번 항목 배지 문구. 가격순이면 '최저가', 거리순이면 '최단거리'
   final String topBadgeLabel;
-
   /// 이 지역 목록 주유 추천 1~3위. null 이면 일반 카드.
   final int? recommendRank;
   final VoidCallback? onTap;
 
-  const GasStationCard(
-      {super.key,
-      required this.station,
-      this.isTop = false,
-      this.topBadgeLabel = '최저가',
-      this.recommendRank,
-      this.onTap});
+  const GasStationCard({super.key, required this.station, this.isTop = false, this.topBadgeLabel = '최저가', this.recommendRank, this.onTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isFav =
-        ref.watch(favoritesProvider).any((f) => f['type'] == 'gas' && f['id'] == station.id);
+    final isFav = ref.watch(favoritesProvider).any((f) => f['type'] == 'gas' && f['id'] == station.id);
     // 추천 1·2·3위는 금/은/동 메달 톤으로 카드 배경·테두리를 각각 다르게(딱 봐도 순위 구분).
     // 추천 아닌 isTop(최저가/최단거리)은 기존 파란 강조 유지.
     final RecommendMedal? medal =
@@ -189,7 +171,9 @@ class GasStationCard extends ConsumerWidget {
                 : (blueEmphasize
                     ? (isDark ? AppColors.darkGasActiveBorder : AppColors.gasBlue)
                     : (isDark ? AppColors.darkCardBorder : const Color(0xFFDDE3EC))),
-            width: medal != null ? (recommendRank == 1 ? 1.6 : 1.2) : (blueEmphasize ? 1.5 : 1),
+            width: medal != null
+                ? (recommendRank == 1 ? 1.6 : 1.2)
+                : (blueEmphasize ? 1.5 : 1),
           ),
         ),
         child: Row(
@@ -212,10 +196,7 @@ class GasStationCard extends ConsumerWidget {
                       StationAliasService.resolveGas(station.id, station.name),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w600),
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -241,18 +222,13 @@ class GasStationCard extends ConsumerWidget {
                       color: AppColors.gasBlue,
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: Text(topBadgeLabel,
-                        style: const TextStyle(
-                            fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white)),
+                    child: Text(topBadgeLabel, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white)),
                   ),
                 Text(
                   station.priceText,
                   style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: (medal != null || blueEmphasize)
-                        ? AppColors.gasBlue
-                        : (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
+                    fontSize: 17, fontWeight: FontWeight.w700,
+                    color: (medal != null || blueEmphasize) ? AppColors.gasBlue : (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
                   ),
                 ),
               ],
@@ -262,9 +238,7 @@ class GasStationCard extends ConsumerWidget {
               onTap: () {
                 HapticFeedback.selectionClick();
                 ref.read(favoritesProvider.notifier).toggle(
-                  id: station.id,
-                  type: 'gas',
-                  name: station.name,
+                  id: station.id, type: 'gas', name: station.name,
                   subtitle: '${station.brandName} · ${station.address}',
                   extra: {'brand': station.brand},
                 );
@@ -274,9 +248,7 @@ class GasStationCard extends ConsumerWidget {
                 child: Icon(
                   isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                   size: 20,
-                  color: isFav
-                      ? AppColors.gasBlue
-                      : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                  color: isFav ? AppColors.gasBlue : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
                 ),
               ),
             ),
@@ -321,29 +293,30 @@ class RecommendMedal {
   final Color textColor; // 배지 글씨색 (앰버는 흰 글씨가 안 보여 진한 갈색)
   final Color cardTint; // 카드 옅은 배경 틴트
   final Color cardBorder; // 카드 테두리
-  const RecommendMedal(this.badgeGradient, this.textColor, this.cardTint, this.cardBorder);
+  const RecommendMedal(
+      this.badgeGradient, this.textColor, this.cardTint, this.cardBorder);
 
   // 메달 톤(흰 글씨 통일): 1등 골드 → 2등 슬레이트 → 3등 브론즈(동).
   static RecommendMedal of(int rank, bool isDark) {
     switch (rank) {
       case 1: // 골드(노란-금)
         return RecommendMedal(
-            const [Color(0xFFF2B33D), Color(0xFFDF9A0C)],
-            Colors.white,
-            isDark ? const Color(0x24E3A008) : const Color(0xFFFFF6E0),
-            isDark ? const Color(0x66E3A008) : const Color(0xFFE9C266));
+          const [Color(0xFFF2B33D), Color(0xFFDF9A0C)],
+          Colors.white,
+          isDark ? const Color(0x24E3A008) : const Color(0xFFFFF6E0),
+          isDark ? const Color(0x66E3A008) : const Color(0xFFE9C266));
       case 2: // 슬레이트(쿨 그레이)
         return RecommendMedal(
-            const [Color(0xFF7C8AA0), Color(0xFF5C6B7F)],
-            Colors.white,
-            isDark ? const Color(0x247C8AA0) : const Color(0xFFF1F4F8),
-            isDark ? AppColors.darkCardBorder : const Color(0xFFC2CCD8));
+          const [Color(0xFF7C8AA0), Color(0xFF5C6B7F)],
+          Colors.white,
+          isDark ? const Color(0x247C8AA0) : const Color(0xFFF1F4F8),
+          isDark ? AppColors.darkCardBorder : const Color(0xFFC2CCD8));
       default: // 브론즈(갈색-동)
         return RecommendMedal(
-            const [Color(0xFFC68A52), Color(0xFFA2632F)],
-            Colors.white,
-            isDark ? const Color(0x24B06A33) : const Color(0xFFF8EFE6),
-            isDark ? const Color(0x66B06A33) : const Color(0xFFDCBC99));
+          const [Color(0xFFC68A52), Color(0xFFA2632F)],
+          Colors.white,
+          isDark ? const Color(0x24B06A33) : const Color(0xFFF8EFE6),
+          isDark ? const Color(0x66B06A33) : const Color(0xFFDCBC99));
     }
   }
 }
@@ -409,6 +382,7 @@ class _RecommendBadge extends StatelessWidget {
   }
 }
 
+
 // ─── 유종 멀티선택 바텀시트 ───
 Future<void> showFuelTypeAlertSheet(
   BuildContext context, {
@@ -443,15 +417,15 @@ Future<void> showFuelTypeAlertSheet(
             color: isDark ? AppColors.darkBg : Colors.white,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           ),
-          padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(ctx).padding.bottom + 20),
+          padding: EdgeInsets.fromLTRB(
+              20, 16, 20, MediaQuery.of(ctx).padding.bottom + 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Center(
                 child: Container(
-                  width: 40,
-                  height: 4,
+                  width: 40, height: 4,
                   decoration: BoxDecoration(
                     color: AppColors.divider,
                     borderRadius: BorderRadius.circular(2),
@@ -459,12 +433,15 @@ Future<void> showFuelTypeAlertSheet(
                 ),
               ),
               const SizedBox(height: 16),
-              Text(stationName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              Text(stationName,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
               const SizedBox(height: 4),
               Text('알림 받을 유종을 선택하세요 (복수 선택 가능)',
                   style: TextStyle(
                       fontSize: 13,
-                      color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                      color: isDark
+                          ? AppColors.darkTextMuted
+                          : AppColors.lightTextMuted)),
               const SizedBox(height: 16),
               Wrap(
                 spacing: 10,
@@ -481,16 +458,21 @@ Future<void> showFuelTypeAlertSheet(
                     }),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 10),
                       decoration: BoxDecoration(
                         color: isOn
                             ? AppColors.gasBlue.withValues(alpha: 0.12)
-                            : (isDark ? const Color(0x0AFFFFFF) : const Color(0xFFF5F6F8)),
+                            : (isDark
+                                ? const Color(0x0AFFFFFF)
+                                : const Color(0xFFF5F6F8)),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: isOn
                               ? AppColors.gasBlue
-                              : (isDark ? AppColors.darkCardBorder : const Color(0xFFDEE1E6)),
+                              : (isDark
+                                  ? AppColors.darkCardBorder
+                                  : const Color(0xFFDEE1E6)),
                           width: isOn ? 1.5 : 0.8,
                         ),
                       ),
@@ -500,7 +482,9 @@ Future<void> showFuelTypeAlertSheet(
                             fontWeight: FontWeight.w600,
                             color: isOn
                                 ? AppColors.gasBlue
-                                : (isDark ? AppColors.darkTextSecondary : const Color(0xFF6C757D)),
+                                : (isDark
+                                    ? AppColors.darkTextSecondary
+                                    : const Color(0xFF6C757D)),
                           )),
                     ),
                   );
@@ -513,7 +497,7 @@ Future<void> showFuelTypeAlertSheet(
                 child: ElevatedButton(
                   onPressed: () async {
                     Navigator.pop(ctx);
-
+                    
                     if (selected.isEmpty) {
                       // 모든 유종 해제 → 주유소 전체 삭제
                       await AlertService().unsubscribe(stationId);
@@ -532,11 +516,13 @@ Future<void> showFuelTypeAlertSheet(
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.gasBlue,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
                     elevation: 0,
                   ),
-                  child:
-                      const Text('확인', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                  child: const Text('확인',
+                      style: TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w600)),
                 ),
               ),
             ],
@@ -560,25 +546,20 @@ void showAlertLimitDialog(BuildContext context) {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 64,
-              height: 64,
+              width: 64, height: 64,
               decoration: BoxDecoration(
                 color: AppColors.gasBlue.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
-              child:
-                  const Icon(Icons.notifications_off_rounded, size: 32, color: AppColors.gasBlue),
+              child: const Icon(Icons.notifications_off_rounded, size: 32, color: AppColors.gasBlue),
             ),
             const SizedBox(height: 16),
             const Text('알림 한도 초과', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
-            Text(
-                '가격 알림은 최대 ${AlertService.gasAlarmMaxCount}개 주유소까지\n설정할 수 있어요.\n설정 화면에서 기존 알림을 해제한 후\n다시 시도해주세요.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 14,
-                    height: 1.6,
-                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
+            Text('가격 알림은 최대 ${AlertService.gasAlarmMaxCount}개 주유소까지\n설정할 수 있어요.\n설정 화면에서 기존 알림을 해제한 후\n다시 시도해주세요.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, height: 1.6,
+                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
@@ -681,8 +662,7 @@ class EvOperatorLogo extends StatelessWidget {
 
     // 텍스트 타일 폴백 — 진한 단색 + 미세 그래디언트로 입체감, 작은 그림자.
     Widget tileFallback() => Container(
-          width: size,
-          height: size,
+          width: size, height: size,
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -723,8 +703,7 @@ class EvOperatorLogo extends StatelessWidget {
     // 진짜 로고가 있으면 흰 bg + 보더 카드로 노출, 없으면 컬러 타일.
     if (!_realLogoAvailable.contains(code)) return tileFallback();
     return Container(
-      width: size,
-      height: size,
+      width: size, height: size,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
@@ -794,16 +773,12 @@ class EvStationCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isFav =
-        ref.watch(favoritesProvider).any((f) => f['type'] == 'ev' && f['id'] == station.statId);
+    final isFav = ref.watch(favoritesProvider).any((f) => f['type'] == 'ev' && f['id'] == station.statId);
     final sortMode = ref.watch(evFilterProvider).sort; // 2=비회원가격순, 3=회원가격순
     final secondaryColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-    final priceMain = sortMode == 2
-        ? station.unitPriceFast ?? station.unitPriceSlow
-        : station.unitPriceFastMember ??
-            station.unitPriceSlowMember ??
-            station.unitPriceFast ??
-            station.unitPriceSlow;
+    final priceMain = sortMode == 2 ? station.unitPriceFast ?? station.unitPriceSlow
+        : station.unitPriceFastMember ?? station.unitPriceSlowMember
+            ?? station.unitPriceFast ?? station.unitPriceSlow;
     final priceMainLabel = sortMode == 2 ? '비회원' : '회원';
     final priceSub = sortMode == 2
         ? (station.unitPriceFastMember ?? station.unitPriceSlowMember)
@@ -821,11 +796,8 @@ class EvStationCard extends ConsumerWidget {
               : (isDark ? AppColors.darkCard : AppColors.lightCard),
           borderRadius: BorderRadius.circular(14),
           border: isTop
-              ? Border.all(
-                  color: isDark ? AppColors.darkEvActiveBorder : AppColors.lightEvActiveBorder,
-                  width: 0.5)
-              : Border.all(
-                  color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder, width: 0.5),
+              ? Border.all(color: isDark ? AppColors.darkEvActiveBorder : AppColors.lightEvActiveBorder, width: 0.5)
+              : Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder, width: 0.5),
         ),
         clipBehavior: Clip.antiAlias,
         child: IntrinsicHeight(
@@ -852,8 +824,8 @@ class EvStationCard extends ConsumerWidget {
                                 // 사용자가 직접 담은 거라 지우지 않고 배지로 알린다.
                                 if (station.closed) ...[
                                   Container(
-                                    padding:
-                                        const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 5, vertical: 1.5),
                                     decoration: BoxDecoration(
                                       color: isDark
                                           ? const Color(0x33F59E0B)
@@ -876,10 +848,8 @@ class EvStationCard extends ConsumerWidget {
                                     valueListenable: stationAliasVersion,
                                     builder: (_, __, ___) => Text(
                                       StationAliasService.resolveEv(station.statId, station.name),
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleSmall
-                                          ?.copyWith(fontWeight: FontWeight.w700, height: 1.2),
+                                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                          fontWeight: FontWeight.w700, height: 1.2),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -899,8 +869,7 @@ class EvStationCard extends ConsumerWidget {
                                 const SizedBox(width: 6),
                                 if (station.maxPowerText != null) ...[
                                   Container(
-                                    width: 3,
-                                    height: 3,
+                                    width: 3, height: 3,
                                     decoration: BoxDecoration(
                                       color: secondaryColor.withValues(alpha: 0.5),
                                       shape: BoxShape.circle,
@@ -928,8 +897,7 @@ class EvStationCard extends ConsumerWidget {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Container(
-                                    width: 5,
-                                    height: 5,
+                                    width: 5, height: 5,
                                     decoration: BoxDecoration(
                                       color: status.color,
                                       shape: BoxShape.circle,
@@ -1013,20 +981,16 @@ class EvStationCard extends ConsumerWidget {
                         onTap: () {
                           HapticFeedback.selectionClick();
                           ref.read(favoritesProvider.notifier).toggle(
-                                id: station.statId,
-                                type: 'ev',
-                                name: station.name,
-                                subtitle: '${station.operator} · ${station.address}',
-                              );
+                            id: station.statId, type: 'ev', name: station.name,
+                            subtitle: '${station.operator} · ${station.address}',
+                          );
                         },
                         child: Padding(
                           padding: const EdgeInsets.all(4),
                           child: Icon(
                             isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                             size: 20,
-                            color: isFav
-                                ? AppColors.evGreen
-                                : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                            color: isFav ? AppColors.evGreen : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
                           ),
                         ),
                       ),
@@ -1076,8 +1040,7 @@ class EvStatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(4)),
-      child:
-          Text(label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: textColor)),
+      child: Text(label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: textColor)),
     );
   }
 }
@@ -1089,8 +1052,7 @@ class FilterChip2 extends StatelessWidget {
   final bool isEv;
   final VoidCallback? onTap;
 
-  const FilterChip2(
-      {super.key, required this.label, this.isActive = false, this.isEv = false, this.onTap});
+  const FilterChip2({super.key, required this.label, this.isActive = false, this.isEv = false, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1102,22 +1064,20 @@ class FilterChip2 extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
-          color:
-              isActive ? activeColor : (isDark ? const Color(0x0DFFFFFF) : const Color(0xFFF1F5F9)),
+          color: isActive
+              ? activeColor
+              : (isDark ? const Color(0x0DFFFFFF) : const Color(0xFFF1F5F9)),
           borderRadius: BorderRadius.circular(16),
           border: isActive
               ? null
-              : Border.all(
-                  color: isDark ? AppColors.darkCardBorder : const Color(0xFFE2E8F0), width: 0.5),
+              : Border.all(color: isDark ? AppColors.darkCardBorder : const Color(0xFFE2E8F0), width: 0.5),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: isActive
-                ? Colors.white
-                : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+            color: isActive ? Colors.white : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
           ),
         ),
       ),
@@ -1131,8 +1091,7 @@ class GasSummaryCard extends StatelessWidget {
   final double priceDiff;
   final String fuelLabel;
 
-  const GasSummaryCard(
-      {super.key, required this.avgPrice, required this.priceDiff, this.fuelLabel = '휘발유'});
+  const GasSummaryCard({super.key, required this.avgPrice, required this.priceDiff, this.fuelLabel = '휘발유'});
 
   @override
   Widget build(BuildContext context) {
@@ -1144,8 +1103,7 @@ class GasSummaryCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient:
-            LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: colors),
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: colors),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -1155,24 +1113,13 @@ class GasSummaryCard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Flexible(
-                  child: Text('주변 평균 $fuelLabel',
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.3,
-                          color: isDark ? const Color(0xFF60A5FA) : AppColors.gasBlueDark))),
+              Text('주변 평균 $fuelLabel', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.3,
+                color: isDark ? const Color(0xFF60A5FA) : AppColors.gasBlueDark)),
               const SizedBox(height: 4),
-              RichText(
-                  text: TextSpan(children: [
-                TextSpan(
-                    text: formatThousandsInt(avgPrice),
-                    style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
-                TextSpan(
-                    text: '원/L', style: TextStyle(fontSize: 13, color: AppColors.darkTextMuted)),
+              RichText(text: TextSpan(children: [
+                TextSpan(text: formatThousandsInt(avgPrice),
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
+                TextSpan(text: '원/L', style: TextStyle(fontSize: 13, color: AppColors.darkTextMuted)),
               ])),
             ],
           ),
@@ -1182,10 +1129,8 @@ class GasSummaryCard extends StatelessWidget {
               Text(
                 // OPINET 일별 평균 변동이 소수점 단위(0.04원 등) → toStringAsFixed(2) 로 미세 변동도 노출
                 '${diffSafe >= 0 ? "▲" : "▼"} ${diffSafe.abs().toStringAsFixed(2)}원',
-                style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: diffSafe >= 0 ? AppColors.error : AppColors.success),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+                  color: diffSafe >= 0 ? AppColors.error : AppColors.success),
               ),
               // 오피넷 DIFF는 전일 대비 등락(원/L 단위)
               Text('전일 대비', style: TextStyle(fontSize: 10, color: AppColors.darkTextMuted)),
@@ -1214,8 +1159,7 @@ class EvSummaryCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient:
-            LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: colors),
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: colors),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -1225,35 +1169,21 @@ class EvSummaryCard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('주변 충전소',
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.3,
-                      color: isDark ? const Color(0xFF34D399) : AppColors.evGreenDark)),
+              Text('주변 충전소', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.3,
+                color: isDark ? const Color(0xFF34D399) : AppColors.evGreenDark)),
               const SizedBox(height: 4),
-              RichText(
-                  text: TextSpan(children: [
-                TextSpan(
-                    text: '$totalStations',
-                    style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
-                TextSpan(
-                    text: '개 · 이용가능 $availableStations개',
-                    style: TextStyle(fontSize: 13, color: AppColors.darkTextMuted)),
+              RichText(text: TextSpan(children: [
+                TextSpan(text: '$totalStations',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
+                TextSpan(text: '개 · 이용가능 $availableStations개', style: TextStyle(fontSize: 13, color: AppColors.darkTextMuted)),
               ])),
             ],
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text('$rate%',
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? AppColors.success : AppColors.evGreenDark)),
+              Text('$rate%', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+                color: isDark ? AppColors.success : AppColors.evGreenDark)),
               Text('가용률', style: TextStyle(fontSize: 10, color: AppColors.darkTextMuted)),
             ],
           ),
@@ -1281,8 +1211,7 @@ class _GasEvTabBarState extends State<GasEvTabBar> {
   @override
   void initState() {
     super.initState();
-    final saved = Hive.box(AppConstants.settingsBox)
-        .get(AppConstants.keyHomeTabOrder, defaultValue: 0) as int;
+    final saved = Hive.box(AppConstants.settingsBox).get(AppConstants.keyHomeTabOrder, defaultValue: 0) as int;
     if (saved == 1) _order = [1, 0];
   }
 
@@ -1362,8 +1291,9 @@ class _GasEvTabBarState extends State<GasEvTabBar> {
             ? activeColor
             : (isDark ? const Color(0x14FFFFFF) : const Color(0xFFE2E8F0));
 
-    final fgColor =
-        isActive ? Colors.white : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted);
+    final fgColor = isActive
+        ? Colors.white
+        : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted);
 
     return Transform.scale(
       scale: scale,
@@ -1375,12 +1305,7 @@ class _GasEvTabBarState extends State<GasEvTabBar> {
           borderRadius: BorderRadius.circular(12),
           border: highlight ? Border.all(color: activeColor, width: 1.5) : null,
           boxShadow: isActive
-              ? [
-                  BoxShadow(
-                      color: activeColor.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2))
-                ]
+              ? [BoxShadow(color: activeColor.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))]
               : null,
         ),
         alignment: Alignment.center,
@@ -1421,38 +1346,23 @@ class SkeletonCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkCard : AppColors.lightCard,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-            color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder, width: 0.5),
+        border: Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder, width: 0.5),
       ),
       child: Row(
         children: [
-          Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(color: baseColor, borderRadius: BorderRadius.circular(8))),
+          Container(width: 36, height: 36, decoration: BoxDecoration(color: baseColor, borderRadius: BorderRadius.circular(8))),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                    width: 100,
-                    height: 14,
-                    decoration:
-                        BoxDecoration(color: baseColor, borderRadius: BorderRadius.circular(4))),
+                Container(width: 100, height: 14, decoration: BoxDecoration(color: baseColor, borderRadius: BorderRadius.circular(4))),
                 const SizedBox(height: 6),
-                Container(
-                    width: 150,
-                    height: 10,
-                    decoration: BoxDecoration(
-                        color: highlightColor, borderRadius: BorderRadius.circular(4))),
+                Container(width: 150, height: 10, decoration: BoxDecoration(color: highlightColor, borderRadius: BorderRadius.circular(4))),
               ],
             ),
           ),
-          Container(
-              width: 60,
-              height: 20,
-              decoration: BoxDecoration(color: baseColor, borderRadius: BorderRadius.circular(4))),
+          Container(width: 60, height: 20, decoration: BoxDecoration(color: baseColor, borderRadius: BorderRadius.circular(4))),
         ],
       ),
     );
@@ -1481,30 +1391,30 @@ class _DrumTimePickerState extends State<_DrumTimePicker> {
 
   // 무한 스크롤용 버퍼 (12의 배수, 60의 배수로 중앙 설정)
   static const _kHourCount = 1200;
-  static const _kMinCount = 6000;
-  static const _kHourBase = 600; // 600 % 12 == 0
-  static const _kMinBase = 3000; // 3000 % 60 == 0
+  static const _kMinCount  = 6000;
+  static const _kHourBase  = 600; // 600 % 12 == 0
+  static const _kMinBase   = 3000; // 3000 % 60 == 0
 
   late FixedExtentScrollController _ampmCtrl;
   late FixedExtentScrollController _hourCtrl;
   late FixedExtentScrollController _minCtrl;
 
   int _hourIdx = 0;
-  int _minIdx = 0;
+  int _minIdx  = 0;
 
   @override
   void initState() {
     super.initState();
     final h = widget.initial.hour;
-    _isPm = h >= 12;
+    _isPm   = h >= 12;
     _hour12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
     _minute = widget.initial.minute;
 
     _ampmCtrl = FixedExtentScrollController(initialItem: _isPm ? 1 : 0);
-    _hourIdx = _kHourBase + (_hour12 - 1);
+    _hourIdx  = _kHourBase + (_hour12 - 1);
     _hourCtrl = FixedExtentScrollController(initialItem: _hourIdx);
-    _minIdx = _kMinBase + _minute;
-    _minCtrl = FixedExtentScrollController(initialItem: _minIdx);
+    _minIdx   = _kMinBase + _minute;
+    _minCtrl  = FixedExtentScrollController(initialItem: _minIdx);
   }
 
   @override
@@ -1525,15 +1435,15 @@ class _DrumTimePickerState extends State<_DrumTimePicker> {
     final oldCycles = _hourIdx ~/ 12;
     final newCycles = idx ~/ 12;
     final cycleDiff = newCycles - oldCycles;
-
+    
     final old12 = (_hourIdx % 12) + 1;
     final new12 = (idx % 12) + 1;
-
+    
     _hourIdx = idx;
 
     bool newIsPm = _isPm;
     if (cycleDiff % 2 != 0) newIsPm = !newIsPm;
-
+    
     // 같은 cycle 내에서 11→12 또는 12→11 전환 시 오전/오후 토글
     if (cycleDiff == 0) {
       if (old12 == 11 && new12 == 12) {
@@ -1545,9 +1455,9 @@ class _DrumTimePickerState extends State<_DrumTimePicker> {
 
     setState(() {
       _hour12 = new12;
-      _isPm = newIsPm;
+      _isPm   = newIsPm;
     });
-
+    
     final shouldUpdateAmpm = (newIsPm != _isPm) || (cycleDiff % 2 != 0);
     if (shouldUpdateAmpm) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1563,7 +1473,7 @@ class _DrumTimePickerState extends State<_DrumTimePicker> {
   void _onMinuteChanged(int idx) {
     final oldMinCycles = _minIdx ~/ 60;
     final newMinCycles = idx ~/ 60;
-    final hourDelta = newMinCycles - oldMinCycles;
+    final hourDelta    = newMinCycles - oldMinCycles;
     _minIdx = idx;
 
     if (hourDelta != 0) {
@@ -1573,7 +1483,7 @@ class _DrumTimePickerState extends State<_DrumTimePicker> {
 
       final oldHourCycles = oldHourIdx ~/ 12;
       final newHourCycles = newHourIdx ~/ 12;
-      final ampmFlips = newHourCycles - oldHourCycles;
+      final ampmFlips     = newHourCycles - oldHourCycles;
 
       bool newIsPm = _isPm;
       if (ampmFlips % 2 != 0) newIsPm = !newIsPm;
@@ -1581,7 +1491,7 @@ class _DrumTimePickerState extends State<_DrumTimePicker> {
       setState(() {
         _minute = idx % 60;
         _hour12 = (newHourIdx % 12) + 1;
-        _isPm = newIsPm;
+        _isPm   = newIsPm;
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_hourCtrl.hasClients) {
@@ -1610,10 +1520,10 @@ class _DrumTimePickerState extends State<_DrumTimePicker> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? const Color(0xFF1E1E2E) : Colors.white;
+    final isDark    = Theme.of(context).brightness == Brightness.dark;
+    final bgColor   = isDark ? const Color(0xFF1E1E2E) : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black87;
-    final mutedColor = isDark ? Colors.white38 : Colors.black26;
+    final mutedColor  = isDark ? Colors.white38 : Colors.black26;
     final accentColor = AppColors.gasBlue;
 
     Widget drumColumn({
@@ -1645,10 +1555,10 @@ class _DrumTimePickerState extends State<_DrumTimePicker> {
     }
 
     TextStyle itemStyle(bool selected) => TextStyle(
-          fontSize: selected ? 28 : 20,
-          fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-          color: selected ? accentColor : mutedColor,
-        );
+      fontSize: selected ? 28 : 20,
+      fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+      color: selected ? accentColor : mutedColor,
+    );
 
     return Dialog(
       backgroundColor: bgColor,

@@ -76,7 +76,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   // ─── 이 지역 목록 시트 ───
   // 상세/클러스터 시트(_sheetController)와 별개의 컨트롤러 — 두 시트가 동시에
   // 안 뜨므로 충돌 없음. 정렬 토글은 로컬 state.
-  final DraggableScrollableController _listSheetController = DraggableScrollableController();
+  final DraggableScrollableController _listSheetController =
+      DraggableScrollableController();
   // 목록 시트가 최소화보다 올라와 있나(뒤로가기로 종료 대신 접기 위해 추적).
   bool _listExpanded = false;
   // 정렬: true=가격순, false=거리순. 기본값은 vehicleType 따라 _resetListSort 에서 결정.
@@ -125,7 +126,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       current.removeWhere((h) => h['name'] == place['name']);
       current.insert(0, place);
       final trimmed = current.take(15).toList();
-      box.put(AppConstants.keySearchHistory, trimmed.map((m) => jsonEncode(m)).toList());
+      box.put(AppConstants.keySearchHistory,
+          trimmed.map((m) => jsonEncode(m)).toList());
       setState(() => _searchHistory = trimmed);
     } catch (_) {}
   }
@@ -135,7 +137,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       final box = Hive.box(AppConstants.settingsBox);
       final current = _loadHistory();
       current.removeWhere((h) => h['name'] == name);
-      box.put(AppConstants.keySearchHistory, current.map((m) => jsonEncode(m)).toList());
+      box.put(AppConstants.keySearchHistory,
+          current.map((m) => jsonEncode(m)).toList());
       setState(() => _searchHistory = current);
     } catch (_) {}
   }
@@ -190,7 +193,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _listSortInitialized = true;
     // 마지막 선택이 있으면 그걸 유지, 없으면 충전만=거리순 / 주유 포함=가격순.
     final saved = Hive.box(AppConstants.settingsBox).get(_kListSortKey);
-    _listSortByPrice = saved is bool ? saved : !(_showEv && !_showGas);
+    _listSortByPrice =
+        saved is bool ? saved : !(_showEv && !_showGas);
   }
 
   // 검색 핀 수명 — 지도 확대/이동엔 유지하고, 다른 스테이션 마커를 눌러
@@ -216,7 +220,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _pinnedMarkerId = null;
     final m = _markerRefs.remove(id);
     if (m != null) {
-      _mapController?.deleteOverlay(m.info).catchError((_) {/* 이미 제거된 마커 무시 */});
+      _mapController
+          ?.deleteOverlay(m.info)
+          .catchError((_) {/* 이미 제거된 마커 무시 */});
     }
   }
 
@@ -298,7 +304,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
     final ids = List<String>.from(_markerRefs.keys); // await 전 동기 캡처
     await Future.wait(ids.map((id) => controller
-        .deleteOverlay(NOverlayInfo(type: NOverlayType.clusterableMarker, id: id))
+        .deleteOverlay(
+            NOverlayInfo(type: NOverlayType.clusterableMarker, id: id))
         .catchError((_) {/* 이미 제거된 마커 무시 */})));
   }
 
@@ -361,11 +368,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       final overlay = _mapController?.getLocationOverlay();
       overlay?.setIsVisible(true);
       overlay?.setPosition(target);
-      if (mounted)
-        setState(() {
-          _isAtMyLocation = true;
-          _showSearchHere = false;
-        });
+      if (mounted) setState(() { _isAtMyLocation = true; _showSearchHere = false; });
       // 애니메이션 완료 후 플래그 해제 (애니메이션 중 onCameraChange 여러 번 발동)
       Future.delayed(const Duration(milliseconds: 800), () {
         _suppressCameraChange = false;
@@ -400,8 +403,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     // 수직 반경 (중심 → 북쪽 가장자리)
     final vertDist = earthR * ((ne.latitude - center.latitude) * math.pi / 180).abs();
     // 수평 반경 (중심 → 동쪽 가장자리)
-    final horizDist =
-        earthR * ((ne.longitude - center.longitude) * math.pi / 180).abs() * math.cos(latRad);
+    final horizDist = earthR * ((ne.longitude - center.longitude) * math.pi / 180).abs() * math.cos(latRad);
     final dist = math.min(vertDist, horizDist);
     return dist.clamp(200, maxRadius).toInt();
   }
@@ -414,14 +416,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final bounds = await controller.getContentBounds();
     // bounds 는 일부 환경에서 null 일 수 있어 (analyzer 가 non-null 추론해도
     // 런타임엔 발생) — null 이면 zoom 기반 fallback
-    final radius = bounds != null ? _boundsToRadius(bounds, pos.target) : _zoomToRadius(pos.zoom);
-    ref.read(mapCenterProvider.notifier).state =
-        (lat: pos.target.latitude, lng: pos.target.longitude);
+    final radius = bounds != null
+        ? _boundsToRadius(bounds, pos.target)
+        : _zoomToRadius(pos.zoom);
+    ref.read(mapCenterProvider.notifier).state = (lat: pos.target.latitude, lng: pos.target.longitude);
     ref.read(mapRadiusProvider.notifier).state = radius;
     if (_selectedStation != null) await _dismissSheet();
-    setState(() {
-      _showSearchHere = false;
-    });
+    setState(() { _showSearchHere = false; });
     // 검색 트리거 후 목록 시트를 중간 스냅까지 자동으로 올려 결과가 바로 보이게.
     // 시트는 _selectedStation==null 등 조건일 때만 트리에 mount → 컨트롤러 attach
     // 보장을 위해 다음 프레임에 isAttached 확인 후 animateTo.
@@ -446,11 +447,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   void _onSearchChanged(String query) {
     _searchDebounce?.cancel();
     if (query.trim().isEmpty) {
-      setState(() {
-        _searchResults = [];
-        _stationResults = [];
-        _gasResults = [];
-      });
+      setState(() { _searchResults = []; _stationResults = []; _gasResults = []; });
       return;
     }
     _searchDebounce = Timer(const Duration(milliseconds: 320), () => _performSearch(query));
@@ -459,11 +456,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   Future<void> _performSearch(String query) async {
     _searchDebounce?.cancel(); // onSubmitted(엔터) 즉시 실행 시 대기 중 디바운스 취소
     if (query.trim().isEmpty) {
-      setState(() {
-        _searchResults = [];
-        _stationResults = [];
-        _gasResults = [];
-      });
+      setState(() { _searchResults = []; _stationResults = []; _gasResults = []; });
       return;
     }
     setState(() => _isSearchLoading = true);
@@ -476,17 +469,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       // 켜지 않은 종류를 검색 결과에만 띄우면 지도와 앞뒤가 안 맞는다.
       final want = <Future<List<Map<String, dynamic>>>>[
         _showEv
-            ? ApiService()
-                .searchStations(query.trim(), kind: 'ev', lat: lat, lng: lng)
+            ? ApiService().searchStations(query.trim(),
+                kind: 'ev', lat: lat, lng: lng)
                 .catchError((_) => <Map<String, dynamic>>[])
             : Future.value(<Map<String, dynamic>>[]),
         _showGas
-            ? ApiService()
-                .searchStations(query.trim(), kind: 'gas', lat: lat, lng: lng)
+            ? ApiService().searchStations(query.trim(),
+                kind: 'gas', lat: lat, lng: lng)
                 .catchError((_) => <Map<String, dynamic>>[])
             : Future.value(<Map<String, dynamic>>[]),
-        ApiService()
-            .searchPlaces(query.trim(), lat: lat, lng: lng)
+        ApiService().searchPlaces(query.trim(), lat: lat, lng: lng)
             .catchError((_) => <Map<String, dynamic>>[]),
       ];
       final res = await Future.wait(want);
@@ -576,8 +568,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   ///  · '주유소/충전소' 접미사는 지우지 않고 전체 이름으로 비교
   ///  · 쿼리에 주유소/충전소가 명시돼 있으면 해당 유형만 후보로
   Future<dynamic> _findStationMatching(String name, double lat, double lng) async {
-    String norm(String s) =>
-        s.replaceAll(RegExp(r'\(주\)|㈜|주식회사'), '').replaceAll(RegExp(r'\s+'), '').toLowerCase();
+    String norm(String s) => s
+        .replaceAll(RegExp(r'\(주\)|㈜|주식회사'), '')
+        .replaceAll(RegExp(r'\s+'), '')
+        .toLowerCase();
     final q = norm(name);
     if (q.length < 3) return null;
     final wantsGas = name.contains('주유소');
@@ -615,7 +609,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         //  · 쿼리에 주유소/충전소가 명시돼 있으면 포함 관계 허용 ("매창주유소" → 매창주유소)
         //  · 아니면 정규화 이름이 완전히 같을 때만 (아파트명("동천자이아파트")이
         //    그 이름을 딴 충전소("동천자이 B2F…")에 붙어 상세가 뜨던 문제 차단 — 핀만)
-        final hit = n == q || ((wantsGas || wantsEv) && (n.contains(q) || q.contains(n)));
+        final hit =
+            n == q || ((wantsGas || wantsEv) && (n.contains(q) || q.contains(n)));
         if (!hit) return;
         final d = distM(lat, lng, sLat, sLng);
         if (d < bestDist) {
@@ -663,18 +658,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     // 카카오/네이버 지명 라벨 톤 — 볼드가 아니라 미디엄~세미볼드의 담백한 굵기.
     const nameStyle = TextStyle(
       fontFamily: 'Pretendard',
-      fontSize: 13.5,
-      fontWeight: FontWeight.w600,
-      color: Color(0xFF26282C),
-      height: 1.2,
-      letterSpacing: -0.1,
+      fontSize: 13.5, fontWeight: FontWeight.w600,
+      color: Color(0xFF26282C), height: 1.2, letterSpacing: -0.1,
     );
     double pillW = 0, pillH = 0;
     if (hasName) {
       final tp = TextPainter(
         text: TextSpan(text: name, style: nameStyle),
-        maxLines: 1,
-        textDirection: TextDirection.ltr,
+        maxLines: 1, textDirection: TextDirection.ltr,
       )..layout();
       // halo(흰 스트로크 3.5) 번짐 여유 좌우 5씩 + 반올림 여유.
       pillW = (tp.width + 12).clamp(20, 260).toDouble();
@@ -686,11 +677,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
     final icon = await NOverlayImage.fromWidget(
       widget: _SearchPin(
-        name: name,
-        nameStyle: nameStyle,
-        pillWidth: pillW,
-        canvasWidth: canvasW,
-        canvasHeight: canvasH,
+        name: name, nameStyle: nameStyle, pillWidth: pillW,
+        canvasWidth: canvasW, canvasHeight: canvasH,
       ),
       size: Size(canvasW, canvasH),
       context: context,
@@ -737,43 +725,27 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                    color: AppColors.divider, borderRadius: BorderRadius.circular(2))),
+            Container(width: 36, height: 4, decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 16),
             Text('필터 선택', style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 16),
             ListTile(
               leading: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                    color: AppColors.gasBlue.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8)),
+                width: 36, height: 36,
+                decoration: BoxDecoration(color: AppColors.gasBlue.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
                 child: Icon(Icons.local_gas_station_rounded, color: AppColors.gasBlue, size: 20),
               ),
               title: const Text('주유소 필터'),
-              onTap: () {
-                Navigator.pop(context);
-                GasFilterSheet.show(context);
-              },
+              onTap: () { Navigator.pop(context); GasFilterSheet.show(context); },
             ),
             ListTile(
               leading: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                    color: AppColors.evGreen.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8)),
+                width: 36, height: 36,
+                decoration: BoxDecoration(color: AppColors.evGreen.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
                 child: Icon(Icons.ev_station_rounded, color: AppColors.evGreen, size: 20),
               ),
               title: const Text('충전소 필터'),
-              onTap: () {
-                Navigator.pop(context);
-                EvFilterSheet.show(context);
-              },
+              onTap: () { Navigator.pop(context); EvFilterSheet.show(context); },
             ),
           ],
         ),
@@ -810,7 +782,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   DateTime? _lastGestureAt;
   bool get _gestureActive =>
       _lastGestureAt != null &&
-      DateTime.now().difference(_lastGestureAt!) < const Duration(milliseconds: 220);
+      DateTime.now().difference(_lastGestureAt!) <
+          const Duration(milliseconds: 220);
 
   /// 마커 탭을 잠깐 유예 후 실행 — 탭 직후 핀치로 이어졌으면(제스처 카메라 변화 감지) 무시.
   Future<bool> _tapGuard() async {
@@ -855,13 +828,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final vehicleType = ref.watch(settingsProvider).vehicleType;
 
     ref.listen(mapGasStationsProvider, (prev, next) {
-      if (next is AsyncLoading && prev is AsyncData)
-        _clearMarkers();
+      if (next is AsyncLoading && prev is AsyncData) _clearMarkers();
       else if (next is AsyncData) _scheduleUpdateMarkers();
     });
     ref.listen(mapEvStationsProvider, (prev, next) {
-      if (next is AsyncLoading && prev is AsyncData)
-        _clearMarkers();
+      if (next is AsyncLoading && prev is AsyncData) _clearMarkers();
       else if (next is AsyncData) _scheduleUpdateMarkers();
     });
     // 실시간 위치 스트림 → 파란 점 업데이트
@@ -876,14 +847,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       if (prev?.vehicleType != next.vehicleType) {
         setState(() {
           if (next.vehicleType == VehicleType.gas) {
-            _showGas = true;
-            _showEv = false;
+            _showGas = true; _showEv = false;
           } else if (next.vehicleType == VehicleType.ev) {
-            _showGas = false;
-            _showEv = true;
+            _showGas = false; _showEv = true;
           } else {
-            _showGas = true;
-            _showEv = true;
+            _showGas = true; _showEv = true;
           }
         });
         _updateMarkers();
@@ -896,48 +864,48 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (_sdkReady && (_cachedMap == null || _cachedMapIsDark != isDark)) {
       _cachedMapIsDark = isDark;
       _cachedMap = NaverMap(
-        options: NaverMapViewOptions(
-          initialCameraPosition: const NCameraPosition(
-            target: NLatLng(37.5665, 126.9780),
-            zoom: 14,
-          ),
-          nightModeEnable: isDark,
-          locationButtonEnable: false,
-          consumeSymbolTapEvents: false,
-          // 평면 지도라 틸트·회전 불필요. 핀치줌 시 손가락이 살짝 비틀려 회전/틸트가
-          // 먹히면 화면이 '팅기는' 느낌이 남 → 둘 다 꺼서 줌/팬만 안정적으로.
-          tiltGesturesEnable: false,
-          rotationGesturesEnable: false,
+      options: NaverMapViewOptions(
+        initialCameraPosition: const NCameraPosition(
+          target: NLatLng(37.5665, 126.9780),
+          zoom: 14,
         ),
-        // forceHybridComposition 제거 → 기본 TLHC(텍스처) 합성 경로 사용.
-        // 과거 Flutter 3.24.3 의 엔진 회귀(translateMotionEvent, flutter#157463)로
-        // TLHC 에서 멀티터치(핀치줌)가 깨져 전체 HC 를 강제했었으나, 현재 Flutter 3.38.5
-        // 에선 해당 회귀가 해소됨. 강제 HC 는 팬/줌마다 텍스처를 통째 복사해 버벅임의
-        // 주원인이라 제거 — 핀치줌이 정상이면 그대로 두고, 깨지면 forceHybridComposition:
-        // true 로 되돌릴 것.
-        // 줌 기반 클러스터링 — 줌아웃 시 가까운 마커를 지역별 원(개수)으로 병합,
-        // 확대하면 개별 마커로 분리. 렌더 마커 수가 급감해 팬/줌이 부드러워짐.
-        clusterOptions: NaverMapClusteringOptions(
-          // 줌 ≤N(기본 11)에선 클러스터로 묶고, 그 위(동네·거리)에선 개별 마커.
-          // N(상한)은 원격설정(map.cluster.zoom_max)으로 빌드 없이 조정 — startup 에 받아둔 값.
-          enableZoomRange: NInclusiveRange(0, MapRuntimeConfig.clusterZoomMax),
-          // 화면상 거리 기준 병합.
-          mergeStrategy: const NClusterMergeStrategy(
-            willMergedScreenDistance: {
-              NInclusiveRange(0, 8): 100, // 광역 — 크게 묶음
-              NInclusiveRange(9, 11): 70, // 시군구 — 적당히
-            },
-            // 반드시 per-zoom 병합거리 최댓값(100) 이상이어야 함. 이 값보다 큰
-            // per-zoom threshold 는 iOS SDK 에서 무효 처리돼 해당 줌대역 클러스터가
-            // 생성되지 않음(안드로이드는 관대). 85→100 으로 정합성 확보.
-            maxMergeableScreenDistance: 100,
-          ),
-          clusterMarkerBuilder: _buildClusterMarker,
+        nightModeEnable: isDark,
+        locationButtonEnable: false,
+        consumeSymbolTapEvents: false,
+        // 평면 지도라 틸트·회전 불필요. 핀치줌 시 손가락이 살짝 비틀려 회전/틸트가
+        // 먹히면 화면이 '팅기는' 느낌이 남 → 둘 다 꺼서 줌/팬만 안정적으로.
+        tiltGesturesEnable: false,
+        rotationGesturesEnable: false,
+      ),
+      // forceHybridComposition 제거 → 기본 TLHC(텍스처) 합성 경로 사용.
+      // 과거 Flutter 3.24.3 의 엔진 회귀(translateMotionEvent, flutter#157463)로
+      // TLHC 에서 멀티터치(핀치줌)가 깨져 전체 HC 를 강제했었으나, 현재 Flutter 3.38.5
+      // 에선 해당 회귀가 해소됨. 강제 HC 는 팬/줌마다 텍스처를 통째 복사해 버벅임의
+      // 주원인이라 제거 — 핀치줌이 정상이면 그대로 두고, 깨지면 forceHybridComposition:
+      // true 로 되돌릴 것.
+      // 줌 기반 클러스터링 — 줌아웃 시 가까운 마커를 지역별 원(개수)으로 병합,
+      // 확대하면 개별 마커로 분리. 렌더 마커 수가 급감해 팬/줌이 부드러워짐.
+      clusterOptions: NaverMapClusteringOptions(
+        // 줌 ≤N(기본 11)에선 클러스터로 묶고, 그 위(동네·거리)에선 개별 마커.
+        // N(상한)은 원격설정(map.cluster.zoom_max)으로 빌드 없이 조정 — startup 에 받아둔 값.
+        enableZoomRange: NInclusiveRange(0, MapRuntimeConfig.clusterZoomMax),
+        // 화면상 거리 기준 병합.
+        mergeStrategy: const NClusterMergeStrategy(
+          willMergedScreenDistance: {
+            NInclusiveRange(0, 8): 100,   // 광역 — 크게 묶음
+            NInclusiveRange(9, 11): 70,   // 시군구 — 적당히
+          },
+          // 반드시 per-zoom 병합거리 최댓값(100) 이상이어야 함. 이 값보다 큰
+          // per-zoom threshold 는 iOS SDK 에서 무효 처리돼 해당 줌대역 클러스터가
+          // 생성되지 않음(안드로이드는 관대). 85→100 으로 정합성 확보.
+          maxMergeableScreenDistance: 100,
         ),
-        onMapReady: _onMapReady,
-        onCameraChange: _onCameraChange,
-        onMapTapped: _onMapTapped,
-      );
+        clusterMarkerBuilder: _buildClusterMarker,
+      ),
+      onMapReady: _onMapReady,
+      onCameraChange: _onCameraChange,
+      onMapTapped: _onMapTapped,
+    );
     }
 
     return Scaffold(
@@ -961,8 +929,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           // ─── 상단 오버레이 ───
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
-            left: 12,
-            right: 12,
+            left: 12, right: 12,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -975,7 +942,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 // 유종 토글 — 주유 모드일 때 선택 유종 + 평균가 칩. 탭하면 마커/추천 전환.
                 if (_showGas) _buildFuelToggle(isDark),
                 // 검색 결과
-                if (_isSearchMode) _buildSearchResults(isDark),
+                if (_isSearchMode)
+                  _buildSearchResults(isDark),
                 // 이 지역 검색 버튼
                 if (_showSearchHere && !_isSearchMode)
                   Padding(
@@ -1000,39 +968,26 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               onTap: _moveToMyLocation,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                width: 44,
-                height: 44,
+                width: 44, height: 44,
                 decoration: BoxDecoration(
                   color: (_isLocating || _isAtMyLocation)
                       ? AppColors.evGreen
                       : (isDark ? AppColors.darkBg : Colors.white),
                   shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.15),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2))
-                  ],
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 2))],
                 ),
                 child: _isLocating
                     ? const SizedBox(
-                        width: 20,
-                        height: 20,
+                        width: 20, height: 20,
                         child: Center(
-                          child: SizedBox(
-                              width: 18,
-                              height: 18,
-                              child:
-                                  CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+                          child: SizedBox(width: 18, height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
                         ),
                       )
-                    : Icon(Icons.my_location_rounded,
-                        size: 22,
+                    : Icon(Icons.my_location_rounded, size: 22,
                         color: (_isAtMyLocation)
                             ? Colors.white
-                            : (isDark
-                                ? AppColors.darkTextSecondary
-                                : AppColors.lightTextSecondary)),
+                            : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
               ),
             ),
           ),
@@ -1040,7 +995,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           // ─── 이 지역 목록 시트 ───
           // 상세 시트/클러스터 시트가 떠 있지 않을 때만 — 겹침 방지.
           // 검색 모드 중엔 상단 결과 패널에 집중하도록 숨김.
-          if (_selectedStation == null && _selectedCluster == null && !_isSearchMode)
+          if (_selectedStation == null &&
+              _selectedCluster == null &&
+              !_isSearchMode)
             // 시트가 올라와 있으면 뒤로가기로 종료 대신 최소화로 접음.
             PopScope(
               canPop: !_listExpanded,
@@ -1083,18 +1040,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         decoration: BoxDecoration(
           color: isDark ? AppColors.darkBg : Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
-                blurRadius: 8,
-                offset: const Offset(0, 2))
-          ],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 8, offset: const Offset(0, 2))],
         ),
         child: Row(
           children: [
             const SizedBox(width: 12),
-            Icon(Icons.search_rounded,
-                size: 20, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+            Icon(Icons.search_rounded, size: 20,
+                color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
             const SizedBox(width: 8),
             Expanded(
               child: _isSearchMode
@@ -1104,19 +1056,18 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       decoration: InputDecoration(
                         hintText: '장소, 주소 검색',
                         border: InputBorder.none,
-                        hintStyle: TextStyle(
-                            fontSize: 14,
+                        hintStyle: TextStyle(fontSize: 14,
                             color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
                         isDense: true,
                         contentPadding: EdgeInsets.zero,
                       ),
-                      style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
+                      style: TextStyle(fontSize: 14,
+                          color: isDark ? Colors.white : Colors.black87),
                       onChanged: _onSearchChanged,
                       onSubmitted: _performSearch,
                     )
                   : Text('장소, 주소 검색',
-                      style: TextStyle(
-                          fontSize: 14,
+                      style: TextStyle(fontSize: 14,
                           color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
             ),
             GestureDetector(
@@ -1132,8 +1083,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: _isSearchMode
-                    ? Icon(Icons.close_rounded,
-                        size: 18,
+                    ? Icon(Icons.close_rounded, size: 18,
                         color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)
                     : const SizedBox(width: 0),
               ),
@@ -1156,26 +1106,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             decoration: BoxDecoration(
               color: isDark ? AppColors.darkBg : Colors.white,
               borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.10),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2))
-              ],
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.10), blurRadius: 6, offset: const Offset(0, 2))],
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.tune_rounded,
-                    size: 15,
+                Icon(Icons.tune_rounded, size: 15,
                     color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
                 const SizedBox(width: 4),
-                Text('필터',
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color:
-                            isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
+                Text('필터', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
               ],
             ),
           ),
@@ -1183,20 +1123,20 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         const SizedBox(width: 8),
         // 주유 탭
         if (vehicleType != VehicleType.ev) ...[
-          _buildTabChip(Icons.local_gas_station_rounded, '주유', _showGas, AppColors.gasBlue, isDark,
-              () => _setShowGas(!_showGas)),
+          _buildTabChip(Icons.local_gas_station_rounded, '주유', _showGas,
+              AppColors.gasBlue, isDark, () => _setShowGas(!_showGas)),
           if (vehicleType == VehicleType.both) const SizedBox(width: 6),
         ],
         // 충전 탭
         if (vehicleType != VehicleType.gas)
-          _buildTabChip(Icons.electric_bolt_rounded, '충전', _showEv, AppColors.evGreen, isDark,
-              () => _setShowEv(!_showEv)),
+          _buildTabChip(Icons.electric_bolt_rounded, '충전', _showEv,
+              AppColors.evGreen, isDark, () => _setShowEv(!_showEv)),
       ],
     );
   }
 
-  Widget _buildTabChip(
-      IconData icon, String label, bool active, Color color, bool isDark, VoidCallback onTap) {
+  Widget _buildTabChip(IconData icon, String label, bool active, Color color,
+      bool isDark, VoidCallback onTap) {
     final fg = active
         ? Colors.white
         : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary);
@@ -1208,30 +1148,20 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         decoration: BoxDecoration(
           color: active ? color : (isDark ? AppColors.darkBg : Colors.white),
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-                color:
-                    active ? color.withValues(alpha: 0.32) : Colors.black.withValues(alpha: 0.10),
-                blurRadius: active ? 8 : 6,
-                offset: const Offset(0, 2))
-          ],
-          border: active
-              ? null
-              : Border.all(
-                  color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder, width: 0.8),
+          boxShadow: [BoxShadow(
+              color: active ? color.withValues(alpha: 0.32) : Colors.black.withValues(alpha: 0.10),
+              blurRadius: active ? 8 : 6, offset: const Offset(0, 2))],
+          border: active ? null : Border.all(
+              color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder, width: 0.8),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, size: 16, color: fg),
             const SizedBox(width: 5),
-            Text(label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: fg,
-                  letterSpacing: 0.2,
-                )),
+            Text(label, style: TextStyle(
+              fontSize: 13, fontWeight: FontWeight.w700, color: fg, letterSpacing: 0.2,
+            )),
           ],
         ),
       ),
@@ -1255,13 +1185,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           final code = fuels[i];
           final isActive = code == active;
           return GestureDetector(
-            onTap: () => ref.read(activeGasFuelTypeProvider.notifier).state = code,
+            onTap: () =>
+                ref.read(activeGasFuelTypeProvider.notifier).state = code,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
               padding: const EdgeInsets.symmetric(horizontal: 13),
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: isActive ? AppColors.gasBlue : (isDark ? AppColors.darkBg : Colors.white),
+                color: isActive
+                    ? AppColors.gasBlue
+                    : (isDark ? AppColors.darkBg : Colors.white),
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
@@ -1274,7 +1207,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 border: isActive
                     ? null
                     : Border.all(
-                        color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
+                        color: isDark
+                            ? AppColors.darkCardBorder
+                            : AppColors.lightCardBorder,
                         width: 0.8),
               ),
               child: Text(
@@ -1284,7 +1219,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     fontWeight: FontWeight.w700,
                     color: isActive
                         ? Colors.white
-                        : (isDark ? AppColors.darkTextSecondary : const Color(0xFF334155))),
+                        : (isDark
+                            ? AppColors.darkTextSecondary
+                            : const Color(0xFF334155))),
               ),
             ),
           );
@@ -1300,18 +1237,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkBg : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
-              blurRadius: 8,
-              offset: const Offset(0, 2))
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       // 결과가 길어지면 잘려서 아예 못 보던 문제 — 화면 높이에 맞춰 상한을 두고
       // 안쪽을 스크롤시킨다. 상한은 검색창·탭줄·하단탭을 빼고 남는 만큼.
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxHeight: (MediaQuery.of(context).size.height * 0.58).clamp(240.0, 560.0),
+          maxHeight: (MediaQuery.of(context).size.height * 0.58)
+              .clamp(240.0, 560.0),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1319,8 +1252,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           children: [
             // 집/회사 바로가기 (네이버식) — 등록=컬러+즉시 이동, 미등록=회색+탭하면 등록
             _buildPlaceShortcutRow(isDark),
-            Divider(
-                height: 1, color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
+            Divider(height: 1, color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
             // Flexible + 스크롤 — 안쪽 ListView 들은 shrinkWrap 이라 스스로 스크롤하지 않는다.
             Flexible(
               child: SingleChildScrollView(
@@ -1372,7 +1304,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         await PlaceService.set(kind, picked);
         if (!mounted) return;
         setState(() {});
-        _moveToPlace({...picked, 'name': label}, saveHistory: false, matchStation: false);
+        _moveToPlace({...picked, 'name': label},
+            saveHistory: false, matchStation: false);
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -1403,294 +1336,255 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   Widget _buildSearchBody(bool isDark) {
     return _isSearchLoading
-        ? const Padding(
-            padding: EdgeInsets.all(20),
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-          )
-        // 검색어 없음 → 최근 검색 기록
-        : _searchController.text.trim().isEmpty
-            ? _searchHistory.isEmpty
-                ? SizedBox(
-                    width: double.infinity,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Text('장소명, 주소를 입력하세요',
-                          style: TextStyle(
-                              fontSize: 13,
-                              color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
-                    ),
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
+          ? const Padding(
+              padding: EdgeInsets.all(20),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          // 검색어 없음 → 최근 검색 기록
+          : _searchController.text.trim().isEmpty
+              ? _searchHistory.isEmpty
+                  ? SizedBox(
+                      width: double.infinity,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text('장소명, 주소를 입력하세요',
+                            style: TextStyle(fontSize: 13,
+                                color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                      ),
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
+                          child: Row(
+                            children: [
+                              Text('최근 검색',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
+                                      color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                              const Spacer(),
+                              GestureDetector(
+                                onTap: () {
+                                  Hive.box(AppConstants.settingsBox).delete(AppConstants.keySearchHistory);
+                                  setState(() => _searchHistory = []);
+                                },
+                                child: Text('전체 삭제',
+                                    style: TextStyle(fontSize: 11,
+                                        color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          padding: EdgeInsets.zero, // 세이프에어리어 자동 삽입 방지
+                          itemCount: _searchHistory.length,
+                          separatorBuilder: (_, __) => Divider(
+                              height: 1,
+                              color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
+                          itemBuilder: (_, i) {
+                            final h = _searchHistory[i];
+                            final isEv = h['type'] == 'ev' &&
+                                (h['statId'] ?? '').toString().isNotEmpty;
+                            final isGas = h['type'] == 'gas' &&
+                                (h['uniId'] ?? '').toString().isNotEmpty;
+                            return GestureDetector(
+                              onTap: () => isEv
+                                  ? _openStationFromSearch(h)
+                                  : isGas
+                                      ? _openGasFromSearch(h)
+                                      : _moveToPlace(h),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                                child: Row(
+                                  children: [
+                                    // 충전소 기록은 번개로 구분 — 눌렀을 때 동작이 다르다
+                                    // (지도 이동이 아니라 상세 진입).
+                                    Icon(
+                                        isEv
+                                            ? Icons.bolt_rounded
+                                            : isGas
+                                                ? Icons.local_gas_station_rounded
+                                                : Icons.history_rounded,
+                                        size: 15,
+                                        color: isEv
+                                            ? AppColors.evGreen
+                                            : isGas
+                                                ? const Color(0xFF2F7DF6)
+                                                : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(h['name'] ?? '',
+                                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500,
+                                                  color: isDark ? Colors.white : Colors.black87),
+                                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                                          if ((h['address'] ?? '').isNotEmpty)
+                                            Text(h['address'],
+                                                style: TextStyle(fontSize: 11,
+                                                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                                        ],
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: () => _removeFromHistory(h['name']?.toString() ?? ''),
+                                      child: Icon(Icons.close_rounded, size: 14,
+                                          color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    )
+          : (_searchResults.isEmpty && _stationResults.isEmpty && _gasResults.isEmpty)
+              ? SizedBox(
+                  width: double.infinity,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text('검색 결과가 없습니다',
+                        style: TextStyle(fontSize: 13,
+                            color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                  ),
+                )
+              : Builder(builder: (context) {
+                // 지도에서 둘 다 켜져 있으면 섹션이 3개(충전/주유/장소)가 된다.
+                // 그때 각 섹션을 다 펼치면 스크롤만 길어지고 아무것도 눈에 안 들어온다
+                // → 켜진 종류 수에 따라 섹션당 노출 개수를 줄이고, 나머지는 '더보기'로.
+                final bothKinds = _stationResults.isNotEmpty && _gasResults.isNotEmpty;
+                final placeMax = bothKinds ? 4 : 6;
+                // 주유소는 전국 11,897개로 충전소(102,920)의 1/9 수준이라 검색 결과도
+                // 적게 나온다. 둘 다일 때 충전소만 조여서 위쪽 자리를 내준다.
+                final gasMax = bothKinds ? 4 : 5;
+                final evMax = bothKinds ? 3 : 5;
+                final ev = _stationResults.take(_evExpanded ? 20 : evMax).toList();
+                final gas = _gasResults.take(_gasExpanded ? 20 : gasMax).toList();
+                final places =
+                    _searchResults.take(_placeExpanded ? 20 : placeMax).toList();
+                return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── 주유소 먼저. 충전소보다 결과가 훨씬 적어서(전국 11,897 vs 102,920)
+                  //    아래에 두면 충전소에 밀려 안 보인다. 장소는 지도 이동일 뿐이라 맨 아래.
+                  if (gas.isNotEmpty) ...[
+                    _searchSectionHeader('주유소', _gasResults.length, isDark,
+                        icon: Icons.local_gas_station_rounded,
+                        accent: const Color(0xFF2F7DF6)),
+                    ...gas.map((e) => _gasResultTile(e, isDark)),
+                    if (_gasResults.length > gas.length)
+                      _moreButton('주유소 ${_gasResults.length - gas.length}곳 더보기',
+                          isDark, const Color(0xFF2F7DF6),
+                          () => setState(() => _gasExpanded = true)),
+                  ],
+                  if (gas.isNotEmpty && ev.isNotEmpty)
+                    Divider(height: 1,
+                        color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
+                  // ── 충전소 — 탭하면 상세로 바로
+                  if (ev.isNotEmpty) ...[
+                    _searchSectionHeader('충전소', _stationResults.length, isDark,
+                        icon: Icons.bolt_rounded, accent: AppColors.evGreen),
+                    ...ev.map((e) => _stationResultTile(e, isDark)),
+                    if (_stationResults.length > ev.length)
+                      _moreButton('충전소 ${_stationResults.length - ev.length}곳 더보기',
+                          isDark, AppColors.evGreen,
+                          () => setState(() => _evExpanded = true)),
+                  ],
+                  if ((ev.isNotEmpty || gas.isNotEmpty) && places.isNotEmpty)
+                    Divider(height: 1,
+                        color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
+                  if (places.isNotEmpty)
+                    _searchSectionHeader('장소', _searchResults.length, isDark,
+                        icon: Icons.place_rounded,
+                        accent: isDark ? AppColors.darkTextMuted : const Color(0xFF8A94A6)),
+                  if (places.isNotEmpty) ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  // padding 을 안 주면 ListView 가 MediaQuery 세로 세이프에어리어를
+                  // 자동으로 넣는다(BoxScrollView.build). 노치 아이폰에서 헤더와 첫 항목
+                  // 사이에 47pt 공백이 생겼다 — Column 안으로 들어오면서 드러난 문제.
+                  padding: EdgeInsets.zero,
+                  itemCount: places.length,
+                  separatorBuilder: (_, __) => Divider(
+                      height: 1,
+                      color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
+                  itemBuilder: (_, i) {
+                    final place = places[i];
+                    final category = place['category']?.toString();
+                    final dist = place['distance'];
+                    final distStr = dist != null
+                        ? formatDistance((dist as num).toDouble())
+                        : null;
+                    return GestureDetector(
+                      onTap: () => _moveToPlace(place),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Text('최근 검색',
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark
-                                        ? AppColors.darkTextMuted
-                                        : AppColors.lightTextMuted)),
-                            const Spacer(),
-                            GestureDetector(
-                              onTap: () {
-                                Hive.box(AppConstants.settingsBox)
-                                    .delete(AppConstants.keySearchHistory);
-                                setState(() => _searchHistory = []);
-                              },
-                              child: Text('전체 삭제',
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      color: isDark
-                                          ? AppColors.darkTextMuted
-                                          : AppColors.lightTextMuted)),
+                            Icon(Icons.location_on_rounded, size: 16,
+                                color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(place['name'] ?? '',
+                                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500,
+                                                color: isDark ? Colors.white : Colors.black87),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis),
+                                      ),
+                                      if (category != null && category.isNotEmpty) ...[
+                                        const SizedBox(width: 6),
+                                        Flexible(
+                                          child: Text(category,
+                                              style: TextStyle(fontSize: 11,
+                                                  color: isDark ? AppColors.darkTextMuted : const Color(0xFF888888)),
+                                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                                        ),
+                                      ],
+                                      if (distStr != null) ...[
+                                        const SizedBox(width: 6),
+                                        Text(distStr,
+                                            style: const TextStyle(fontSize: 11, color: Color(0xFF1D6FE0)),
+                                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                                      ],
+                                    ],
+                                  ),
+                                  if ((place['address'] ?? '').isNotEmpty)
+                                    Text(place['address'],
+                                        style: TextStyle(fontSize: 11,
+                                            color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis),
+                                ],
+                              ),
                             ),
                           ],
                         ),
                       ),
-                      ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        padding: EdgeInsets.zero, // 세이프에어리어 자동 삽입 방지
-                        itemCount: _searchHistory.length,
-                        separatorBuilder: (_, __) => Divider(
-                            height: 1,
-                            color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
-                        itemBuilder: (_, i) {
-                          final h = _searchHistory[i];
-                          final isEv =
-                              h['type'] == 'ev' && (h['statId'] ?? '').toString().isNotEmpty;
-                          final isGas =
-                              h['type'] == 'gas' && (h['uniId'] ?? '').toString().isNotEmpty;
-                          return GestureDetector(
-                            onTap: () => isEv
-                                ? _openStationFromSearch(h)
-                                : isGas
-                                    ? _openGasFromSearch(h)
-                                    : _moveToPlace(h),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                              child: Row(
-                                children: [
-                                  // 충전소 기록은 번개로 구분 — 눌렀을 때 동작이 다르다
-                                  // (지도 이동이 아니라 상세 진입).
-                                  Icon(
-                                      isEv
-                                          ? Icons.bolt_rounded
-                                          : isGas
-                                              ? Icons.local_gas_station_rounded
-                                              : Icons.history_rounded,
-                                      size: 15,
-                                      color: isEv
-                                          ? AppColors.evGreen
-                                          : isGas
-                                              ? const Color(0xFF2F7DF6)
-                                              : (isDark
-                                                  ? AppColors.darkTextMuted
-                                                  : AppColors.lightTextMuted)),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(h['name'] ?? '',
-                                            style: TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w500,
-                                                color: isDark ? Colors.white : Colors.black87),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis),
-                                        if ((h['address'] ?? '').isNotEmpty)
-                                          Text(h['address'],
-                                              style: TextStyle(
-                                                  fontSize: 11,
-                                                  color: isDark
-                                                      ? AppColors.darkTextMuted
-                                                      : AppColors.lightTextMuted),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis),
-                                      ],
-                                    ),
-                                  ),
-                                  GestureDetector(
-                                    onTap: () => _removeFromHistory(h['name']?.toString() ?? ''),
-                                    child: Icon(Icons.close_rounded,
-                                        size: 14,
-                                        color: isDark
-                                            ? AppColors.darkTextMuted
-                                            : AppColors.lightTextMuted),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  )
-            : (_searchResults.isEmpty && _stationResults.isEmpty && _gasResults.isEmpty)
-                ? SizedBox(
-                    width: double.infinity,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Text('검색 결과가 없습니다',
-                          style: TextStyle(
-                              fontSize: 13,
-                              color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
-                    ),
-                  )
-                : Builder(builder: (context) {
-                    // 지도에서 둘 다 켜져 있으면 섹션이 3개(충전/주유/장소)가 된다.
-                    // 그때 각 섹션을 다 펼치면 스크롤만 길어지고 아무것도 눈에 안 들어온다
-                    // → 켜진 종류 수에 따라 섹션당 노출 개수를 줄이고, 나머지는 '더보기'로.
-                    final bothKinds = _stationResults.isNotEmpty && _gasResults.isNotEmpty;
-                    final placeMax = bothKinds ? 4 : 6;
-                    // 주유소는 전국 11,897개로 충전소(102,920)의 1/9 수준이라 검색 결과도
-                    // 적게 나온다. 둘 다일 때 충전소만 조여서 위쪽 자리를 내준다.
-                    final gasMax = bothKinds ? 4 : 5;
-                    final evMax = bothKinds ? 3 : 5;
-                    final ev = _stationResults.take(_evExpanded ? 20 : evMax).toList();
-                    final gas = _gasResults.take(_gasExpanded ? 20 : gasMax).toList();
-                    final places = _searchResults.take(_placeExpanded ? 20 : placeMax).toList();
-                    return Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // ── 주유소 먼저. 충전소보다 결과가 훨씬 적어서(전국 11,897 vs 102,920)
-                        //    아래에 두면 충전소에 밀려 안 보인다. 장소는 지도 이동일 뿐이라 맨 아래.
-                        if (gas.isNotEmpty) ...[
-                          _searchSectionHeader('주유소', _gasResults.length, isDark,
-                              icon: Icons.local_gas_station_rounded,
-                              accent: const Color(0xFF2F7DF6)),
-                          ...gas.map((e) => _gasResultTile(e, isDark)),
-                          if (_gasResults.length > gas.length)
-                            _moreButton('주유소 ${_gasResults.length - gas.length}곳 더보기', isDark,
-                                const Color(0xFF2F7DF6), () => setState(() => _gasExpanded = true)),
-                        ],
-                        if (gas.isNotEmpty && ev.isNotEmpty)
-                          Divider(
-                              height: 1,
-                              color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
-                        // ── 충전소 — 탭하면 상세로 바로
-                        if (ev.isNotEmpty) ...[
-                          _searchSectionHeader('충전소', _stationResults.length, isDark,
-                              icon: Icons.bolt_rounded, accent: AppColors.evGreen),
-                          ...ev.map((e) => _stationResultTile(e, isDark)),
-                          if (_stationResults.length > ev.length)
-                            _moreButton('충전소 ${_stationResults.length - ev.length}곳 더보기', isDark,
-                                AppColors.evGreen, () => setState(() => _evExpanded = true)),
-                        ],
-                        if ((ev.isNotEmpty || gas.isNotEmpty) && places.isNotEmpty)
-                          Divider(
-                              height: 1,
-                              color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
-                        if (places.isNotEmpty)
-                          _searchSectionHeader('장소', _searchResults.length, isDark,
-                              icon: Icons.place_rounded,
-                              accent: isDark ? AppColors.darkTextMuted : const Color(0xFF8A94A6)),
-                        if (places.isNotEmpty)
-                          ListView.separated(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            // padding 을 안 주면 ListView 가 MediaQuery 세로 세이프에어리어를
-                            // 자동으로 넣는다(BoxScrollView.build). 노치 아이폰에서 헤더와 첫 항목
-                            // 사이에 47pt 공백이 생겼다 — Column 안으로 들어오면서 드러난 문제.
-                            padding: EdgeInsets.zero,
-                            itemCount: places.length,
-                            separatorBuilder: (_, __) => Divider(
-                                height: 1,
-                                color:
-                                    isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
-                            itemBuilder: (_, i) {
-                              final place = places[i];
-                              final category = place['category']?.toString();
-                              final dist = place['distance'];
-                              final distStr =
-                                  dist != null ? formatDistance((dist as num).toDouble()) : null;
-                              return GestureDetector(
-                                onTap: () => _moveToPlace(place),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.location_on_rounded,
-                                          size: 16,
-                                          color: isDark
-                                              ? AppColors.darkTextMuted
-                                              : AppColors.lightTextMuted),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                Expanded(
-                                                  child: Text(place['name'] ?? '',
-                                                      style: TextStyle(
-                                                          fontSize: 13,
-                                                          fontWeight: FontWeight.w500,
-                                                          color: isDark
-                                                              ? Colors.white
-                                                              : Colors.black87),
-                                                      maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis),
-                                                ),
-                                                if (category != null && category.isNotEmpty) ...[
-                                                  const SizedBox(width: 6),
-                                                  Flexible(
-                                                    child: Text(category,
-                                                        style: TextStyle(
-                                                            fontSize: 11,
-                                                            color: isDark
-                                                                ? AppColors.darkTextMuted
-                                                                : const Color(0xFF888888)),
-                                                        maxLines: 1,
-                                                        overflow: TextOverflow.ellipsis),
-                                                  ),
-                                                ],
-                                                if (distStr != null) ...[
-                                                  const SizedBox(width: 6),
-                                                  Text(distStr,
-                                                      style: const TextStyle(
-                                                          fontSize: 11, color: Color(0xFF1D6FE0)),
-                                                      maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis),
-                                                ],
-                                              ],
-                                            ),
-                                            if ((place['address'] ?? '').isNotEmpty)
-                                              Text(place['address'],
-                                                  style: TextStyle(
-                                                      fontSize: 11,
-                                                      color: isDark
-                                                          ? AppColors.darkTextMuted
-                                                          : AppColors.lightTextMuted),
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        if (_searchResults.length > places.length)
-                          _moreButton(
-                              '장소 ${_searchResults.length - places.length}곳 더보기',
-                              isDark,
-                              isDark ? AppColors.darkTextMuted : const Color(0xFF8A94A6),
-                              () => setState(() => _placeExpanded = true)),
-                      ],
                     );
-                  });
+                  },
+                ),
+                  if (_searchResults.length > places.length)
+                    _moreButton('장소 ${_searchResults.length - places.length}곳 더보기',
+                        isDark,
+                        isDark ? AppColors.darkTextMuted : const Color(0xFF8A94A6),
+                        () => setState(() => _placeExpanded = true)),
+                ],
+              );
+              });
   }
 
   /// 섹션 접힘 해제 버튼 — 처음엔 몇 개만 보여주고 필요할 때 펼친다.
@@ -1704,7 +1598,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           children: [
             Text(label,
                 style: TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w700, color: accent, letterSpacing: -0.2)),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: accent,
+                    letterSpacing: -0.2)),
             const SizedBox(width: 2),
             Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: accent),
           ],
@@ -1761,6 +1658,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       if (!mounted) return;
       _selectStation(EvStation.fromJson(d), pinned: true);
       _scheduleUpdateMarkers(); // 필터에 안 걸려도 pinned 마커 주입이 그리게
+
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1777,7 +1675,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final name = (st['name'] ?? '').toString();
     final address = (st['address'] ?? '').toString();
     final dist = st['distance'];
-    final distStr = dist != null ? formatDistance((dist as num).toDouble()) : null;
+    final distStr =
+        dist != null ? formatDistance((dist as num).toDouble()) : null;
 
     return InkWell(
       onTap: () => _openGasFromSearch(st),
@@ -1793,7 +1692,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 borderRadius: BorderRadius.circular(9),
               ),
               alignment: Alignment.center,
-              child: const Icon(Icons.local_gas_station_rounded, size: 16, color: accent),
+              child: const Icon(Icons.local_gas_station_rounded,
+                  size: 16, color: accent),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -1816,7 +1716,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         const SizedBox(width: 6),
                         Text(distStr,
                             style: const TextStyle(
-                                fontSize: 11, fontWeight: FontWeight.w700, color: accent)),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: accent)),
                       ],
                     ],
                   ),
@@ -1825,7 +1727,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     Text(address,
                         style: TextStyle(
                             fontSize: 11,
-                            color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                            color: isDark
+                                ? AppColors.darkTextMuted
+                                : AppColors.lightTextMuted),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis),
                   ],
@@ -1834,7 +1738,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             ),
             const SizedBox(width: 4),
             Icon(Icons.chevron_right_rounded,
-                size: 18, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                size: 18,
+                color: isDark
+                    ? AppColors.darkTextMuted
+                    : AppColors.lightTextMuted),
           ],
         ),
       ),
@@ -1887,6 +1794,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       if (!mounted) return;
       _selectStation(GasStation.fromJson(d), pinned: true);
       _scheduleUpdateMarkers(); // 필터에 안 걸려도 pinned 마커 주입이 그리게
+
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1907,13 +1815,18 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           const SizedBox(width: 5),
           Text(title,
               style: TextStyle(
-                  fontSize: 11.5, fontWeight: FontWeight.w800, color: accent, letterSpacing: -0.2)),
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w800,
+                  color: accent,
+                  letterSpacing: -0.2)),
           const SizedBox(width: 5),
           Text('$count',
               style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                  color: isDark
+                      ? AppColors.darkTextMuted
+                      : AppColors.lightTextMuted)),
         ],
       ),
     );
@@ -1926,7 +1839,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final operator = (st['operator'] ?? '').toString();
     final address = (st['address'] ?? '').toString();
     final dist = st['distance'];
-    final distStr = dist != null ? formatDistance((dist as num).toDouble()) : null;
+    final distStr =
+        dist != null ? formatDistance((dist as num).toDouble()) : null;
     final cnt = st['chargerCount'];
     final sub = [
       if (operator.isNotEmpty) operator,
@@ -1948,7 +1862,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 borderRadius: BorderRadius.circular(9),
               ),
               alignment: Alignment.center,
-              child: const Icon(Icons.bolt_rounded, size: 17, color: AppColors.evGreen),
+              child: const Icon(Icons.bolt_rounded,
+                  size: 17, color: AppColors.evGreen),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -1982,7 +1897,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     Text(sub.isNotEmpty ? '$sub · $address' : address,
                         style: TextStyle(
                             fontSize: 11,
-                            color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                            color: isDark
+                                ? AppColors.darkTextMuted
+                                : AppColors.lightTextMuted),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis),
                   ],
@@ -1991,7 +1908,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             ),
             const SizedBox(width: 4),
             Icon(Icons.chevron_right_rounded,
-                size: 18, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                size: 18,
+                color: isDark
+                    ? AppColors.darkTextMuted
+                    : AppColors.lightTextMuted),
           ],
         ),
       ),
@@ -2016,8 +1936,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             Icon(Icons.search_rounded, size: 15, color: AppColors.gasBlue),
             const SizedBox(width: 5),
             Text('이 지역 검색',
-                style:
-                    TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.gasBlue)),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.gasBlue)),
           ],
         ),
       ),
@@ -2113,7 +2032,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       }
       if (hasGas && hasEv) break;
     }
-    final icon = (hasGas && hasEv) ? _clusterIconMixed : (hasEv ? _clusterIconEv : _clusterIconGas);
+    final icon = (hasGas && hasEv)
+        ? _clusterIconMixed
+        : (hasEv ? _clusterIconEv : _clusterIconGas);
     if (icon != null) clusterMarker.setIcon(icon);
     clusterMarker.setCaption(NOverlayCaption(
       text: info.size.toString(),
@@ -2122,7 +2043,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       haloColor: Colors.transparent,
     ));
     clusterMarker.setOnTapListener((_) async {
-      if (!await _tapGuard()) return; // 핀치 오탭 가드
+              if (!await _tapGuard()) return; // 핀치 오탭 가드
       final c = _mapController;
       if (c == null) return;
       final pos = await c.getCameraPosition();
@@ -2149,10 +2070,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   final Map<String, Future<NOverlayImage>> _badgeIconInflight = {};
 
   // 즐겨찾기 여부 — 목록 카드와 동일 소스(favoritesProvider). 마커 하트 표시용.
-  bool _isFavGas(String id) =>
-      ref.read(favoritesProvider).any((f) => f['type'] == 'gas' && f['id'] == id);
-  bool _isFavEv(String statId) =>
-      ref.read(favoritesProvider).any((f) => f['type'] == 'ev' && f['id'] == statId);
+  bool _isFavGas(String id) => ref
+      .read(favoritesProvider)
+      .any((f) => f['type'] == 'gas' && f['id'] == id);
+  bool _isFavEv(String statId) => ref
+      .read(favoritesProvider)
+      .any((f) => f['type'] == 'ev' && f['id'] == statId);
 
   // ─── 마커 배지 아이콘 (로고 + 가격/텍스트 카드 스타일) ───
   Future<NOverlayImage> _stationBadgeIcon({
@@ -2167,8 +2090,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }) async {
     // 추천(1~3위)은 선택 안 됐을 때 가격 배지 테두리를 메달색(라벨과 동일)으로 — 검정 테두리 대신.
     final bool emphasizeRank = recommendRank != null && !isHighlighted;
-    final key =
-        '$label|$brand|$stationName|$isEv|$isHighlighted|$recommendRank|$evFast|$isFavorite';
+    final key = '$label|$brand|$stationName|$isEv|$isHighlighted|$recommendRank|$evFast|$isFavorite';
     final cached = _badgeIconCache[key];
     if (cached != null) {
       _badgeIconLru.remove(key);
@@ -2183,7 +2105,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           : (recommendRank != null
               ? GasStationMapBadge.medalColor(recommendRank)
               : const Color(0xFFDDDDDD));
-      final Color textColor = isHighlighted ? _kSelectedColor : const Color(0xFF1a1a1a);
+      final Color textColor = isHighlighted
+          ? _kSelectedColor
+          : const Color(0xFF1a1a1a);
       final icon = await GasStationMapBadge.overlayImage(
         context,
         label: label,
@@ -2258,12 +2182,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (gen != _markersGeneration) return;
 
     final gasStations = _spreadSample<GasStation>(
-      ref.read(mapGasStationsProvider).valueOrNull ?? <GasStation>[],
-      150,
+      ref.read(mapGasStationsProvider).valueOrNull ?? <GasStation>[], 150,
     );
     final evStations = _spreadSample<EvStation>(
-      ref.read(mapEvStationsProvider).valueOrNull ?? <EvStation>[],
-      150,
+      ref.read(mapEvStationsProvider).valueOrNull ?? <EvStation>[], 150,
     );
 
     // 필터 변경 등으로 선택된 스테이션이 결과에서 사라지면 선택 해제.
@@ -2277,7 +2199,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
 
     // 주유 추천 1~3위 rank 산출 (최저가 오름차순, 동가면 거리 tiebreak).
-    _gasRecommendRanks = _showGas ? _computeGasRanks(gasStations) : const {};
+    _gasRecommendRanks =
+        _showGas ? _computeGasRanks(gasStations) : const {};
 
     // ── 마커 빌드: 아이콘(위젯 래스터)을 병렬로 만들고 한 번에 addOverlayAll ──
     // 이전: 마커마다 `icon: await ...` + `addOverlay` 를 순차(최대 300×2 호출) → 첫 드로 잭.
@@ -2286,15 +2209,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
     if (_showGas) {
       final gasGroups = _groupByCluster<GasStation>(
-        gasStations,
-        (s) => NLatLng(s.lat, s.lng),
+        gasStations, (s) => NLatLng(s.lat, s.lng),
       );
       gasGroups.forEach((keyc, group) {
         if (group.length == 1) {
           final s = group.first;
           final rank = _gasRecommendRanks[s.id];
-          final isSelected =
-              _selectedStation is GasStation && (_selectedStation as GasStation).id == s.id;
+          final isSelected = _selectedStation is GasStation &&
+              (_selectedStation as GasStation).id == s.id;
           final label = s.priceText;
           final markerId = 'gas_${s.id}';
           final displayName = StationAliasService.resolveGas(s.id, s.name);
@@ -2304,11 +2226,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               position: NLatLng(s.lat, s.lng),
               tags: const {'type': 'gas'},
               icon: await _stationBadgeIcon(
-                label: label,
-                brand: s.brand,
-                stationName: displayName,
-                isHighlighted: isSelected,
-                recommendRank: rank,
+                label: label, brand: s.brand, stationName: displayName,
+                isHighlighted: isSelected, recommendRank: rank,
                 isFavorite: _isFavGas(s.id),
               ),
             );
@@ -2335,8 +2254,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               position: NLatLng(first.lat, first.lng),
               tags: const {'type': 'gas'},
               icon: await _stationBadgeIcon(
-                label: '+${group.length}',
-                brand: null,
+                label: '+${group.length}', brand: null,
                 stationName: '주유소 ${group.length}곳',
               ),
             );
@@ -2354,14 +2272,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
     if (_showEv) {
       final evGroups = _groupByCluster<EvStation>(
-        evStations,
-        (s) => NLatLng(s.lat, s.lng),
+        evStations, (s) => NLatLng(s.lat, s.lng),
       );
       evGroups.forEach((keyc, group) {
         if (group.length == 1) {
           final s = group.first;
-          final isSelected =
-              _selectedStation is EvStation && (_selectedStation as EvStation).statId == s.statId;
+          final isSelected = _selectedStation is EvStation &&
+              (_selectedStation as EvStation).statId == s.statId;
           final markerLabel = s.isTesla ? 'Tesla' : '${s.availableCount}/${s.totalCount}';
           final markerId = 'ev_${s.statId}';
           markerFutures.add(() async {
@@ -2370,9 +2287,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               position: NLatLng(s.lat, s.lng),
               tags: const {'type': 'ev'},
               icon: await _stationBadgeIcon(
-                label: markerLabel,
-                isEv: true,
-                isHighlighted: isSelected,
+                label: markerLabel, isEv: true, isHighlighted: isSelected,
                 evFast: s.hasFast,
                 isFavorite: _isFavEv(s.statId),
               ),
@@ -2452,7 +2367,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         }());
       } else if (sel is EvStation && !_markerRefs.containsKey('ev_${sel.statId}')) {
         final markerId = 'ev_${sel.statId}';
-        final markerLabel = sel.isTesla ? 'Tesla' : '${sel.availableCount}/${sel.totalCount}';
+        final markerLabel =
+            sel.isTesla ? 'Tesla' : '${sel.availableCount}/${sel.totalCount}';
         _pinnedMarkerId = markerId;
         markerFutures.add(() async {
           final marker = NClusterableMarker(
@@ -2460,9 +2376,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             position: NLatLng(sel.lat, sel.lng),
             tags: const {'type': 'ev'},
             icon: await _stationBadgeIcon(
-              label: markerLabel,
-              isEv: true,
-              isHighlighted: true,
+              label: markerLabel, isEv: true, isHighlighted: true,
               evFast: sel.hasFast,
               isFavorite: _isFavEv(sel.statId),
             ),
@@ -2486,22 +2400,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   /// 특정 마커를 강조(선택) 스타일로 변경.
-  Future<void> _highlightMarker(String markerId, String label,
-      {String? brand, String? stationName, bool isEv = false, bool? evFast}) async {
+  Future<void> _highlightMarker(String markerId, String label, {String? brand, String? stationName, bool isEv = false, bool? evFast}) async {
     final marker = _markerRefs[markerId];
     if (marker == null) return;
     // markerId(gas_<id>/ev_<statId>)에서 즐겨찾기 판정 — 선택해도 하트 유지.
     final isFav = isEv
         ? _isFavEv(markerId.replaceFirst('ev_', ''))
         : _isFavGas(markerId.replaceFirst('gas_', ''));
-    marker.setIcon(await _stationBadgeIcon(
-        label: label,
-        brand: brand,
-        stationName: stationName,
-        isEv: isEv,
-        evFast: evFast,
-        isHighlighted: true,
-        isFavorite: isFav));
+    marker.setIcon(await _stationBadgeIcon(label: label, brand: brand, stationName: stationName, isEv: isEv, evFast: evFast, isHighlighted: true, isFavorite: isFav));
   }
 
   /// 이전에 선택된 스테이션 마커를 원래 아이콘으로 복원 (전체 redraw 없이).
@@ -2514,9 +2420,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       if (marker == null) return;
       final displayName = StationAliasService.resolveGas(prev.id, prev.name);
       marker.setIcon(await _stationBadgeIcon(
-        label: prev.priceText,
-        brand: prev.brand,
-        stationName: displayName,
+        label: prev.priceText, brand: prev.brand, stationName: displayName,
         recommendRank: _gasRecommendRanks[prev.id],
         isFavorite: _isFavGas(prev.id),
       ));
@@ -2562,8 +2466,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               // drag handle
               Container(
                 margin: const EdgeInsets.only(top: 8),
-                width: 36,
-                height: 4,
+                width: 36, height: 4,
                 decoration: BoxDecoration(
                   color: isDark ? AppColors.darkCardBorder : const Color(0xFFD0D5DA),
                   borderRadius: BorderRadius.circular(2),
@@ -2575,15 +2478,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   const SizedBox(width: 16),
                   Icon(Icons.location_on_rounded, size: 18, color: accent),
                   const SizedBox(width: 6),
-                  Flexible(
-                      child: Text(
-                    '이 위치에 $kindLabel ${stations.length}곳',
+                  Text('이 위치에 $kindLabel ${stations.length}곳',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                       color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                     ),
-                  )),
+                  ),
                   const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.close_rounded, size: 20),
@@ -2601,11 +2502,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   itemCount: stations.length,
                   separatorBuilder: (_, __) => Divider(
-                    height: 1,
-                    thickness: 0.5,
+                    height: 1, thickness: 0.5,
                     color: isDark ? AppColors.darkCardBorder : const Color(0xFFEEEEEE),
-                    indent: 16,
-                    endIndent: 16,
+                    indent: 16, endIndent: 16,
                   ),
                   itemBuilder: (_, i) => _buildClusterItem(stations[i], isDark, accent),
                 ),
@@ -2641,19 +2540,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         if (controller != null) {
           double lat;
           double lng;
-          if (s is EvStation) {
-            lat = s.lat;
-            lng = s.lng;
-          } else {
-            lat = (s as GasStation).lat;
-            lng = s.lng;
-          }
+          if (s is EvStation) { lat = s.lat; lng = s.lng; }
+          else { lat = (s as GasStation).lat; lng = s.lng; }
           await controller.updateCamera(
             NCameraUpdate.scrollAndZoomTo(
               target: NLatLng(lat, lng),
               zoom: 16,
-            )..setAnimation(
-                animation: NCameraAnimation.easing, duration: const Duration(milliseconds: 280)),
+            )..setAnimation(animation: NCameraAnimation.easing, duration: const Duration(milliseconds: 280)),
           );
         }
         if (!mounted) return;
@@ -2664,16 +2557,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         child: Row(
           children: [
             Container(
-              width: 32,
-              height: 32,
+              width: 32, height: 32,
               decoration: BoxDecoration(
                 color: accent.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 s is EvStation ? Icons.ev_station_rounded : Icons.local_gas_station_rounded,
-                size: 18,
-                color: accent,
+                size: 18, color: accent,
               ),
             ),
             const SizedBox(width: 12),
@@ -2681,36 +2572,29 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    name,
+                  Text(name,
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                       color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
                   ),
                   if (address.isNotEmpty) ...[
                     const SizedBox(height: 2),
-                    Text(
-                      address,
+                    Text(address,
                       style: TextStyle(
                         fontSize: 11,
                         color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
                     ),
                   ],
                   if (subInfo.isNotEmpty) ...[
                     const SizedBox(height: 4),
-                    Text(
-                      subInfo,
+                    Text(subInfo,
                       style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: accent,
+                        fontSize: 12, fontWeight: FontWeight.w600, color: accent,
                       ),
                     ),
                   ],
@@ -2830,7 +2714,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (!_listSheetController.isAttached) return;
     final h = MediaQuery.of(context).size.height;
     if (h <= 0) return;
-    final next = (_listSheetController.size - d.primaryDelta! / h).clamp(_listCollapsed, _listFull);
+    final next = (_listSheetController.size - d.primaryDelta! / h)
+        .clamp(_listCollapsed, _listFull);
     _listSheetController.jumpTo(next);
   }
 
@@ -2863,7 +2748,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   Widget _buildAreaListSheet(bool isDark, VehicleType vehicleType) {
     _ensureListSortDefault();
     final bg = isDark ? AppColors.darkMapOverlay : Colors.white;
-    final handleColor = isDark ? AppColors.darkCardBorder : const Color(0xFFD0D5DA);
+    final handleColor =
+        isDark ? AppColors.darkCardBorder : const Color(0xFFD0D5DA);
 
     // 어떤 종류를 보여줄지 — 기존 _showGas/_showEv 로직 그대로.
     final gasAsync = ref.watch(mapGasStationsProvider);
@@ -2875,7 +2761,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     // 현재 탭 기준으로 실제 표시할 타입 결정.
     final tabIsGas = bothModes ? _listTabGas : showGasList;
 
-    final loading = (showGasList && gasAsync.isLoading) || (showEvList && evAsync.isLoading);
+    final loading = (showGasList && gasAsync.isLoading) ||
+        (showEvList && evAsync.isLoading);
 
     // 현재 탭(또는 단일 모드)에 해당하는 타입만 목록 구성.
     final gasList = (bothModes ? tabIsGas : showGasList)
@@ -2900,7 +2787,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         }
       }
       // 추천은 rank 순(1→3)으로 고정 정렬.
-      top.sort((a, b) => listGasRanks[a.id]!.compareTo(listGasRanks[b.id]!));
+      top.sort((a, b) =>
+          listGasRanks[a.id]!.compareTo(listGasRanks[b.id]!));
       _sortAreaItems(rest);
       items = <dynamic>[...top, ...rest];
     } else {
@@ -2914,8 +2802,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     // 오버플로(BOTTOM OVERFLOWED) 안 나게. 둘 다 모드면 세그먼트 탭만큼 더 확보.
     // + 플로팅 알약 바(가운데 AI 원 포함)가 가리는 높이를 더해 헤더·핸들이 바 위로
     //   올라오게 한다 — 안 그러면 접힌 시트가 통째로 바 뒤에 깔려 드래그가 안 잡힌다(형 제보).
-    final double headerPx =
-        ((showGasList && showEvList) ? 130.0 : 78.0) + floatingNavOverlayPx(context);
+    final double headerPx = ((showGasList && showEvList) ? 130.0 : 78.0) +
+        floatingNavOverlayPx(context);
     final double screenH = MediaQuery.of(context).size.height;
     _listCollapsed = (headerPx / (screenH <= 0 ? 720.0 : screenH)).clamp(0.12, 0.42);
 
@@ -2946,19 +2834,18 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   children: [
                     Container(
                       margin: const EdgeInsets.only(top: 8),
-                      width: 36,
-                      height: 4,
+                      width: 36, height: 4,
                       decoration: BoxDecoration(
                         color: handleColor,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                     const SizedBox(height: 8),
-                    _buildAreaListHeader(isDark, count, bothModes, tabIsGas),
+                    _buildAreaListHeader(
+                        isDark, count, bothModes, tabIsGas),
                     const SizedBox(height: 4),
                     Divider(
-                      height: 1,
-                      thickness: 0.5,
+                      height: 1, thickness: 0.5,
                       color: isDark ? AppColors.darkCardBorder : const Color(0xFFEEEEEE),
                     ),
                   ],
@@ -2968,8 +2855,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 child: loading
                     ? const Center(
                         child: SizedBox(
-                          width: 22,
-                          height: 22,
+                          width: 22, height: 22,
                           child: CircularProgressIndicator(strokeWidth: 2.2),
                         ),
                       )
@@ -2979,7 +2865,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                             controller: scrollCtrl,
                             children: [
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 24, vertical: 48),
                                 child: Center(
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
@@ -3006,12 +2893,17 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         : ListView.builder(
                             controller: scrollCtrl,
                             // 바닥에 탭바 높이만큼 패딩 — 마지막 카드가 탭바에 가리지 않게.
-                            padding: EdgeInsets.fromLTRB(0, 6, 0,
-                                MediaQuery.of(context).padding.bottom + _homeTabBarHeight + 12),
+                            padding: EdgeInsets.fromLTRB(
+                                0, 6, 0,
+                                MediaQuery.of(context).padding.bottom +
+                                    _homeTabBarHeight +
+                                    12),
                             itemCount: items.length,
                             itemBuilder: (_, i) {
                               final item = items[i];
-                              final rank = item is GasStation ? listGasRanks[item.id] : null;
+                              final rank = item is GasStation
+                                  ? listGasRanks[item.id]
+                                  : null;
                               return _buildAreaListCard(item, rank);
                             },
                           ),
@@ -3023,10 +2915,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     );
   }
 
-  Widget _buildAreaListHeader(bool isDark, int count, bool bothModes, bool tabIsGas) {
+  Widget _buildAreaListHeader(
+      bool isDark, int count, bool bothModes, bool tabIsGas) {
     // 정렬 칩은 가스가 있을 때만 가격순이 의미 있음. EV 전용이면 회원/비회원 가격이
     // 카드 sortMode 에 따르므로 여기선 가격/거리 토글만 제공(공통).
-    final primary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final primary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -3042,17 +2936,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               RichText(
                 text: TextSpan(
                   style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: primary,
+                    fontSize: 14, fontWeight: FontWeight.w700, color: primary,
                   ),
                   children: [
                     const TextSpan(text: '이 지역 '),
                     TextSpan(
                       text: '$count곳',
                       style: const TextStyle(
-                        color: AppColors.gasBlue,
-                        fontWeight: FontWeight.w800,
+                        color: AppColors.gasBlue, fontWeight: FontWeight.w800,
                       ),
                     ),
                   ],
@@ -3065,14 +2956,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 _buildSortChip('가격순', _listSortByPrice, isDark, () {
                   if (!_listSortByPrice) {
                     setState(() => _listSortByPrice = true);
-                    Hive.box(AppConstants.settingsBox).put(_kListSortKey, true);
+                    Hive.box(AppConstants.settingsBox)
+                        .put(_kListSortKey, true);
                   }
                 }),
                 const SizedBox(width: 6),
                 _buildSortChip('거리순', !_listSortByPrice, isDark, () {
                   if (_listSortByPrice) {
                     setState(() => _listSortByPrice = false);
-                    Hive.box(AppConstants.settingsBox).put(_kListSortKey, false);
+                    Hive.box(AppConstants.settingsBox)
+                        .put(_kListSortKey, false);
                   }
                 }),
               ] else
@@ -3107,7 +3000,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   Widget _buildTypeSegment(bool isDark, bool tabIsGas) {
     // 엣지투엣지 솔리드 — 두 칸을 딱 맞붙여 한 덩어리 바. 선택칸 솔리드 / 비선택칸 옅은 틴트.
     // 바깥에서 clip 하므로 각 칸은 라운드 없이 자기 절반을 가장자리까지 채움.
-    final borderColor = isDark ? AppColors.darkCardBorder : const Color(0xFFE3E8EF);
+    final borderColor =
+        isDark ? AppColors.darkCardBorder : const Color(0xFFE3E8EF);
     return Container(
       height: 46,
       clipBehavior: Clip.antiAlias,
@@ -3119,11 +3013,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         // stretch — 각 칸이 바 높이까지 세로로 꽉 차게(위아래 흰 띠 제거).
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildSegmentTab(
-              '주유', Icons.local_gas_station_rounded, AppColors.gasBlue, tabIsGas, isDark, () {
+          _buildSegmentTab('주유', Icons.local_gas_station_rounded,
+              AppColors.gasBlue, tabIsGas, isDark, () {
             if (!_listTabGas) setState(() => _listTabGas = true);
           }),
-          _buildSegmentTab('충전', Icons.bolt_rounded, AppColors.evGreen, !tabIsGas, isDark, () {
+          _buildSegmentTab('충전', Icons.bolt_rounded, AppColors.evGreen,
+              !tabIsGas, isDark, () {
             if (_listTabGas) setState(() => _listTabGas = false);
           }),
         ],
@@ -3131,12 +3026,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     );
   }
 
-  Widget _buildSegmentTab(
-      String label, IconData icon, Color accent, bool active, bool isDark, VoidCallback onTap) {
+  Widget _buildSegmentTab(String label, IconData icon, Color accent,
+      bool active, bool isDark, VoidCallback onTap) {
     // 선택: 브랜드색 솔리드 + 흰 글씨/아이콘 w800. 비선택: 옅은 브랜드 틴트 + 브랜드색 글씨.
     // → 양쪽 다 색이 차서 빈 회색 없이 꽉 찬 느낌(이전엔 비선택이 투명 회색이라 허전했음).
     final Color fg = active ? Colors.white : accent;
-    final Color segBg = active ? accent : accent.withValues(alpha: isDark ? 0.22 : 0.12);
+    final Color segBg =
+        active ? accent : accent.withValues(alpha: isDark ? 0.22 : 0.12);
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
@@ -3176,18 +3072,21 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: active ? activeColor : (isDark ? AppColors.darkCard : const Color(0xFFF1F3F6)),
+          color: active
+              ? activeColor
+              : (isDark ? AppColors.darkCard : const Color(0xFFF1F3F6)),
           borderRadius: BorderRadius.circular(16),
           border: active
               ? null
               : Border.all(
-                  color: isDark ? AppColors.darkCardBorder : const Color(0xFFE0E4EA), width: 0.8),
+                  color: isDark
+                      ? AppColors.darkCardBorder
+                      : const Color(0xFFE0E4EA),
+                  width: 0.8),
         ),
         child: Text(label,
             style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: fg,
+              fontSize: 12, fontWeight: FontWeight.w700, color: fg,
             )),
       ),
     );
@@ -3197,7 +3096,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   /// 시트는 mid 로 살짝 내려 지도/마커가 보이게 함.
   Future<void> _onAreaListTap(dynamic s) async {
     // 시트를 중간 스냅으로 내려 지도+강조 마커가 보이도록.
-    if (_listSheetController.isAttached && _listSheetController.size > _listMid + 0.02) {
+    if (_listSheetController.isAttached &&
+        _listSheetController.size > _listMid + 0.02) {
       _listSheetController.animateTo(
         _listMid,
         duration: const Duration(milliseconds: 220),
@@ -3216,9 +3116,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           target: NLatLng(lat, lng),
           zoom: 16,
         )..setAnimation(
-            animation: NCameraAnimation.easing, duration: const Duration(milliseconds: 300)),
+            animation: NCameraAnimation.easing,
+            duration: const Duration(milliseconds: 300)),
       );
-      Future.delayed(const Duration(milliseconds: 650), () => _suppressCameraChange = false);
+      Future.delayed(const Duration(milliseconds: 650),
+          () => _suppressCameraChange = false);
     }
     if (!mounted) return;
     // 마커 강조 + 상세 시트 진입 (마커 탭 흐름 재사용).
@@ -3226,7 +3128,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       final markerId = 'gas_${s.id}';
       final displayName = StationAliasService.resolveGas(s.id, s.name);
       _selectStation(s);
-      await _highlightMarker(markerId, s.priceText, brand: s.brand, stationName: displayName);
+      await _highlightMarker(markerId, s.priceText,
+          brand: s.brand, stationName: displayName);
     } else if (s is EvStation) {
       final markerId = 'ev_${s.statId}';
       final label = s.isTesla ? 'Tesla' : '${s.availableCount}/${s.totalCount}';
@@ -3259,7 +3162,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   /// 따라 칩·카드 표시와 완전히 일치. 주유 포함 리스트는 지도 토글(_listSortByPrice).
   void _sortAreaItems(List<dynamic> items) {
     final allEv = items.isNotEmpty && items.every((e) => e is EvStation);
-    final byPriceMode = allEv ? (ref.read(evFilterProvider).sort != 1) : _listSortByPrice;
+    final byPriceMode =
+        allEv ? (ref.read(evFilterProvider).sort != 1) : _listSortByPrice;
     int byDist(dynamic a, dynamic b) {
       final da = _itemDistance(a);
       final db = _itemDistance(b);
@@ -3268,7 +3172,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       if (db == null) return -1;
       return da.compareTo(db);
     }
-
     int byPrice(dynamic a, dynamic b) {
       final pa = _itemPrice(a);
       final pb = _itemPrice(b);
@@ -3279,7 +3182,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       // 동일 가격이면 가까운 곳 먼저 (사용자 제보: 같은 값인데 먼 곳이 위)
       return r != 0 ? r : byDist(a, b);
     }
-
     items.sort(byPriceMode ? byPrice : byDist);
   }
 
@@ -3305,6 +3207,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (s is EvStation) return s.distance;
     return null;
   }
+
 }
 
 /// 검색한 장소를 가리키는 핀 + 이름 알약. 스테이션 마커(파랑/초록)와 구분되되
@@ -3333,91 +3236,97 @@ class _SearchPin extends StatelessWidget {
       child: Align(
         alignment: Alignment.bottomCenter,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            if (name.isNotEmpty) ...[
-              // 지도 네이티브 POI 라벨 문법 — 배경 없이 흰 테두리(halo) 텍스트.
-              // 카카오/네이버 지명 라벨과 같은 방식이라 지도 위에서 가장 자연스럽고
-              // 어떤 배경(물/도로/녹지)에서도 가독성이 유지됨.
-              SizedBox(
-                width: pillWidth,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: nameStyle.copyWith(
-                        color: null,
-                        foreground: Paint()
-                          ..style = PaintingStyle.stroke
-                          ..strokeWidth = 2.5
-                          ..strokeJoin = StrokeJoin.round
-                          ..color = Colors.white,
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        if (name.isNotEmpty) ...[
+          // 지도 네이티브 POI 라벨 문법 — 배경 없이 흰 테두리(halo) 텍스트.
+          // 카카오/네이버 지명 라벨과 같은 방식이라 지도 위에서 가장 자연스럽고
+          // 어떤 배경(물/도로/녹지)에서도 가독성이 유지됨.
+          SizedBox(
+            width: pillWidth,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: nameStyle.copyWith(
+                    color: null,
+                    foreground: Paint()
+                      ..style = PaintingStyle.stroke
+                      ..strokeWidth = 2.5
+                      ..strokeJoin = StrokeJoin.round
+                      ..color = Colors.white,
+                  ),
+                ),
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: nameStyle,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 1),
+        ],
+        // 앱 로고(halfNhalf)와 같은 반반 핀 — 좌 주유파랑/우 충전초록.
+        // '우리 앱의 검색 핀'이 브랜드로 즉시 읽히고 타 지도 앱과도 안 겹침.
+        SizedBox(
+          width: 44,
+          height: 44,
+          child: Stack(
+            alignment: Alignment.topCenter,
+            children: [
+              const Icon(Icons.location_on, size: 44, color: Colors.white),
+              Padding(
+                padding: const EdgeInsets.only(top: 1),
+                child: SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Stack(
+                    children: [
+                      ClipRect(
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          widthFactor: 0.5,
+                          child: Icon(Icons.location_on,
+                              size: 40, color: AppColors.gasBlue),
+                        ),
                       ),
-                    ),
-                    Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: nameStyle,
-                    ),
-                  ],
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: ClipRect(
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            widthFactor: 0.5,
+                            child: Icon(Icons.location_on,
+                                size: 40, color: AppColors.evGreen),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 1),
-            ],
-            // 앱 로고(halfNhalf)와 같은 반반 핀 — 좌 주유파랑/우 충전초록.
-            // '우리 앱의 검색 핀'이 브랜드로 즉시 읽히고 타 지도 앱과도 안 겹침.
-            SizedBox(
-              width: 44,
-              height: 44,
-              child: Stack(
-                alignment: Alignment.topCenter,
-                children: [
-                  const Icon(Icons.location_on, size: 44, color: Colors.white),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 1),
-                    child: SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: Stack(
-                        children: [
-                          ClipRect(
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              widthFactor: 0.5,
-                              child: Icon(Icons.location_on, size: 40, color: AppColors.gasBlue),
-                            ),
-                          ),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: ClipRect(
-                              child: Align(
-                                alignment: Alignment.centerRight,
-                                widthFactor: 0.5,
-                                child: Icon(Icons.location_on, size: 40, color: AppColors.evGreen),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const Positioned(
-                    top: 11,
-                    child: CircleAvatar(radius: 4.5, backgroundColor: Colors.white),
-                  ),
-                ],
+              const Positioned(
+                top: 11,
+                child: CircleAvatar(radius: 4.5, backgroundColor: Colors.white),
               ),
-            ),
-          ],
+            ],
+          ),
+        ),
+      ],
         ),
       ),
     );
   }
 }
+
+
+
+
