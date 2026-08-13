@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../data/services/cheer_service.dart';
+import '../inbox/inbox_screen.dart';
 import 'gold_profile.dart';
 
 /// 월간 시상식 — handoff 3 (CheerAwards.html). 매월 결산 후 1등에게 1회 노출.
@@ -17,7 +18,6 @@ Future<void> showCheerAwards(
   BuildContext context, {
   required CheerAwards data,
   required String nickname,
-  bool loggedIn = true,
 }) {
   return showGeneralDialog<void>(
     context: context,
@@ -26,7 +26,7 @@ Future<void> showCheerAwards(
     barrierColor: Colors.black.withValues(alpha: 0.35),
     transitionDuration: const Duration(milliseconds: 220),
     pageBuilder: (_, __, ___) =>
-        AwardsScreen(data: data, nickname: nickname, loggedIn: loggedIn),
+        AwardsScreen(data: data, nickname: nickname),
     transitionBuilder: (_, anim, __, child) => FadeTransition(
       opacity: anim,
       child: ScaleTransition(
@@ -42,13 +42,7 @@ class AwardsScreen extends StatefulWidget {
   final CheerAwards data;
   final String nickname;
 
-  /// 비회원도 1등을 할 수 있다 — 기프티콘은 받을 계정이 없으므로 배너 문구가 달라진다.
-  final bool loggedIn;
-  const AwardsScreen(
-      {super.key,
-      required this.data,
-      required this.nickname,
-      this.loggedIn = true});
+  const AwardsScreen({super.key, required this.data, required this.nickname});
 
   @override
   State<AwardsScreen> createState() => _AwardsScreenState();
@@ -274,7 +268,26 @@ class _AwardsScreenState extends State<AwardsScreen>
   }
 
   // ─── 치킨 이벤트 배너 (운영한 달에만) ───
+  /// 결산 직후엔 아직 발송 전이다(수동 발송) — 그때는 예고만 한다.
+  /// 도착한 뒤 다시 들어오면 눌러서 소식함 상세로 바로 간다.
   Widget _chickenBanner(bool isDark, CheerAwards d) {
+    final banner = _chickenBox(isDark, d);
+    if (!d.chickenSent) return banner;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          Navigator.of(context).maybePop(); // 시상식을 닫고
+          Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
+              builder: (_) => InboxScreen(openId: d.chickenInboxId)));
+        },
+        child: banner,
+      ),
+    );
+  }
+
+  Widget _chickenBox(bool isDark, CheerAwards d) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
       decoration: BoxDecoration(
@@ -320,9 +333,9 @@ class _AwardsScreenState extends State<AwardsScreen>
                             : const Color(0xFF0F172A))),
                 const SizedBox(height: 1),
                 Text(
-                    widget.loggedIn
-                        ? '기프티콘은 결산 후 3일 내 발송'
-                        : '기프티콘을 받으려면 로그인이 필요해요',
+                    d.chickenSent
+                        ? '소식함에서 확인하세요'
+                        : '치킨 기프티콘은 며칠 안에 소식함으로 보내드려요',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -335,9 +348,7 @@ class _AwardsScreenState extends State<AwardsScreen>
             ),
           ),
           const SizedBox(width: 8),
-          Text(!widget.loggedIn
-                  ? '로그인 필요'
-                  : (d.chickenSent ? '수령 완료' : '발송 예정'),
+          Text(d.chickenSent ? '도착했어요' : '준비 중',
               style: TextStyle(
                   fontSize: 10.5,
                   fontWeight: FontWeight.w800,

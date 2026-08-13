@@ -16,6 +16,7 @@ import '../ui/settings/settings_screen.dart';
 import '../ui/settings/policies_screen.dart';
 import '../ui/auth/login_screen.dart';
 import '../ui/auth/account_screen.dart';
+import '../ui/inbox/inbox_screen.dart';
 import '../ui/notices/notices_screen.dart';
 import '../ui/reports/my_reports_screen.dart';
 import '../ui/reports/fuel_report_screen.dart';
@@ -107,6 +108,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/account', builder: (_, __) => const AccountScreen()),
       GoRoute(path: '/policies', builder: (_, __) => const PoliciesScreen()),
+      // 내 소식함 — ?id= 로 특정 항목 상세를 바로 연다(푸시/시상식 배너 딥링크).
+      GoRoute(
+        path: '/inbox',
+        builder: (_, state) => InboxScreen(
+            openId: int.tryParse(state.uri.queryParameters['id'] ?? '')),
+      ),
       GoRoute(path: '/notices', builder: (_, __) => const NoticesScreen()),
       GoRoute(path: '/my-reports', builder: (_, __) => const MyReportsScreen()),
       GoRoute(path: '/fuel-reports', builder: (_, __) => const FuelReportScreen()),

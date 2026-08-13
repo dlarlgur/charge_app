@@ -99,6 +99,12 @@ class CheerEvent {
   final int? myRank;
   final List<CheerEventRank> top;
 
+  /// 1위까지 남은 응원 수 (내가 1위면 0, 비교 불가면 null)
+  final int? chaseToTop;
+
+  /// 바로 아래 순위와 벌린 차이 (순위표 밖이면 null)
+  final int? chaseFromNext;
+
   const CheerEvent({
     required this.title,
     required this.desc,
@@ -107,6 +113,8 @@ class CheerEvent {
     required this.myCount,
     required this.myRank,
     required this.top,
+    required this.chaseToTop,
+    required this.chaseFromNext,
   });
 
   factory CheerEvent.fromJson(Map<String, dynamic> j) => CheerEvent(
@@ -120,26 +128,50 @@ class CheerEvent {
             .map((e) => CheerEventRank.fromJson(
                 Map<String, dynamic>.from(e as Map)))
             .toList(),
+        chaseToTop: ((j['chase'] as Map?)?['toTop'] as num?)?.toInt(),
+        chaseFromNext: ((j['chase'] as Map?)?['fromNext'] as num?)?.toInt(),
       );
 }
 
+/// 진행 중인 달의 순위 한 줄 — **횟수는 없다**.
+/// 남의 응원 횟수는 서버가 아예 안 내려준다(형 지시). 격차는 CheerEvent.chase* 로만.
 class CheerEventRank {
   final int rank;
   final String name;
-  final int count;
   final bool me;
   const CheerEventRank(
-      {required this.rank,
-      required this.name,
-      required this.count,
-      required this.me});
+      {required this.rank, required this.name, required this.me});
 
   factory CheerEventRank.fromJson(Map<String, dynamic> j) => CheerEventRank(
         rank: (j['rank'] as num?)?.toInt() ?? 0,
         name: j['name']?.toString() ?? '익명의 서포터',
-        count: (j['count'] as num?)?.toInt() ?? 0,
         me: j['me'] == true,
       );
+}
+
+/// 진행 중인 달의 '내 상황' 한 줄 — **등수 숫자를 쓰지 않는다**(형 지시).
+///
+/// "3위" 같은 등수는 하위권에겐 의욕만 꺾고 상위권은 안심시킨다. 대신 위·아래와
+/// 몇 회 차이인지만 말해 오늘 한 번 더 볼 이유를 준다.
+/// 남의 응원 횟수는 서버가 안 내려주므로 여기 쓰이는 값은 격차뿐이다.
+String cheerChaseCopy(CheerEvent ev) {
+  if (ev.myCount == 0) return '한 번만 응원해도 순위에 들어가요';
+  final up = ev.chaseToTop;
+  final down = ev.chaseFromNext;
+
+  // 선두 — 등수 대신 '쫓기는 상황'을 말한다
+  if (up != null && up == 0) {
+    if (down == null) return '지금 선두를 달리고 있어요';
+    if (down == 0) return '바로 뒤와 동점이에요 — 한 번이면 앞서요';
+    if (down <= 3) return '바로 뒤가 $down회 차이로 쫓아오고 있어요';
+    return '$down회 차이로 앞서고 있어요';
+  }
+  // 추격 중
+  if (up != null) {
+    if (up <= 3) return '1위까지 $up회 — 오늘 따라잡을 수 있어요';
+    return '1위까지 $up회 남았어요';
+  }
+  return '이번 달 ${ev.myCount}회 응원했어요';
 }
 
 /// 'YYYY-MM' → '8월' (수상 pill·상장 문구용). 형식이 다르면 원문 그대로.
@@ -202,6 +234,9 @@ class CheerAwards {
   final bool chickenOn;
   final bool chickenSent;
 
+  /// 발송됐다면 그 소식함 항목 id — 배너를 누르면 목록이 아니라 상세로 바로 연다.
+  final int? chickenInboxId;
+
   const CheerAwards({
     required this.month,
     required this.total,
@@ -212,6 +247,7 @@ class CheerAwards {
     required this.winner,
     required this.chickenOn,
     required this.chickenSent,
+    this.chickenInboxId,
   });
 
   factory CheerAwards.fromJson(Map<String, dynamic> j) {
@@ -230,6 +266,7 @@ class CheerAwards {
       winner: j['winner'] == true,
       chickenOn: chicken['on'] == true,
       chickenSent: chicken['sent'] == true,
+      chickenInboxId: (chicken['inboxId'] as num?)?.toInt(),
     );
   }
 

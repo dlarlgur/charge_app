@@ -99,6 +99,7 @@ void main() {
   // ─── 2. 시상식 모달 (전체 화면) ───
   CheerAwards awards({
     bool chicken = false,
+    bool sent = false,
     bool meInTop = true,
     int? myRank = 1,
     String name = '전기차왕',
@@ -117,7 +118,8 @@ void main() {
         delta: 12,
         winner: true,
         chickenOn: chicken,
-        chickenSent: false,
+        chickenSent: sent,
+        chickenInboxId: sent ? 41 : null,
       );
 
   for (final e in sizes.entries) {
@@ -141,13 +143,28 @@ void main() {
     }
   }
 
-  testWidgets('시상식 비회원 1등 — 기기 별칭 + 로그인 필요 배너', (tester) async {
+  // 이벤트는 회원 한정이라 '로그인 필요' 경로는 사라졌다. 대신 미발송(예고) 상태와
+  // 도착 상태 두 가지를 본다 — 문구 길이가 달라 배너 줄이 터질 수 있다.
+  testWidgets('시상식 치킨 배너 — 미발송(예고) 상태', (tester) async {
     final o = await render(
       tester,
       AwardsScreen(
-          data: awards(chicken: true, name: '응원자 4821'),
-          nickname: '응원자 4821',
-          loggedIn: false),
+          data: awards(chicken: true, name: '전기차왕'),
+          nickname: '전기차왕'),
+      size: const Size(320, 568),
+      scale: 1.2,
+      dark: false,
+      fullScreen: true,
+    );
+    expect(o, isEmpty, reason: o.join(' / '));
+  });
+
+  testWidgets('시상식 치킨 배너 — 도착(탭 가능) 상태', (tester) async {
+    final o = await render(
+      tester,
+      AwardsScreen(
+          data: awards(chicken: true, sent: true, name: '전기차왕'),
+          nickname: '전기차왕'),
       size: const Size(320, 568),
       scale: 1.2,
       dark: false,

@@ -52,6 +52,7 @@ import 'package:home_widget/home_widget.dart';
 import '../../core/utils/nav_scope_pref.dart';
 import 'report_fab.dart';
 import '../../data/services/cheer_service.dart';
+import '../../data/services/inbox_service.dart';
 import '../../core/util/app_toast.dart';
 import '../../data/services/notif_prefs_service.dart';
 import '../settings/ad_inquiry_screen.dart';
@@ -110,8 +111,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       final nickname = (user?.nickname?.trim().isNotEmpty ?? false)
           ? user!.nickname!
           : (myRow.isEmpty ? '응원왕' : myRow.first.name);
-      showCheerAwards(context,
-          data: awards, nickname: nickname, loggedIn: user != null);
+      showCheerAwards(context, data: awards, nickname: nickname);
+    });
+
+    // 소식함 뱃지 — 진입할 때마다 한 번. 실패는 서비스 안에서 조용히 삼킨다.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      InboxService.instance.refreshUnread();
     });
 
     // 앱 진입 시 만족도 게이트(2번째 진입부터·백오프 7/30일·평생 3회). 첫 프레임 후.
@@ -3065,6 +3070,62 @@ class SettingsScreenEmbed extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
             child: _AccountCard(isDark: isDark),
           ),
+          // 소식 도착 배너 — 안 읽은 게 있을 때만 나타난다. 읽으면 사라지므로
+          // 평소엔 화면이 늘어나지 않는다(상시 진입은 아래 '정보' 섹션 타일이 맡는다).
+          ValueListenableBuilder<int>(
+            valueListenable: InboxService.instance.unread,
+            builder: (context, n, __) => n == 0
+                ? const SizedBox.shrink()
+                : Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () => context.push('/inbox'),
+                        child: Ink(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            color: isDark
+                                ? const Color(0x2EF97316)
+                                : const Color(0xFFFFF4E8),
+                            border: Border.all(
+                                color: isDark
+                                    ? const Color(0x59FDBA74)
+                                    : const Color(0xFFF4D6BA)),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 10),
+                            child: Row(
+                              children: [
+                                const Text('🎁',
+                                    style: TextStyle(fontSize: 15)),
+                                const SizedBox(width: 9),
+                                Expanded(
+                                  child: Text('새 소식이 $n건 도착했어요',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: isDark
+                                              ? const Color(0xFFFDBA74)
+                                              : const Color(0xFFC2410C))),
+                                ),
+                                Icon(Icons.chevron_right_rounded,
+                                    size: 18,
+                                    color: isDark
+                                        ? const Color(0xFFFDBA74)
+                                        : const Color(0xFFC2410C)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+          ),
           // 응원하기 진입 — 알림 설정보다 위의 강조 카드 (handoff 3 확정)
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 10, 16, 2),
@@ -3484,6 +3545,13 @@ class _SupportEmbedState extends State<_SupportEmbed> {
             );
 
         final tiles = <Widget>[
+          // 내 소식함 — 공지사항과 같은 규칙으로 **항상 노출**한다. 새 게 없어도
+          // 지난 쿠폰·메시지를 다시 봐야 한다. 우측 숫자는 안 읽은 개수(0이면 안 보임).
+          ValueListenableBuilder<int>(
+            valueListenable: InboxService.instance.unread,
+            builder: (_, n, __) =>
+                tile(Icons.mail_outline_rounded, '내 소식함', n, '/inbox'),
+          ),
           // 공지사항은 글이 없어도 항상 노출.
           tile(Icons.campaign_rounded, '공지사항', c?.notices ?? 0, '/notices'),
           if (hasE)
