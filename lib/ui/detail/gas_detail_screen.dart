@@ -620,13 +620,22 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                         children: [
                           const Icon(Icons.navigation_rounded, size: 18, color: Colors.white),
                           const SizedBox(width: 8),
-                          Text(
-                            distanceText.isNotEmpty
-                                ? '길 안내 시작 · $distanceText'
-                                : '길 안내 시작',
-                            style: const TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.w800,
-                              color: Colors.white, letterSpacing: -0.3,
+                          // 거리 문자열이 붙으면(길 안내 시작 · 1.3km) 좁은 화면·큰 글자에서
+                          // 버튼 폭을 넘어 오른쪽이 잘렸다. EV 상세와 같은 FittedBox 로 —
+                          // CTA 라 '…' 로 자르기보다 살짝 줄여서 다 읽히게 하는 게 맞다.
+                          Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                distanceText.isNotEmpty
+                                    ? '길 안내 시작 · $distanceText'
+                                    : '길 안내 시작',
+                                maxLines: 1,
+                                style: const TextStyle(
+                                  fontSize: 15, fontWeight: FontWeight.w800,
+                                  color: Colors.white, letterSpacing: -0.3,
+                                ),
+                              ),
                             ),
                           ),
                         ],
