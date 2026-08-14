@@ -1368,12 +1368,16 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
             _infoDivider(isDark),
             // 무료만 초록으로 강조. '확인 필요'(서버가 원본을 믿을 수 없다고 판단한 구간)는
             // 흐리게 — 유료로 단정하지도, 무료로 안심시키지도 않는다.
+            //
+            // 제보 버튼은 여기 붙인다. 제보 메뉴 안에 묻어두면 안 눌린다(두 달간 EV 제보
+            // 71건뿐). '확인 필요'를 본 사람이 그 자리에서 알려주는 흐름이라야 채워진다.
             _infoRow('주차요금', s.parkingFeeText, isDark,
                 valueColor: s.parkingFeeIsFree
                     ? AppColors.success
                     : (s.parkingFeeStatus == 'unknown'
                         ? (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)
-                        : null)),
+                        : null),
+                trailing: _parkingReportButton(isDark)),
             if (s.accessLevel == 'restricted') ...[
               _infoDivider(isDark),
               _infoRow(
@@ -2215,6 +2219,128 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
     if (mounted) setState(() {});
   }
 
+  /// 주차요금 줄 오른쪽 버튼. '확인 필요'일 때는 눈에 띄게(초록 테두리 + "알려주기"),
+  /// 값이 있을 때는 조용히(회색 아이콘) — 이미 맞는 정보를 굳이 흔들 이유는 없다.
+  Widget _parkingReportButton(bool isDark) {
+    final unknown = widget.station.parkingFeeStatus == 'unknown';
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    if (unknown) {
+      return InkWell(
+        onTap: _reportParkingFee,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: AppColors.evGreen.withValues(alpha: .55)),
+          ),
+          child: const Text('알려주기',
+              style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.evGreen)),
+        ),
+      );
+    }
+    return InkWell(
+      onTap: _reportParkingFee,
+      borderRadius: BorderRadius.circular(999),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: Icon(Icons.edit_outlined, size: 15, color: muted),
+      ),
+    );
+  }
+
+  /// 주차요금 제보 — 무료/유료 둘 중 하나만 받는다.
+  ///
+  /// 금액은 안 받는다: 시간당·최초 N분 무료·충전 중 감면이 제각각이라 숫자로 받으면
+  /// 포맷이 안 서고, 앱이 보여주는 것도 '무료/유료' 뿐이다.
+  /// 자동 반영도 안 한다 — 텔레그램 알림 받고 콘솔에서 사람이 확인해 반영한다.
+  Future<void> _reportParkingFee() async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+
+    Future<void> send(bool free) async {
+      final ok = await ApiService().submitReport(
+        stationType: 'ev',
+        stationId: widget.station.statId,
+        stationName: widget.station.name,
+        category: 'parking',
+        detail: {'free': free},
+      );
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(ok ? '알려주셔서 감사합니다. 확인 후 반영할게요.' : '전송에 실패했어요. 잠시 후 다시 시도해 주세요.'),
+        duration: const Duration(seconds: 2),
+      ));
+    }
+
+    Widget choice(String label, IconData icon, Color color, bool free) => Expanded(
+          child: InkWell(
+            onTap: () => send(free),
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 18),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: color.withValues(alpha: .5)),
+                color: color.withValues(alpha: isDark ? .12 : .07),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 26, color: color),
+                  const SizedBox(height: 7),
+                  Text(label,
+                      style: TextStyle(
+                          fontSize: 14.5, fontWeight: FontWeight.w800, color: color)),
+                ],
+              ),
+            ),
+          ),
+        );
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: isDark ? AppColors.darkSurface1 : Colors.white,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('여기 주차요금 어땠나요?',
+                  style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? AppColors.darkTextPrimary : Colors.black87)),
+              const SizedBox(height: 5),
+              Text('충전하는 동안 주차비를 냈는지만 알려주세요. 확인 후 모든 사용자에게 반영됩니다.',
+                  style: TextStyle(fontSize: 12.5, color: muted)),
+              const SizedBox(height: 16),
+              Row(children: [
+                choice('무료였어요', Icons.local_parking_rounded, AppColors.evGreen, true),
+                const SizedBox(width: 10),
+                choice('돈 냈어요', Icons.payments_outlined, AppColors.warning, false),
+              ]),
+              const SizedBox(height: 10),
+              Center(
+                child: TextButton(
+                    onPressed: () => Navigator.pop(sctx),
+                    child: Text('취소', style: TextStyle(color: muted))),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   /// 충전기 실제 위치 제보 — 관리자 검토 후 전체 사용자에게 노출.
   Future<void> _reportChargerLocation(Charger charger) async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -2643,7 +2769,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
   }
 
   Widget _infoRow(String label, String value, bool isDark,
-      {Color? valueColor, bool copyable = false}) {
+      {Color? valueColor, bool copyable = false, Widget? trailing}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
       child: Row(
@@ -2669,6 +2795,10 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                     color: valueColor ??
                         (isDark ? Colors.white : Colors.black87))),
           ),
+          if (trailing != null) ...[
+            const SizedBox(width: 8),
+            trailing,
+          ],
         ],
       ),
     );
