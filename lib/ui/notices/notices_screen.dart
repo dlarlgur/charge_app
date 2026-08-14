@@ -3,6 +3,7 @@ import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../core/util/internal_link.dart';
 import '../../core/theme/app_colors.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/skeleton.dart';
@@ -247,8 +248,10 @@ String _cleanLabel(String raw) {
 Future<void> _openNoticeLink(BuildContext context, String url) async {
   if (url.startsWith('http://') || url.startsWith('https://')) {
     await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    return;
   }
-  // 그 외(내부 식별자) — 이 앱엔 대상 화면이 없어 무시.
+  // 내부 식별자('/cheer' 등) — 콘솔 '앱 내부 화면' 링크. 모르는 값이면 무시.
+  openInternalLink(context, url);
 }
 
 Widget _noticeCtaButton(BuildContext context, ({String href, String label}) cta) {

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../core/util/internal_link.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/theme/app_colors.dart';
 
@@ -193,11 +194,25 @@ String _cleanLabel(String raw) {
       .trim();
 }
 
-// 팝업 닫고 이동. http(s)=외부. 그 외(내부 식별자)는 이 앱에 대상 화면이 없어 무시.
+// 팝업 닫고 이동. http(s)=외부 브라우저, '/…'=앱 내부 화면(internal_link).
 Future<void> _openPopupLink(BuildContext context, String url) async {
-  Navigator.of(context).pop();
   if (url.startsWith('http://') || url.startsWith('https://')) {
+    Navigator.of(context).pop();
     await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    return;
+  }
+  // 내부 식별자('/cheer' 등) — 콘솔 '앱 내부 화면' 링크.
+  //
+  // 순서가 중요하다: pop 을 먼저 하면 이 context 가 죽어 push 를 못 하고,
+  // push 를 먼저 한 뒤 pop 하면 방금 연 화면이 대신 닫힌다.
+  // 그래서 이동한 다음 팝업 route 만 스택에서 걷어낸다.
+  final root = Navigator.of(context, rootNavigator: true);
+  final popup = ModalRoute.of(context);
+  final moved = openInternalLink(context, url);
+  if (popup != null) {
+    root.removeRoute(popup);
+  } else if (!moved) {
+    Navigator.of(context).pop(); // 모르는 식별자 — 닫히기만 한다
   }
 }
 

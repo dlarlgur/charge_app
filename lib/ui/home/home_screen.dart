@@ -54,6 +54,7 @@ import 'report_fab.dart';
 import '../../data/services/cheer_service.dart';
 import '../../data/services/inbox_service.dart';
 import '../../core/util/app_toast.dart';
+import '../../core/util/internal_link.dart';
 import '../../data/services/notif_prefs_service.dart';
 import '../settings/ad_inquiry_screen.dart';
 import '../cheer/cheer_entry_card.dart';
@@ -143,6 +144,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     navigateToEventNotifier.addListener(_onNavigateToEvent);
     navigateToNoticeNotifier.addListener(_onNavigateToNotice);
     navigateToFuelReportNotifier.addListener(_onNavigateToFuelReport);
+    navigateToCheerNotifier.addListener(_onNavigateToCheer);
 
     // 앱이 완전히 꺼진 상태에서 알림 탭으로 실행된 경우 — main 의 payload 라우팅이
     // 이 initState 보다 먼저 끝나 리스너가 값을 못 받는다(그래서 홈에 머물렀음).
@@ -155,6 +157,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       if (navigateToEventNotifier.value > 0) _onNavigateToEvent();
       if (navigateToInquiryNotifier.value > 0) _onNavigateToInquiry();
       if (navigateToInboxNotifier.value != 0) _onNavigateToInbox();
+      if (navigateToCheerNotifier.value > 0) _onNavigateToCheer();
     });
 
     // 포그라운드 FCM 메시지 수신 → 로컬 알림 표시 + 내역 저장.
@@ -232,6 +235,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           );
         }
         _saveToInbox(message);
+      } else if (message.data['type'] == 'cheer') {
+        if (drawLocal) {
+          showCheerNotification(
+            title: message.notification?.title ??
+                message.data['title']?.toString(),
+            body:
+                message.notification?.body ?? message.data['body']?.toString(),
+          );
+        }
+        _saveToInbox(message);
       } else if (message.notification != null ||
           message.data['title'] != null ||
           message.data['body'] != null) {
@@ -289,7 +302,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         await PopupNoticeDialog.showIfEligible(context);
         if (!mounted) return;
         if (ModalRoute.of(context)?.isCurrent != true) return;
-        await PopupAdDialog.showIfEligible(context);
+        // 콘솔 팝업광고가 cta_type='internal' 이면 외부 브라우저 대신 앱 내부 화면으로.
+        // 콜백이 넘겨주는 ctx 는 이미 pop 된 다이얼로그 것이라 홈의 context 를 쓴다.
+        await PopupAdDialog.showIfEligible(
+          context,
+          onInternalTap: (_, url) {
+            if (url != null && mounted) openInternalLink(context, url);
+          },
+        );
       });
     });
 
@@ -340,6 +360,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       } else if (message.data['type'] == 'fuel_report') {
         _openFuelReport(
             int.tryParse(message.data['id']?.toString() ?? '') ?? 0);
+      } else if (message.data['type'] == 'cheer') {
+        _openCheerScreen();
       }
     });
 
@@ -400,6 +422,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         final id = int.tryParse(message.data['id']?.toString() ?? '') ?? 0;
         Future.delayed(
             const Duration(milliseconds: 600), () => _openFuelReport(id));
+      } else if (message.data['type'] == 'cheer') {
+        Future.delayed(
+            const Duration(milliseconds: 600), () => _openCheerScreen());
       }
     });
   }
@@ -413,6 +438,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     navigateToEventNotifier.removeListener(_onNavigateToEvent);
     navigateToNoticeNotifier.removeListener(_onNavigateToNotice);
     navigateToFuelReportNotifier.removeListener(_onNavigateToFuelReport);
+    navigateToCheerNotifier.removeListener(_onNavigateToCheer);
     navigateToEvStationNotifier.removeListener(_onNavigateToEvStation);
     navigateToGasStationNotifier.removeListener(_onNavigateToGasStation);
     requestEvReplanNotifier.removeListener(_onEvReplanRequested);
@@ -517,6 +543,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (id <= 0) return;
     navigateToFuelReportNotifier.value = 0; // 소비
     _openFuelReport(id);
+  }
+
+  // 개발자 응원하기 푸시 탭 → 응원 화면. id 가 없는 단일 목적지라 카운터를 0 으로 소비한다.
+  void _onNavigateToCheer() {
+    if (navigateToCheerNotifier.value <= 0) return;
+    navigateToCheerNotifier.value = 0; // 소비
+    _openCheerScreen();
+  }
+
+  void _openCheerScreen() {
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true)
+        .push(MaterialPageRoute(builder: (_) => const CheerScreen()));
   }
 
   // 유가·충전 리포트 푸시 탭 → 그 리포트 상세 (id 가 없으면 목록)
@@ -1803,6 +1842,10 @@ class _AlertPageState extends State<_AlertPage> {
         break;
       case 'fuel_report':
         if (refInt > 0) navigateToFuelReportNotifier.value = refInt;
+        break;
+      case 'cheer':
+        // 응원 푸시는 ref_id 가 없다 — 종류만으로 응원 화면을 연다.
+        navigateToCheerNotifier.value++;
         break;
       case 'ev':
       case 'ev_alarm':
