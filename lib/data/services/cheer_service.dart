@@ -312,6 +312,10 @@ class CheerStatus {
   /// 월간 랭킹 이벤트 — 서버에서 켜졌을 때만 non-null
   final CheerEvent? event;
 
+  /// 홈 상단 응원 스트립 노출 여부 — 콘솔 원격설정 `cheer.home_strip`.
+  /// 구서버(필드 없음)는 true 로 읽는다 — 설정이 안 내려온다고 기능이 사라지면 안 된다.
+  final bool homeStrip;
+
   /// 왕관 이력(최신순) · 개수(금/은/동) · 아직 축하 연출을 안 본 왕관
   final List<CheerCrown> crowns;
   final Map<String, int> crownCounts;
@@ -335,6 +339,7 @@ class CheerStatus {
     required this.serverPct,
     this.yesterdayCount,
     this.event,
+    this.homeStrip = true,
     this.crowns = const [],
     this.crownCounts = const {},
     this.newCrown,
@@ -376,6 +381,8 @@ class CheerStatus {
           ? CheerCrown.fromJson(Map<String, dynamic>.from(j['newCrown'] as Map))
           : null,
       carPaints: parseCarPaints(j['carPaints']),
+      // 명시적으로 false 일 때만 끈다 — 필드가 없는 구서버는 노출 유지.
+      homeStrip: j['homeStrip'] != false,
     );
   }
 
@@ -391,6 +398,10 @@ class CheerService {
   static final CheerService instance = CheerService._();
 
   static const _hiveTotalKey = 'cheer_total'; // 설정 타일 뱃지 표시용 캐시
+  // 홈 스트립 노출 플래그 캐시 — status 응답 전(콜드스타트·오프라인)에도 마지막으로
+  // 알던 상태로 그린다. 없으면 노출(true). 이게 없으면 콘솔에서 껐는데도 앱을 켤
+  // 때마다 스트립이 한 번 번쩍이고 사라진다.
+  static const _hiveHomeStripKey = 'cheer_home_strip';
 
   /// 누적 횟수 반응형 알림 — 마이페이지 프로필 카드·설정 타일이 구독한다.
   /// 콘솔에서 리셋해도 캐시가 옛 값으로 남아 뱃지가 그대로 보이던 문제(형 제보):
@@ -441,6 +452,72 @@ class CheerService {
     totalNotifier.value = total;
   }
 
+  /// 마지막으로 알고 있는 홈 스트립 노출 여부 (네트워크 없이 홈이 바로 판단).
+  bool get cachedHomeStrip {
+    try {
+      return Hive.box('settings').get(_hiveHomeStripKey, defaultValue: true) ==
+          true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  void _cacheHomeStrip(bool on) {
+    try {
+      Hive.box('settings').put(_hiveHomeStripKey, on);
+    } catch (_) {}
+    homeStripNotifier.value = on;
+  }
+
+  /// 홈 스트립 노출 반응형 알림 — 홈의 `CheerStrip` 이 구독한다.
+  late final ValueNotifier<bool> homeStripNotifier =
+      ValueNotifier(cachedHomeStrip);
+
+  // ── 오늘 응원 횟수 캐시 ────────────────────────────────────────
+  // status 응답이 오기 전에도 홈 스트립이 **정확한 상태로 한 번에** 그려지게 한다.
+  // 이게 없으면 오늘 3/3 을 다 채운 사람이 홈에 올 때마다 '응원' 버튼이 먼저 떴다가
+  // 응답이 도착하는 순간 '오늘 만땅!' 으로 바뀌어 깜빡인다(형 제보).
+  static const _hiveDailyDayKey = 'cheer_daily_day';
+  static const _hiveDailyTodayKey = 'cheer_daily_today';
+  static const _hiveDailyLimitKey = 'cheer_daily_limit';
+
+  /// 서버 집계 기준일과 맞추기 위해 KST 로 계산한다 — 기기 시간대가 뭐든 같은 날.
+  static String _kstDay() {
+    final d = DateTime.now().toUtc().add(const Duration(hours: 9));
+    return '${d.year}-${d.month.toString().padLeft(2, '0')}'
+        '-${d.day.toString().padLeft(2, '0')}';
+  }
+
+  /// 마지막으로 알던 오늘 응원 횟수. **날짜가 바뀌었으면 0** — 어제 3/3 이었다고
+  /// 오늘 아침에 '만땅'으로 보이면 안 된다.
+  int get cachedToday {
+    try {
+      final box = Hive.box('settings');
+      if (box.get(_hiveDailyDayKey) != _kstDay()) return 0;
+      return (box.get(_hiveDailyTodayKey) as num?)?.toInt() ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  int get cachedDailyLimit {
+    try {
+      return (Hive.box('settings').get(_hiveDailyLimitKey) as num?)?.toInt() ??
+          3;
+    } catch (_) {
+      return 3;
+    }
+  }
+
+  void _cacheDaily(CheerStatus st) {
+    try {
+      Hive.box('settings')
+        ..put(_hiveDailyDayKey, _kstDay())
+        ..put(_hiveDailyTodayKey, st.today)
+        ..put(_hiveDailyLimitKey, st.dailyLimit);
+    } catch (_) {}
+  }
+
   Future<CheerStatus?> status() async {
     // 미전송 적립을 먼저 흘려보낸다 — 이번 status 에 반영돼서 내려오도록.
     await flushPendingCheers();
@@ -449,8 +526,7 @@ class CheerService {
       final st = CheerStatus.fromJson(
           Map<String, dynamic>.from(res.data['data'] as Map));
       CheerBadge.applyThresholds(st.tierThresholds); // 원격설정 임계값 반영(+Hive)
-      _cacheTotal(st.total);
-      lastStatus = st;
+      lastStatus = st; // 세터가 total·homeStrip·오늘횟수 캐시까지 같이 쓴다
       return st;
     } catch (_) {
       return null;
@@ -461,7 +537,20 @@ class CheerService {
   /// 값이 바뀌면 구독한 화면(설정 카드의 오늘 응원 도트 등)이 바로 따라온다.
   final ValueNotifier<CheerStatus?> statusNotifier = ValueNotifier(null);
   CheerStatus? get lastStatus => statusNotifier.value;
-  set lastStatus(CheerStatus? v) => statusNotifier.value = v;
+
+  /// 최신 상태를 넣는 **단 하나의 입구**. 여기서 캐시까지 같이 쓴다.
+  ///
+  /// 예전엔 캐시 갱신을 호출부마다 따로 했더니 적립(cheer/flush) 경로가 빠져 있었다.
+  /// 그래서 오늘 3번째 응원을 마쳐도 Hive 엔 2 가 남아, 다음에 홈에 들어오면
+  /// '응원' 버튼이 떴다가 status 응답이 오는 순간 '오늘 만땅!' 으로 획 바뀌었다(형 제보).
+  /// 세터에 모아두면 새 경로가 생겨도 자동으로 따라온다.
+  set lastStatus(CheerStatus? v) {
+    statusNotifier.value = v;
+    if (v == null) return;
+    _cacheTotal(v.total);
+    _cacheHomeStrip(v.homeStrip);
+    _cacheDaily(v);
+  }
 
   /// 로그인 여부 — 차 컬러를 서버에 저장할지(회원) 로컬에만 둘지(비회원) 가른다.
   Future<bool> get signedIn async => (await AuthService.accessToken()) != null;

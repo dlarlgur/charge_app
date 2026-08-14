@@ -87,6 +87,24 @@ class AppColors {
   static const evSummaryGradientLight = [Color(0xFFECFDF5), Color(0xFFD1FAE5)];
   static const logoGradient = [Color(0xFF2563EB), Color(0xFF10B981)];
 
+  // ─── 응원(cheer) 골드 ───
+  // 모드색(파랑/초록)과 겹치지 않아야 스트립이 눈에 띈다 — 두 탭 모두 동일 색.
+  static const supportAccent = Color(0xFFF59E0B);
+  static const supportBgLight = Color(0xFFFEF3C7);
+  static const supportTextLight = Color(0xFFB45309);
+  // 다크: 라이트 원색(#FEF3C7 배경 / #B45309 글자)은 다크 배경에서 대비가 뒤집힌다.
+  static const supportBgDark = Color(0x1FF59E0B);
+  static const supportTextDark = Color(0xFFEDC65A);
+
+  // ─── 홈 상단 탭(언더바) ───
+  // 비활성 라벨. 핸드오프 스펙값 #CBD5E1 은 흰 배경 대비 1.48:1 로, 운전 중 햇빛
+  // 아래에서는 사실상 안 보였다 → lightTextMuted 와 같은 #94A3B8(2.6:1)로 상향.
+  // WCAG large-text 기준 3:1 까지 맞추려면 #8695AB(3.04:1) 인데, 거기까지 어둡게
+  // 하면 활성/비활성 대비가 죽어 '가벼움'이 사라진다 — 중간값에서 멈췄다.
+  static const homeTabInactiveLight = Color(0xFF94A3B8);
+  // 다크는 darkBg 대비 3.4:1 로 이미 기준 통과.
+  static const homeTabInactiveDark = Color(0xFF5A6779);
+
   // ─── Common ───
   static const success = Color(0xFF34D399);
   static const warning = Color(0xFFF59E0B);

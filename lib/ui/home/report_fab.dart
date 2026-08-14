@@ -34,6 +34,7 @@ class QuickMenuItem {
     required this.color,
     required this.onTap,
     this.badge,
+    this.highlight = false,
   });
 
   final IconData icon;
@@ -43,6 +44,9 @@ class QuickMenuItem {
 
   /// 우측 회색 칩에 표시할 개수 (예: 가격 알림 3). null 이면 표시 안 함.
   final int? badge;
+
+  /// 행 배경을 항목 색으로 옅게 깔아 강조 (응원 항목 전용).
+  final bool highlight;
 }
 
 /// 홈 우측 하단 퀵메뉴 (형 확정 v3: 카드 한 장에 행 분할 팝업 메뉴).
@@ -231,7 +235,11 @@ class _HomeQuickFabState extends State<HomeQuickFab>
         isDark ? AppColors.darkTextPrimary : const Color(0xFF26313D);
     return InkWell(
       onTap: () => _select(item),
-      child: Padding(
+      child: Container(
+        // 강조 항목(응원)만 옅은 색 배경 — 나머지 행은 담백하게 둔다.
+        color: item.highlight
+            ? item.color.withValues(alpha: isDark ? 0.14 : 0.10)
+            : null,
         // 형 시안: 타일·화살표 없이 [컬러 아이콘 + 라벨 (+ 배지)] 담백한 행
         padding: const EdgeInsets.fromLTRB(18, 13, 16, 13),
         child: Row(
@@ -244,7 +252,7 @@ class _HomeQuickFabState extends State<HomeQuickFab>
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
                 letterSpacing: -0.2,
-                color: primary,
+                color: item.highlight ? item.color : primary,
               ),
             ),
             const SizedBox(width: 20),
@@ -283,10 +291,50 @@ class _HomeQuickFabState extends State<HomeQuickFab>
         ? [base, Color.lerp(base, Colors.black, 0.22)!]
         : const [Color(0xFF3B82F6), Color(0xFF2563EB)];
     final icon = single ? widget.items.first.icon : Icons.grid_view_rounded;
+    // 메뉴가 접혀 있으면 안에 응원 항목이 있다는 걸 알 방법이 없다 → 우상단 배지.
+    // 메뉴를 연 상태(_open)에는 항목이 보이므로 배지를 뗀다.
+    QuickMenuItem? badgeItem;
+    if (!single) {
+      for (final e in widget.items) {
+        if (e.highlight) {
+          badgeItem = e;
+          break;
+        }
+      }
+    }
     return GestureDetector(
       onTap:
           single ? widget.items.first.onTap : (_open ? _closeMenu : _openMenu),
-      child: Container(
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          _mainButtonBody(isDark, colors, icon),
+          if (badgeItem != null && !_open)
+            Positioned(
+              right: -1,
+              top: -1,
+              child: Container(
+                width: 16,
+                height: 16,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: badgeItem.color,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                      color: isDark ? AppColors.darkBg : AppColors.lightBg,
+                      width: 2),
+                ),
+                child: const Icon(Icons.favorite_rounded,
+                    size: 8, color: Colors.white),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _mainButtonBody(bool isDark, List<Color> colors, IconData icon) {
+    return Container(
         width: 50,
         height: 50,
         alignment: Alignment.center,
@@ -316,8 +364,6 @@ class _HomeQuickFabState extends State<HomeQuickFab>
             size: _open ? 22 : 20,
             color: Colors.white,
           ),
-        ),
-      ),
-    );
+        ));
   }
 }
