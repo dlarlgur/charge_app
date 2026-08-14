@@ -385,7 +385,8 @@ class _NicknameDialogState extends State<_NicknameDialog> {
   }
 }
 
-/// 프로필 사진 — 탭하면 등록/변경, 우하단에 카메라 배지.
+/// 프로필 사진 — 탭하면 등록/변경.
+/// 카메라 배지는 [GoldAvatar] 가 그린다(여기서 또 그리면 배지가 두 개로 겹친다).
 /// 업로드 → PATCH /auth/me 까지 끝내고 authProvider 를 갱신한다.
 class _EditablePhoto extends StatefulWidget {
   final AuthUser user;
@@ -440,25 +441,6 @@ class _EditablePhotoState extends State<_EditablePhoto> {
               ),
             ),
           ),
-        Positioned(
-          right: -2,
-          bottom: -2,
-          child: Container(
-            width: 22,
-            height: 22,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFF3B82F6),
-              border: Border.all(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xFF14161B)
-                      : Colors.white,
-                  width: 2),
-            ),
-            child: const Icon(Icons.photo_camera_rounded,
-                size: 11, color: Colors.white),
-          ),
-        ),
       ]),
     );
   }
