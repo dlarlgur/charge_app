@@ -163,6 +163,11 @@ class EvStation {
   final String? phone;
   final String useTime;
   final bool parkingFree;
+  /// 주차요금 3상태 — 'free' | 'paid' | 'unknown'.
+  /// 환경부 원본 parkingFree 는 사업자가 기본값으로 채워 넣은 경우가 많아(전 사업장 100% 무료로
+  /// 찍는 사업자가 여럿) 무료/유료 어느 쪽으로도 단정할 수 없는 구간이 있다. 서버가 그런 곳을
+  /// 'unknown' 으로 내려주면 '확인 필요'로 표시한다. 구서버 응답은 null → parkingFree 로 폴백.
+  final String? parkingFeeStatus;
   final String? busiId; // 사업자 코드 — 브랜드(E-pit) 판정용, 구서버 응답은 null
   final List<Charger> chargers;
   final double? distance;
@@ -205,6 +210,7 @@ class EvStation {
     this.phone,
     this.useTime = '24시간',
     this.parkingFree = false,
+    this.parkingFeeStatus,
     this.busiId,
     this.chargers = const [],
     this.distance,
@@ -248,6 +254,7 @@ class EvStation {
       phone: json['busiCall'] ?? json['phone'],
       useTime: json['useTime'] ?? '24시간',
       parkingFree: json['parkingFree'] == 'Y' || json['parkingFree'] == true,
+      parkingFeeStatus: json['parkingFeeStatus']?.toString(),
       busiId: json['busiId']?.toString(),
       chargers: chargerList,
       distance: json['distance']?.toDouble(),
@@ -285,6 +292,22 @@ class EvStation {
   int get totalCount => chargers.length;
 
   bool get hasAvailable => availableCount > 0;
+
+  /// 주차요금을 '무료'라고 단정할 수 있나 — 배지 표시 기준.
+  /// 서버가 'unknown' 을 주면 배지를 띄우지 않는다(원본 무료 표기를 믿을 수 없는 구간).
+  bool get parkingFeeIsFree => parkingFeeStatus == null
+      ? parkingFree
+      : parkingFeeStatus == 'free';
+
+  /// 상세 '주차요금' 줄에 쓸 문구. 구서버(필드 없음)는 기존 2분기 그대로.
+  String get parkingFeeText {
+    switch (parkingFeeStatus) {
+      case 'free': return '무료';
+      case 'paid': return '유료';
+      case 'unknown': return '확인 필요';
+      default: return parkingFree ? '무료' : '유료';
+    }
+  }
 
   /// 급속 충전기 보유 (출력 ≥40kW). chargers 없으면 급속요금 유무로 폴백.
   bool get hasFast => chargers.isNotEmpty
@@ -361,6 +384,7 @@ class EvStation {
     phone: phone,
     useTime: useTime,
     parkingFree: parkingFree,
+    parkingFeeStatus: parkingFeeStatus,
     busiId: busiId,
     chargers: chargers,
     distance: newDistance,

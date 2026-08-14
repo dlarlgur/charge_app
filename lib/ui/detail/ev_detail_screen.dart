@@ -592,7 +592,7 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
                     label: '완전개방',
                     color: AppColors.evGreen,
                   ),
-                if (s.parkingFree) ...[
+                if (s.parkingFeeIsFree) ...[
                   const SizedBox(width: 8),
                   _topRightStack(
                     icon: Icons.local_parking_rounded,
@@ -1366,8 +1366,14 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
             _infoDivider(isDark),
             _infoRow('이용시간', s.useTime, isDark),
             _infoDivider(isDark),
-            _infoRow('주차요금', s.parkingFree ? '무료' : '유료', isDark,
-                valueColor: s.parkingFree ? AppColors.success : null),
+            // 무료만 초록으로 강조. '확인 필요'(서버가 원본을 믿을 수 없다고 판단한 구간)는
+            // 흐리게 — 유료로 단정하지도, 무료로 안심시키지도 않는다.
+            _infoRow('주차요금', s.parkingFeeText, isDark,
+                valueColor: s.parkingFeeIsFree
+                    ? AppColors.success
+                    : (s.parkingFeeStatus == 'unknown'
+                        ? (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)
+                        : null)),
             if (s.accessLevel == 'restricted') ...[
               _infoDivider(isDark),
               _infoRow(
