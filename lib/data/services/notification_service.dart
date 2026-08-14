@@ -63,6 +63,10 @@ final navigateToFuelReportNotifier = ValueNotifier<int>(0);
 final navigateToEventNotifier = ValueNotifier<int>(0);
 final navigateToNoticeNotifier = ValueNotifier<int>(0);
 
+/// 개발자 응원하기 푸시 탭 → 응원 화면 (increment 트리거).
+/// 상세 id 가 없는 단일 목적지라 카운터로만 신호한다.
+final navigateToCheerNotifier = ValueNotifier<int>(0);
+
 /// 홈 위젯(주유소) 탭 시 stationId 전달 → HomeScreen에서 주유소 상세로 이동
 final navigateToGasStationNotifier = ValueNotifier<String>('');
 
@@ -540,6 +544,11 @@ void showFuelReportNotification({String? title, String? body, int? reportId}) {
 /// 포그라운드 공지 FCM 수신 시 로컬 알림 표시.
 void showNoticeNotification({String? title, String? body, int? noticeId}) {
   _showContentNotification(1006, '📢 새 공지', title, body, 'notice:${noticeId ?? ''}');
+}
+
+/// 개발자 응원하기 유도 푸시 — 탭하면 응원 화면으로 간다(딥링크 'cheer').
+void showCheerNotification({String? title, String? body}) {
+  _showContentNotification(1008, '개발자 응원하기', title, body, 'cheer');
 }
 
 void _showContentNotification(

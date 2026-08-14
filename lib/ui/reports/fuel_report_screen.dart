@@ -15,6 +15,7 @@ import '../../data/services/api_service.dart';
 import '../../data/services/place_service.dart';
 import '../../core/utils/navigation_util.dart';
 import '../../providers/providers.dart';
+import '../cheer/cheer_thanks_cta.dart';
 import '../detail/gas_detail_screen.dart';
 import '../favorites/place_picker_screen.dart';
 
@@ -1858,6 +1859,11 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                         ),
 
                     _sources(r['sources'], isDark, accent),
+
+                    // 다 읽은 직후 — 응원하기는 설정 탭 안에 있어 존재를 모르는
+                    // 사용자가 많다. 리포트는 푸시로 도달하는 화면이라 노출이 공짜다.
+                    const SizedBox(height: 4),
+                    const CheerThanksCta(),
                   ],
                 )),
     );
@@ -3095,6 +3101,9 @@ class LocalFuelBriefDetailScreen extends StatelessWidget {
           Text('오피넷 판매가 기준 · 하루 한 번 갱신돼요',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 11.5, color: muted)),
+
+          const SizedBox(height: 14),
+          const CheerThanksCta(message: '오늘 동네 유가, 도움이 되셨나요?'),
         ],
       ),
     );

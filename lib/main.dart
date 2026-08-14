@@ -222,6 +222,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       case 'fuel_report':
         showFuelReportNotification(title: t, body: b, reportId: id);
         break;
+      case 'cheer':
+        showCheerNotification(title: t, body: b);
+        break;
       case 'inbox':
         showInboxNotification(
             title: t,
@@ -429,6 +432,9 @@ void routeNotificationPayload(String payload, String? actionId) {
     // 이벤트 알림 탭 → 그 이벤트 상세 (payload: event:id)
     navigateToEventNotifier.value =
         int.tryParse(payload.substring('event:'.length)) ?? 0;
+  } else if (payload == 'cheer') {
+    // 개발자 응원하기 푸시 탭 → 응원 화면 (상세 id 없음)
+    navigateToCheerNotifier.value++;
   } else if (payload.startsWith('notice:')) {
     // 공지 알림 탭 → 그 공지 상세 (payload: notice:id)
     navigateToNoticeNotifier.value =

@@ -178,7 +178,9 @@ class _CheerScreenState extends State<CheerScreen>
                     _fuelCard(isDark),
                     const SizedBox(height: 18),
                     Center(
-                      child: Text('광고 수익은 전액 서버 운영비에 보태져요',
+                      // '전액'은 검증 가능한 사실 주장이 된다 — 치킨 기프티콘 같은
+                      // 이벤트 비용이 섞이는 순간 거짓이 되므로 쓰지 않는다.
+                      child: Text('광고 수익은 서버 운영비에 보태져요',
                           style: TextStyle(
                               fontSize: 10, color: CheerDs.muted(isDark))),
                     ),
