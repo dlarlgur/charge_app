@@ -51,7 +51,6 @@ import '../ai/widgets/route_engine_sheet.dart';
 import 'package:home_widget/home_widget.dart';
 import '../../core/utils/nav_scope_pref.dart';
 import 'report_fab.dart';
-import 'home_top_header.dart';
 import 'cheer_strip.dart';
 import '../../data/services/cheer_service.dart';
 import '../../data/services/inbox_service.dart';
@@ -843,181 +842,6 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
     if (mounted) setState(() => _msgCount = AlertService().unreadCount);
   }
 
-  /// 헤더 지역명 탭 — 현재 위치의 전체 주소를 펼쳐 보여주고, 여기서 다시 찾을 수 있다.
-  /// 지역명 바로 아래에 붙는 주소 팝업.
-  ///
-  /// 예전엔 바텀시트였는데, 누른 곳은 화면 맨 위인데 화면 맨 아래에서 올라와
-  /// 시선이 튀었다(형 지적). 퀵메뉴 팝업과 같은 모양(radius 16 · padding 6 ·
-  /// 그림자 0 2 8 rgba(15,23,42,0.08))으로 [anchor] 바로 밑에 띄운다.
-  ///
-  /// [anchor] 는 헤더가 넘겨준 지역명 묶음의 화면 좌표.
-  void _openRegionPopup(Rect anchor) {
-    HapticFeedback.selectionClick();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final address = ref.read(homeRegionProvider).valueOrNull?.address;
-    final screen = MediaQuery.of(context).size;
-
-    // 팝업은 지역명 오른쪽 끝에 맞춘다 — 지역명이 헤더 우측에 있어서 왼쪽 맞춤이면
-    // 화면 밖으로 나간다. 좌우 12 는 최소 여백.
-    const width = 248.0;
-    final left = (anchor.right - width).clamp(12.0, screen.width - width - 12.0);
-
-    showGeneralDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: '닫기',
-      barrierColor: Colors.transparent,
-      transitionDuration: const Duration(milliseconds: 150),
-      pageBuilder: (_, __, ___) => const SizedBox.shrink(),
-      transitionBuilder: (dialogCtx, anim, __, ___) {
-        final curved = CurvedAnimation(parent: anim, curve: Curves.easeOut);
-        return Stack(
-          children: [
-            Positioned(
-              left: left,
-              top: anchor.bottom + 6,
-              width: width,
-              child: FadeTransition(
-                opacity: curved,
-                child: ScaleTransition(
-                  scale: Tween<double>(begin: 0.96, end: 1).animate(curved),
-                  // 앵커(지역명) 쪽을 기준으로 펼쳐져야 '거기서 나온' 느낌이 난다.
-                  alignment: Alignment.topRight,
-                  child: _regionPopupCard(dialogCtx, isDark, address),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _regionPopupCard(
-      BuildContext dialogCtx, bool isDark, String? address) {
-    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    return Material(
-      color: isDark ? AppColors.darkSurface1 : Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      elevation: 0,
-      child: Container(
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
-            width: 0.5,
-          ),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x140F172A), // rgba(15,23,42,0.08)
-              blurRadius: 8,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('현재 위치',
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: muted)),
-                  const SizedBox(height: 4),
-                  Text(
-                    address ?? '주소를 불러오지 못했어요',
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                      height: 1.4,
-                      color: isDark
-                          ? AppColors.darkTextPrimary
-                          : AppColors.lightTextPrimary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Divider(
-              height: 1,
-              thickness: 0.5,
-              color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
-            ),
-            const SizedBox(height: 4),
-            // 주소를 못 불러왔으면 복사할 게 없다 — 항목 자체를 빼서
-            // 눌러도 아무 일 없는 죽은 메뉴를 만들지 않는다.
-            if (address != null)
-              _regionPopupItem(
-                icon: Icons.content_copy_rounded,
-                label: '주소 복사',
-                isDark: isDark,
-                onTap: () async {
-                  Navigator.of(dialogCtx).pop();
-                  await Clipboard.setData(ClipboardData(text: address));
-                  if (!mounted) return;
-                  showAppToast(context, '주소를 복사했어요');
-                },
-              ),
-            _regionPopupItem(
-              icon: Icons.my_location_rounded,
-              label: '현재 위치로 다시 찾기',
-              isDark: isDark,
-              onTap: () {
-                Navigator.of(dialogCtx).pop();
-                // 위치를 다시 잡으면 지역명·주소·리스트가 전부 따라온다.
-                ref.invalidate(locationProvider);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _regionPopupItem({
-    required IconData icon,
-    required String label,
-    required bool isDark,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
-        child: Row(
-          children: [
-            Icon(icon,
-                size: 19,
-                color: isDark
-                    ? AppColors.darkTextSecondary
-                    : AppColors.lightTextSecondary),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: isDark
-                      ? AppColors.darkTextPrimary
-                      : AppColors.lightTextPrimary,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _openAlertSheet() {
     AlertService().markAllRead();
     refreshCount();
@@ -1032,6 +856,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
     final vehicleType = settings.vehicleType;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // 차량 타입에 따라 activeTab 강제 지정
     final activeTab =
@@ -1041,20 +866,91 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
     return SafeArea(
       child: Column(
         children: [
-          // 상단 한 줄 헤더 — 탭(좌) + 로고·지역명·알림(우).
-          // 기존 `전기차 기름차` 타이틀 줄 + 캡슐 세그먼트 줄을 한 줄로 합쳤다.
-          HomeTopHeader(
-            activeIndex: activeTab,
-            onChanged: (i) => ref.read(activeTabProvider.notifier).state = i,
-            showTabs: showTab,
-            regionName: ref.watch(homeRegionProvider).valueOrNull?.region,
-            hasUnread: _msgCount > 0,
-            onBellTap: _openAlertSheet,
-            // 지역명 옆 화살표는 '펼치면 뭔가 나온다'는 신호다 — 눌러도 아무 반응이
-            // 없으면 거짓 어포던스라, 실제로 상세주소를 펼쳐 보여준다(형 지적).
-            // 화살표 바로 아래에 붙는 팝업이라 헤더가 앵커 좌표를 넘겨준다.
-            onRegionTap: _openRegionPopup,
+          // 헤더
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 8, 8),
+            child: Row(
+              children: [
+                Image.asset(
+                  'assets/halfNhalf.png',
+                  width: 32,
+                  height: 32,
+                  filterQuality: FilterQuality.medium,
+                ),
+                const SizedBox(width: 10),
+                Text('전기차 기름차',
+                    style: Theme.of(context).textTheme.headlineSmall),
+                const Spacer(),
+                Builder(builder: (_) {
+                  final hasUnread = _msgCount > 0;
+                  final bellColor = hasUnread
+                      ? AppColors.gasBlue
+                      : (isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary);
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Material(
+                      color: hasUnread
+                          ? AppColors.gasBlue.withValues(alpha: 0.10)
+                          : (isDark
+                              ? const Color(0x14FFFFFF)
+                              : const Color(0xFFF1F5F9)),
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: _openAlertSheet,
+                        child: SizedBox(
+                          width: 40,
+                          height: 40,
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            alignment: Alignment.center,
+                            children: [
+                              Icon(
+                                hasUnread
+                                    ? Icons.notifications_rounded
+                                    : Icons.notifications_none_rounded,
+                                size: 22,
+                                color: bellColor,
+                              ),
+                              if (hasUnread)
+                                Positioned(
+                                  right: 8,
+                                  top: 8,
+                                  child: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: Colors.redAccent,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: isDark
+                                            ? AppColors.darkBg
+                                            : Colors.white,
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
           ),
+          // 탭 바 (둘 다 사용일 때만 표시)
+          if (showTab) ...[
+            GasEvTabBar(
+              activeIndex: activeTab,
+              onChanged: (i) => ref.read(activeTabProvider.notifier).state = i,
+            ),
+            const SizedBox(height: 4),
+          ],
           // 리스트 (둘 다 모드는 IndexedStack으로 백그라운드 프리로드)
           // top 배너는 각 list view 의 첫 sliver 로 들어가 리스트와 함께 스크롤됨
           Expanded(
@@ -1063,21 +959,15 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
                 : vehicleType == VehicleType.gas
                     ? const _GasListView()
                     : GestureDetector(
-                        // 스와이프 방향은 PageView·TabBarView 와 같게 — 손가락을
-                        // **왼쪽으로 밀면 오른쪽 탭**으로 넘어간다(내용이 따라 밀려나는 감각).
-                        // 그리고 인덱스가 아니라 **화면상 위치** 기준으로 판정한다:
-                        // 탭은 길게 눌러 좌우를 바꿀 수 있어서, 순서를 바꾼 사용자에게는
-                        // 인덱스로 계산하면 방향이 뒤집힌다.
                         onHorizontalDragEnd: (details) {
-                          final v = details.primaryVelocity ?? 0;
-                          if (v.abs() < 300) return;
-                          final order = HomeTopHeader.visualOrder();
-                          final pos = order.indexOf(activeTab);
-                          if (pos < 0) return;
-                          final next = v < 0 ? pos + 1 : pos - 1;
-                          if (next < 0 || next >= order.length) return;
-                          ref.read(activeTabProvider.notifier).state =
-                              order[next];
+                          final dx = details.primaryVelocity ?? 0;
+                          if (dx > 300 && activeTab == 0) {
+                            // 오른쪽 스와이프 → 충전
+                            ref.read(activeTabProvider.notifier).state = 1;
+                          } else if (dx < -300 && activeTab == 1) {
+                            // 왼쪽 스와이프 → 주유
+                            ref.read(activeTabProvider.notifier).state = 0;
+                          }
                         },
                         child: IndexedStack(
                           index: activeTab,

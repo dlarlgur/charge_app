@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import '../../core/constants/api_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/helpers.dart';
 import '../../data/models/models.dart';
@@ -1186,6 +1188,143 @@ class EvSummaryCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── 탭 바 (주유/충전) — 분리형 + 드래그 재정렬 ───
+class GasEvTabBar extends StatefulWidget {
+  final int activeIndex;
+  final ValueChanged<int> onChanged;
+
+  const GasEvTabBar({super.key, required this.activeIndex, required this.onChanged});
+
+  @override
+  State<GasEvTabBar> createState() => _GasEvTabBarState();
+}
+
+class _GasEvTabBarState extends State<GasEvTabBar> {
+  // _order[i] = 위치 i에 표시할 탭 인덱스 (0=주유, 1=충전)
+  List<int> _order = [0, 1];
+
+  @override
+  void initState() {
+    super.initState();
+    final saved = Hive.box(AppConstants.settingsBox).get(AppConstants.keyHomeTabOrder, defaultValue: 0) as int;
+    if (saved == 1) _order = [1, 0];
+  }
+
+  void _swap() {
+    setState(() => _order = [_order[1], _order[0]]);
+    Hive.box(AppConstants.settingsBox).put(AppConstants.keyHomeTabOrder, _order[0]);
+  }
+
+  /// 드래그된 탭이 다른 위치에 드롭됐을 때:
+  /// 1) 위치 swap (기존 동작 유지 — 사용자가 선호하는 배치 저장)
+  /// 2) 드래그한 탭을 활성 상태로 전환 — 드래그 의도와 결과 일치
+  void _onDropFrom(int draggedFromPos) {
+    final draggedTabIdx = _order[draggedFromPos];
+    HapticFeedback.selectionClick();
+    _swap();
+    if (widget.activeIndex != draggedTabIdx) {
+      widget.onChanged(draggedTabIdx);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
+        children: [
+          Expanded(child: _buildPosition(0)),
+          const SizedBox(width: 8),
+          Expanded(child: _buildPosition(1)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPosition(int pos) {
+    final tabIdx = _order[pos];
+    final isActive = widget.activeIndex == tabIdx;
+
+    return LongPressDraggable<int>(
+      data: pos,
+      delay: const Duration(milliseconds: 250),
+      feedback: Material(
+        color: Colors.transparent,
+        child: SizedBox(
+          width: (MediaQuery.of(context).size.width - 40) / 2,
+          child: _buildPill(tabIdx, isActive, scale: 1.05),
+        ),
+      ),
+      childWhenDragging: Opacity(
+        opacity: 0.35,
+        child: _buildPill(tabIdx, isActive),
+      ),
+      child: DragTarget<int>(
+        onWillAcceptWithDetails: (d) => d.data != pos,
+        onAcceptWithDetails: (d) => _onDropFrom(d.data),
+        builder: (ctx, candidates, _) => GestureDetector(
+          onTap: () {
+            HapticFeedback.selectionClick();
+            widget.onChanged(tabIdx);
+          },
+          child: _buildPill(tabIdx, isActive, highlight: candidates.isNotEmpty),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPill(int tabIdx, bool isActive, {bool highlight = false, double scale = 1.0}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isEv = tabIdx == 1;
+    final label = isEv ? '충전' : '주유';
+    final icon = isEv ? Icons.electric_bolt_rounded : Icons.local_gas_station_rounded;
+    final activeColor = isEv ? AppColors.evGreen : AppColors.gasBlue;
+
+    final bgColor = highlight
+        ? activeColor.withValues(alpha: 0.25)
+        : isActive
+            ? activeColor
+            : (isDark ? const Color(0x14FFFFFF) : const Color(0xFFE2E8F0));
+
+    final fgColor = isActive
+        ? Colors.white
+        : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted);
+
+    return Transform.scale(
+      scale: scale,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(12),
+          border: highlight ? Border.all(color: activeColor, width: 1.5) : null,
+          boxShadow: isActive
+              ? [BoxShadow(color: activeColor.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))]
+              : null,
+        ),
+        alignment: Alignment.center,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 18, color: fgColor),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: fgColor,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

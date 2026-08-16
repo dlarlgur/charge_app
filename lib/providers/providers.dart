@@ -199,41 +199,6 @@ final locationProvider = FutureProvider<({double lat, double lng})?>((ref) async
   return (lat: pos.latitude, lng: pos.longitude);
 });
 
-/// 홈 헤더 지역명 캐시 — 좌표를 소수 3자리(약 110m)로 반올림한 키.
-/// 역지오코딩은 서버에서 `apiQuota.record('kakao:geocode')` 로 과금 집계되는 호출이라,
-/// 같은 자리에서 새로고침을 반복해도 다시 안 나가게 막는다. 110m 격자 안에서 동 이름이
-/// 바뀌는 경우는 경계에 딱 걸릴 때뿐이고, 그때는 다음 격자로 넘어가면 갱신된다.
-String _regionCacheKey(double lat, double lng) =>
-    'region_${lat.toStringAsFixed(3)}_${lng.toStringAsFixed(3)}';
-
-/// 홈 헤더에 띄울 지역명(동/읍/면). 위치가 바뀔 때만 조회한다 —
-/// locationProvider 는 pull-to-refresh 에서만 invalidate 되므로 호출량이 거기에 묶이고,
-/// 위의 좌표 캐시가 같은 자리 반복을 한 번 더 걸러낸다.
-/// 실패하면 null 이고, 헤더는 지역명 없이 로고만 그린다(알림 배치는 그대로).
-/// `region` = 헤더에 띄울 동 이름, `address` = 눌렀을 때 펼칠 전체 주소.
-final homeRegionProvider =
-    FutureProvider<({String? region, String? address})>((ref) async {
-  final loc = await ref.watch(locationProvider.future);
-  if (loc == null) return (region: null, address: null);
-
-  final box = Hive.box(AppConstants.settingsBox);
-  final key = _regionCacheKey(loc.lat, loc.lng);
-  final cached = box.get(key);
-  if (cached is List && cached.length == 2) {
-    return (region: cached[0] as String?, address: cached[1] as String?);
-  }
-
-  final r = await ApiService().reverseGeocodeRegion(loc.lat, loc.lng);
-  if (r.region != null) {
-    // 격자가 바뀔 때마다 키가 쌓이므로 오래된 것부터 정리 (헤더 표시용 값이라 가볍게).
-    final stale =
-        box.keys.where((k) => k is String && k.startsWith('region_')).toList();
-    if (stale.length > 40) box.deleteAll(stale.take(stale.length - 20));
-    await box.put(key, [r.region, r.address]);
-  }
-  return r;
-});
-
 /// 실시간 위치 스트림 — 30m 이상 이동 시 업데이트
 final locationStreamProvider = StreamProvider<({double lat, double lng})>((ref) {
   return LocationService().getPositionStream().map((pos) => (lat: pos.latitude, lng: pos.longitude));
