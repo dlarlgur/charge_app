@@ -19,8 +19,9 @@ class CheerStrip extends StatefulWidget {
 
   /// 아직 오늘 응원 여력이 남은 상태.
   /// **한 줄에 들어가야 한다** — 320dp x1.2 까지 검증(home_top_renewal_layout_test).
-  /// 두 줄로 넘어가면 "…서버비가 / 됩니다" 처럼 어색하게 끊긴다(형 제보).
-  static const kMessage = '광고 한 편이 서버비가 됩니다';
+  /// 두 줄로 넘어가면 어색하게 끊긴다(형 제보). 콘솔 원격설정
+  /// `cheer.home_strip_message` 가 있으면 그 문구가 이 기본값을 덮는다.
+  static const kMessage = '전기차 기름차 응원하기';
 
   /// 오늘 한도를 다 채운 상태
   static const kDoneMessage = '오늘 응원 완료. 고맙습니다!';
@@ -69,6 +70,16 @@ class _CheerStripState extends State<CheerStrip> {
         final today = st?.today ?? svc.cachedToday;
         final limit = st?.dailyLimit ?? svc.cachedDailyLimit;
         final done = today >= limit;
+        // 콘솔 문구 오버라이드(cheer.home_strip_message / _done_message).
+        // status 응답 전엔 캐시, 서버가 안 내리면(null) 아래 상수 폴백 — 어느 조합도
+        // 빈 문구가 되지 않는다. 한 줄 제약은 FittedBox 가 흡수하지만 콘솔 저장
+        // 단에서도 길이를 자른다.
+        final message = st?.homeStripMessage ??
+            svc.cachedHomeStripMessage ??
+            CheerStrip.kMessage;
+        final doneMessage = st?.homeStripDoneMessage ??
+            svc.cachedHomeStripDoneMessage ??
+            CheerStrip.kDoneMessage;
 
         return Padding(
           // 요약 카드(GasSummaryCard)와 같은 좌우 여백 · 세로 간격
@@ -95,7 +106,7 @@ class _CheerStripState extends State<CheerStrip> {
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        done ? CheerStrip.kDoneMessage : CheerStrip.kMessage,
+                        done ? doneMessage : message,
                         maxLines: 1,
                         style: TextStyle(
                           fontSize: 13,

@@ -316,6 +316,11 @@ class CheerStatus {
   /// 구서버(필드 없음)는 true 로 읽는다 — 설정이 안 내려온다고 기능이 사라지면 안 된다.
   final bool homeStrip;
 
+  /// 스트립 문구 오버라이드 — 콘솔 `cheer.home_strip_message` / `_done_message`.
+  /// null 이면 앱 기본 문구(CheerStrip 상수)를 쓴다.
+  final String? homeStripMessage;
+  final String? homeStripDoneMessage;
+
   /// 왕관 이력(최신순) · 개수(금/은/동) · 아직 축하 연출을 안 본 왕관
   final List<CheerCrown> crowns;
   final Map<String, int> crownCounts;
@@ -340,6 +345,8 @@ class CheerStatus {
     this.yesterdayCount,
     this.event,
     this.homeStrip = true,
+    this.homeStripMessage,
+    this.homeStripDoneMessage,
     this.crowns = const [],
     this.crownCounts = const {},
     this.newCrown,
@@ -383,6 +390,14 @@ class CheerStatus {
       carPaints: parseCarPaints(j['carPaints']),
       // 명시적으로 false 일 때만 끈다 — 필드가 없는 구서버는 노출 유지.
       homeStrip: j['homeStrip'] != false,
+      homeStripMessage: (j['homeStripMessage'] as String?)?.trim().isNotEmpty ==
+              true
+          ? (j['homeStripMessage'] as String).trim()
+          : null,
+      homeStripDoneMessage:
+          (j['homeStripDoneMessage'] as String?)?.trim().isNotEmpty == true
+              ? (j['homeStripDoneMessage'] as String).trim()
+              : null,
     );
   }
 
@@ -469,6 +484,46 @@ class CheerService {
     homeStripNotifier.value = on;
   }
 
+  // 스트립 문구 캐시 — 노출 플래그와 같은 이유(status 응답 전 콜드스타트에서
+  // 콘솔 문구 ↔ 기본 문구가 번쩍이며 바뀌지 않게). null = 오버라이드 없음.
+  static const _hiveHomeStripMsgKey = 'cheer_home_strip_msg';
+  static const _hiveHomeStripDoneMsgKey = 'cheer_home_strip_done_msg';
+
+  String? get cachedHomeStripMessage {
+    try {
+      final v = Hive.box('settings').get(_hiveHomeStripMsgKey) as String?;
+      return (v != null && v.trim().isNotEmpty) ? v : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String? get cachedHomeStripDoneMessage {
+    try {
+      final v = Hive.box('settings').get(_hiveHomeStripDoneMsgKey) as String?;
+      return (v != null && v.trim().isNotEmpty) ? v : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _cacheHomeStripMessages(CheerStatus st) {
+    try {
+      final box = Hive.box('settings');
+      // 콘솔에서 문구를 비우면(서버 null) 캐시도 지워 기본 문구로 되돌아간다.
+      if (st.homeStripMessage != null) {
+        box.put(_hiveHomeStripMsgKey, st.homeStripMessage);
+      } else {
+        box.delete(_hiveHomeStripMsgKey);
+      }
+      if (st.homeStripDoneMessage != null) {
+        box.put(_hiveHomeStripDoneMsgKey, st.homeStripDoneMessage);
+      } else {
+        box.delete(_hiveHomeStripDoneMsgKey);
+      }
+    } catch (_) {}
+  }
+
   /// 홈 스트립 노출 반응형 알림 — 홈의 `CheerStrip` 이 구독한다.
   late final ValueNotifier<bool> homeStripNotifier =
       ValueNotifier(cachedHomeStrip);
@@ -549,6 +604,7 @@ class CheerService {
     if (v == null) return;
     _cacheTotal(v.total);
     _cacheHomeStrip(v.homeStrip);
+    _cacheHomeStripMessages(v);
     _cacheDaily(v);
   }
 
