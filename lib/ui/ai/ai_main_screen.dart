@@ -510,8 +510,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     box.put(_kEvDestMinSocKey, _evDestMinSoc);
     box.put(_kEvSocUserSetKey, _socConditionUserSet);
   }
-  bool _evHighwayOnly = true; // 고속도로 충전소만
-  bool _gasHighwayOnly = true; // 고속도로 휴게소 주유소만
+  // 고속도로 전용 필터 — 기본 OFF. 켜진 채로 시내 경로를 돌리면 휴게소 후보 0개 →
+  // 추천 불가/모순 화면이 나던 사고(2026-08-16). 고속도로 장거리 유저만 명시적으로 켠다.
+  bool _evHighwayOnly = false; // 고속도로 충전소만
+  bool _gasHighwayOnly = false; // 고속도로 휴게소 주유소만
   final Set<String> _preferredGasBrands =
       {}; // 선호 브랜드(OPINET pollDivCo 키). 빈 set = 전체.
 
@@ -810,9 +812,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   void _loadSaved() {
     final box = Hive.box(AppConstants.settingsBox);
 
-    // 고속도로 필터 — 마지막 설정 복원 (없으면 ON)
-    _evHighwayOnly = box.get(_kEvHighwayKey, defaultValue: true) == true;
-    _gasHighwayOnly = box.get(_kGasHighwayKey, defaultValue: true) == true;
+    // 고속도로 필터 — 마지막 설정 복원 (없으면 OFF — 디폴트 ON이 시내 경로 추천을 깨던 사고)
+    _evHighwayOnly = box.get(_kEvHighwayKey, defaultValue: false) == true;
+    _gasHighwayOnly = box.get(_kGasHighwayKey, defaultValue: false) == true;
 
     // AI 탭 필터 — 마지막 사용값 복원 (없으면 기존 기본: 전체/급속)
     _preferredEvOperators
