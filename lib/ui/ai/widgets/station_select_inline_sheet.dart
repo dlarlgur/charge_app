@@ -259,12 +259,13 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
                 ),
 
                 // ─ 비교 버튼 ─
+                // SafeArea 금지: 시트가 이미 navPad(하단 인셋 포함)만큼 떠 있어서
+                // 여기서 또 인셋을 더하면 버튼 아래 ~34px 흰 여백 + 카드 1개만 보이는
+                // 레이아웃이 됐다 (2026-08-16 직접선택 화면 제보).
                 if (!compact)
-                  SafeArea(
-                    top: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                      child: SizedBox(
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                    child: SizedBox(
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
@@ -307,7 +308,6 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
                         ),
                       ),
                     ),
-                  ),
               ],
             );
           },

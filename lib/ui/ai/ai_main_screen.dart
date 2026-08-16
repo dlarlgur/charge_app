@@ -6634,11 +6634,13 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 padding: EdgeInsets.only(bottom: navPad),
                 child: DraggableScrollableSheet(
                   controller: _selectSheetCtrl,
-                  initialChildSize: 0.45,
+                  // 0.45 는 고정 영역(핸들+헤더+배너+버튼)을 빼면 카드 1개만 보였다
+                  // (2026-08-16 제보 "20곳인데 1개") → 3개쯤 보이게 0.62.
+                  initialChildSize: 0.62,
                   minChildSize: 0.14,
                   maxChildSize: 0.88,
                   snap: true,
-                  snapSizes: const [0.14, 0.45, 0.88],
+                  snapSizes: const [0.14, 0.62, 0.88],
                   builder: (_, sc) => StationSelectInlineSheet(
                     sheetScrollCtrl: sc,
                     stations: _selectableStations!,
