@@ -119,9 +119,13 @@ class _CheerStripState extends State<CheerStrip> {
                   ),
                   const SizedBox(width: 9),
                   // 오늘 다 채웠으면 눌러도 못 하는 버튼 대신 상태 표시
-                  // (설정 진입 카드 `_cta` 와 같은 원칙).
+                  // (설정 진입 카드 `_cta` 와 같은 원칙). 문구가 아니라 **카운트**를
+                  // 쓴다 — '오늘 만땅!' 은 왼쪽 완료 문구('오늘 응원 완료…')와 정보가
+                  // 100% 겹쳐서 폭만 먹고 왼쪽을 FittedBox 로 쪼그라뜨렸다(형 제보).
+                  // 색은 supportAccent 가 아니라 fg — 액센트(#F59E0B)를 배경
+                  // (#FEF3C7) 위에 글자로 쓰면 대비가 2:1 도 안 나온다.
                   if (done)
-                    Text('오늘 만땅!',
+                    Text('$today/$limit',
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
