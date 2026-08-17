@@ -264,7 +264,11 @@ class _StationSelectInlineSheetState extends State<StationSelectInlineSheet> {
                 // 레이아웃이 됐다 (2026-08-16 직접선택 화면 제보).
                 if (!compact)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                    // 하단 24: 시트 바닥이 AI 원형 버튼 꼭대기와 0px 로 만나는 구조라
+                    // (floatingNavOverlayPx = 오버행+바+인셋, 여유분 없음) 12 로는
+                    // 원의 그림자·테두리와 맞닿아 보였다 (형 제보 2026-08-17).
+                    // SafeArea 를 다시 넣으면 안 된다 — 위 2026-08-16 사고 주석 참조.
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                     child: SizedBox(
                         width: double.infinity,
                         height: 50,
