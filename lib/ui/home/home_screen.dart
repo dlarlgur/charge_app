@@ -91,22 +91,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     WatchService().restore();
 
     // 월간 시상식 — 매월 1일 결산 후 첫 진입 때 한 번만. 상장은 1등만 본다(handoff 3).
-    // 2·3위도 seen 처리해서 매번 다시 조회하지 않게 한다.
+    // 2·3위는 상품이 걸린 달(발표 open + my_prize)에만 개인 축하(상장 아님)를 받는다.
     // status 조회가 실패하면 조용히 넘어간다(응원 기능 원칙: 앱 사용 방해 금지).
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final st = await CheerService.instance.status();
       final crown = st?.newCrown;
       if (crown == null || !mounted) return;
-      // 2·3위는 상장이 없다 — 조회만 소진하고 끝낸다(마이페이지 수상 기록엔 남는다).
-      if (crown.rank != 1) {
-        CheerService.instance.markCrownSeen();
-        return;
-      }
       final awards = await CheerService.instance.awards(month: crown.month);
       // 시상식 조회가 실패하면 왕관을 소진하지 않는다 — 여기서 seen 처리해 버리면
       // 서버가 잠깐 삐끗한 사이에 1등이 상장을 영영 못 본다(테스트 왕관도 마찬가지로
-      // 앱 켤 때마다 소진돼서 '설정했는데 안 뜬다'가 된다).
+      // 앱 켤 때마다 소진돼서 '설정했는데 안 뜬다'가 된다). 2·3위도 같은 원칙.
       if (awards == null || !mounted) return;
+      if (crown.rank != 1) {
+        final bs = awards.broadcastStatus;
+        // hold(동점 룰렛 대기)·unknown(발표 조회 실패)이면 상품 확정 전 —
+        // 왕관을 소진하지 말고 다음 진입 때 재판정한다 (설계서 unknown 규칙).
+        if (bs == 'hold' || bs == 'unknown') return;
+        if (bs == 'open' && awards.myPrize != null) {
+          CheerService.instance.markCrownSeen();
+          showCheerRankCongrats(context,
+              month: crown.month, rank: crown.rank, prize: awards.myPrize!);
+        } else {
+          // 상품 없는 달(open + my_prize 없음)·발표 행 없음(null)·구서버 —
+          // 기존처럼 조용히 소진 (마이페이지 수상 기록엔 남는다).
+          CheerService.instance.markCrownSeen();
+        }
+        return;
+      }
       CheerService.instance.markCrownSeen();
       final user = ref.read(authProvider);
       // 비회원 1등 — 닉네임이 없다. 서버가 순위표에 내려준 기기 별칭('응원자 4821')을

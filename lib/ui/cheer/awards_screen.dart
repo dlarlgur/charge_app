@@ -38,6 +38,202 @@ Future<void> showCheerAwards(
   );
 }
 
+/// 2·3위 개인 축하 — **상장(CertificateCard) 아님**. 상품이 걸린 달
+/// (발표 open + my_prize)에만 홈 게이트가 호출한다. '응원왕' 문구 금지 —
+/// "N월 응원 N위" 배지 + 상품 문구만 (설계서 '2·3위 개인 축하').
+Future<void> showCheerRankCongrats(
+  BuildContext context, {
+  required String month,
+  required int rank,
+  required CheerPrize prize,
+}) {
+  return showGeneralDialog<void>(
+    context: context,
+    barrierDismissible: true,
+    barrierLabel: 'cheer-rank-congrats',
+    barrierColor: Colors.black.withValues(alpha: 0.5),
+    transitionDuration: const Duration(milliseconds: 220),
+    pageBuilder: (_, __, ___) =>
+        _RankCongratsDialog(month: month, rank: rank, prize: prize),
+    transitionBuilder: (_, anim, __, child) => FadeTransition(
+      opacity: anim,
+      child: ScaleTransition(
+        scale: Tween(begin: 0.95, end: 1.0)
+            .animate(CurvedAnimation(parent: anim, curve: Curves.easeOut)),
+        child: child,
+      ),
+    ),
+  );
+}
+
+class _RankCongratsDialog extends StatelessWidget {
+  final String month;
+  final int rank;
+  final CheerPrize prize;
+  const _RankCongratsDialog(
+      {required this.month, required this.rank, required this.prize});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final ink = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    const muted = Color(0xFF94A3B8);
+    final cardW = math.min(MediaQuery.of(context).size.width - 48, 320.0);
+
+    return SafeArea(
+      child: Center(
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: cardW,
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1B212A) : Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                  color: isDark
+                      ? const Color(0x14FFFFFF)
+                      : const Color(0xFFEDE6D8),
+                  width: 0.5),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 순위 메달 — 시상식 순위표와 같은 색 규칙 (은/동)
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: const Alignment(-0.4, -1),
+                      end: const Alignment(0.4, 1),
+                      colors: CheerGold.medal(rank),
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text('$rank',
+                      style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: CheerGold.medalInk(rank))),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFC9A354)
+                        .withValues(alpha: isDark ? 0.18 : 0.14),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                        color: const Color(0xFFC9A354).withValues(alpha: 0.42),
+                        width: 0.5),
+                  ),
+                  child: Text('${cheerMonthLabel(month)} 응원 $rank위',
+                      style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                          color: isDark
+                              ? const Color(0xFFE8CE93)
+                              : const Color(0xFF8A6A2E))),
+                ),
+                const SizedBox(height: 12),
+                Text('축하드려요!',
+                    style: TextStyle(
+                        fontSize: 17, fontWeight: FontWeight.w800, color: ink)),
+                const SizedBox(height: 5),
+                const Text('지난달 응원해 주신 마음에\n작은 선물을 준비했어요.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12.5, height: 1.5, color: muted)),
+                const SizedBox(height: 14),
+                // 상품 — 시상식 상품 배너와 같은 오렌지 틴트 톤 재사용
+                Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: isDark
+                        ? const Color(0x2EF97316)
+                        : const Color(0xFFFFF4E8),
+                    border: Border.all(
+                        color: isDark
+                            ? const Color(0x59FDBA74)
+                            : const Color(0xFFF4D6BA),
+                        width: 0.5),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.redeem_rounded,
+                          size: 18,
+                          color: isDark
+                              ? const Color(0xFFFDBA74)
+                              : const Color(0xFFC2410C)),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(prize.text,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                    color: ink)),
+                            const SizedBox(height: 2),
+                            Text('기프티콘은 며칠 안에 소식함으로 보내드려요',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark
+                                        ? const Color(0xFFA89B7E)
+                                        : const Color(0xFF8A6A4A))),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFFF6E4B8), Color(0xFFC9962B)],
+                      ),
+                    ),
+                    child: TextButton(
+                      style: TextButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      child: const Text('확인',
+                          style: TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF3A2A05))),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class AwardsScreen extends StatefulWidget {
   final CheerAwards data;
   final String nickname;
@@ -158,6 +354,10 @@ class _AwardsScreenState extends State<AwardsScreen> with SingleTickerProviderSt
                           count: d.first?.count ?? d.myCount,
                           footer: CertificateFooter.stamp,
                           stampLabel: '전기차 기름차 · ${cheerMonthLabel(d.month)} 결산',
+                          // 내 상품(my_prize) — 공동 1위 룰렛 배분과 배너 문구가 다를 수
+                          // 있어 '왕관 순위' 와 분리해 표기 (설계서: 모순 없게).
+                          prizeLine:
+                              d.myPrize == null ? null : '내 상품 · ${d.myPrize!.text}',
                         ),
                         if (d.chickenOn) ...[
                           const SizedBox(height: 9),
@@ -573,6 +773,7 @@ class CertificateCard extends StatelessWidget {
   final CertificateFooter footer;
   final String? stampLabel; // footer=stamp 일 때
   final bool chicken; // footer=share 일 때 치킨 pill 노출
+  final String? prizeLine; // footer=stamp 일 때 '내 상품 · …' 한 줄 (my_prize)
   final double radius;
   final EdgeInsets padding;
 
@@ -586,6 +787,7 @@ class CertificateCard extends StatelessWidget {
     required this.footer,
     this.stampLabel,
     this.chicken = false,
+    this.prizeLine,
     this.radius = 18,
     this.padding = const EdgeInsets.fromLTRB(18, 20, 18, 18),
   });
@@ -691,6 +893,32 @@ class CertificateCard extends StatelessWidget {
         _divider(),
         const SizedBox(height: 12),
         _count(34),
+        // 내 상품 한 줄 — 상품 달 + 본인 수령 확정(my_prize)일 때만
+        if (prizeLine != null) ...[
+          const SizedBox(height: 10),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.redeem_rounded,
+                  size: 13,
+                  color: isDark
+                      ? const Color(0xFFE8CE93)
+                      : const Color(0xFF8A6A2E)),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(prizeLine!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: isDark
+                            ? const Color(0xFFE8CE93)
+                            : const Color(0xFF8A6A2E))),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),

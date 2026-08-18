@@ -220,6 +220,36 @@ Map<int, String>? parseCarPaints(dynamic raw) {
   return out;
 }
 
+/// 상품 수량 문구 — "치킨 2마리" / "커피 3개" / 1개면 라벨만.
+/// 조사·단위를 서버가 안 주므로 라벨 기반 최소 규칙만 쓴다 (치킨=마리, 그 외=개).
+String prizeQtyText(String label, int qty) {
+  if (qty <= 1) return label;
+  final unit = label.contains('치킨') ? '마리' : '개';
+  return '$label $qty$unit';
+}
+
+/// 내 상품 (`/awards` my_prize) — 발표 open && 본인이 수령자일 때만 내려온다.
+/// pos = 자리 순번 (동점 룰렛 서열 반영), 상품은 자리 기준.
+class CheerPrize {
+  final int pos;
+  final String label;
+  final int qty;
+  const CheerPrize({required this.pos, required this.label, required this.qty});
+
+  static CheerPrize? fromJson(dynamic j) {
+    if (j is! Map) return null;
+    final label = j['label']?.toString() ?? '';
+    if (label.isEmpty) return null;
+    return CheerPrize(
+      pos: (j['pos'] as num?)?.toInt() ?? 0,
+      label: label,
+      qty: (j['qty'] as num?)?.toInt() ?? 1,
+    );
+  }
+
+  String get text => prizeQtyText(label, qty);
+}
+
 /// 월간 시상식(결산) — GET /api/cheer/awards
 class CheerAwards {
   final String month; // 'YYYY-MM'
@@ -237,6 +267,13 @@ class CheerAwards {
   /// 발송됐다면 그 소식함 항목 id — 배너를 누르면 목록이 아니라 상세로 바로 연다.
   final int? chickenInboxId;
 
+  /// 발표 상태 — 'hold' | 'open' | 'unknown'(조회 실패) | null(행 없음/구서버).
+  /// hold·unknown 은 왕관 소진 금지 게이트에 쓰인다 (2·3위 개인 축하).
+  final String? broadcastStatus;
+
+  /// 내 상품 — open && 본인 수령자일 때만. 1위 상장 상품 줄·2·3위 축하에 쓴다.
+  final CheerPrize? myPrize;
+
   const CheerAwards({
     required this.month,
     required this.total,
@@ -248,6 +285,8 @@ class CheerAwards {
     required this.chickenOn,
     required this.chickenSent,
     this.chickenInboxId,
+    this.broadcastStatus,
+    this.myPrize,
   });
 
   factory CheerAwards.fromJson(Map<String, dynamic> j) {
@@ -267,6 +306,10 @@ class CheerAwards {
       chickenOn: chicken['on'] == true,
       chickenSent: chicken['sent'] == true,
       chickenInboxId: (chicken['inboxId'] as num?)?.toInt(),
+      broadcastStatus: (j['broadcast'] is Map)
+          ? (j['broadcast'] as Map)['status']?.toString()
+          : null,
+      myPrize: CheerPrize.fromJson(j['my_prize']),
     );
   }
 
