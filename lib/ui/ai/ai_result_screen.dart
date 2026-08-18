@@ -488,14 +488,6 @@ class _AiResultBodyState extends State<AiResultBody> {
         (regMatched && !regIsPrimary && regDiffRaw is num && regDiffRaw > 0)
             ? regDiffRaw.round()
             : null;
-    // 단골이 추천보다 오히려 유리한 경우 — 고속도로 모드는 1위를 경로상 후보로
-    // 고정하고, 브랜드 필터는 단골을 랭킹 풀에서 빼기 때문에 실제로 생긴다.
-    // 침묵하지 않고 "단골이 더 저렴" 을 사실대로 알린다(형 제보).
-    final regCheaperRaw = regularCompare?['cheaper_won'];
-    final int? regCheaperWon =
-        (regMatched && !regIsPrimary && regCheaperRaw is num && regCheaperRaw > 0)
-            ? regCheaperRaw.round()
-            : null;
     // 1·2순위가 모두 내 단골인 경우 — 문구를 "두 곳 다 단골" 로 바꾼다.
     final regSecondAlsoMine = regularCompare?['second_is_regular'] == true;
     // 서버가 고른 비교 대상 1곳(station_id)의 이름을 로컬 단골 목록에서 찾는다
@@ -766,18 +758,12 @@ class _AiResultBodyState extends State<AiResultBody> {
           // 앞말은 작게(어디와 비교했는지), 본문은 크게(핵심 숫자·결론).
           regularLabel: regIsPrimary
               ? (regSecondAlsoMine ? '1·2순위 모두 단골이에요 — ' : '오늘은 ')
-              : (regDiffWon != null
-                  ? '단골 ${regName ?? '주유소'}보다 '
-                  : (regCheaperWon != null
-                      ? '단골 ${regName ?? '주유소'}가 '
-                      : null)),
+              : (regDiffWon != null ? '단골 ${regName ?? '주유소'}보다 ' : null),
           regularLine: regIsPrimary
               ? '단골이 최적이에요'
               : (regDiffWon != null
                   ? '약 ${_wonFmt.format(regDiffWon)}원 이득'
-                  : (regCheaperWon != null
-                      ? '약 ${_wonFmt.format(regCheaperWon)}원 더 저렴해요'
-                      : null)),
+                  : null),
         ),
         const SizedBox(height: 12),
       ],
@@ -802,7 +788,6 @@ class _AiResultBodyState extends State<AiResultBody> {
           regularDiffWon: regDiffWon,
           regularIsPrimary: regIsPrimary,
           regularName: regName,
-          regularCheaperWon: regCheaperWon,
           regularSecondAlsoMine: regSecondAlsoMine,
           detourPrice: dtPrice,
           detourCost: dtCost,
@@ -1475,9 +1460,6 @@ class _StationComparisonSection extends StatelessWidget {
   /// 서버가 비교에 쓴 단골(station_id)의 로컬 이름 — 문구용, 없으면 폴백
   final String? regularName;
 
-  /// 단골이 추천보다 오히려 유리할 때의 차액(양수) — 있으면 '더 저렴' 문구.
-  final int? regularCheaperWon;
-
   /// 1·2순위가 모두 내 단골인 경우.
   final bool regularSecondAlsoMine;
   final double? detourPrice;
@@ -1521,7 +1503,6 @@ class _StationComparisonSection extends StatelessWidget {
     this.regularDiffWon,
     this.regularIsPrimary = false,
     this.regularName,
-    this.regularCheaperWon,
     this.regularSecondAlsoMine = false,
     required this.detourPrice,
     required this.detourCost,
@@ -1592,7 +1573,6 @@ class _StationComparisonSection extends StatelessWidget {
           regularDiffWon: regularDiffWon,
           regularIsPrimary: regularIsPrimary,
           regularName: regularName,
-          regularCheaperWon: regularCheaperWon,
           regularSecondAlsoMine: regularSecondAlsoMine,
           price: recPrice,
           cost: recCost,
@@ -1687,9 +1667,6 @@ class _RecommendedCard extends StatelessWidget {
   /// 비교에 쓰인 단골의 이름 (regular_compare.station_id → 로컬 목록)
   final String? regularName;
 
-  /// 단골이 추천보다 오히려 유리할 때의 차액(양수) — 있으면 '더 저렴' 문구.
-  final int? regularCheaperWon;
-
   /// 1·2순위가 모두 내 단골인 경우.
   final bool regularSecondAlsoMine;
 
@@ -1700,7 +1677,6 @@ class _RecommendedCard extends StatelessWidget {
     this.regularDiffWon,
     this.regularIsPrimary = false,
     this.regularName,
-    this.regularCheaperWon,
     this.regularSecondAlsoMine = false,
     required this.price,
     required this.cost,
@@ -1723,7 +1699,9 @@ class _RecommendedCard extends StatelessWidget {
   /// 케이스별 단골 문구 — 조건 미충족이면 null 이라 줄 자체가 없다.
   ///  · 1순위가 단골 (+2순위도 단골이면 두 곳 다 안내)
   ///  · 단골보다 추천이 이득
-  ///  · 단골이 오히려 더 저렴 (고속도로 모드·브랜드 필터에서 발생)
+  /// 단골이 오히려 더 저렴한 경우(고속도로 모드는 1위를 경로상으로 고정, 브랜드
+  /// 필터는 단골을 랭킹 풀에서 제외)는 **일부러 아무 말도 하지 않는다** — 추천
+  /// 바로 밑에서 "님 단골이 더 싸요"는 자기모순으로 읽힌다(형 결정 2026-08-18).
   String? _regularLine() {
     final rn = (regularName ?? '').trim();
     final target = rn.isEmpty ? '단골 주유소' : '단골 $rn';
@@ -1734,9 +1712,6 @@ class _RecommendedCard extends StatelessWidget {
     }
     if (regularDiffWon != null && regularDiffWon! > 0) {
       return '$target보다 약 ${wonFmt.format(regularDiffWon)}원 이득';
-    }
-    if (regularCheaperWon != null && regularCheaperWon! > 0) {
-      return '$target가 약 ${wonFmt.format(regularCheaperWon)}원 더 저렴해요';
     }
     return null;
   }
