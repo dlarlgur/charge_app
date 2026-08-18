@@ -78,9 +78,9 @@ class UserDataSync {
         scope = v;
       }
     }
-    // 단골주유소 — 서버에 없고 로컬에만 있을 때 1회 백필
+    // 단골주유소 — 서버에 없고 로컬에만 있을 때 1회 백필 (CSV, 최대 3곳)
     final regular =
-        prefs['regularStationId'] == null ? RegularStationService.current?.id : null;
+        prefs['regularStationId'] == null ? RegularStationService.csv : null;
     if (consent == null && engine == null && scope == null && regular == null) {
       return;
     }
@@ -161,7 +161,7 @@ class UserDataSync {
       box.put('nav_scope', ns);
       NavScopePref.notifyChanged();
     }
-    // 단골주유소 복원 (null=구서버 무시, ''=해제, id=등록)
+    // 단골주유소 복원 (null=구서버 무시, ''=전체 해제, CSV=그 목록으로)
     RegularStationService.applyRemote(prefs['regularStationId']);
 
     // AI 차량 — 서버를 소스로 ai_vehicles 갱신
@@ -267,8 +267,8 @@ class UserDataSync {
       'routeEngine': box.get('route_engine'),
       'navScope': box.get('nav_scope'),
       'reportShortcut': box.get('report_fab_on'),
-      // 단골주유소 — 게스트 시절 등록도 회원 이관 (없으면 null → 서버가 무시)
-      'regularStationId': RegularStationService.current?.id,
+      // 단골주유소 — 게스트 시절 등록도 회원 이관 (CSV, 없으면 null → 서버가 무시)
+      'regularStationId': RegularStationService.csv,
     };
 
     List vlist;

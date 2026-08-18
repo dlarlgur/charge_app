@@ -488,6 +488,13 @@ class _AiResultBodyState extends State<AiResultBody> {
         (regMatched && !regIsPrimary && regDiffRaw is num && regDiffRaw > 0)
             ? regDiffRaw.round()
             : null;
+    // 서버가 고른 비교 대상 1곳(station_id)의 이름을 로컬 단골 목록에서 찾는다
+    // (복수 단골 — 어느 단골과 비교했는지 문구에 정확히 쓴다).
+    final regName = regularCompare?['station_id'] == null
+        ? null
+        : RegularStationService.byId(
+                regularCompare!['station_id'].toString())
+            ?.name;
 
     final hasOverride = _selectedAltItem != null;
     // 서버 choice가 누락/불일치여도 on_route가 비어 있고 detour가 있으면 detour를 메인으로 강제
@@ -767,6 +774,7 @@ class _AiResultBodyState extends State<AiResultBody> {
           detourStationId: detourSt?['id']?.toString(),
           regularDiffWon: regDiffWon,
           regularIsPrimary: regIsPrimary,
+          regularName: regName,
           detourPrice: dtPrice,
           detourCost: dtCost,
           dtDetourM: dtDetourM,
@@ -1391,6 +1399,9 @@ class _StationComparisonSection extends StatelessWidget {
 
   /// 단골이 이번 추천 1순위 자체인지 — '단골' 배지 + 최적 문구
   final bool regularIsPrimary;
+
+  /// 서버가 비교에 쓴 단골(station_id)의 로컬 이름 — 문구용, 없으면 폴백
+  final String? regularName;
   final double? detourPrice;
   final int detourCost;
   final int dtDetourM;
@@ -1431,6 +1442,7 @@ class _StationComparisonSection extends StatelessWidget {
     this.detourStationId,
     this.regularDiffWon,
     this.regularIsPrimary = false,
+    this.regularName,
     required this.detourPrice,
     required this.detourCost,
     required this.dtDetourM,
@@ -1499,6 +1511,7 @@ class _StationComparisonSection extends StatelessWidget {
           stationId: recStationId,
           regularDiffWon: regularDiffWon,
           regularIsPrimary: regularIsPrimary,
+          regularName: regularName,
           price: recPrice,
           cost: recCost,
           detourM: recDetourM,
@@ -1589,12 +1602,16 @@ class _RecommendedCard extends StatelessWidget {
   /// 단골이 1순위 자체 — '단골' 배지 + "오늘은 단골이 최적이에요"
   final bool regularIsPrimary;
 
+  /// 비교에 쓰인 단골의 이름 (regular_compare.station_id → 로컬 목록)
+  final String? regularName;
+
   const _RecommendedCard({
     required this.name,
     this.brand,
     this.stationId,
     this.regularDiffWon,
     this.regularIsPrimary = false,
+    this.regularName,
     required this.price,
     required this.cost,
     required this.detourM,
@@ -1614,7 +1631,7 @@ class _RecommendedCard extends StatelessWidget {
   /// "단골 ○○보다 약 N원 이득" — 다른 기기 동기화 등으로 로컬에 이름이 없으면
   /// '단골 주유소' 로 폴백 (긴 이름은 Row 의 Expanded + ellipsis 가 처리).
   String _regularDiffLine() {
-    final rn = (RegularStationService.current?.name ?? '').trim();
+    final rn = (regularName ?? '').trim();
     final target = rn.isEmpty ? '단골 주유소' : '단골 $rn';
     return '$target보다 약 ${wonFmt.format(regularDiffWon)}원 이득';
   }

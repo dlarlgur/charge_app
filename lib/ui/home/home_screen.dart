@@ -3120,46 +3120,98 @@ class _ChargeMarketingTileState extends ConsumerState<_ChargeMarketingTile> {
   }
 }
 
-/// 단골주유소 타일 — 현재 단골 표시/해제. 신규 지정은 주유소 상세화면 안내 (설계서 §6).
+/// 단골주유소 타일 — 최대 3곳 목록 표시/개별 해제. 신규 지정은 주유소 상세화면 안내
+/// (설계서 §6). 즐겨찾기와 혼동 방지 카피를 부제로 상시 노출 (형 요구).
 class _RegularStationTileEmbed extends StatelessWidget {
   final bool isDark;
   const _RegularStationTileEmbed({required this.isDark});
 
-  Future<void> _onTap(BuildContext context, RegularStation? reg) async {
-    if (reg == null) {
+  Future<void> _onTap(
+      BuildContext context, List<RegularStation> regs) async {
+    if (regs.isEmpty) {
       // 신규 지정은 여기서 못 한다 — 상세화면으로 안내만.
       await showAppDialog<void>(
         context,
         icon: Icons.loyalty_rounded,
         title: '단골주유소',
-        message: '자주 가는 주유소 상세화면에서 하트 옆 단골 버튼으로 지정할 수 있어요.\n'
-            '등록하면 AI 추천 결과에서 단골과 비교해 드려요.',
+        message: '자주 가는 주유소 상세화면에서 하트 옆 단골 버튼으로 최대 3곳까지 지정할 수 있어요.\n'
+            '${RegularStationService.copyLine}.',
         primaryLabel: '확인',
       );
       return;
     }
-    final name = reg.name.trim().isEmpty ? '단골주유소' : reg.name;
-    final ok = await showAppDialog<bool>(
-      context,
-      icon: Icons.loyalty_rounded,
-      title: '단골주유소 해제',
-      message: '$name을(를) 단골주유소에서 해제할까요?\n다른 주유소는 상세화면에서 새로 지정할 수 있어요.',
-      primaryLabel: '해제하기',
-      primaryValue: true,
-      secondaryLabel: '취소',
+    // 목록 시트 — 개별 해제. 상태 변경은 notifier 구독으로 즉시 반영.
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: ValueListenableBuilder<List<RegularStation>>(
+          valueListenable: RegularStationService.notifier,
+          builder: (ctx, list, _) {
+            final muted =
+                isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+            return Column(mainAxisSize: MainAxisSize.min, children: [
+              const SizedBox(height: 16),
+              Text('단골주유소 ${list.length}/${RegularStationService.maxCount}',
+                  style: Theme.of(ctx).textTheme.titleMedium),
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text('${RegularStationService.copyLine}.',
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12, color: muted)),
+              ),
+              const SizedBox(height: 8),
+              if (list.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+                  child: Text('모두 해제했어요. 주유소 상세화면에서 다시 지정할 수 있어요.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 13, color: muted)),
+                )
+              else
+                for (final r in list)
+                  ListTile(
+                    leading: SettingsScreenEmbed.settingsIconChip(
+                        Icons.loyalty_rounded, isDark),
+                    title: Text(r.name.trim().isEmpty ? '단골주유소' : r.name,
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    trailing: TextButton(
+                      onPressed: () async {
+                        final name =
+                            r.name.trim().isEmpty ? '이 주유소' : r.name;
+                        final ok = await showAppDialog<bool>(
+                          ctx,
+                          icon: Icons.loyalty_rounded,
+                          title: '단골주유소 해제',
+                          message: '$name을(를) 단골주유소에서 해제할까요?',
+                          primaryLabel: '해제하기',
+                          primaryValue: true,
+                          secondaryLabel: '취소',
+                        );
+                        if (ok == true) RegularStationService.remove(r.id);
+                      },
+                      child: const Text('해제',
+                          style: TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+              const SizedBox(height: 16),
+            ]);
+          },
+        ),
+      ),
     );
-    if (ok == true) {
-      RegularStationService.clear();
-      if (context.mounted) showAppToast(context, '단골주유소를 해제했어요');
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    return ValueListenableBuilder<RegularStation?>(
+    return ValueListenableBuilder<List<RegularStation>>(
       valueListenable: RegularStationService.notifier,
-      builder: (context, reg, _) => ListTile(
+      builder: (context, regs, _) => ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         leading:
             SettingsScreenEmbed.settingsIconChip(Icons.loyalty_rounded, isDark),
@@ -3170,24 +3222,27 @@ class _RegularStationTileEmbed extends StatelessWidget {
                 .textTheme
                 .titleSmall
                 ?.copyWith(fontWeight: FontWeight.w600)),
-        subtitle: Text(
-            reg == null ? '주유소 상세화면에서 지정할 수 있어요' : 'AI 추천에서 단골과 비교해 드려요',
+        subtitle: Text(RegularStationService.copyLine,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style:
                 Theme.of(context).textTheme.bodySmall?.copyWith(color: muted)),
         trailing: Row(mainAxisSize: MainAxisSize.min, children: [
           SettingsValue(
-              reg == null
+              regs.isEmpty
                   ? '없음'
-                  : (reg.name.trim().isEmpty ? '등록됨' : reg.name),
+                  : (regs.length == 1
+                      ? (regs.first.name.trim().isEmpty
+                          ? '1곳'
+                          : regs.first.name)
+                      : '${regs.length}곳'),
               color: muted),
           Padding(
             padding: const EdgeInsets.only(left: 2),
             child: Icon(Icons.chevron_right_rounded, size: 20, color: muted),
           ),
         ]),
-        onTap: () => _onTap(context, reg),
+        onTap: () => _onTap(context, regs),
       ),
     );
   }

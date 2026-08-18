@@ -2421,10 +2421,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           'preferred_brands': _preferredGasBrands
               .expand((k) => k == 'RTO' ? const ['RTO', 'RTX'] : [k])
               .toList(),
-        // 단골주유소 — 후보군 포함 시 서버가 regular_compare 로 차액을 내려준다.
-        // 비로그인도 로컬 값을 실어 보내므로 계정 저장 없이 완전 동작.
-        if (RegularStationService.current != null)
-          'regular_station_id': RegularStationService.current!.id,
+        // 단골주유소(최대 3곳, CSV) — 후보군에 걸린 단골 중 최저 score 1곳을
+        // 서버가 regular_compare 로 내려준다. 비로그인도 로컬 값으로 완전 동작.
+        if (RegularStationService.csv != null)
+          'regular_station_id': RegularStationService.csv,
       },
       'recommendation': {'top_n_candidates_returned': 3},
     };

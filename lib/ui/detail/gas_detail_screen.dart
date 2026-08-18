@@ -351,8 +351,8 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
     setState(() => _isFavorite = result);
   }
 
-  /// 단골주유소 지정/해제 — 하트 옆 액션 (설계서 §6 진입점 2).
-  /// 기존 단골이 있으면 교체 확인, 이 주유소가 단골이면 해제 확인.
+  /// 단골주유소 지정/해제 — 하트 옆 액션 (설계서 §6 진입점 2, 최대 3곳).
+  /// 이미 단골이면 해제 확인, 3곳이 차 있으면 교체 대상 선택, 아니면 등록 확인.
   Future<void> _toggleRegular() async {
     final d = _detail;
     final name =
@@ -360,9 +360,8 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
     final brand =
         (d?['brand'] ?? d?['POLL_DIV_CD'] ?? d?['POLL_DIV_CO'] ?? widget.station?.brand ?? '')
             .toString();
-    final cur = RegularStationService.current;
 
-    if (cur?.id == widget.stationId) {
+    if (RegularStationService.contains(widget.stationId)) {
       final ok = await showAppDialog<bool>(
         context,
         icon: Icons.loyalty_rounded,
@@ -373,25 +372,33 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
         secondaryLabel: '취소',
       );
       if (ok != true || !mounted) return;
-      RegularStationService.clear();
+      RegularStationService.remove(widget.stationId);
       showAppToast(context, '단골주유소를 해제했어요');
       return;
     }
-    if (cur != null) {
-      final curName = cur.name.trim().isEmpty ? '기존 단골' : cur.name;
-      final ok = await showAppDialog<bool>(
-        context,
-        icon: Icons.loyalty_rounded,
-        title: '단골주유소 교체',
-        message: '단골주유소는 한 곳만 등록할 수 있어요.\n$curName 대신 $name을(를) 단골로 할까요?',
-        primaryLabel: '교체하기',
-        primaryValue: true,
-        secondaryLabel: '취소',
-      );
-      if (ok != true || !mounted) return;
+
+    if (RegularStationService.isFull) {
+      // 3곳 만석 — 무조건 덮어쓰지 않고 교체 대상을 고르게 한다 (설계서 §6).
+      final target = await showRegularReplacePicker(context, newName: name);
+      if (target == null || !mounted) return;
+      RegularStationService.replace(target.id,
+          id: widget.stationId, name: name, brand: brand);
+      showAppToast(context, '단골주유소를 교체했어요');
+      return;
     }
-    RegularStationService.set(id: widget.stationId, name: name, brand: brand);
-    if (mounted) showAppToast(context, '단골주유소로 등록했어요');
+
+    final ok = await showAppDialog<bool>(
+      context,
+      icon: Icons.loyalty_rounded,
+      title: '단골주유소 등록',
+      message: '$name을(를) 단골주유소로 등록할까요?\n${RegularStationService.copyLine}.',
+      primaryLabel: '단골로 등록',
+      primaryValue: true,
+      secondaryLabel: '취소',
+    );
+    if (ok != true || !mounted) return;
+    RegularStationService.add(id: widget.stationId, name: name, brand: brand);
+    showAppToast(context, '단골주유소로 등록했어요');
   }
 
   void _openAlertSheet() {
@@ -689,24 +696,35 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                 isDark: isDark,
               ),
               const SizedBox(width: 8),
-              _ActionIconBtn(
-                icon: _isFavorite ? Icons.favorite : Icons.favorite_border,
-                color: _isFavorite ? actionColor : null,
-                onTap: _toggleFavorite,
-                isDark: isDark,
+              // 하트=즐겨찾기, 태그=단골 — 롱프레스 라벨로도 구분되게 Tooltip.
+              Tooltip(
+                message: '즐겨찾기',
+                child: _ActionIconBtn(
+                  icon: _isFavorite ? Icons.favorite : Icons.favorite_border,
+                  color: _isFavorite ? actionColor : null,
+                  onTap: _toggleFavorite,
+                  isDark: isDark,
+                ),
               ),
               const SizedBox(width: 8),
               // 단골 지정 — 하트 옆 (설계서 §6). 다른 화면에서 바뀌어도 따라오게 구독.
-              ValueListenableBuilder<RegularStation?>(
+              ValueListenableBuilder<List<RegularStation>>(
                 valueListenable: RegularStationService.notifier,
-                builder: (_, reg, __) => _ActionIconBtn(
-                  icon: reg?.id == widget.stationId
-                      ? Icons.loyalty_rounded
-                      : Icons.loyalty_outlined,
-                  color: reg?.id == widget.stationId ? actionColor : null,
-                  onTap: _toggleRegular,
-                  isDark: isDark,
-                ),
+                builder: (_, regs, __) {
+                  final isRegular =
+                      regs.any((r) => r.id == widget.stationId);
+                  return Tooltip(
+                    message: isRegular ? '단골 해제' : '단골 등록',
+                    child: _ActionIconBtn(
+                      icon: isRegular
+                          ? Icons.loyalty_rounded
+                          : Icons.loyalty_outlined,
+                      color: isRegular ? actionColor : null,
+                      onTap: _toggleRegular,
+                      isDark: isDark,
+                    ),
+                  );
+                },
               ),
               const SizedBox(width: 8),
               Expanded(
