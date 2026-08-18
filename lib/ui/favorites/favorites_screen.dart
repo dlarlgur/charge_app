@@ -13,9 +13,9 @@ import '../../providers/providers.dart'
         favEvStationsSortedProvider;
 import '../../core/utils/navigation_util.dart';
 import '../../core/app_dialog.dart';
-import '../../core/util/app_toast.dart';
 import '../../data/services/place_service.dart';
 import '../../data/services/regular_station_service.dart';
+import '../../data/services/station_alias_service.dart';
 import 'place_picker_screen.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/shared_widgets.dart';
@@ -370,12 +370,130 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
       );
 
   // ── 단골주유소 (주유소 탭 전용 — 주유 전용 기능, 충전소 탭 X) ──
+  // 공용 카드(GasStationCard)에는 단골 요소를 넣지 않는다 — 작은 폰·큰 글씨에서
+  // 한 행이 빡빡해져 이름이 찌그러진다(형 제보). 상단 섹션 + '단골 등록' 텍스트
+  // 버튼 + 즐겨찾기 선택 시트로 일원화.
 
-  /// 카드·목록 공용 단골 토글 — 상세화면과 같은 흐름(등록 확인/만석 교체/해제 확인).
-  Future<void> _toggleRegularFor(GasStation s) async {
-    if (RegularStationService.contains(s.id)) {
+  /// '단골 등록/변경' 버튼 → 내 즐겨찾기 주유소에서 고르는 선택 시트.
+  /// 이미 단골인 항목은 체크 표시, 탭하면 해제. 만석 상태에서 새 항목을 고르면
+  /// 교체 선택 시트가 이어진다 (무조건 덮어쓰기 금지).
+  Future<void> _showRegularPickSheet(List<GasStation> favs) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        final bg = isDark ? AppColors.darkSurface1 : Colors.white;
+        final muted =
+            isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+        final textPrimary =
+            isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+        return Container(
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(22)),
+          ),
+          constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(ctx).size.height * 0.7),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 10),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? const Color(0x33FFFFFF)
+                        : const Color(0xFFDDE3EA),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text('즐겨찾기에서 단골 고르기',
+                    style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
+                        color: textPrimary)),
+                const SizedBox(height: 5),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Text('${RegularStationService.copyLine}.',
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 12, height: 1.4, color: muted)),
+                ),
+                const SizedBox(height: 8),
+                if (favs.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+                    child: Text(
+                        '즐겨찾기한 주유소가 없어요.\n주유소 상세화면에서 단골로 지정할 수 있어요.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 13, height: 1.5, color: muted)),
+                  )
+                else
+                  Flexible(
+                    child: ValueListenableBuilder<List<RegularStation>>(
+                      valueListenable: RegularStationService.notifier,
+                      builder: (ctx, regs, _) => ListView(
+                        shrinkWrap: true,
+                        padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                        children: [
+                          for (final s in favs)
+                            ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12),
+                              title: Text(
+                                  StationAliasService.resolveGas(
+                                      s.id, s.name),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      fontSize: 14.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: textPrimary)),
+                              subtitle: Text(
+                                  '${s.brandName} · ${s.address}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      fontSize: 12, color: muted)),
+                              trailing: regs.any((r) => r.id == s.id)
+                                  ? const Icon(Icons.check_circle_rounded,
+                                      size: 20, color: AppColors.gasBlue)
+                                  : null,
+                              onTap: () => _pickRegularFromSheet(
+                                  ctx, s, regs.any((r) => r.id == s.id)),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// 선택 시트에서 한 곳 탭 — 단골이면 해제 확인, 아니면 추가(만석이면 교체 선택).
+  /// 시트는 닫지 않는다 — 체크 표시가 즉시 바뀌어 여러 곳을 이어서 정리할 수 있게.
+  Future<void> _pickRegularFromSheet(
+      BuildContext sheetCtx, GasStation s, bool isRegular) async {
+    if (isRegular) {
       final ok = await showAppDialog<bool>(
-        context,
+        sheetCtx,
         icon: Icons.loyalty_rounded,
         title: '단골주유소 해제',
         message: '${s.name}을(를) 단골주유소에서 해제할까요?',
@@ -383,53 +501,42 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
         primaryValue: true,
         secondaryLabel: '취소',
       );
-      if (ok != true || !mounted) return;
-      RegularStationService.remove(s.id);
-      showAppToast(context, '단골주유소를 해제했어요');
+      if (ok == true) RegularStationService.remove(s.id);
       return;
     }
     if (RegularStationService.isFull) {
-      final target = await showRegularReplacePicker(context, newName: s.name);
-      if (target == null || !mounted) return;
+      final target = await showRegularReplacePicker(sheetCtx, newName: s.name);
+      if (target == null) return;
       RegularStationService.replace(target.id,
           id: s.id, name: s.name, brand: s.brand);
-      showAppToast(context, '단골주유소를 교체했어요');
       return;
     }
-    final ok = await showAppDialog<bool>(
-      context,
-      icon: Icons.loyalty_rounded,
-      title: '단골주유소 등록',
-      message: '${s.name}을(를) 단골주유소로 등록할까요?\n${RegularStationService.copyLine}.',
-      primaryLabel: '단골로 등록',
-      primaryValue: true,
-      secondaryLabel: '취소',
-    );
-    if (ok != true || !mounted) return;
     RegularStationService.add(id: s.id, name: s.name, brand: s.brand);
-    showAppToast(context, '단골주유소로 등록했어요');
   }
 
-  /// 주유소 탭 상단 단골 섹션 — 등록분 목록(개별 해제) 또는 등록 유도 안내.
-  List<Widget> _regularSection(List<RegularStation> regs, bool isDark) {
+  /// 주유소 탭 상단 단골 섹션 — 이 기능의 유일한 자리.
+  /// 세로 배치·행당 가로 요소 최소화(이름 Expanded + 해제 버튼)로 작은 폰·큰 글씨에서
+  /// 안 깨지게. '단골 등록'은 아이콘이 아니라 **글자 버튼**으로 (형 요구).
+  List<Widget> _regularSection(
+      List<RegularStation> regs, List<GasStation> favs, bool isDark) {
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    final accent = isDark ? AppColors.gasBlue : AppColors.gasBlueDark;
+    final isFull = regs.length >= RegularStationService.maxCount;
     return [
       Padding(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 2),
         child: Row(
           children: [
-            const Icon(Icons.loyalty_rounded,
-                size: 15, color: AppColors.gasBlue),
-            const SizedBox(width: 5),
-            Text('단골주유소',
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: isDark
-                        ? AppColors.darkTextPrimary
-                        : AppColors.lightTextPrimary)),
-            const Spacer(),
+            Expanded(
+              child: Text('단골주유소',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.lightTextPrimary)),
+            ),
             Text('${regs.length}/${RegularStationService.maxCount}',
                 style: TextStyle(
                     fontSize: 11.5,
@@ -439,95 +546,107 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
         ),
       ),
       Padding(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
         child: Text('${RegularStationService.copyLine}.',
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(fontSize: 11.5, height: 1.4, color: muted)),
       ),
-      if (regs.isEmpty)
+      // 등록된 단골 행 — 탭=상세 이동, 오른쪽 '해제' 텍스트 버튼.
+      for (final r in regs)
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             color: isDark ? AppColors.darkCard : Colors.white,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-                color:
-                    isDark ? AppColors.darkCardBorder : const Color(0xFFE8ECF0),
+                color: isDark
+                    ? AppColors.darkCardBorder
+                    : const Color(0xFFE8ECF0),
                 width: 0.8),
           ),
-          child: Text('아직 단골이 없어요. 아래 목록이나 주유소 상세화면에서 단골로 지정해보세요.',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 12.5, height: 1.4, color: muted)),
-        )
-      else
-        for (final r in regs)
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkCard : Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                  color: isDark
-                      ? AppColors.darkCardBorder
-                      : const Color(0xFFE8ECF0),
-                  width: 0.8),
-            ),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: () => context.push('/gas/${r.id}'),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: accent.withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(Icons.loyalty_rounded,
-                          size: 18, color: accent),
-                    ),
-                    const SizedBox(width: 11),
-                    Expanded(
-                      child: Text(r.name.trim().isEmpty ? '단골주유소' : r.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              fontSize: 14.5,
-                              fontWeight: FontWeight.w700,
-                              color: isDark
-                                  ? AppColors.darkTextPrimary
-                                  : AppColors.lightTextPrimary)),
-                    ),
-                    TextButton(
-                      onPressed: () async {
-                        final name = r.name.trim().isEmpty ? '이 주유소' : r.name;
-                        final ok = await showAppDialog<bool>(
-                          context,
-                          icon: Icons.loyalty_rounded,
-                          title: '단골주유소 해제',
-                          message: '$name을(를) 단골주유소에서 해제할까요?',
-                          primaryLabel: '해제하기',
-                          primaryValue: true,
-                          secondaryLabel: '취소',
-                        );
-                        if (ok == true) RegularStationService.remove(r.id);
-                      },
-                      child: const Text('해제',
-                          style: TextStyle(
-                              fontSize: 12.5, fontWeight: FontWeight.w700)),
-                    ),
-                  ],
-                ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () => context.push('/gas/${r.id}'),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 4, 4, 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(r.name.trim().isEmpty ? '단골주유소' : r.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w700,
+                            color: isDark
+                                ? AppColors.darkTextPrimary
+                                : AppColors.lightTextPrimary)),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      final name = r.name.trim().isEmpty ? '이 주유소' : r.name;
+                      final ok = await showAppDialog<bool>(
+                        context,
+                        icon: Icons.loyalty_rounded,
+                        title: '단골주유소 해제',
+                        message: '$name을(를) 단골주유소에서 해제할까요?',
+                        primaryLabel: '해제하기',
+                        primaryValue: true,
+                        secondaryLabel: '취소',
+                      );
+                      if (ok == true) RegularStationService.remove(r.id);
+                    },
+                    child: const Text('해제',
+                        style: TextStyle(
+                            fontSize: 12.5, fontWeight: FontWeight.w700)),
+                  ),
+                ],
               ),
             ),
           ),
-      const SizedBox(height: 6),
+        ),
+      // '단골 등록' 글자 버튼 — 미등록이면 섹션의 주역(큰 버튼), 등록분이 있으면
+      // 목록 아래 보조 버튼. 만석이면 '단골 변경'으로 라벨 전환.
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+        child: regs.isEmpty
+            ? SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: FilledButton.tonal(
+                  onPressed: () => _showRegularPickSheet(favs),
+                  style: FilledButton.styleFrom(
+                    backgroundColor:
+                        AppColors.gasBlue.withValues(alpha: 0.12),
+                    foregroundColor: AppColors.gasBlue,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    textStyle: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w800),
+                  ),
+                  child: const Text('단골 등록'),
+                ),
+              )
+            : SizedBox(
+                width: double.infinity,
+                height: 40,
+                child: OutlinedButton(
+                  onPressed: () => _showRegularPickSheet(favs),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.gasBlue,
+                    side: BorderSide(
+                        color: AppColors.gasBlue.withValues(alpha: 0.45)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    textStyle: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w700),
+                  ),
+                  child: Text(isFull ? '단골 변경' : '단골 등록'),
+                ),
+              ),
+      ),
+      const SizedBox(height: 10),
     ];
   }
 
@@ -539,26 +658,21 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
       error: (_, __) => _error(),
       data: (list) {
         final sorted = _sortedGas(list);
-        // 단골 상태 변경(등록/교체/해제) 시 섹션·카드 배지가 즉시 따라오게 구독.
+        // 단골 상태 변경(등록/교체/해제) 시 섹션이 즉시 따라오게 구독.
+        // 즐겨찾기 카드는 기존 그대로 — 단골 요소를 카드에 넣지 않는다.
         return ValueListenableBuilder<List<RegularStation>>(
           valueListenable: RegularStationService.notifier,
           builder: (context, regs, _) => ListView(
             padding: const EdgeInsets.symmetric(vertical: 4),
             children: [
-              ..._regularSection(regs, isDark),
+              ..._regularSection(regs, sorted, isDark),
               if (sorted.isEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 40),
                   child: _empty(),
                 )
               else
-                for (final s in sorted)
-                  GasStationCard(
-                    station: s,
-                    onTap: () => context.push('/gas/${s.id}', extra: s),
-                    isRegular: regs.any((r) => r.id == s.id),
-                    onRegularToggle: () => _toggleRegularFor(s),
-                  ),
+                for (final s in sorted) _gasCard(s),
             ],
           ),
         );

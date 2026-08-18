@@ -140,20 +140,7 @@ class GasStationCard extends ConsumerWidget {
   final int? recommendRank;
   final VoidCallback? onTap;
 
-  /// 단골주유소 표시/토글 — 즐겨찾기 화면 전용 opt-in.
-  /// 기본값(false/null)이면 렌더가 기존과 완전히 동일하다 (홈·지도 등 무영향).
-  final bool isRegular; // true 면 이름 앞에 '단골' 미니 배지
-  final VoidCallback? onRegularToggle; // non-null 이면 하트 옆 단골 토글 아이콘
-
-  const GasStationCard(
-      {super.key,
-      required this.station,
-      this.isTop = false,
-      this.topBadgeLabel = '최저가',
-      this.recommendRank,
-      this.onTap,
-      this.isRegular = false,
-      this.onRegularToggle});
+  const GasStationCard({super.key, required this.station, this.isTop = false, this.topBadgeLabel = '최저가', this.recommendRank, this.onTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -205,45 +192,11 @@ class GasStationCard extends ConsumerWidget {
                   ],
                   ValueListenableBuilder<int>(
                     valueListenable: stationAliasVersion,
-                    builder: (_, __, ___) => Row(
-                      children: [
-                        // 단골 미니 배지 — 즐겨찾기 화면 opt-in. 이름은 Expanded 라
-                        // 배지가 붙어도 ellipsis 로 안전 (긴 이름 오버플로우 금지).
-                        if (isRegular) ...[
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 5, vertical: 1.5),
-                            decoration: BoxDecoration(
-                              color: AppColors.gasBlue
-                                  .withValues(alpha: isDark ? 0.22 : 0.10),
-                              borderRadius: BorderRadius.circular(5),
-                              border: Border.all(
-                                  color: AppColors.gasBlue
-                                      .withValues(alpha: 0.45),
-                                  width: 0.8),
-                            ),
-                            child: const Text('단골',
-                                style: TextStyle(
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w700,
-                                    height: 1.2,
-                                    color: AppColors.gasBlue)),
-                          ),
-                          const SizedBox(width: 5),
-                        ],
-                        Expanded(
-                          child: Text(
-                            StationAliasService.resolveGas(
-                                station.id, station.name),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ],
+                    builder: (_, __, ___) => Text(
+                      StationAliasService.resolveGas(station.id, station.name),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -281,28 +234,6 @@ class GasStationCard extends ConsumerWidget {
               ],
             ),
             const SizedBox(width: 4),
-            // 단골 토글 — 즐겨찾기 화면 opt-in (기본 null = 미렌더, 기존 화면 무영향)
-            if (onRegularToggle != null)
-              GestureDetector(
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  onRegularToggle!();
-                },
-                child: Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: Icon(
-                    isRegular
-                        ? Icons.loyalty_rounded
-                        : Icons.loyalty_outlined,
-                    size: 20,
-                    color: isRegular
-                        ? AppColors.gasBlue
-                        : (isDark
-                            ? AppColors.darkTextMuted
-                            : AppColors.lightTextMuted),
-                  ),
-                ),
-              ),
             GestureDetector(
               onTap: () {
                 HapticFeedback.selectionClick();
