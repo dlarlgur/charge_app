@@ -204,6 +204,16 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     return diff.round();
   }
 
+  /// 단골이 이번 추천 1순위 자체일 때의 표시값 — 차액(0) 대신 상태 문구.
+  /// 결과화면 배너·추천카드는 이 경우 "오늘은 단골이 최적이에요"를 그리는데
+  /// 팝업(리빌 오버레이)만 침묵하던 문제 때문에 추가(형 제보 2026-08-18).
+  static String? _regularPrimaryValue(Map<String, dynamic> data) {
+    final rc = data['regular_compare'];
+    if (rc is! Map) return null;
+    if (rc['matched'] != true || rc['is_primary'] != true) return null;
+    return rc['second_is_regular'] == true ? '1·2순위 모두 단골' : '오늘 최적';
+  }
+
   /// 주유 추천 — 절약 포인트 + 추천 상세(주유소명/단가/예상비용/추가시간)를 카드로.
   /// ① 우회 실질 절감(비교 데이터) 있으면 "N분 더 걸리지만 / M원 절감!"
   /// ② 아니면 주변 후보 평균가 대비 이번 주유 절약액 "주변 평균 대비 / M원 절약!"
@@ -212,6 +222,15 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     int i(dynamic v) => v is num ? v.round() : 0;
     double? d(dynamic v) => v is num ? v.toDouble() : null;
     final wonFmt = NumberFormat('#,###');
+
+    // 단골이 이번 추천 1순위면 작은 줄(캡션)을 단골 문구로 덮는다. 금액 헤드라인은
+    // 그대로 살린다 — 임팩트는 금액이 내고, 단골은 "왜 이 집인가"를 설명한다.
+    // (안 덮으면 '주변 평균 대비'·'우회할 필요 없이' 같은 일반 문구만 남아 단골이
+    //  1순위인데 팝업에서만 단골이 사라진다 — 형 제보 2026-08-18)
+    final regPrimaryCaption = _regularPrimaryValue(data) == '1·2순위 모두 단골'
+        ? '1·2순위 모두 내 단골!'
+        : (_regularPrimaryValue(data) != null ? '오늘은 단골이 최적!' : null);
+    String cap(String base) => regPrimaryCaption ?? base;
 
     final rec = data['recommendation'];
     final trace = rec is Map ? rec['decision_trace'] : null;
@@ -306,12 +325,17 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           label: '내 단골 대비',
           value: '▼${wonFmt.format(_regularCompareDiff(data))}원'
         ),
+      // 단골 = 1순위 — 차액이 0 이라 위 줄이 안 뜬다. 줄 자체를 빼면 같은 화면의
+      // AI 경로 추천 배너("오늘은 단골이 최적이에요")와 팝업이 어긋난다.
+      if (_regularCompareDiff(data) == null &&
+          _regularPrimaryValue(data) != null)
+        (label: '내 단골', value: _regularPrimaryValue(data)!),
     ];
 
     if (caSavings >= 1000) {
       final extraMin = i(ca!['detour_extra_min']);
       _showReveal(
-        extraMin > 0 ? '$extraMin분 더 걸리지만' : '가는 길 그대로',
+        cap(extraMin > 0 ? '$extraMin분 더 걸리지만' : '가는 길 그대로'),
         '${SavingsRevealOverlay.won(caSavings)} 절감!',
         stationName: name,
         stationSub: _stationSub,
@@ -337,7 +361,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       final save = ((avgPrice - recPrice) * effLiters).round();
       if (save >= 500) {
         _showReveal(
-          '주변 평균 대비',
+          cap('주변 평균 대비'),
           '${SavingsRevealOverlay.won(save)} 절약!',
           stationName: name,
           stationSub: _stationSub,
@@ -371,7 +395,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     // 폴백 — 추가 시간이 있는데 '우회할 필요 없이'라고 하면 같은 카드의 '+N분'과
     // 정면으로 모순된다(형 제보). 우회가 있으면 그 분수를 그대로 인정하는 문구로.
     _showReveal(
-      detourMin > 0 ? '$detourMin분만 더 가면' : '우회할 필요 없이',
+      cap(detourMin > 0 ? '$detourMin분만 더 가면' : '우회할 필요 없이'),
       detourMin > 0 ? '가장 좋은 선택!' : '가는 길이 최적!',
       stationName: name,
       stationSub: _stationSub,

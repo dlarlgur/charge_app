@@ -776,7 +776,9 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                               // 내 단골 대비 — 단골이 후보군에 있고 추천이 더 이득일 때만
                               // 내려오는 한 줄 (값은 '▼N원' 형태로 이미 포맷돼 온다).
                               for (final f in widget.facts) {
-                                if (f.label == '내 단골 대비') {
+                                // '내 단골' = 단골이 1순위인 경우(차액 대신 상태 문구).
+                                if (f.label == '내 단골 대비' ||
+                                    f.label == '내 단골') {
                                   rows.add(Padding(
                                     padding: const EdgeInsets.only(top: 6),
                                     child: Row(children: [
