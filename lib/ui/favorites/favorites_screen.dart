@@ -12,7 +12,10 @@ import '../../providers/providers.dart'
         favGasStationsSortedProvider,
         favEvStationsSortedProvider;
 import '../../core/utils/navigation_util.dart';
+import '../../core/app_dialog.dart';
+import '../../core/util/app_toast.dart';
 import '../../data/services/place_service.dart';
+import '../../data/services/regular_station_service.dart';
 import 'place_picker_screen.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/shared_widgets.dart';
@@ -366,20 +369,199 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
         onTap: () => context.push('/ev/${s.statId}', extra: s),
       );
 
+  // ── 단골주유소 (주유소 탭 전용 — 주유 전용 기능, 충전소 탭 X) ──
+
+  /// 카드·목록 공용 단골 토글 — 상세화면과 같은 흐름(등록 확인/만석 교체/해제 확인).
+  Future<void> _toggleRegularFor(GasStation s) async {
+    if (RegularStationService.contains(s.id)) {
+      final ok = await showAppDialog<bool>(
+        context,
+        icon: Icons.loyalty_rounded,
+        title: '단골주유소 해제',
+        message: '${s.name}을(를) 단골주유소에서 해제할까요?',
+        primaryLabel: '해제하기',
+        primaryValue: true,
+        secondaryLabel: '취소',
+      );
+      if (ok != true || !mounted) return;
+      RegularStationService.remove(s.id);
+      showAppToast(context, '단골주유소를 해제했어요');
+      return;
+    }
+    if (RegularStationService.isFull) {
+      final target = await showRegularReplacePicker(context, newName: s.name);
+      if (target == null || !mounted) return;
+      RegularStationService.replace(target.id,
+          id: s.id, name: s.name, brand: s.brand);
+      showAppToast(context, '단골주유소를 교체했어요');
+      return;
+    }
+    final ok = await showAppDialog<bool>(
+      context,
+      icon: Icons.loyalty_rounded,
+      title: '단골주유소 등록',
+      message: '${s.name}을(를) 단골주유소로 등록할까요?\n${RegularStationService.copyLine}.',
+      primaryLabel: '단골로 등록',
+      primaryValue: true,
+      secondaryLabel: '취소',
+    );
+    if (ok != true || !mounted) return;
+    RegularStationService.add(id: s.id, name: s.name, brand: s.brand);
+    showAppToast(context, '단골주유소로 등록했어요');
+  }
+
+  /// 주유소 탭 상단 단골 섹션 — 등록분 목록(개별 해제) 또는 등록 유도 안내.
+  List<Widget> _regularSection(List<RegularStation> regs, bool isDark) {
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final accent = isDark ? AppColors.gasBlue : AppColors.gasBlueDark;
+    return [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 2),
+        child: Row(
+          children: [
+            const Icon(Icons.loyalty_rounded,
+                size: 15, color: AppColors.gasBlue),
+            const SizedBox(width: 5),
+            Text('단골주유소',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: isDark
+                        ? AppColors.darkTextPrimary
+                        : AppColors.lightTextPrimary)),
+            const Spacer(),
+            Text('${regs.length}/${RegularStationService.maxCount}',
+                style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: muted)),
+          ],
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+        child: Text('${RegularStationService.copyLine}.',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 11.5, height: 1.4, color: muted)),
+      ),
+      if (regs.isEmpty)
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkCard : Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+                color:
+                    isDark ? AppColors.darkCardBorder : const Color(0xFFE8ECF0),
+                width: 0.8),
+          ),
+          child: Text('아직 단골이 없어요. 아래 목록이나 주유소 상세화면에서 단골로 지정해보세요.',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12.5, height: 1.4, color: muted)),
+        )
+      else
+        for (final r in regs)
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkCard : Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                  color: isDark
+                      ? AppColors.darkCardBorder
+                      : const Color(0xFFE8ECF0),
+                  width: 0.8),
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: () => context.push('/gas/${r.id}'),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.loyalty_rounded,
+                          size: 18, color: accent),
+                    ),
+                    const SizedBox(width: 11),
+                    Expanded(
+                      child: Text(r.name.trim().isEmpty ? '단골주유소' : r.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w700,
+                              color: isDark
+                                  ? AppColors.darkTextPrimary
+                                  : AppColors.lightTextPrimary)),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        final name = r.name.trim().isEmpty ? '이 주유소' : r.name;
+                        final ok = await showAppDialog<bool>(
+                          context,
+                          icon: Icons.loyalty_rounded,
+                          title: '단골주유소 해제',
+                          message: '$name을(를) 단골주유소에서 해제할까요?',
+                          primaryLabel: '해제하기',
+                          primaryValue: true,
+                          secondaryLabel: '취소',
+                        );
+                        if (ok == true) RegularStationService.remove(r.id);
+                      },
+                      child: const Text('해제',
+                          style: TextStyle(
+                              fontSize: 12.5, fontWeight: FontWeight.w700)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      const SizedBox(height: 6),
+    ];
+  }
+
   Widget _buildGas() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final async = ref.watch(favGasStationsSortedProvider);
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (_, __) => _error(),
       data: (list) {
         final sorted = _sortedGas(list);
-        return sorted.isEmpty
-            ? _empty()
-            : ListView.builder(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                itemCount: sorted.length,
-                itemBuilder: (_, i) => _gasCard(sorted[i]),
-              );
+        // 단골 상태 변경(등록/교체/해제) 시 섹션·카드 배지가 즉시 따라오게 구독.
+        return ValueListenableBuilder<List<RegularStation>>(
+          valueListenable: RegularStationService.notifier,
+          builder: (context, regs, _) => ListView(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            children: [
+              ..._regularSection(regs, isDark),
+              if (sorted.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 40),
+                  child: _empty(),
+                )
+              else
+                for (final s in sorted)
+                  GasStationCard(
+                    station: s,
+                    onTap: () => context.push('/gas/${s.id}', extra: s),
+                    isRegular: regs.any((r) => r.id == s.id),
+                    onRegularToggle: () => _toggleRegularFor(s),
+                  ),
+            ],
+          ),
+        );
       },
     );
   }
