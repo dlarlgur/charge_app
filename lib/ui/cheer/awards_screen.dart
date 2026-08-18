@@ -359,7 +359,7 @@ class _AwardsScreenState extends State<AwardsScreen> with SingleTickerProviderSt
                           prizeLine:
                               d.myPrize == null ? null : '내 상품 · ${d.myPrize!.text}',
                         ),
-                        if (d.chickenOn) ...[
+                        if (d.chickenOn || (d.prizeBanner?.on ?? false)) ...[
                           const SizedBox(height: 9),
                           _chickenBanner(isDark, d),
                         ],
@@ -531,7 +531,11 @@ class _AwardsScreenState extends State<AwardsScreen> with SingleTickerProviderSt
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('1등에게 치킨 한 마리 쏩니다',
+                // prize_banner 가 오면 서버 주도 문구, 없으면(구서버) 치킨 폴백 유지.
+                Text(
+                    d.prizeBanner != null
+                        ? '1등에게 ${d.prizeBanner!.text} 쏩니다'
+                        : '1등에게 치킨 한 마리 쏩니다',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -542,7 +546,10 @@ class _AwardsScreenState extends State<AwardsScreen> with SingleTickerProviderSt
                 // 안내 문구는 잘리면 안 된다 — '며칠 안에 소식함으로' 가 잘리면
                 // 언제 어디로 오는지가 사라져 배너가 의미를 잃는다. 320dp·배율 1.2
                 // 에서는 한 줄에 안 들어가므로 두 줄까지 허용한다.
-                Text(d.chickenSent ? '소식함에서 확인하세요' : '치킨 기프티콘은 며칠 안에 소식함으로 보내드려요',
+                Text(
+                    d.chickenSent
+                        ? '소식함에서 확인하세요'
+                        : '${d.prizeBanner?.label ?? '치킨'} 기프티콘은 며칠 안에 소식함으로 보내드려요',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -772,7 +779,8 @@ class CertificateCard extends StatelessWidget {
   final int count;
   final CertificateFooter footer;
   final String? stampLabel; // footer=stamp 일 때
-  final bool chicken; // footer=share 일 때 치킨 pill 노출
+  final bool chicken; // footer=share 일 때 상품 pill 노출
+  final String? prizePillText; // 상품 pill 문구 — null 이면 치킨 폴백(구서버)
   final String? prizeLine; // footer=stamp 일 때 '내 상품 · …' 한 줄 (my_prize)
   final double radius;
   final EdgeInsets padding;
@@ -787,6 +795,7 @@ class CertificateCard extends StatelessWidget {
     required this.footer,
     this.stampLabel,
     this.chicken = false,
+    this.prizePillText,
     this.prizeLine,
     this.radius = 18,
     this.padding = const EdgeInsets.fromLTRB(18, 20, 18, 18),
@@ -980,11 +989,19 @@ class CertificateCard extends StatelessWidget {
                 Icon(Icons.redeem_rounded,
                     size: 13, color: isDark ? const Color(0xFFFDBA74) : const Color(0xFFC2410C)),
                 const SizedBox(width: 6),
-                Text('치킨 기프티콘 수상',
-                    style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: isDark ? const Color(0xFFFDBA74) : const Color(0xFFC2410C))),
+                // prize_banner 라벨 우선, 없으면(구서버) 치킨 폴백.
+                // 긴 라벨이 pill 폭을 넘지 않게 Flexible + ellipsis.
+                Flexible(
+                  child: Text(prizePillText ?? '치킨 기프티콘 수상',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: isDark
+                              ? const Color(0xFFFDBA74)
+                              : const Color(0xFFC2410C))),
+                ),
               ],
             ),
           ),
@@ -1163,7 +1180,10 @@ class AwardsShare {
           name: name,
           count: data.first?.count ?? data.myCount,
           footer: CertificateFooter.share,
-          chicken: data.chickenOn,
+          chicken: data.chickenOn || (data.prizeBanner?.on ?? false),
+          prizePillText: data.prizeBanner != null
+              ? '${data.prizeBanner!.label} 기프티콘 수상'
+              : null,
           radius: 20,
           padding: const EdgeInsets.fromLTRB(18, 20, 18, 16),
         ),

@@ -250,6 +250,29 @@ class CheerPrize {
   String get text => prizeQtyText(label, qty);
 }
 
+/// 시상식 배너 문구 서버 주도 (`/awards` prize_banner) — null 이면 구서버,
+/// 기존 chicken.on + 치킨 하드코딩 문구로 폴백한다 (회귀 금지).
+class CheerPrizeBanner {
+  final bool on;
+  final String label;
+  final int qty;
+  const CheerPrizeBanner(
+      {required this.on, required this.label, required this.qty});
+
+  static CheerPrizeBanner? fromJson(dynamic j) {
+    if (j is! Map) return null;
+    final label = j['label']?.toString() ?? '';
+    if (label.isEmpty) return null;
+    return CheerPrizeBanner(
+      on: j['on'] == true,
+      label: label,
+      qty: (j['qty'] as num?)?.toInt() ?? 1,
+    );
+  }
+
+  String get text => prizeQtyText(label, qty);
+}
+
 /// 월간 시상식(결산) — GET /api/cheer/awards
 class CheerAwards {
   final String month; // 'YYYY-MM'
@@ -274,6 +297,9 @@ class CheerAwards {
   /// 내 상품 — open && 본인 수령자일 때만. 1위 상장 상품 줄·2·3위 축하에 쓴다.
   final CheerPrize? myPrize;
 
+  /// 배너 문구 서버 주도 — null 이면 chicken.on + 치킨 문구 폴백.
+  final CheerPrizeBanner? prizeBanner;
+
   const CheerAwards({
     required this.month,
     required this.total,
@@ -287,6 +313,7 @@ class CheerAwards {
     this.chickenInboxId,
     this.broadcastStatus,
     this.myPrize,
+    this.prizeBanner,
   });
 
   factory CheerAwards.fromJson(Map<String, dynamic> j) {
@@ -310,6 +337,7 @@ class CheerAwards {
           ? (j['broadcast'] as Map)['status']?.toString()
           : null,
       myPrize: CheerPrize.fromJson(j['my_prize']),
+      prizeBanner: CheerPrizeBanner.fromJson(j['prize_banner']),
     );
   }
 
