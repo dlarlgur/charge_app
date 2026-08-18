@@ -773,6 +773,30 @@ class _SavingsRevealOverlayState extends State<SavingsRevealOverlay>
                                   ],
                                 ]));
                               }
+                              // 내 단골 대비 — 단골이 후보군에 있고 추천이 더 이득일 때만
+                              // 내려오는 한 줄 (값은 '▼N원' 형태로 이미 포맷돼 온다).
+                              for (final f in widget.facts) {
+                                if (f.label == '내 단골 대비') {
+                                  rows.add(Padding(
+                                    padding: const EdgeInsets.only(top: 6),
+                                    child: Row(children: [
+                                      Text(f.label,
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              color: factLabelColor)),
+                                      const Spacer(),
+                                      Text(f.value,
+                                          style: TextStyle(
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.w800,
+                                              color: isDark
+                                                  ? _accent
+                                                  : _accentDeep)),
+                                    ]),
+                                  ));
+                                  break;
+                                }
+                              }
                               for (final f in widget.facts) {
                                 if (f.label == '주유량' || f.label == '충전량') {
                                   rows.add(Padding(

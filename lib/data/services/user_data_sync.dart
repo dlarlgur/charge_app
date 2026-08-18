@@ -11,6 +11,7 @@ import 'alert_service.dart';
 import 'charger_memo_service.dart';
 import 'favorite_service.dart';
 import 'place_service.dart';
+import 'regular_station_service.dart';
 import 'station_alias_service.dart';
 import 'user_sync_service.dart';
 import '../../core/utils/nav_scope_pref.dart';
@@ -77,9 +78,17 @@ class UserDataSync {
         scope = v;
       }
     }
-    if (consent == null && engine == null && scope == null) return;
-    await UserSyncService.instance
-        .putPrefs(aiTextConsent: consent, routeEngine: engine, navScope: scope);
+    // 단골주유소 — 서버에 없고 로컬에만 있을 때 1회 백필
+    final regular =
+        prefs['regularStationId'] == null ? RegularStationService.current?.id : null;
+    if (consent == null && engine == null && scope == null && regular == null) {
+      return;
+    }
+    await UserSyncService.instance.putPrefs(
+        aiTextConsent: consent,
+        routeEngine: engine,
+        navScope: scope,
+        regularStationId: regular);
   }
 
   static Future<void> _applyRemote(Map prefs, List vehicles, List favorites,
@@ -152,6 +161,8 @@ class UserDataSync {
       box.put('nav_scope', ns);
       NavScopePref.notifyChanged();
     }
+    // 단골주유소 복원 (null=구서버 무시, ''=해제, id=등록)
+    RegularStationService.applyRemote(prefs['regularStationId']);
 
     // AI 차량 — 서버를 소스로 ai_vehicles 갱신
     if (vehicles.isNotEmpty) {
@@ -256,6 +267,8 @@ class UserDataSync {
       'routeEngine': box.get('route_engine'),
       'navScope': box.get('nav_scope'),
       'reportShortcut': box.get('report_fab_on'),
+      // 단골주유소 — 게스트 시절 등록도 회원 이관 (없으면 null → 서버가 무시)
+      'regularStationId': RegularStationService.current?.id,
     };
 
     List vlist;

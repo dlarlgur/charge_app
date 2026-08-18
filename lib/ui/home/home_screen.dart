@@ -41,6 +41,7 @@ import '../../data/services/watch_service.dart';
 import '../filter/gas_filter_sheet.dart';
 import '../filter/ev_filter_sheet.dart';
 import '../../data/services/favorite_service.dart';
+import '../../data/services/regular_station_service.dart';
 import '../../data/services/station_alias_service.dart';
 import '../favorites/favorites_screen.dart';
 import '../detail/ev_detail_screen.dart';
@@ -3108,6 +3109,79 @@ class _ChargeMarketingTileState extends ConsumerState<_ChargeMarketingTile> {
   }
 }
 
+/// 단골주유소 타일 — 현재 단골 표시/해제. 신규 지정은 주유소 상세화면 안내 (설계서 §6).
+class _RegularStationTileEmbed extends StatelessWidget {
+  final bool isDark;
+  const _RegularStationTileEmbed({required this.isDark});
+
+  Future<void> _onTap(BuildContext context, RegularStation? reg) async {
+    if (reg == null) {
+      // 신규 지정은 여기서 못 한다 — 상세화면으로 안내만.
+      await showAppDialog<void>(
+        context,
+        icon: Icons.loyalty_rounded,
+        title: '단골주유소',
+        message: '자주 가는 주유소 상세화면에서 하트 옆 단골 버튼으로 지정할 수 있어요.\n'
+            '등록하면 AI 추천 결과에서 단골과 비교해 드려요.',
+        primaryLabel: '확인',
+      );
+      return;
+    }
+    final name = reg.name.trim().isEmpty ? '단골주유소' : reg.name;
+    final ok = await showAppDialog<bool>(
+      context,
+      icon: Icons.loyalty_rounded,
+      title: '단골주유소 해제',
+      message: '$name을(를) 단골주유소에서 해제할까요?\n다른 주유소는 상세화면에서 새로 지정할 수 있어요.',
+      primaryLabel: '해제하기',
+      primaryValue: true,
+      secondaryLabel: '취소',
+    );
+    if (ok == true) {
+      RegularStationService.clear();
+      if (context.mounted) showAppToast(context, '단골주유소를 해제했어요');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    return ValueListenableBuilder<RegularStation?>(
+      valueListenable: RegularStationService.notifier,
+      builder: (context, reg, _) => ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        leading:
+            SettingsScreenEmbed.settingsIconChip(Icons.loyalty_rounded, isDark),
+        title: Text('단골주유소',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context)
+                .textTheme
+                .titleSmall
+                ?.copyWith(fontWeight: FontWeight.w600)),
+        subtitle: Text(
+            reg == null ? '주유소 상세화면에서 지정할 수 있어요' : 'AI 추천에서 단골과 비교해 드려요',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style:
+                Theme.of(context).textTheme.bodySmall?.copyWith(color: muted)),
+        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+          SettingsValue(
+              reg == null
+                  ? '없음'
+                  : (reg.name.trim().isEmpty ? '등록됨' : reg.name),
+              color: muted),
+          Padding(
+            padding: const EdgeInsets.only(left: 2),
+            child: Icon(Icons.chevron_right_rounded, size: 20, color: muted),
+          ),
+        ]),
+        onTap: () => _onTap(context, reg),
+      ),
+    );
+  }
+}
+
 /// 설정 화면 임베드 (홈 탭에서 사용)
 class SettingsScreenEmbed extends ConsumerWidget {
   const SettingsScreenEmbed({super.key});
@@ -3249,6 +3323,8 @@ class SettingsScreenEmbed extends ConsumerWidget {
             _RouteEngineTileEmbed(isDark: isDark),
             settingsDivider(isDark),
             _NavScopeTileEmbed(isDark: isDark),
+            settingsDivider(isDark),
+            _RegularStationTileEmbed(isDark: isDark),
             settingsDivider(isDark),
             _AiConsentTile(isDark: isDark),
           ]),

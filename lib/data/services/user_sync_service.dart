@@ -50,6 +50,7 @@ class UserSyncService {
     String? routeEngine, // AI 경로 기준 내비 (tmap|naver|kakao) — 재설치 복원용
     String? navScope, // 길찾기 범위 (station|destination) — 재설치 복원용
     bool? reportShortcut, // 홈 리포트 바로가기 버튼 표시 — 재설치 복원용
+    String? regularStationId, // 단골주유소 id — ''=해제, 재설치 복원용
   }) async {
     final opt = await _auth();
     if (opt == null) return;
@@ -62,6 +63,7 @@ class UserSyncService {
     if (routeEngine != null) body['routeEngine'] = routeEngine;
     if (navScope != null) body['navScope'] = navScope;
     if (reportShortcut != null) body['reportShortcut'] = reportShortcut;
+    if (regularStationId != null) body['regularStationId'] = regularStationId;
     if (body.isEmpty) return;
     try {
       await _dio.put('/user/prefs', data: body, options: opt);

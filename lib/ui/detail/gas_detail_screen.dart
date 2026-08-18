@@ -8,12 +8,14 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:dksw_app_core/dksw_app_core.dart';
 import '../../core/utils/navigation_util.dart';
+import '../../core/app_dialog.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/util/app_toast.dart';
 import '../../data/models/models.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/alert_service.dart';
 import '../../data/services/favorite_service.dart';
+import '../../data/services/regular_station_service.dart';
 import '../../data/services/station_alias_service.dart';
 import '../../data/services/widget_service.dart';
 import '../../providers/providers.dart' show favoritesProvider, settingsProvider;
@@ -349,6 +351,49 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
     setState(() => _isFavorite = result);
   }
 
+  /// 단골주유소 지정/해제 — 하트 옆 액션 (설계서 §6 진입점 2).
+  /// 기존 단골이 있으면 교체 확인, 이 주유소가 단골이면 해제 확인.
+  Future<void> _toggleRegular() async {
+    final d = _detail;
+    final name =
+        (d?['OS_NM'] ?? d?['name'] ?? widget.station?.name ?? '주유소').toString();
+    final brand =
+        (d?['brand'] ?? d?['POLL_DIV_CD'] ?? d?['POLL_DIV_CO'] ?? widget.station?.brand ?? '')
+            .toString();
+    final cur = RegularStationService.current;
+
+    if (cur?.id == widget.stationId) {
+      final ok = await showAppDialog<bool>(
+        context,
+        icon: Icons.loyalty_rounded,
+        title: '단골주유소 해제',
+        message: '$name을(를) 단골주유소에서 해제할까요?',
+        primaryLabel: '해제하기',
+        primaryValue: true,
+        secondaryLabel: '취소',
+      );
+      if (ok != true || !mounted) return;
+      RegularStationService.clear();
+      showAppToast(context, '단골주유소를 해제했어요');
+      return;
+    }
+    if (cur != null) {
+      final curName = cur.name.trim().isEmpty ? '기존 단골' : cur.name;
+      final ok = await showAppDialog<bool>(
+        context,
+        icon: Icons.loyalty_rounded,
+        title: '단골주유소 교체',
+        message: '단골주유소는 한 곳만 등록할 수 있어요.\n$curName 대신 $name을(를) 단골로 할까요?',
+        primaryLabel: '교체하기',
+        primaryValue: true,
+        secondaryLabel: '취소',
+      );
+      if (ok != true || !mounted) return;
+    }
+    RegularStationService.set(id: widget.stationId, name: name, brand: brand);
+    if (mounted) showAppToast(context, '단골주유소로 등록했어요');
+  }
+
   void _openAlertSheet() {
     final name = _detail?['OS_NM'] ?? widget.station?.name ?? '주유소';
     final availableFuels = (_detail?['availableFuelTypes'] as List?)?.cast<String>();
@@ -649,6 +694,19 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                 color: _isFavorite ? actionColor : null,
                 onTap: _toggleFavorite,
                 isDark: isDark,
+              ),
+              const SizedBox(width: 8),
+              // 단골 지정 — 하트 옆 (설계서 §6). 다른 화면에서 바뀌어도 따라오게 구독.
+              ValueListenableBuilder<RegularStation?>(
+                valueListenable: RegularStationService.notifier,
+                builder: (_, reg, __) => _ActionIconBtn(
+                  icon: reg?.id == widget.stationId
+                      ? Icons.loyalty_rounded
+                      : Icons.loyalty_outlined,
+                  color: reg?.id == widget.stationId ? actionColor : null,
+                  onTap: _toggleRegular,
+                  isDark: isDark,
+                ),
               ),
               const SizedBox(width: 8),
               Expanded(

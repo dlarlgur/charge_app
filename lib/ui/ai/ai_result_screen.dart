@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/helpers.dart';
 import '../../core/utils/navigation_util.dart';
+import '../../data/services/regular_station_service.dart';
 import '../../data/services/station_alias_service.dart';
 import '../widgets/shared_widgets.dart';
 
@@ -476,6 +477,18 @@ class _AiResultBodyState extends State<AiResultBody> {
     // 우회가 더 비싸도 "왜 우회 칸이 비었지?" 혼동 방지 — 서버 commit 1dee302 의도와 정합.
     final showDetour = detourSt != null;
 
+    // 단골 비교 — 단골이 이번 추천 후보군에 실제로 포함됐을 때만 내려온다.
+    // 표시 규칙(설계서 §6): 1순위 카드에만, diff 0 이면 줄 자체 생략.
+    final regularCompare =
+        data['regular_compare'] is Map ? data['regular_compare'] as Map : null;
+    final regMatched = regularCompare?['matched'] == true;
+    final regIsPrimary = regMatched && regularCompare?['is_primary'] == true;
+    final regDiffRaw = regularCompare?['approx_diff_won'];
+    final int? regDiffWon =
+        (regMatched && !regIsPrimary && regDiffRaw is num && regDiffRaw > 0)
+            ? regDiffRaw.round()
+            : null;
+
     final hasOverride = _selectedAltItem != null;
     // 서버 choice가 누락/불일치여도 on_route가 비어 있고 detour가 있으면 detour를 메인으로 강제
     final forceDetourAsPrimary =
@@ -509,6 +522,8 @@ class _AiResultBodyState extends State<AiResultBody> {
         tagColor: _kSelected,
         isAiRec: false,
         isUserSelected: true,
+        stationId: ovSt['id']?.toString(),
+        brandCode: ovSt['brand']?.toString(),
       );
     } else if (aiRecIsDetour) {
       primary = _CardInfo(
@@ -527,6 +542,8 @@ class _AiResultBodyState extends State<AiResultBody> {
         isAiRec: true,
         isUserSelected: false,
         rawData: bestDetour,
+        stationId: detourSt?['id']?.toString(),
+        brandCode: detourSt?['brand']?.toString(),
       );
     } else {
       primary = _CardInfo(
@@ -544,6 +561,8 @@ class _AiResultBodyState extends State<AiResultBody> {
         isAiRec: true,
         isUserSelected: false,
         rawData: onRoute,
+        stationId: onRouteSt?['id']?.toString(),
+        brandCode: onRouteSt?['brand']?.toString(),
       );
     }
 
@@ -741,9 +760,13 @@ class _AiResultBodyState extends State<AiResultBody> {
           onRouteLng: orLng,
           onRouteFuelType: onRouteSt?['fuel_type']?.toString(),
           onRouteBrand: onRouteSt?['brand']?.toString(),
+          onRouteStationId: onRouteSt?['id']?.toString(),
           showDetour: showDetour,
           detourName: showDetour ? _stationNameFrom(detourSt) : '',
           detourBrand: detourSt?['brand']?.toString(),
+          detourStationId: detourSt?['id']?.toString(),
+          regularDiffWon: regDiffWon,
+          regularIsPrimary: regIsPrimary,
           detourPrice: dtPrice,
           detourCost: dtCost,
           dtDetourM: dtDetourM,
@@ -920,6 +943,8 @@ class _AiResultBodyState extends State<AiResultBody> {
       tagColor: c.tagColor,
       isAiRec: c.isAiRec,
       isUserSelected: c.isUserSelected,
+      stationId: c.stationId,
+      stationBrand: c.brandCode,
       stName: c.name,
       stAddr: c.addr,
       priceL: c.price,
@@ -1121,6 +1146,8 @@ class _CardInfo {
   final bool isAiRec;
   final bool isUserSelected;
   final Map<String, dynamic>? rawData; // on_route / best_detour 원본 (지도 재드로우용)
+  final String? stationId; // 단골 등록 유도 카운트용
+  final String? brandCode;
 
   const _CardInfo({
     required this.name,
@@ -1137,6 +1164,8 @@ class _CardInfo {
     required this.isAiRec,
     required this.isUserSelected,
     this.rawData,
+    this.stationId,
+    this.brandCode,
   });
 }
 
@@ -1351,9 +1380,17 @@ class _StationComparisonSection extends StatelessWidget {
   final String? onRouteFuelType;
 
   final String? onRouteBrand;
+  final String? onRouteStationId;
   final bool showDetour;
   final String detourName;
   final String? detourBrand;
+  final String? detourStationId;
+
+  /// 단골 대비 표시 가능 차액 (matched && !is_primary && diff>0 일 때만 non-null)
+  final int? regularDiffWon;
+
+  /// 단골이 이번 추천 1순위 자체인지 — '단골' 배지 + 최적 문구
+  final bool regularIsPrimary;
   final double? detourPrice;
   final int detourCost;
   final int dtDetourM;
@@ -1387,9 +1424,13 @@ class _StationComparisonSection extends StatelessWidget {
     required this.onRouteLng,
     required this.onRouteFuelType,
     this.onRouteBrand,
+    this.onRouteStationId,
     required this.showDetour,
     required this.detourName,
     this.detourBrand,
+    this.detourStationId,
+    this.regularDiffWon,
+    this.regularIsPrimary = false,
     required this.detourPrice,
     required this.detourCost,
     required this.dtDetourM,
@@ -1438,6 +1479,7 @@ class _StationComparisonSection extends StatelessWidget {
         (aiRecIsDetour && hasBoth);
     final recName = recIsDetour ? detourName : onRouteName;
     final recBrand = recIsDetour ? detourBrand : onRouteBrand;
+    final recStationId = recIsDetour ? detourStationId : onRouteStationId;
     final recPrice = recIsDetour ? detourPrice : onRoutePrice;
     final recCost = recIsDetour ? detourCost : onRouteCost;
     final recDetourM = recIsDetour ? dtDetourM : onRouteDetourM;
@@ -1454,6 +1496,9 @@ class _StationComparisonSection extends StatelessWidget {
         _RecommendedCard(
           name: recName,
           brand: recBrand,
+          stationId: recStationId,
+          regularDiffWon: regularDiffWon,
+          regularIsPrimary: regularIsPrimary,
           price: recPrice,
           cost: recCost,
           detourM: recDetourM,
@@ -1481,9 +1526,13 @@ class _StationComparisonSection extends StatelessWidget {
                 _detourLabel(onRouteDetourM, onRouteDetourTimeMin),
             onRouteFuelLabel:
                 _resolveFuelLabel(onRouteFuelType, fallback: fuelLabel),
+            onRouteStationId: onRouteStationId,
+            onRouteBrand: onRouteBrand,
             detourName: detourName,
             detourPrice: detourPrice,
             detourCost: detourCost,
+            detourStationId: detourStationId,
+            detourBrand: detourBrand,
             detourDetourLabel: _detourLabel(dtDetourM, dtDetourTimeMin),
             detourFuelLabel:
                 _resolveFuelLabel(detourFuelType, fallback: fuelLabel),
@@ -1522,6 +1571,7 @@ class _StationComparisonSection extends StatelessWidget {
 class _RecommendedCard extends StatelessWidget {
   final String name;
   final String? brand;
+  final String? stationId; // 단골 등록 유도 카운트용 (경유 길안내 실행 시)
   final double? price;
   final int cost;
   final int detourM;
@@ -1533,9 +1583,18 @@ class _RecommendedCard extends StatelessWidget {
   final NumberFormat wonFmt;
   final VoidCallback? onViewOnMap;
 
+  /// 단골 대비 이득 한 줄 (>0 일 때만 non-null — 조건 미충족이면 줄 자체 없음)
+  final int? regularDiffWon;
+
+  /// 단골이 1순위 자체 — '단골' 배지 + "오늘은 단골이 최적이에요"
+  final bool regularIsPrimary;
+
   const _RecommendedCard({
     required this.name,
     this.brand,
+    this.stationId,
+    this.regularDiffWon,
+    this.regularIsPrimary = false,
     required this.price,
     required this.cost,
     required this.detourM,
@@ -1551,6 +1610,14 @@ class _RecommendedCard extends StatelessWidget {
     required this.wonFmt,
     this.onViewOnMap,
   });
+
+  /// "단골 ○○보다 약 N원 이득" — 다른 기기 동기화 등으로 로컬에 이름이 없으면
+  /// '단골 주유소' 로 폴백 (긴 이름은 Row 의 Expanded + ellipsis 가 처리).
+  String _regularDiffLine() {
+    final rn = (RegularStationService.current?.name ?? '').trim();
+    final target = rn.isEmpty ? '단골 주유소' : '단골 $rn';
+    return '$target보다 약 ${wonFmt.format(regularDiffWon)}원 이득';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1652,6 +1719,27 @@ class _RecommendedCard extends StatelessWidget {
                             ? AppColors.darkTextSecondary
                             : const Color(0xFF44546A))),
               ),
+              // 단골 = 1순위 — 차액 비교 대신 배지로 (설계서 §3)
+              if (regularIsPrimary) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: isDark ? 0.22 : 0.10),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                        color: (isDark ? AppColors.darkBlueBright : accent)
+                            .withValues(alpha: 0.45)),
+                  ),
+                  child: Text('단골',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color:
+                              isDark ? AppColors.darkBlueBright : accent)),
+                ),
+              ],
               const Spacer(),
               if (onViewOnMap != null)
                 GestureDetector(
@@ -1720,13 +1808,38 @@ class _RecommendedCard extends StatelessWidget {
               tile(cost > 0 ? '${wonFmt.format(cost)}원' : '—', '예상 주유비'),
             ],
           ),
+          // ── 단골 비교 한 줄 (보조 정보 톤 — 조건 미충족이면 줄 자체 없음) ──
+          if (regularIsPrimary ||
+              (regularDiffWon != null && regularDiffWon! > 0)) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Icon(Icons.loyalty_rounded, size: 13, color: muted),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Text(
+                    regularIsPrimary
+                        ? '오늘은 단골이 최적이에요'
+                        : _regularDiffLine(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: muted),
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 12),
           // ── 길안내 CTA ──
           SizedBox(
             height: 46,
             child: ElevatedButton.icon(
               onPressed: canNav
-                  ? () => showViaWaypointNavigationSheet(
+                  ? () async {
+                      await showViaWaypointNavigationSheet(
                         context,
                         originLat: originLat,
                         originLng: originLng,
@@ -1737,7 +1850,15 @@ class _RecommendedCard extends StatelessWidget {
                         destinationLng: destLng!,
                         destinationName: destinationName,
                         stopKind: '주유소',
-                      )
+                      );
+                      // 단골 등록 유도 — 같은 곳 3회째에 1회만 (서비스가 판단)
+                      if (context.mounted &&
+                          stationId != null &&
+                          stationId!.isNotEmpty) {
+                        RegularStationService.onGasNavigated(context,
+                            id: stationId!, name: name, brand: brand);
+                      }
+                    }
                   : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: accent,
@@ -1866,9 +1987,13 @@ class _CompareCards extends StatelessWidget {
   final int onRouteCost;
   final String onRouteDetourLabel;
   final String onRouteFuelLabel;
+  final String? onRouteStationId; // 단골 유도 카운트용
+  final String? onRouteBrand;
   final String detourName;
   final double? detourPrice;
   final int detourCost;
+  final String? detourStationId;
+  final String? detourBrand;
   final String detourDetourLabel;
   final String detourFuelLabel;
   final int savings;
@@ -1892,9 +2017,13 @@ class _CompareCards extends StatelessWidget {
     required this.onRouteCost,
     required this.onRouteDetourLabel,
     required this.onRouteFuelLabel,
+    this.onRouteStationId,
+    this.onRouteBrand,
     required this.detourName,
     required this.detourPrice,
     required this.detourCost,
+    this.detourStationId,
+    this.detourBrand,
     required this.detourDetourLabel,
     required this.detourFuelLabel,
     required this.savings,
@@ -1931,22 +2060,30 @@ class _CompareCards extends StatelessWidget {
     final labelColor =
         isDark ? AppColors.darkTextSecondary : const Color(0xFF64748B);
 
-    VoidCallback? navTo(double? lat, double? lng, String name) {
+    VoidCallback? navTo(
+        double? lat, double? lng, String name, String? id, String? brand) {
       if (lat == null || lng == null || destLat == null || destLng == null) {
         return null;
       }
-      return () => showViaWaypointNavigationSheet(
-            context,
-            originLat: originLat,
-            originLng: originLng,
-            waypointLat: lat,
-            waypointLng: lng,
-            waypointName: name,
-            destinationLat: destLat!,
-            destinationLng: destLng!,
-            destinationName: destinationName,
-            stopKind: '주유소',
-          );
+      return () async {
+        await showViaWaypointNavigationSheet(
+          context,
+          originLat: originLat,
+          originLng: originLng,
+          waypointLat: lat,
+          waypointLng: lng,
+          waypointName: name,
+          destinationLat: destLat!,
+          destinationLng: destLng!,
+          destinationName: destinationName,
+          stopKind: '주유소',
+        );
+        // 단골 등록 유도 — 같은 곳 3회째에 1회만 (서비스가 판단)
+        if (context.mounted && id != null && id.isNotEmpty) {
+          RegularStationService.onGasNavigated(context,
+              id: id, name: name, brand: brand);
+        }
+      };
     }
 
     final cols = <Widget>[];
@@ -1961,7 +2098,8 @@ class _CompareCards extends StatelessWidget {
         detourLabel: onRouteDetourLabel,
         savingsText: null,
         onMap: onViewOnMapRoute,
-        onNav: navTo(onRouteLat, onRouteLng, onRouteName),
+        onNav: navTo(
+            onRouteLat, onRouteLng, onRouteName, onRouteStationId, onRouteBrand),
       ));
     }
     if (hasDetour) {
@@ -1975,7 +2113,7 @@ class _CompareCards extends StatelessWidget {
         detourLabel: detourDetourLabel,
         savingsText: savings > 0 ? '${wonFmt.format(savings)}원 ↓' : null,
         onMap: onViewOnMapDetour,
-        onNav: navTo(dtLat, dtLng, detourName),
+        onNav: navTo(dtLat, dtLng, detourName, detourStationId, detourBrand),
       ));
     }
     if (cols.isEmpty) return const SizedBox.shrink();
@@ -2238,6 +2376,8 @@ class _OptionCard extends StatelessWidget {
   final Color tagColor;
   final bool isAiRec;
   final bool isUserSelected;
+  final String? stationId; // 단골 등록 유도 카운트용
+  final String? stationBrand;
   final String stName;
   final String? stAddr;
   final double? priceL;
@@ -2257,6 +2397,8 @@ class _OptionCard extends StatelessWidget {
     required this.tagColor,
     required this.isAiRec,
     required this.isUserSelected,
+    this.stationId,
+    this.stationBrand,
     required this.stName,
     required this.stAddr,
     required this.priceL,
@@ -2585,7 +2727,8 @@ class _OptionCard extends StatelessWidget {
               height: 44,
               child: ElevatedButton.icon(
                 onPressed: canNav
-                    ? () => showViaWaypointNavigationSheet(
+                    ? () async {
+                        await showViaWaypointNavigationSheet(
                           context,
                           originLat: originLat,
                           originLng: originLng,
@@ -2596,7 +2739,17 @@ class _OptionCard extends StatelessWidget {
                           destinationLng: destLng!,
                           destinationName: destinationName,
                           stopKind: '주유소',
-                        )
+                        );
+                        // 단골 등록 유도 — 같은 곳 3회째에 1회만 (서비스가 판단)
+                        if (context.mounted &&
+                            stationId != null &&
+                            stationId!.isNotEmpty) {
+                          RegularStationService.onGasNavigated(context,
+                              id: stationId!,
+                              name: stName,
+                              brand: stationBrand);
+                        }
+                      }
                     : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: navBtnColor,

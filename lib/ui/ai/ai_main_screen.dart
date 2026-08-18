@@ -24,6 +24,7 @@ import '../../data/services/connected_service.dart';
 import '../../data/services/exit_ad_service.dart';
 import '../../data/services/user_sync_service.dart';
 import '../../data/services/notification_service.dart';
+import '../../data/services/regular_station_service.dart';
 import '../../data/services/station_alias_service.dart';
 import '../../data/services/location_service.dart';
 import '../../providers/providers.dart';
@@ -192,6 +193,17 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   int? _revealMyUnitWon;
   int? _revealAvgUnitWon;
 
+  /// regular_compare 의 표시 가능 차액 — matched && !is_primary && diff > 0 일 때만.
+  /// 조건 미충족이면 null (비교 줄 자체를 그리지 않는다).
+  static int? _regularCompareDiff(Map<String, dynamic> data) {
+    final rc = data['regular_compare'];
+    if (rc is! Map) return null;
+    if (rc['matched'] != true || rc['is_primary'] == true) return null;
+    final diff = rc['approx_diff_won'];
+    if (diff is! num || diff <= 0) return null;
+    return diff.round();
+  }
+
   /// 주유 추천 — 절약 포인트 + 추천 상세(주유소명/단가/예상비용/추가시간)를 카드로.
   /// ① 우회 실질 절감(비교 데이터) 있으면 "N분 더 걸리지만 / M원 절감!"
   /// ② 아니면 주변 후보 평균가 대비 이번 주유 절약액 "주변 평균 대비 / M원 절약!"
@@ -287,6 +299,13 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       if (recCost != null && recCost > 0)
         (label: '예상 주유비', value: '${wonFmt.format(recCost.round())}원'),
       if (detourMin > 0) (label: '추가 시간', value: '+$detourMin분'),
+      // 단골 대비 이득 — 단골이 후보군에 있고 1순위가 아니고 차액 > 0 일 때만
+      // (diff 0 은 줄 자체 생략 — 설계서 §6 빈 자리 금지)
+      if (_regularCompareDiff(data) != null)
+        (
+          label: '내 단골 대비',
+          value: '▼${wonFmt.format(_regularCompareDiff(data))}원'
+        ),
     ];
 
     if (caSavings >= 1000) {
@@ -2402,6 +2421,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           'preferred_brands': _preferredGasBrands
               .expand((k) => k == 'RTO' ? const ['RTO', 'RTX'] : [k])
               .toList(),
+        // 단골주유소 — 후보군 포함 시 서버가 regular_compare 로 차액을 내려준다.
+        // 비로그인도 로컬 값을 실어 보내므로 계정 저장 없이 완전 동작.
+        if (RegularStationService.current != null)
+          'regular_station_id': RegularStationService.current!.id,
       },
       'recommendation': {'top_n_candidates_returned': 3},
     };
