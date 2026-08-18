@@ -753,10 +753,16 @@ class _AiResultBodyState extends State<AiResultBody> {
       if (uiMessage.isNotEmpty) ...[
         _AiMessageBanner(
           message: uiMessage,
-          regularLine: regIsPrimary
-              ? '오늘은 단골 ${regName ?? '주유소'}가 최적이에요'
+          // 앞말은 작게(어디와 비교했는지), 본문은 크게(얼마 이득인지).
+          regularLabel: regIsPrimary
+              ? '오늘은 '
               : (regDiffWon != null
-                  ? '단골 ${regName ?? '주유소'}보다 약 ${_wonFmt.format(regDiffWon)}원 이득이에요'
+                  ? '단골 ${regName ?? '주유소'}보다 '
+                  : null),
+          regularLine: regIsPrimary
+              ? '단골이 최적이에요'
+              : (regDiffWon != null
+                  ? '약 ${_wonFmt.format(regDiffWon)}원 이득'
                   : null),
         ),
         const SizedBox(height: 12),
@@ -1306,11 +1312,14 @@ class _FuelChip extends StatelessWidget {
 class _AiMessageBanner extends StatelessWidget {
   final String message;
 
-  /// 단골 대비 한 줄 — 서버 ui_message(제미나이 문구)에는 단골 개념이 없어서
+  /// 단골 대비 강조 문구 — 서버 ui_message(제미나이 문구)에는 단골 개념이 없어서
   /// 앱이 배너 본문 아래에 덧붙인다. 조건 미충족이면 null → 줄 자체 없음.
+  /// regularLabel(작은 앞말) + regularLine(굵은 본문) 두 단으로 강조한다.
   final String? regularLine;
+  final String? regularLabel;
 
-  const _AiMessageBanner({required this.message, this.regularLine});
+  const _AiMessageBanner(
+      {required this.message, this.regularLine, this.regularLabel});
 
   @override
   Widget build(BuildContext context) {
@@ -1379,23 +1388,38 @@ class _AiMessageBanner extends StatelessWidget {
                   ),
                 ),
                 if (regularLine != null) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.loyalty_rounded, size: 13, color: blue),
-                      const SizedBox(width: 5),
-                      Expanded(
-                        child: Text(
-                          regularLine!,
+                  const SizedBox(height: 10),
+                  // 아이콘·이모지 없이 — 배너 안에서 한 단 내려 구분선으로 나누고
+                  // 금액만 크게 강조한다(형 지적: 아이콘 붙이면 AI 스럽고 산만하다).
+                  Container(
+                    height: 1,
+                    color: blue.withValues(alpha: isDark ? 0.22 : 0.16),
+                  ),
+                  const SizedBox(height: 9),
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: regularLabel ?? '',
                           style: TextStyle(
-                              fontSize: 12.5,
-                              height: 1.4,
-                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                              height: 1.35,
+                              fontWeight: FontWeight.w600,
+                              color: isDark
+                                  ? AppColors.darkTextSecondary
+                                  : const Color(0xFF5A6B85)),
+                        ),
+                        TextSpan(
+                          text: regularLine!,
+                          style: TextStyle(
+                              fontSize: 15,
+                              height: 1.35,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.3,
                               color: blue),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ],
@@ -1861,24 +1885,29 @@ class _RecommendedCard extends StatelessWidget {
           if (regularIsPrimary ||
               (regularDiffWon != null && regularDiffWon! > 0)) ...[
             const SizedBox(height: 10),
-            Row(
-              children: [
-                Icon(Icons.loyalty_rounded, size: 13, color: muted),
-                const SizedBox(width: 5),
-                Expanded(
-                  child: Text(
-                    regularIsPrimary
-                        ? '오늘은 단골이 최적이에요'
-                        : _regularDiffLine(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        color: muted),
-                  ),
-                ),
-              ],
+            // 아이콘 없이 — 카드 안에서는 배경 띠로 구분하고 금액만 굵게(형 지적:
+            // 아이콘을 앞에 붙이면 AI 스럽다). 긴 주유소명은 ellipsis.
+            Container(
+              width: double.infinity,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: isDark ? 0.16 : 0.08),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Text(
+                regularIsPrimary
+                    ? '오늘은 단골이 최적이에요'
+                    : _regularDiffLine(),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.3,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
+                    color: isDark ? AppColors.darkBlueBright : accent),
+              ),
             ),
           ],
           const SizedBox(height: 12),

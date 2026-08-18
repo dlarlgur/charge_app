@@ -351,14 +351,33 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         return;
       }
     }
+    // 단골 대비 이득 — 주변 평균 절약이 작아도 "내 단골보다 얼마 이득"은 체감이 크다.
+    // 아래 무조건 폴백보다 먼저 쓴다.
+    final regGain = _regularCompareDiff(data);
+    if (regGain != null && regGain > 0) {
+      _showReveal(
+        '내 단골보다',
+        '${SavingsRevealOverlay.won(regGain)} 이득!',
+        stationName: name,
+        stationSub: _stationSub,
+        stationIcon: Icons.local_gas_station_rounded,
+        facts: facts,
+        verdict: detourMin > 0 ? '+$detourMin분 우회해도 이득' : '우회 없이 가는 길이 최적',
+        myUnitWon: recPrice?.round(),
+        avgUnitWon: avgPrice?.round(),
+      );
+      return;
+    }
+    // 폴백 — 추가 시간이 있는데 '우회할 필요 없이'라고 하면 같은 카드의 '+N분'과
+    // 정면으로 모순된다(형 제보). 우회가 있으면 그 분수를 그대로 인정하는 문구로.
     _showReveal(
-      '우회할 필요 없이',
-      '가는 길이 최적!',
+      detourMin > 0 ? '$detourMin분만 더 가면' : '우회할 필요 없이',
+      detourMin > 0 ? '가장 좋은 선택!' : '가는 길이 최적!',
       stationName: name,
       stationSub: _stationSub,
       stationIcon: Icons.local_gas_station_rounded,
       facts: facts,
-      verdict: '우회 없이 가는 길이 최적',
+      verdict: detourMin > 0 ? '+$detourMin분 우회해도 이득' : '우회 없이 가는 길이 최적',
       myUnitWon: recPrice?.round(),
       avgUnitWon: avgPrice?.round(),
     );

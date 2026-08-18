@@ -794,28 +794,18 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                                     ? Colors.white.withValues(alpha: 0.12)
                                     : _kLineSoft)),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                              isRegular
-                                  ? Icons.loyalty_rounded
-                                  : Icons.loyalty_outlined,
-                              size: 17,
+                      // 아이콘 없이 글자만 — 아이콘을 붙이면 AI 스럽고 산만하다(형 지적).
+                      child: Center(
+                        child: Text(
+                          isRegular ? '단골주유소 해제' : '단골주유소 등록',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.2,
                               color: fg),
-                          const SizedBox(width: 7),
-                          Flexible(
-                            child: Text(
-                              isRegular ? '단골주유소 해제' : '단골주유소 등록',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: fg),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
