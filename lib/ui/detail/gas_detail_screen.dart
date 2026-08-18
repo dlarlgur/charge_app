@@ -696,35 +696,11 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                 isDark: isDark,
               ),
               const SizedBox(width: 8),
-              // 하트=즐겨찾기, 태그=단골 — 롱프레스 라벨로도 구분되게 Tooltip.
-              Tooltip(
-                message: '즐겨찾기',
-                child: _ActionIconBtn(
-                  icon: _isFavorite ? Icons.favorite : Icons.favorite_border,
-                  color: _isFavorite ? actionColor : null,
-                  onTap: _toggleFavorite,
-                  isDark: isDark,
-                ),
-              ),
-              const SizedBox(width: 8),
-              // 단골 지정 — 하트 옆 (설계서 §6). 다른 화면에서 바뀌어도 따라오게 구독.
-              ValueListenableBuilder<List<RegularStation>>(
-                valueListenable: RegularStationService.notifier,
-                builder: (_, regs, __) {
-                  final isRegular =
-                      regs.any((r) => r.id == widget.stationId);
-                  return Tooltip(
-                    message: isRegular ? '단골 해제' : '단골 등록',
-                    child: _ActionIconBtn(
-                      icon: isRegular
-                          ? Icons.loyalty_rounded
-                          : Icons.loyalty_outlined,
-                      color: isRegular ? actionColor : null,
-                      onTap: _toggleRegular,
-                      isDark: isDark,
-                    ),
-                  );
-                },
+              _ActionIconBtn(
+                icon: _isFavorite ? Icons.favorite : Icons.favorite_border,
+                color: _isFavorite ? actionColor : null,
+                onTap: _toggleFavorite,
+                isDark: isDark,
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -785,6 +761,67 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
                 ),
               ),
             ],
+          ),
+          // 5) 단골주유소 — 아이콘으로 액션 행에 끼우면 작은 화면·큰 글씨에서
+          //    3개가 나란히 서며 깨진다(형 제보). 라벨이 보이는 전체폭 버튼으로 분리.
+          const SizedBox(height: 8),
+          ValueListenableBuilder<List<RegularStation>>(
+            valueListenable: RegularStationService.notifier,
+            builder: (_, regs, __) {
+              final isRegular = regs.any((r) => r.id == widget.stationId);
+              final fg = isRegular
+                  ? actionColor
+                  : (isDark ? AppColors.darkTextSecondary : _kMuted);
+              return SizedBox(
+                width: double.infinity,
+                child: Material(
+                  color: isRegular
+                      ? actionColor.withValues(alpha: isDark ? 0.18 : 0.08)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    onTap: _toggleRegular,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 11),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                            color: isRegular
+                                ? actionColor.withValues(alpha: 0.45)
+                                : (isDark
+                                    ? Colors.white.withValues(alpha: 0.12)
+                                    : _kLineSoft)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                              isRegular
+                                  ? Icons.loyalty_rounded
+                                  : Icons.loyalty_outlined,
+                              size: 17,
+                              color: fg),
+                          const SizedBox(width: 7),
+                          Flexible(
+                            child: Text(
+                              isRegular ? '단골주유소 해제' : '단골주유소 등록',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: fg),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),

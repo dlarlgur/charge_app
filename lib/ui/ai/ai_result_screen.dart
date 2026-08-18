@@ -751,7 +751,14 @@ class _AiResultBodyState extends State<AiResultBody> {
         const SizedBox(height: 12),
       ],
       if (uiMessage.isNotEmpty) ...[
-        _AiMessageBanner(message: uiMessage),
+        _AiMessageBanner(
+          message: uiMessage,
+          regularLine: regIsPrimary
+              ? '오늘은 단골 ${regName ?? '주유소'}가 최적이에요'
+              : (regDiffWon != null
+                  ? '단골 ${regName ?? '주유소'}보다 약 ${_wonFmt.format(regDiffWon)}원 이득이에요'
+                  : null),
+        ),
         const SizedBox(height: 12),
       ],
 
@@ -1298,7 +1305,12 @@ class _FuelChip extends StatelessWidget {
 
 class _AiMessageBanner extends StatelessWidget {
   final String message;
-  const _AiMessageBanner({required this.message});
+
+  /// 단골 대비 한 줄 — 서버 ui_message(제미나이 문구)에는 단골 개념이 없어서
+  /// 앱이 배너 본문 아래에 덧붙인다. 조건 미충족이면 null → 줄 자체 없음.
+  final String? regularLine;
+
+  const _AiMessageBanner({required this.message, this.regularLine});
 
   @override
   Widget build(BuildContext context) {
@@ -1366,6 +1378,26 @@ class _AiMessageBanner extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (regularLine != null) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.loyalty_rounded, size: 13, color: blue),
+                      const SizedBox(width: 5),
+                      Expanded(
+                        child: Text(
+                          regularLine!,
+                          style: TextStyle(
+                              fontSize: 12.5,
+                              height: 1.4,
+                              fontWeight: FontWeight.w700,
+                              color: blue),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
