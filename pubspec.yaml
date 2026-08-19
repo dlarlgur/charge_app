@@ -49,6 +49,7 @@ dependencies:
   android_intent_plus: ^5.1.0
   path_provider: ^2.1.4
   shared_preferences: ^2.2.2
+  crypto: ^3.0.7 # 마커 래스터 파일명 해시 (lock 에 이미 transitive 로 있던 버전)
 
   # Map
   flutter_naver_map: ^1.2.0

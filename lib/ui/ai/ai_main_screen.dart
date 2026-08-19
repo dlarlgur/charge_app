@@ -16,6 +16,7 @@ import '../../core/rate_limit_message.dart';
 import '../../core/app_dialog.dart';
 import '../../core/navigation/app_route_observer.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/util/marker_raster.dart';
 import '../../core/util/app_toast.dart';
 import '../../core/util/ai_consent.dart';
 import '../../data/models/models.dart';
@@ -1713,7 +1714,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       final v = _vias[i];
       if (v['lat'] is! num || v['lng'] is! num) continue; // pending 행
       try {
-        final icon = await NOverlayImage.fromWidget(
+        final icon = await MarkerRaster.overlayImage(
           context: context,
           size: bubble ? const Size(64, 30) : const Size(22, 22),
           widget: bubble
@@ -2758,7 +2759,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final double w = (label.length * 8.0 + hPad * 2).clamp(36.0, 110.0);
     final double totalH = badgeH + triH;
 
-    return NOverlayImage.fromWidget(
+    return MarkerRaster.overlayImage(
       widget: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -2912,7 +2913,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
   /// 두 좌표 사이의 방위각 (0°=북, 시계방향)
   /// patternImage 생성 — NPathOverlay 가 경로 방향 자동 회전
-  Future<NOverlayImage> _buildPatternImage() => NOverlayImage.fromWidget(
+  Future<NOverlayImage> _buildPatternImage() => MarkerRaster.overlayImage(
         widget: CustomPaint(
           painter: RouteArrowPainter(),
           size: const Size(10, 14),

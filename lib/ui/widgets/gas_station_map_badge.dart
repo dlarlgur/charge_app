@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../core/util/marker_raster.dart';
+
 /// 지도 탭과 동일: 흰 배경 + 브랜드 로고 + 가격(텍스트) 주유소 마커.
 class GasStationMapBadge {
   GasStationMapBadge._();
@@ -134,6 +136,7 @@ class GasStationMapBadge {
     bool unreachable = false,
     int? recommendRank,
     bool isFavorite = false,
+    String? cacheKey,
   }) async {
     final String? logoAsset = logoFor(brand: brand, stationName: stationName);
     // 로고 보장 로드 — 앱 시작 시 프리캐시만 믿으면 이미지 캐시 evict 후(마커 수백 개·
@@ -191,7 +194,8 @@ class GasStationMapBadge {
     // 즐겨찾기 별이 카드 위로 올라올 공간(위쪽). 별 배지 23px 중 일부는 카드 코너에 겹침.
     final double starRoom = isFavorite ? 16.0 : 0.0;
 
-    return NOverlayImage.fromWidget(
+    return MarkerRaster.overlayImage(
+      cacheKey: cacheKey,
       widget: _wrapFavStar(
         isFavorite: isFavorite,
         isEv: isEv,

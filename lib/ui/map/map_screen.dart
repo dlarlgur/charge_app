@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/utils/helpers.dart';
+import '../../core/util/marker_raster.dart';
 import '../../core/theme/app_colors.dart';
 import '../home/home_screen.dart' show floatingNavOverlayPx;
 import '../../data/models/models.dart';
@@ -675,7 +676,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     // +4: TextPainter 높이와 실제 위젯 렌더 높이의 반올림 차이로 인한 2px 오버플로 방지.
     final canvasH = (hasName ? pillH + gap + pinH : pinH) + 4;
 
-    final icon = await NOverlayImage.fromWidget(
+    final icon = await MarkerRaster.overlayImage(
       widget: _SearchPin(
         name: name, nameStyle: nameStyle, pillWidth: pillW,
         canvasWidth: canvasW, canvasHeight: canvasH,
@@ -1953,7 +1954,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   // 개수 텍스트는 아이콘에 굽지 않고 네이티브 캡션으로 그려 클러스터마다 재래스터 0.
   Future<void> _buildClusterIcons() async {
     if (!mounted) return;
-    Future<NOverlayImage> circle(Color color) => NOverlayImage.fromWidget(
+    Future<NOverlayImage> circle(Color color) => MarkerRaster.overlayImage(
           widget: Container(
             width: 44,
             height: 44,
@@ -1977,7 +1978,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     // 좌 주유(파랑)/우 충전(초록) 반반 — flex(Row/Expanded) 대신 gradient 하드 split.
     // (offscreen 래스터에서 flex 가 터지면 아이콘 빌드 전체가 실패해 클러스터가 사라지므로
     //  solid 원과 동일하게 단일 Container 로 그린다.)
-    Future<NOverlayImage> halfCircle() => NOverlayImage.fromWidget(
+    Future<NOverlayImage> halfCircle() => MarkerRaster.overlayImage(
           widget: Container(
             width: 44,
             height: 44,
@@ -2090,7 +2091,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }) async {
     // 추천(1~3위)은 선택 안 됐을 때 가격 배지 테두리를 메달색(라벨과 동일)으로 — 검정 테두리 대신.
     final bool emphasizeRank = recommendRank != null && !isHighlighted;
-    final key = '$label|$brand|$stationName|$isEv|$isHighlighted|$recommendRank|$evFast|$isFavorite';
+    // 키는 렌더 결과를 결정하는 입력만. stationName 은 로고 판정(logoFor)에만 쓰이므로
+    // 판정 결과(logoAsset)로 대체 — 역별 유니크 키로 캐시가 쪼개져 팬할 때마다
+    // evict/재래스터가 돌던 것(메모리 팽창 증폭 요인)을 가격|로고|상태 조합으로 붕괴.
+    final String? logoAsset =
+        GasStationMapBadge.logoFor(brand: brand, stationName: stationName);
+    final key = '$label|$logoAsset|$isEv|$isHighlighted|$recommendRank|$evFast|$isFavorite';
     final cached = _badgeIconCache[key];
     if (cached != null) {
       _badgeIconLru.remove(key);
@@ -2120,6 +2126,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         emphasizeBorder: isHighlighted || emphasizeRank,
         recommendRank: recommendRank,
         isFavorite: isFavorite,
+        cacheKey: key,
       );
       _badgeIconCache[key] = icon;
       _badgeIconLru.add(key);
