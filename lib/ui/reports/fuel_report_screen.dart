@@ -64,6 +64,13 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
   Map<String, dynamic>? _evFacts;
   String? _evFactsDate;
   String _evRate = 'fast'; // 충전 대시보드 기준 — 급속(fast) | 완속(slow)
+
+  // ── 뉴스 탭 ──
+  // 리포트는 '해석', 뉴스는 '원문 목록'. 성격이 달라 한 화면에서 서브탭으로 가른다.
+  String _view = 'report'; // report | news
+  final Map<String, List<Map<String, dynamic>>> _news = {};
+  final Map<String, bool> _newsLoading = {};
+  final Map<String, String?> _newsError = {};
   num? _prevEvAvg; // 전주 급속 회원가 평균 — 대시보드 등락 표기용
 
   @override
@@ -235,6 +242,30 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
   }
 
   /// 충전 히어로 재료 — 최신 주간 상세의 facts.ev. 실패 시 기존 큰 카드로 폴백.
+  /// 뉴스 목록 — 탭을 처음 열 때만 받는다. 새로고침은 당겨서(RefreshIndicator).
+  Future<void> _loadNews(String topic, {bool force = false}) async {
+    if (!force && _news.containsKey(topic)) return;
+    if (_newsLoading[topic] == true) return;
+    setState(() {
+      _newsLoading[topic] = true;
+      _newsError[topic] = null;
+    });
+    try {
+      final list = await ApiService().getFuelNews(topic: topic, days: 30, limit: 60);
+      if (!mounted) return;
+      setState(() {
+        _news[topic] = list;
+        _newsLoading[topic] = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _newsLoading[topic] = false;
+        _newsError[topic] = '뉴스를 불러오지 못했어요';
+      });
+    }
+  }
+
   Future<void> _loadEvFacts(Map<String, dynamic> latest) async {
     if (_evFacts != null) return;
     final id = int.tryParse(latest['id']?.toString() ?? '');
@@ -284,6 +315,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
   }
 
   Widget _list(String topic, bool isDark) {
+    // 뉴스 서브탭 — 리포트와 완전히 다른 화면이라 여기서 갈라진다.
+    if (_view == 'news') return _newsList(topic, isDark);
     if (_loading[topic] == true && !_cache.containsKey(topic)) {
       return Center(
           child:
@@ -296,6 +329,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
     }
 
     final rows = <Widget>[];
+    // 리포트 / 뉴스 — 두 탭 공통으로 맨 위에 둔다.
+    rows.add(_viewSwitcher(topic, isDark));
     if (topic == 'fuel') {
       // ── 유가: 기본/대시보드 2 레이아웃 — 토글은 목록 상단에 항상 보이게
       //   (앱바 구석 아이콘은 아무도 못 찾는다 — 형 지적) ──
@@ -335,15 +370,42 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
     } else {
       // ── 충전: 유가 히어로와 같은 문법의 초록 히어로 (형 요청 '충전도 이쁘게') ──
       // 일간 충전이 하나라도 있으면 주간이 없어도 화면은 비지 않는다.
+      // 여기서 통째로 return 하면 위에 붙인 리포트/뉴스 토글까지 사라져
+      // 뉴스 탭으로 넘어갈 방법이 없어진다 — 안내문만 목록에 얹는다.
       if (items.isEmpty && _todayEv == null) {
-        return _empty(
-          isDark,
-          '아직 발행된 충전 리포트가 없어요',
-          sub: '매주 충전 요금과 정책 흐름을 정리해 알려드려요',
+        final muted =
+            isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+        rows.add(Padding(
+          padding: const EdgeInsets.fromLTRB(4, 18, 4, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('아직 발행된 충전 리포트가 없어요',
+                  style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary)),
+              const SizedBox(height: 5),
+              Text('매주 충전 요금과 정책 흐름을 정리해 알려드려요.\n그 사이 소식은 위 「뉴스」에서 볼 수 있어요.',
+                  style: TextStyle(fontSize: 12.5, height: 1.5, color: muted)),
+            ],
+          ),
+        ));
+        return RefreshIndicator(
+          color: _accent(topic),
+          onRefresh: () => _load(topic, force: true),
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(
+                16, 14, 16, 28 + MediaQuery.of(context).padding.bottom),
+            children: rows,
+          ),
         );
       }
       // 기본/대시보드 토글 — 유가와 같은 자리, 같은 동작(선택은 두 탭이 공유).
       rows.add(_layoutSwitcher(isDark, accent: AppColors.evGreen));
+
       // 일간(오늘) 카드를 최상단에 — 유가 탭과 같은 자리, 같은 문법.
       if (_todayEv != null) rows.add(_todayCard(_todayEv!, isDark, isEv: true));
       if (_layout == 'dash') {
@@ -376,7 +438,7 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
       onRefresh: () => _load(topic, force: true),
       color: _accent(topic),
       child: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+        padding: EdgeInsets.fromLTRB(16, 14, 16, 28 + MediaQuery.of(context).padding.bottom),
         itemCount: rows.length,
         separatorBuilder: (_, __) => const SizedBox(height: 10),
         itemBuilder: (_, i) => rows[i],
@@ -1080,6 +1142,278 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
         ),
       ),
     );
+  }
+
+  /// 리포트 / 뉴스 서브탭. 기본·대시보드 토글과 같은 문법으로 두되 좌측 정렬해
+  /// "이 화면이 무엇인지"를 먼저 읽히게 한다(레이아웃 토글은 우측 정렬).
+  Widget _viewSwitcher(String topic, bool isDark) {
+    final accent = _accent(topic);
+    Widget seg(String key, IconData icon, String label) {
+      final on = _view == key;
+      return GestureDetector(
+        onTap: () {
+          if (_view == key) return;
+          setState(() => _view = key);
+          if (key == 'news') _loadNews(topic);
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+          decoration: BoxDecoration(
+            color: on
+                ? (isDark ? AppColors.darkSurface2 : Colors.white)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
+            boxShadow: on && !isDark
+                ? [
+                    BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.07),
+                        blurRadius: 5,
+                        offset: const Offset(0, 1)),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon,
+                  size: 14,
+                  color: on
+                      ? accent
+                      : (isDark
+                          ? AppColors.darkTextMuted
+                          : AppColors.lightTextMuted)),
+              const SizedBox(width: 5),
+              Text(label,
+                  style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: on ? FontWeight.w800 : FontWeight.w600,
+                      color: on
+                          ? (isDark
+                              ? AppColors.darkTextPrimary
+                              : AppColors.lightTextPrimary)
+                          : (isDark
+                              ? AppColors.darkTextMuted
+                              : AppColors.lightTextMuted))),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : const Color(0xFFEDF1F5),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                seg('report', Icons.description_rounded, '리포트'),
+                seg('news', Icons.article_rounded, '뉴스'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 뉴스 목록 — 날짜별로 묶은 원문 링크. 해석은 리포트가 하고 여기는 목록만 한다.
+  /// 제목·출처·날짜만 내려오며(본문 미수집) 탭하면 외부 브라우저로 원문을 연다.
+  Widget _newsList(String topic, bool isDark) {
+    final accent = _accent(topic);
+    final list = _news[topic];
+    if (list == null && _newsLoading[topic] != false) {
+      // 아직 안 받아왔으면 이 프레임 이후에 받아온다(build 중 setState 금지).
+      if (_newsLoading[topic] != true) {
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) => _loadNews(topic));
+      }
+      return Center(
+          child: CircularProgressIndicator(strokeWidth: 2, color: accent));
+    }
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final rows = <Widget>[_viewSwitcher(topic, isDark)];
+
+    final err = _newsError[topic];
+    if (err != null && (list == null || list.isEmpty)) {
+      rows.add(Padding(
+        padding: const EdgeInsets.fromLTRB(4, 18, 4, 0),
+        child: Text(err, style: TextStyle(fontSize: 13, color: muted)),
+      ));
+    } else if (list == null || list.isEmpty) {
+      rows.add(Padding(
+        padding: const EdgeInsets.fromLTRB(4, 18, 4, 0),
+        child: Text('최근 30일간 올라온 소식이 없어요.',
+            style: TextStyle(fontSize: 13, color: muted)),
+      ));
+    } else {
+      // 날짜별 그룹 — 같은 날 기사를 한 덩어리로 본다.
+      String? lastDate;
+      for (final n in list) {
+        final d = (n['date'] ?? '').toString();
+        if (d != lastDate) {
+          lastDate = d;
+          rows.add(Padding(
+            padding: EdgeInsets.fromLTRB(2, rows.length <= 1 ? 2 : 14, 2, 7),
+            child: Text(_newsDateLabel(d),
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.lightTextSecondary)),
+          ));
+        }
+        rows.add(_newsCard(n, isDark, accent));
+      }
+      rows.add(Padding(
+        padding: const EdgeInsets.fromLTRB(2, 12, 2, 0),
+        child: Text('제목과 출처만 모아 보여드려요. 누르면 언론사 원문으로 이동합니다.',
+            style: TextStyle(fontSize: 10.5, height: 1.5, color: muted)),
+      ));
+    }
+
+    return RefreshIndicator(
+      color: accent,
+      onRefresh: () => _loadNews(topic, force: true),
+      child: ListView(
+        padding: EdgeInsets.fromLTRB(
+            16, 14, 16, 28 + MediaQuery.of(context).padding.bottom),
+        children: rows,
+      ),
+    );
+  }
+
+  /// 뉴스 한 줄 — 리포트 상세의 참고자료 카드와 같은 모양으로 맞춘다.
+  /// (그쪽 _refCard 는 상세 화면 State 소속이라 여기서 쓸 수 없어 같은 문법으로 둔다)
+  Widget _newsCard(Map<String, dynamic> s, bool isDark, Color accent) {
+    final url = (s['link'] ?? '').toString();
+    final host = Uri.tryParse((s['source_url'] ?? '').toString())?.host ?? '';
+    final favicon = host.isEmpty
+        ? null
+        : 'https://www.google.com/s2/favicons?sz=64&domain=$host';
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final isPolicy = (s['kind'] ?? '').toString() == 'policy';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: isDark ? AppColors.darkSurface1 : AppColors.lightCard,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            if (url.startsWith('http')) {
+              launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(12, 11, 10, 11),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: isDark
+                      ? AppColors.darkCardBorder
+                      : AppColors.lightCardBorder),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(7),
+                  child: SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: favicon == null
+                        ? Container(
+                            color: accent.withValues(alpha: 0.14),
+                            child: Icon(Icons.article_rounded,
+                                size: 15, color: accent))
+                        : Image.network(favicon,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                                  color: accent.withValues(alpha: 0.14),
+                                  child: Icon(Icons.article_rounded,
+                                      size: 15, color: accent),
+                                )),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 참고자료와 같은 이유로 3줄 — 헤드라인이 40자대라 2줄이면 잘린다.
+                      Text((s['title'] ?? '').toString(),
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 12.5,
+                              height: 1.4,
+                              fontWeight: FontWeight.w600,
+                              color: isDark
+                                  ? AppColors.darkTextPrimary
+                                  : AppColors.lightTextPrimary)),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          if (isPolicy) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: accent.withValues(alpha: 0.14),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text('정책',
+                                  style: TextStyle(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: accent)),
+                            ),
+                            const SizedBox(width: 5),
+                          ],
+                          Flexible(
+                            child: Text((s['source'] ?? '').toString(),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: 11, color: muted)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(Icons.open_in_new_rounded, size: 14, color: muted),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 오늘/어제는 말로, 그 외에는 'M월 D일 (요일)'.
+  String _newsDateLabel(String ymd) {
+    final d = DateTime.tryParse(ymd);
+    if (d == null) return ymd;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final diff = today.difference(DateTime(d.year, d.month, d.day)).inDays;
+    if (diff == 0) return '오늘';
+    if (diff == 1) return '어제';
+    const w = ['월', '화', '수', '목', '금', '토', '일'];
+    return '${d.month}월 ${d.day}일 (${w[d.weekday - 1]})';
   }
 
   /// 충전 대시보드 — 급속/완속 칩. 유가 유종 칩과 같은 문법.
@@ -2023,7 +2357,10 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                   ),
                 ))
               : ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 36),
+                  // 하단 여백에 시스템 인셋(제스처 바·3버튼 내비)을 더한다.
+                  // 36 고정이라 마지막 응원 카드가 내비게이션 바에 가려 잘렸다(형 제보).
+                  padding: EdgeInsets.fromLTRB(
+                      16, 16, 16, 36 + MediaQuery.of(context).padding.bottom),
                   children: [
                     Row(
                       children: [
@@ -3031,7 +3368,7 @@ class LocalFuelBriefDetailScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('우리 동네 유가')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 30),
+        padding: EdgeInsets.fromLTRB(16, 14, 16, 30 + MediaQuery.of(context).padding.bottom),
         children: [
           // ── 헤더 ──
           Row(
@@ -3518,7 +3855,7 @@ class _FuelReportArchiveScreenState extends State<FuelReportArchiveScreen> {
                   child: Text(_error ?? '아직 쌓인 리포트가 없어요',
                       style: TextStyle(fontSize: 13.5, color: muted)))
               : ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+                  padding: EdgeInsets.fromLTRB(16, 8, 16, 28 + MediaQuery.of(context).padding.bottom),
                   children: rows,
                 )),
     );

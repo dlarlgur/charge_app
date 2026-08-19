@@ -329,6 +329,22 @@ class ApiService {
     return list is List ? List<Map<String, dynamic>>.from(list) : const [];
   }
 
+  /// 주유·충전 뉴스 — 제목·출처·날짜·링크만 내려온다(본문 없음).
+  /// 탭하면 앱이 원문 링크를 외부 브라우저로 연다.
+  Future<List<Map<String, dynamic>>> getFuelNews({
+    String? topic,
+    int days = 30,
+    int limit = 60,
+  }) async {
+    final res = await _dio.get('${ApiConstants.fuelReports}/news', queryParameters: {
+      if (topic != null) 'topic': topic,
+      'days': days,
+      'limit': limit,
+    });
+    final list = res.data?['news'];
+    return list is List ? List<Map<String, dynamic>>.from(list) : const [];
+  }
+
   Future<Map<String, dynamic>?> getFuelReport(int id) async {
     final res = await _dio.get('${ApiConstants.fuelReports}/$id');
     final r = res.data?['report'];
