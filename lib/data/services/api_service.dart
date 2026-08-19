@@ -369,6 +369,24 @@ class ApiService {
     return null;
   }
 
+  /// 우리 동네 충전요금 — 내 주변 충전소들의 실제 회원가.
+  /// 전국 평균이 아니라 "우리 아파트 앞은 얼마"를 보여주는 게 목적이다.
+  Future<Map<String, dynamic>?> getLocalEvBrief({
+    required double lat,
+    required double lng,
+    String speed = 'fast',
+  }) async {
+    final res = await _dio.get(
+      '${ApiConstants.fuelReports}/local-ev',
+      queryParameters: {'lat': lat, 'lng': lng, 'speed': speed},
+    );
+    final d = res.data;
+    if (d is Map && d['success'] == true && d['ok'] == true) {
+      return Map<String, dynamic>.from(d);
+    }
+    return null;
+  }
+
   // ─── 1:1 문의 ───
   Future<bool> createInquiry({
     required String appId,

@@ -65,6 +65,13 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
   String? _evFactsDate;
   String _evRate = 'fast'; // 충전 대시보드 기준 — 급속(fast) | 완속(slow)
 
+  // ── 우리 동네 충전요금 ──
+  // 전국 평균은 아무도 안 궁금해한다. '우리 아파트 앞은 얼마'가 궁금한 것.
+  Map<String, dynamic>? _localEv;
+  bool _localEvLoading = false;
+  String? _localEvError;
+  String _localEvSpeed = 'fast'; // fast | slow
+
   // ── 뉴스 탭 ──
   // 리포트는 '해석', 뉴스는 '원문 목록'. 성격이 달라 한 화면에서 서브탭으로 가른다.
   String _view = 'report'; // report | news
@@ -242,6 +249,41 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
   }
 
   /// 충전 히어로 재료 — 최신 주간 상세의 facts.ev. 실패 시 기존 큰 카드로 폴백.
+  /// '우리 동네 충전요금 받기' — 집(없으면 미등록 안내) 좌표로 주변 충전소 요금을 받는다.
+  Future<void> _generateLocalEv({String? speed}) async {
+    if (_localEvLoading) return;
+    final home = PlaceService.get('home');
+    final lat = (home?['lat'] as num?)?.toDouble();
+    final lng = (home?['lng'] as num?)?.toDouble();
+    if (lat == null || lng == null) return; // 미등록 — 카드가 등록을 유도한다
+    final sp = speed ?? _localEvSpeed;
+    setState(() {
+      _localEvLoading = true;
+      _localEvError = null;
+      _localEvSpeed = sp;
+    });
+    try {
+      final r = await ApiService().getLocalEvBrief(lat: lat, lng: lng, speed: sp);
+      if (!mounted) return;
+      setState(() {
+        _localEvLoading = false;
+        if (r == null) {
+          _localEvError = sp == 'fast'
+              ? '주변에 요금을 아는 급속 충전소가 없어요'
+              : '주변에 요금을 아는 완속 충전소가 없어요';
+        } else {
+          _localEv = r;
+        }
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _localEvLoading = false;
+        _localEvError = '동네 충전요금을 불러오지 못했어요';
+      });
+    }
+  }
+
   /// 뉴스 목록 — 탭을 처음 열 때만 받는다. 새로고침은 당겨서(RefreshIndicator).
   Future<void> _loadNews(String topic, {bool force = false}) async {
     if (!force && _news.containsKey(topic)) return;
@@ -404,6 +446,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
 
       // 일간(오늘) 카드를 최상단에 — 유가 탭과 같은 자리, 같은 문법.
       if (_todayEv != null) rows.add(_todayCard(_todayEv!, isDark, isEv: true));
+      // 우리 동네 충전요금 — 전국 평균보다 이게 먼저 궁금하다.
+      rows.add(_localEvCard(isDark));
       if (_layout == 'dash') {
         rows.add(_evChips(isDark));
         final dash = _evDashCard(isDark);
@@ -961,6 +1005,187 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
 
   /// 전국 대비 델타 — 상세화면 `_deltaChip` 과 같은 표기(▲빨강/▼초록).
   /// 그쪽은 다른 State 의 메서드라 재사용할 수 없어 목록용으로 따로 둔다.
+  /// 우리 동네 충전요금 카드 — 충전 탭 전용.
+  /// 평균만 보여주면 의미가 없다. "어디가 얼마인지"가 본체라 싼 순 3곳을 카드에 바로 깐다.
+  Widget _localEvCard(bool isDark) {
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final secondary =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final ink = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+
+    Widget shell({VoidCallback? onTap, required Widget child}) => Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: Material(
+            color: isDark ? AppColors.darkSurface1 : AppColors.lightCard,
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: onTap,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                      color: isDark
+                          ? AppColors.darkCardBorder
+                          : AppColors.lightCardBorder),
+                ),
+                child: child,
+              ),
+            ),
+          ),
+        );
+
+    final home = PlaceService.get('home');
+    final hasHome = home != null && home['lat'] != null && home['lng'] != null;
+    final d = _localEv;
+
+    // 1) 집 미등록 — 등록을 유도한다(우리 동네 유가와 같은 규칙).
+    if (!hasHome) {
+      return shell(
+        child: Row(children: [
+          Icon(Icons.home_outlined, size: 18, color: muted),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text('집을 등록하면 우리 동네 충전요금을 알려드려요',
+                style: TextStyle(fontSize: 13, color: secondary)),
+          ),
+        ]),
+      );
+    }
+
+    // 2) 아직 안 받음 — 온디맨드 생성 버튼
+    if (d == null) {
+      return shell(
+        onTap: _localEvLoading ? null : () => _generateLocalEv(),
+        child: Row(children: [
+          _pill('우리 동네', AppColors.evGreen, isDark),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+                _localEvError ?? '우리 동네 충전요금 보기',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 13.5, fontWeight: FontWeight.w700, color: ink)),
+          ),
+          if (_localEvLoading)
+            const SizedBox(
+                width: 15,
+                height: 15,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: AppColors.evGreen))
+          else
+            Icon(Icons.chevron_right_rounded, size: 20, color: muted),
+        ]),
+      );
+    }
+
+    // 3) 결과
+    final region = (d['region'] as Map?) ?? const {};
+    final nearby = (d['nearby'] as Map?) ?? const {};
+    final cmp = (d['compare'] as Map?) ?? const {};
+    final label = (region['label'] ?? '우리 동네').toString();
+    final speedLabel = (d['speed_label'] ?? '급속').toString();
+    final avg = (nearby['avg_won_per_kwh'] as num?)?.toDouble();
+    final minV = (nearby['min_won_per_kwh'] as num?)?.toDouble();
+    final cnt = (nearby['station_count'] as num?)?.toInt() ?? 0;
+    final radiusKm = ((nearby['radius_m'] as num?)?.toDouble() ?? 0) / 1000;
+    final vsNation = (cmp['vs_nation_won'] as num?)?.toDouble();
+    final cheap = (nearby['cheapest'] as List?) ?? const [];
+
+    return shell(
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => LocalEvPriceScreen(
+                data: d,
+                speed: _localEvSpeed,
+                onSpeedChange: (sp) => _generateLocalEv(speed: sp),
+              ))),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            _pill('우리 동네', AppColors.evGreen, isDark),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                  '$label · 반경 ${radiusKm.toStringAsFixed(radiusKm % 1 == 0 ? 0 : 1)}km · $cnt곳',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600, color: muted)),
+            ),
+            const Spacer(),
+            Icon(Icons.chevron_right_rounded, size: 20, color: muted),
+          ]),
+          const SizedBox(height: 8),
+          Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Text('$speedLabel 최저',
+                style: TextStyle(
+                    fontSize: 12.5, fontWeight: FontWeight.w700, color: muted)),
+            const SizedBox(width: 7),
+            Text(minV == null ? '-' : _comma(minV.round()),
+                style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.8,
+                    height: 1,
+                    color: AppColors.evGreen)),
+            const SizedBox(width: 3),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Text('원/kWh',
+                  style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: muted)),
+            ),
+            const Spacer(),
+            if (avg != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Text('평균 ${_comma(avg.round())}',
+                    style: TextStyle(fontSize: 11.5, color: muted)),
+              ),
+          ]),
+          if (vsNation != null) ...[
+            const SizedBox(height: 6),
+            _localDeltaChip(vsNation, isDark, suffix: '원 (전국 평균 대비)'),
+          ],
+          if (cheap.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            for (final x in cheap.take(3))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 5),
+                child: Row(children: [
+                  Expanded(
+                    child: Text((x['name'] ?? '').toString(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12.5, color: secondary)),
+                  ),
+                  const SizedBox(width: 8),
+                  if (x['distance_m'] is num)
+                    Text(_distLabel((x['distance_m'] as num).toDouble()),
+                        style: TextStyle(fontSize: 11, color: muted)),
+                  const SizedBox(width: 8),
+                  Text('${_comma((x['price_won_per_kwh'] as num).round())}원',
+                      style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.evGreen)),
+                ]),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// 1km 미만은 m, 그 이상은 km 한 자리.
+  static String _distLabel(double m) =>
+      m < 1000 ? '${m.round()}m' : '${(m / 1000).toStringAsFixed(1)}km';
+
   Widget _localDeltaChip(double v, bool isDark, {String suffix = ''}) {
     final flat = v.abs() < 0.5;
     final up = v > 0;
@@ -3839,4 +4064,294 @@ class _FuelReportArchiveScreenState extends State<FuelReportArchiveScreen> {
       ),
     );
   }
+}
+
+/* ═══════════════════════ 우리 동네 충전요금 상세 ═══════════════════════ */
+
+/// 내 주변 충전소들의 실제 회원가. 전국 평균이 아니라 '어디가 얼마'가 본체다.
+/// 급속/완속 전환은 서버를 다시 부른다(요금 체계가 아예 달라 클라에서 못 바꾼다).
+class LocalEvPriceScreen extends StatefulWidget {
+  const LocalEvPriceScreen({
+    super.key,
+    required this.data,
+    required this.speed,
+    required this.onSpeedChange,
+  });
+
+  final Map<String, dynamic> data;
+  final String speed;
+  final ValueChanged<String> onSpeedChange;
+
+  @override
+  State<LocalEvPriceScreen> createState() => _LocalEvPriceScreenState();
+}
+
+class _LocalEvPriceScreenState extends State<LocalEvPriceScreen> {
+  // 가까운 순 | 싼 순 — 둘 다 쓰인다. 급할 땐 가까운 곳, 아낄 땐 싼 곳.
+  String _order = 'cheap';
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final secondary =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final ink = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+
+    final d = widget.data;
+    final region = (d['region'] as Map?) ?? const {};
+    final nearby = (d['nearby'] as Map?) ?? const {};
+    final cmp = (d['compare'] as Map?) ?? const {};
+    final label = (region['label'] ?? '우리 동네').toString();
+    final speedLabel = (d['speed_label'] ?? '급속').toString();
+    final avg = (nearby['avg_won_per_kwh'] as num?)?.toDouble();
+    final minV = (nearby['min_won_per_kwh'] as num?)?.toDouble();
+    final maxV = (nearby['max_won_per_kwh'] as num?)?.toDouble();
+    final cnt = (nearby['station_count'] as num?)?.toInt() ?? 0;
+    final radiusKm = ((nearby['radius_m'] as num?)?.toDouble() ?? 0) / 1000;
+    final nationAvg = (cmp['nation_avg_won_per_kwh'] as num?)?.toDouble();
+    final save = (d['save_vs_area_won'] as num?)?.toDouble();
+
+    final list = List<Map<String, dynamic>>.from(
+        (_order == 'cheap' ? nearby['cheapest'] : nearby['stations']) as List? ??
+            const []);
+
+    Widget seg(String key, String text) {
+      final on = _order == key;
+      return Expanded(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => setState(() => _order = key),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(vertical: 7),
+            decoration: BoxDecoration(
+              color: on
+                  ? (isDark ? AppColors.darkSurface2 : Colors.white)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Text(text,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: on ? FontWeight.w800 : FontWeight.w600,
+                    color: on ? ink : muted)),
+          ),
+        ),
+      );
+    }
+
+    Widget speedSeg(String key, String text) {
+      final on = widget.speed == key;
+      return Expanded(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: on
+              ? null
+              : () {
+                  widget.onSpeedChange(key);
+                  Navigator.of(context).pop(); // 서버 재조회 결과는 목록 카드에서 다시 연다
+                },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(vertical: 7),
+            decoration: BoxDecoration(
+              color: on
+                  ? AppColors.evGreen.withValues(alpha: isDark ? 0.2 : 0.14)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Text(text,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: on ? FontWeight.w800 : FontWeight.w600,
+                    color: on ? AppColors.evGreen : muted)),
+          ),
+        ),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('우리 동네 충전요금')),
+      body: ListView(
+        padding: EdgeInsets.fromLTRB(
+            16, 14, 16, 30 + MediaQuery.of(context).padding.bottom),
+        children: [
+          Text('$label · 반경 ${radiusKm.toStringAsFixed(radiusKm % 1 == 0 ? 0 : 1)}km 안 $cnt곳',
+              style: TextStyle(fontSize: 12.5, color: muted)),
+          const SizedBox(height: 12),
+
+          // 급속 / 완속
+          Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : const Color(0xFFEDF1F5),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Row(children: [speedSeg('fast', '급속'), speedSeg('slow', '완속')]),
+          ),
+          const SizedBox(height: 14),
+
+          // 요약
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            decoration: BoxDecoration(
+              color:
+                  isDark ? AppColors.darkEvActiveCard : AppColors.lightEvActiveCard,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                  color: isDark
+                      ? AppColors.darkEvActiveBorder
+                      : AppColors.lightEvActiveBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  Text('$speedLabel 최저',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: muted)),
+                  const SizedBox(width: 8),
+                  Text(minV == null ? '-' : _comma(minV.round()),
+                      style: const TextStyle(
+                          fontSize: 33,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -1,
+                          height: 1,
+                          color: AppColors.evGreen)),
+                  const SizedBox(width: 4),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 3),
+                    child: Text('원/kWh · 회원가',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: muted)),
+                  ),
+                ]),
+                const SizedBox(height: 12),
+                Row(children: [
+                  _sumTile('동네 평균', avg == null ? '-' : '${_comma(avg.round())}원',
+                      muted, ink),
+                  _sumTile('동네 최고', maxV == null ? '-' : '${_comma(maxV.round())}원',
+                      muted, ink),
+                  _sumTile(
+                      '전국 평균',
+                      nationAvg == null ? '-' : '${_comma(nationAvg.round())}원',
+                      muted,
+                      ink),
+                ]),
+                if (save != null && save > 0) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                      '동네 평균 대신 가장 싼 곳에서 충전하면 kWh당 ${_comma(save.round())}원을 아껴요.',
+                      style: TextStyle(
+                          fontSize: 12.5, height: 1.5, color: secondary)),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // 가까운 순 / 싼 순
+          Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : const Color(0xFFEDF1F5),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Row(children: [seg('cheap', '싼 순'), seg('near', '가까운 순')]),
+          ),
+          const SizedBox(height: 10),
+
+          for (final x in list)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.darkSurface1 : AppColors.lightCard,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: isDark
+                          ? AppColors.darkCardBorder
+                          : AppColors.lightCardBorder),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text((x['name'] ?? '').toString(),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1.35,
+                                  color: ink)),
+                          const SizedBox(height: 3),
+                          Text(
+                              [
+                                if (x['operator'] != null)
+                                  x['operator'].toString(),
+                                if (x['distance_m'] is num)
+                                  _FuelReportScreenState._distLabel(
+                                      (x['distance_m'] as num).toDouble()),
+                                if ((x['chargers_fast'] as num?) != null &&
+                                    (x['chargers_fast'] as num) > 0)
+                                  '급속 ${x['chargers_fast']}대',
+                                if ((x['chargers_slow'] as num?) != null &&
+                                    (x['chargers_slow'] as num) > 0)
+                                  '완속 ${x['chargers_slow']}대',
+                              ].join(' · '),
+                              maxLines: 2,
+                              style: TextStyle(
+                                  fontSize: 11.5, height: 1.4, color: muted)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text('${_comma((x['price_won_per_kwh'] as num).round())}원',
+                        style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.evGreen)),
+                  ],
+                ),
+              ),
+            ),
+
+          const SizedBox(height: 6),
+          Text('회원가 기준이며 운영사 정책에 따라 다를 수 있어요. 실제 요금은 충전기 화면에서 확인해 주세요.',
+              style: TextStyle(fontSize: 10.5, height: 1.5, color: muted)),
+        ],
+      ),
+    );
+  }
+
+  Widget _sumTile(String label, String value, Color muted, Color ink) => Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: TextStyle(fontSize: 11, color: muted)),
+            const SizedBox(height: 2),
+            Text(value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.w800, color: ink)),
+          ],
+        ),
+      );
 }
