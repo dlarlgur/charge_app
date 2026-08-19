@@ -203,6 +203,10 @@ class AiResultBody extends StatefulWidget {
   /// 대안 선택 취소 → AI 추천으로 복원 콜백
   final VoidCallback? onResetToAiRec;
 
+  /// 고속도로 필터를 끄고(저장 포함) 같은 조건으로 즉시 재분석
+  /// (highway_filter.applied 배너의 "필터 끄고 재조회" 액션)
+  final VoidCallback? onDisableHighwayAndRetry;
+
   const AiResultBody({
     super.key,
     required this.data,
@@ -213,6 +217,7 @@ class AiResultBody extends StatefulWidget {
     this.fuelLabel,
     this.onAltRouteView,
     this.onResetToAiRec,
+    this.onDisableHighwayAndRetry,
   });
 
   @override
@@ -750,6 +755,87 @@ class _AiResultBodyState extends State<AiResultBody> {
             ],
           ),
         ),
+        const SizedBox(height: 12),
+      ],
+      // 고속도로 필터 안내 — 서버 highway_filter 신호(additive, 구서버는 필드 없음 → 미표시).
+      //  · fallback: 들를 휴게소가 없어 서버가 필터를 무시하고 일반 추천으로 폴백함 — 안내만.
+      //  · applied: 휴게소 모드로 추천됨 — 안내 + "필터 끄고 재조회" 액션.
+      // 브랜드 폴백 배너와 동일한 톤(앰버 컨테이너) 재사용 — 새 스타일 발명 금지.
+      if (rec?['highway_filter'] is Map &&
+          ((rec!['highway_filter'] as Map)['fallback'] != null ||
+              (rec['highway_filter'] as Map)['applied'] == true)) ...[
+        Builder(builder: (_) {
+          final hwf = rec['highway_filter'] as Map;
+          final fb = hwf['fallback']?.toString();
+          final hasWarning = hwf['warning'] != null;
+          final msg = fb != null
+              ? (fb == 'rest_stops_unreachable'
+                  ? '경로상 휴게소는 모두 우회가 커서 일반 주유소에서 추천했어요.'
+                  : '경로가 고속도로를 지나지 않아 일반 주유소에서 추천했어요.')
+              : (hasWarning
+                  ? '경로상 휴게소가 모두 우회가 커요. 필터를 끄면 더 나은 추천을 받을 수 있어요.'
+                  : '고속도로 필터가 켜져 있어 휴게소 주유소에서만 골랐어요.');
+          final amber =
+              isDark ? AppColors.darkAmberBright : const Color(0xFF8A6D3B);
+          final showRetry =
+              fb == null && widget.onDisableHighwayAndRetry != null;
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? AppColors.darkAmberBright.withValues(alpha: 0.14)
+                  : const Color(0xFFFFF9E8),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: isDark
+                      ? AppColors.darkAmberBright.withValues(alpha: 0.35)
+                      : const Color(0xFFFFE6A6)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                        fb != null
+                            ? Icons.info_outline_rounded
+                            : Icons.alt_route_rounded,
+                        size: 17,
+                        color: amber),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        msg,
+                        style: TextStyle(
+                            fontSize: 13, color: amber, height: 1.4),
+                      ),
+                    ),
+                  ],
+                ),
+                if (showRetry)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: widget.onDisableHighwayAndRetry,
+                      icon: Icon(Icons.refresh_rounded, size: 15, color: amber),
+                      label: Text('필터 끄고 재조회',
+                          style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: amber)),
+                      style: TextButton.styleFrom(
+                        minimumSize: Size.zero,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 6),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        }),
         const SizedBox(height: 12),
       ],
       if (uiMessage.isNotEmpty) ...[

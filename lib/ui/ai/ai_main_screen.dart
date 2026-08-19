@@ -332,6 +332,32 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         (label: '내 단골', value: _regularPrimaryValue(data)!),
     ];
 
+    // ── 단골 대비 이득 — 매칭됐으면 무조건 헤드라인 (모든 일반 지표보다 먼저) ──
+    // 단골은 사용자가 직접 등록한 기준점이고, "내 단골과 비교해준다"가 이 기능의
+    // 존재 이유다. 일반 지표(주변 평균·우회 절감)가 헤드라인을 가져가면 팝업에서만
+    // 단골이 사라진다.
+    // ★ 금액 크기로 우선순위를 매기면 안 된다 — '주변 평균 대비'는 후보 풀 구성에
+    //   따라 출렁이는 숫자다. 형 제보 2026-08-19 실측: 같은 추천(분당로 1,834원·
+    //   50,152원·+4분)인데 고속도로 필터 ON/OFF 로 후보 풀이 달라져 주변 평균가가
+    //   1,839원 ↔ 1,873원으로 흔들렸고, 헤드라인이 '136원' ↔ '1,053원 절약'으로
+    //   요동쳤다. 반면 단골 대비 106원은 두 경우 모두 동일했다. 흔들리는 숫자에
+    //   안정된 숫자를 양보시키면 "결과는 같은데 카드만 다른" 화면이 된다.
+    final regGain = _regularCompareDiff(data);
+    if (regGain != null && regGain > 0) {
+      _showReveal(
+        '내 단골보다',
+        '${SavingsRevealOverlay.won(regGain)} 이득!',
+        stationName: name,
+        stationSub: _stationSub,
+        stationIcon: Icons.local_gas_station_rounded,
+        facts: facts,
+        verdict: detourMin > 0 ? '+$detourMin분 우회해도 이득' : '우회 없이 가는 길이 최적',
+        myUnitWon: recPrice?.round(),
+        avgUnitWon: avgPrice?.round(),
+      );
+      return;
+    }
+
     if (caSavings >= 1000) {
       final extraMin = i(ca!['detour_extra_min']);
       _showReveal(
@@ -374,23 +400,6 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         );
         return;
       }
-    }
-    // 단골 대비 이득 — 주변 평균 절약이 작아도 "내 단골보다 얼마 이득"은 체감이 크다.
-    // 아래 무조건 폴백보다 먼저 쓴다.
-    final regGain = _regularCompareDiff(data);
-    if (regGain != null && regGain > 0) {
-      _showReveal(
-        '내 단골보다',
-        '${SavingsRevealOverlay.won(regGain)} 이득!',
-        stationName: name,
-        stationSub: _stationSub,
-        stationIcon: Icons.local_gas_station_rounded,
-        facts: facts,
-        verdict: detourMin > 0 ? '+$detourMin분 우회해도 이득' : '우회 없이 가는 길이 최적',
-        myUnitWon: recPrice?.round(),
-        avgUnitWon: avgPrice?.round(),
-      );
-      return;
     }
     // 폴백 — 추가 시간이 있는데 '우회할 필요 없이'라고 하면 같은 카드의 '+N분'과
     // 정면으로 모순된다(형 제보). 우회가 있으면 그 분수를 그대로 인정하는 문구로.
@@ -4619,6 +4628,19 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   }
 
   // ── AI 추천 경로로 복원 ──
+  /// 고속도로 필터를 끄고(설정 저장 포함) 같은 조건으로 즉시 재분석.
+  /// 결과 시트의 highway_filter 배너 액션 — 사용자가 필터를 못 찾아 헤매지 않게
+  /// 결과 화면에서 바로 되돌린다. 토글 자체를 끄므로 다음 조회에도 유지된다.
+  Future<void> _disableHighwayAndRetry() async {
+    if (!_gasHighwayOnly) return;
+    final box = Hive.box(AppConstants.settingsBox);
+    setState(() => _gasHighwayOnly = false);
+    await box.put(_kGasHighwayKey, false);
+    if (!mounted) return;
+    showAppToast(context, '고속도로 필터를 끄고 다시 추천했어요.');
+    await _runAnalyze();
+  }
+
   void _resetToAiRec() {
     if (_destLat == null || _destLng == null) return;
     _selectedAltStationId = null; // 선택 초기화 → 모든 alt 마커 회색 복귀
@@ -6598,6 +6620,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                   scrollController: sc,
                                   onAltRouteView: _showAltRouteOnMap,
                                   onResetToAiRec: _resetToAiRec,
+                                  onDisableHighwayAndRetry:
+                                      _disableHighwayAndRetry,
                                 ),
                     );
                   },
