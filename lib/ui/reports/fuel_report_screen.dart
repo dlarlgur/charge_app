@@ -329,12 +329,10 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
     }
 
     final rows = <Widget>[];
-    // 리포트 / 뉴스 — 두 탭 공통으로 맨 위에 둔다.
-    rows.add(_viewSwitcher(topic, isDark));
+    // 기본 · 대시보드 · 뉴스 — 유가·충전 두 탭 공통으로 맨 위 한 줄.
+    rows.add(_segmented(topic, isDark));
     if (topic == 'fuel') {
-      // ── 유가: 기본/대시보드 2 레이아웃 — 토글은 목록 상단에 항상 보이게
-      //   (앱바 구석 아이콘은 아무도 못 찾는다 — 형 지적) ──
-      rows.add(_layoutSwitcher(isDark));
+      // ── 유가: 기본/대시보드는 위 통합 세그먼트가 고른다 ──
       if (_layout == 'dash') {
         rows.add(_fuelChips(isDark));
         final dash = _dashCard(isDark);
@@ -403,8 +401,6 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
           ),
         );
       }
-      // 기본/대시보드 토글 — 유가와 같은 자리, 같은 동작(선택은 두 탭이 공유).
-      rows.add(_layoutSwitcher(isDark, accent: AppColors.evGreen));
 
       // 일간(오늘) 카드를 최상단에 — 유가 탭과 같은 자리, 같은 문법.
       if (_todayEv != null) rows.add(_todayCard(_todayEv!, isDark, isEv: true));
@@ -1144,84 +1140,103 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
     );
   }
 
-  /// 리포트 / 뉴스 서브탭. 기본·대시보드 토글과 같은 문법으로 두되 좌측 정렬해
-  /// "이 화면이 무엇인지"를 먼저 읽히게 한다(레이아웃 토글은 우측 정렬).
-  Widget _viewSwitcher(String topic, bool isDark) {
+  /// 기본 · 대시보드 · 뉴스 3분할 풀폭 세그먼트.
+  /// 예전엔 '리포트/뉴스' 와 '기본/대시보드' 두 줄이었는데, 한 줄에 둘이 놓이면
+  /// 좌·우 정렬이 엇갈려 계속 어긋나 보였다. 하나로 평탄화해 정렬 문제를 없앤다.
+  ///  · 기본     = 리포트(히어로 레이아웃)
+  ///  · 대시보드 = 리포트(수치 대시 레이아웃)
+  ///  · 뉴스     = 원문 기사 목록
+  Widget _segmented(String topic, bool isDark) {
     final accent = _accent(topic);
+    final sel = _view == 'news' ? 'news' : (_layout == 'dash' ? 'dash' : 'hero');
+
     Widget seg(String key, IconData icon, String label) {
-      final on = _view == key;
-      return GestureDetector(
-        onTap: () {
-          if (_view == key) return;
-          setState(() => _view = key);
-          if (key == 'news') _loadNews(topic);
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
-          decoration: BoxDecoration(
-            color: on
-                ? (isDark ? AppColors.darkSurface2 : Colors.white)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(9),
-            boxShadow: on && !isDark
-                ? [
-                    BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.07),
-                        blurRadius: 5,
-                        offset: const Offset(0, 1)),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon,
-                  size: 14,
-                  color: on
-                      ? accent
-                      : (isDark
-                          ? AppColors.darkTextMuted
-                          : AppColors.lightTextMuted)),
-              const SizedBox(width: 5),
-              Text(label,
-                  style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: on ? FontWeight.w800 : FontWeight.w600,
-                      color: on
-                          ? (isDark
-                              ? AppColors.darkTextPrimary
-                              : AppColors.lightTextPrimary)
-                          : (isDark
-                              ? AppColors.darkTextMuted
-                              : AppColors.lightTextMuted))),
-            ],
+      final on = sel == key;
+      return Expanded(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            if (sel == key) return;
+            setState(() {
+              if (key == 'news') {
+                _view = 'news';
+              } else {
+                _view = 'report';
+                _layout = key; // hero | dash — 유가·충전이 선택을 공유한다
+                Hive.box(AppConstants.settingsBox).put(_kLayoutPref, key);
+              }
+            });
+            if (key == 'news') _loadNews(topic);
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: on
+                  ? (isDark ? AppColors.darkSurface2 : Colors.white)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(9),
+              boxShadow: on && !isDark
+                  ? [
+                      BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.07),
+                          blurRadius: 5,
+                          offset: const Offset(0, 1)),
+                    ]
+                  : null,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon,
+                    size: 14,
+                    color: on
+                        ? accent
+                        : (isDark
+                            ? AppColors.darkTextMuted
+                            : AppColors.lightTextMuted)),
+                const SizedBox(width: 5),
+                // 좁은 화면·큰 글씨에서도 3칸이 깨지지 않게 라벨은 한 줄로 줄인다.
+                Flexible(
+                  child: Text(label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: on ? FontWeight.w800 : FontWeight.w600,
+                          color: on
+                              ? (isDark
+                                  ? AppColors.darkTextPrimary
+                                  : AppColors.lightTextPrimary)
+                              : (isDark
+                                  ? AppColors.darkTextMuted
+                                  : AppColors.lightTextMuted))),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.05)
-                  : const Color(0xFFEDF1F5),
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                seg('report', Icons.description_rounded, '리포트'),
-                seg('news', Icons.article_rounded, '뉴스'),
-              ],
-            ),
-          ),
-        ],
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.05)
+              : const Color(0xFFEDF1F5),
+          borderRadius: BorderRadius.circular(11),
+        ),
+        child: Row(
+          children: [
+            seg('hero', Icons.view_agenda_rounded, '기본'),
+            seg('dash', Icons.insert_chart_rounded, '대시보드'),
+            seg('news', Icons.article_rounded, '뉴스'),
+          ],
+        ),
       ),
     );
   }
@@ -1241,7 +1256,7 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
           child: CircularProgressIndicator(strokeWidth: 2, color: accent));
     }
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    final rows = <Widget>[_viewSwitcher(topic, isDark)];
+    final rows = <Widget>[_segmented(topic, isDark)];
 
     final err = _newsError[topic];
     if (err != null && (list == null || list.isEmpty)) {
@@ -1726,84 +1741,6 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
     );
   }
 
-  /// 보기 방식 세그먼트 — 기본(요약 카드) | 대시보드(유종·그래프). Hive 저장.
-  /// 기본/대시보드 토글 — 유가·충전 공용. 색만 주제를 따른다.
-  Widget _layoutSwitcher(bool isDark, {Color accent = AppColors.gasBlue}) {
-    Widget seg(String key, IconData icon, String label) {
-      final on = _layout == key;
-      return GestureDetector(
-        onTap: () {
-          if (_layout == key) return;
-          setState(() => _layout = key);
-          Hive.box(AppConstants.settingsBox).put(_kLayoutPref, key);
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-          decoration: BoxDecoration(
-            color: on
-                ? (isDark ? AppColors.darkSurface2 : Colors.white)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(9),
-            boxShadow: on && !isDark
-                ? [
-                    BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.07),
-                        blurRadius: 5,
-                        offset: const Offset(0, 1)),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon,
-                  size: 14,
-                  color: on
-                      ? accent
-                      : (isDark
-                          ? AppColors.darkTextMuted
-                          : AppColors.lightTextMuted)),
-              const SizedBox(width: 5),
-              Text(label,
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: on ? FontWeight.w800 : FontWeight.w600,
-                      color: on
-                          ? (isDark
-                              ? AppColors.darkTextPrimary
-                              : AppColors.lightTextPrimary)
-                          : (isDark
-                              ? AppColors.darkTextMuted
-                              : AppColors.lightTextMuted))),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(3),
-          decoration: BoxDecoration(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.05)
-                : const Color(0xFFEDF1F5),
-            borderRadius: BorderRadius.circular(11),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              seg('hero', Icons.view_agenda_rounded, '기본'),
-              seg('dash', Icons.insert_chart_rounded, '대시보드'),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 
   /// 4c 대시보드 — 유종 칩. 목록 최상단.
   Widget _fuelChips(bool isDark) {
