@@ -5977,22 +5977,29 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 ),
               ),
 
-            // ── 일반 모드: 상단 오버레이 ──
+            // ── 일반 모드: 상단 오버레이 + 하단 패널 ──
             // 직접선택 결과(_isCompareResultMode)도 결과 화면 — 검색창·경로칩이 남아
             // 결과 요약 헤더와 겹치던 버그 방지.
+            //
+            // 상·하단을 한 Column 으로 묶는다. 각자 Positioned 로 떠 있던 시절엔
+            // 하단 패널이 길어질 때(목적지를 넣어 경로 선택 카드가 붙은 뒤 잔량 카드를
+            // 다시 펼치면) 위쪽 출발지·목적지 카드를 그대로 덮었다(형 제보 2026-08-19).
+            // Expanded 가 하단 패널 높이를 '상단을 뺀 나머지'로 묶으므로 침범이
+            // 구조적으로 불가능하고, 그래도 넘치면 패널 안에서만 스크롤된다.
             if (!_isPickerMode &&
                 !_isResultMode &&
                 !_isEvResultMode &&
                 !_isEvSelectMode &&
                 !_isCompareResultMode)
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
+              Positioned.fill(
                 child: SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                    child: Column(
+                  child: Column(
+                    // 자식들이 화면 폭을 꽉 채우게 — Positioned(left/right:0) 대체.
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                        child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         // 상단: 모드 세그먼트 컨트롤 + 차량 버튼
@@ -6130,28 +6137,24 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                         ),
                       ],
                     ),
-                  ),
-                ),
-              ),
-
-            // ── 일반 모드: 하단 패널 ──
-            if (!_isPickerMode &&
-                !_isResultMode &&
-                !_isEvResultMode &&
-                !_isEvSelectMode &&
-                !_isSelectMode &&
-                !_isCompareResultMode)
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
+                      ),
+                      // ── 일반 모드: 하단 패널 ──
+                      // Expanded = 상단 오버레이를 뺀 나머지 높이. 그 안에서
+                      // 바닥 정렬로 shrink-wrap 하고, 넘칠 때만 스크롤한다
+                      // (넘쳐도 접기 핸들에 위로 스크롤해 닿을 수 있다).
+                      if (!_isSelectMode)
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.bottomCenter,
+                            child: SingleChildScrollView(
+                              reverse: true,
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                                child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
                         // 현재 위치 버튼 — 카드 바로 위에 자연스럽게 위치 (우측 정렬)
                         Align(
                           alignment: Alignment.centerRight,
@@ -6448,8 +6451,13 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                             ),
                           ],
                         ),
-                      ],
-                    ),
+                          ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),
