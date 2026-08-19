@@ -41,6 +41,7 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
 
   final _cache = <String, List<Map<String, dynamic>>>{};
   Map<String, dynamic>? _today; // 일간 유가(수치만) 최신 1건 — 목록 최상단 카드
+  Map<String, dynamic>? _todayEv; // 일간 충전(기사 정리) 최신 1건 — 수동 발행이라 없을 수 있다
   final _loading = <String, bool>{};
   final _error = <String, String?>{};
 
@@ -62,6 +63,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
   // 충전 히어로 재료 — 최신 주간 리포트 상세의 facts.ev (급속 평균·최저·최고·운영사).
   Map<String, dynamic>? _evFacts;
   String? _evFactsDate;
+  String _evRate = 'fast'; // 충전 대시보드 기준 — 급속(fast) | 완속(slow)
+  num? _prevEvAvg; // 전주 급속 회원가 평균 — 대시보드 등락 표기용
 
   @override
   void initState() {
@@ -189,17 +192,21 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
     });
     try {
       final list = await ApiService().getFuelReports(topic: topic, limit: 30);
-      // 일간(수치만)은 목록에서 제외돼 오므로 따로 1건 — 유가 탭에서만 쓴다
+      // 일간은 목록에서 제외돼 오므로(도배 방지) 주제별로 따로 1건씩 받는다.
+      //  · 유가: 매일 07시 자동 발행 — 거의 항상 있다
+      //  · 충전: 콘솔에서 수동 발행 — 없을 수 있고, 그 경우 카드를 그리지 않는다
       Map<String, dynamic>? daily;
-      if (topic == 'fuel') {
-        final d = await ApiService()
-            .getFuelReports(topic: topic, kind: 'daily', limit: 1);
-        if (d.isNotEmpty) daily = d.first;
-      }
+      final d = await ApiService()
+          .getFuelReports(topic: topic, kind: 'daily', limit: 1);
+      if (d.isNotEmpty) daily = d.first;
       if (!mounted) return;
       setState(() {
         _cache[topic] = list;
-        if (topic == 'fuel' && daily != null) _today = daily;
+        if (topic == 'fuel') {
+          if (daily != null) _today = daily;
+        } else {
+          _todayEv = daily; // null 이면 카드 없음 — 이전 값이 남지 않게 그대로 대입
+        }
         _loading[topic] = false;
       });
       if (topic == 'fuel' && daily != null) _loadDailyFacts(daily);
@@ -234,11 +241,13 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
     if (id == null) return;
     try {
       final r = await ApiService().getFuelReport(id);
-      final ev = r?['facts'] is Map ? (r!['facts'] as Map)['ev'] : null;
+      final facts = r?['facts'] is Map ? r!['facts'] as Map : null;
+      final ev = facts?['ev'];
       if (!mounted || ev is! Map) return;
       setState(() {
         _evFacts = Map<String, dynamic>.from(ev);
         _evFactsDate = (latest['date'] ?? '').toString();
+        _prevEvAvg = facts?['prev_ev_avg'] is num ? facts!['prev_ev_avg'] as num : null;
       });
     } catch (_) {}
   }
@@ -325,21 +334,42 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
       }
     } else {
       // ── 충전: 유가 히어로와 같은 문법의 초록 히어로 (형 요청 '충전도 이쁘게') ──
-      if (items.isEmpty) {
+      // 일간 충전이 하나라도 있으면 주간이 없어도 화면은 비지 않는다.
+      if (items.isEmpty && _todayEv == null) {
         return _empty(
           isDark,
           '아직 발행된 충전 리포트가 없어요',
           sub: '매주 충전 요금과 정책 흐름을 정리해 알려드려요',
         );
       }
-      final evHero = _evFacts != null ? _evHero(isDark, items.first) : null;
-      if (evHero != null) {
-        rows.add(evHero);
-        _appendGroups(rows, items, isDark, topic, firstBig: false);
+      // 기본/대시보드 토글 — 유가와 같은 자리, 같은 동작(선택은 두 탭이 공유).
+      rows.add(_layoutSwitcher(isDark, accent: AppColors.evGreen));
+      // 일간(오늘) 카드를 최상단에 — 유가 탭과 같은 자리, 같은 문법.
+      if (_todayEv != null) rows.add(_todayCard(_todayEv!, isDark, isEv: true));
+      if (_layout == 'dash') {
+        rows.add(_evChips(isDark));
+        final dash = _evDashCard(isDark);
+        // 대시 데이터가 아직이면 기본 히어로로 떨어뜨린다(빈 화면 방지).
+        if (dash != null) {
+          rows.add(dash);
+        } else if (_evFacts != null && items.isNotEmpty) {
+          rows.add(_evHero(isDark, items.first));
+        }
+        if (items.isNotEmpty) {
+          _appendGroups(rows, items, isDark, topic, firstBig: false);
+        }
       } else {
-        _appendGroups(rows, items, isDark, topic, firstBig: true);
+        final evHero = (_evFacts != null && items.isNotEmpty)
+            ? _evHero(isDark, items.first)
+            : null;
+        if (evHero != null) {
+          rows.add(evHero);
+          _appendGroups(rows, items, isDark, topic, firstBig: false);
+        } else if (items.isNotEmpty) {
+          _appendGroups(rows, items, isDark, topic, firstBig: true);
+        }
       }
-      rows.add(_archiveRow(isDark, topic));
+      if (items.isNotEmpty) rows.add(_archiveRow(isDark, topic));
     }
 
     return RefreshIndicator(
@@ -548,13 +578,15 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
     );
   }
 
-  /// 오늘의 유가 — 일간 리포트(수치만). 목록 최상단에서 한눈에 보이게 강조.
-  Widget _todayCard(Map<String, dynamic> r, bool isDark) {
-    const accent = AppColors.gasBlue;
+  /// 오늘의 일간 리포트. 목록 최상단에서 한눈에 보이게 강조.
+  /// 유가는 수치 요약, 충전은 최근 기사 정리 — 카드 문법은 같고 색만 주제를 따른다.
+  Widget _todayCard(Map<String, dynamic> r, bool isDark, {bool isEv = false}) {
+    final accent = isEv ? AppColors.evGreen : AppColors.gasBlue;
     final id = int.tryParse(r['id']?.toString() ?? '');
     return Material(
-      color:
-          isDark ? AppColors.darkGasActiveCard : AppColors.lightGasActiveCard,
+      color: isEv
+          ? (isDark ? AppColors.darkEvActiveCard : AppColors.lightEvActiveCard)
+          : (isDark ? AppColors.darkGasActiveCard : AppColors.lightGasActiveCard),
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -567,9 +599,13 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-                color: isDark
-                    ? AppColors.darkGasActiveBorder
-                    : AppColors.lightGasActiveBorder),
+                color: isEv
+                    ? (isDark
+                        ? AppColors.darkEvActiveBorder
+                        : AppColors.lightEvActiveBorder)
+                    : (isDark
+                        ? AppColors.darkGasActiveBorder
+                        : AppColors.lightGasActiveBorder)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1046,6 +1082,197 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
     );
   }
 
+  /// 충전 대시보드 — 급속/완속 칩. 유가 유종 칩과 같은 문법.
+  Widget _evChips(bool isDark) {
+    const accent = AppColors.evGreen;
+    Widget chip(String key, String label) {
+      final on = _evRate == key;
+      return Padding(
+        padding: const EdgeInsets.only(right: 7),
+        child: GestureDetector(
+          onTap: () {
+            if (_evRate == key) return;
+            setState(() => _evRate = key);
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+            decoration: BoxDecoration(
+              color: on
+                  ? accent.withValues(alpha: isDark ? 0.18 : 0.12)
+                  : (isDark ? AppColors.darkSurface1 : AppColors.lightCard),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                  color: on
+                      ? accent.withValues(alpha: 0.5)
+                      : (isDark
+                          ? AppColors.darkCardBorder
+                          : AppColors.lightCardBorder)),
+            ),
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: on ? FontWeight.w800 : FontWeight.w600,
+                    color: on
+                        ? accent
+                        : (isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary))),
+          ),
+        ),
+      );
+    }
+
+    // 좁은 화면·큰 시스템 글씨에서도 넘치지 않게 가로 스크롤 (유가 칩과 동일)
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(children: [chip('fast', '급속'), chip('slow', '완속')]),
+    );
+  }
+
+  /// 충전 대시보드 카드 — 선택한 기준의 평균/최저/최고 + 운영사 요금 순위.
+  /// facts.ev 의 avg/min/max 는 '급속 회원가' 기준이라, 완속은 운영사 값에서 직접 계산한다.
+  Widget? _evDashCard(bool isDark) {
+    final f = _evFacts;
+    if (f == null) return null;
+    final ops = (f['operators'] as List?) ?? const [];
+    final isFast = _evRate == 'fast';
+    final key = isFast ? 'fast' : 'slow';
+    final vals = ops
+        .map((o) => (o is Map ? o[key] : null))
+        .whereType<num>()
+        .map((v) => v.toDouble())
+        .toList();
+    if (vals.isEmpty) return null;
+
+    final avg = isFast && f['avg'] is num
+        ? (f['avg'] as num).toDouble()
+        : vals.reduce((a, b) => a + b) / vals.length;
+    final minV = isFast && f['min'] is num
+        ? (f['min'] as num).toDouble()
+        : vals.reduce((a, b) => a < b ? a : b);
+    final maxV = isFast && f['max'] is num
+        ? (f['max'] as num).toDouble()
+        : vals.reduce((a, b) => a > b ? a : b);
+    // 전주 대비는 서버가 급속 회원가만 준다 — 완속에는 붙이지 않는다(없는 비교를 만들지 않기).
+    final prev = isFast && _prevEvAvg is num ? (_prevEvAvg as num).toDouble() : null;
+    final diff = prev == null ? null : avg - prev;
+
+    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final ink =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+
+    // 요금 오름차순 — 싼 곳이 위로. 완속 기준일 땐 완속으로 다시 정렬한다.
+    final sorted = ops.whereType<Map>().where((o) => o[key] is num).toList()
+      ..sort((a, b) => (a[key] as num).compareTo(b[key] as num));
+
+    Widget tile(String label, String value) => Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: TextStyle(fontSize: 11, color: muted)),
+              const SizedBox(height: 2),
+              Text(value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w800, color: ink)),
+            ],
+          ),
+        );
+
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkEvActiveCard : AppColors.lightEvActiveCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+            color: isDark
+                ? AppColors.darkEvActiveBorder
+                : AppColors.lightEvActiveBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text('${isFast ? '급속' : '완속'} 평균',
+                  style: TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w700, color: muted)),
+              const SizedBox(width: 8),
+              Text(_comma(avg.round()),
+                  style: const TextStyle(
+                      fontSize: 33,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -1,
+                      height: 1,
+                      color: AppColors.evGreen)),
+              const SizedBox(width: 4),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 3),
+                child: Text('원/kWh · 회원가',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: muted)),
+              ),
+            ],
+          ),
+          if (diff != null && diff.abs() >= 0.5) ...[
+            const SizedBox(height: 4),
+            Text(
+                '지난주보다 ${_comma(diff.abs().round())}원 ${diff > 0 ? '올랐어요' : '내렸어요'}',
+                style: TextStyle(fontSize: 11.5, color: muted)),
+          ],
+          const SizedBox(height: 12),
+          Row(children: [
+            tile('최저', '${_comma(minV.round())}원'),
+            tile('최고', '${_comma(maxV.round())}원'),
+            tile('운영사', '${sorted.length}곳'),
+          ]),
+          const SizedBox(height: 4),
+          Divider(
+              height: 18,
+              color: (isDark ? Colors.white : Colors.black)
+                  .withValues(alpha: 0.07)),
+          Text('운영사별 ${isFast ? '급속' : '완속'} 요금',
+              style: TextStyle(
+                  fontSize: 11.5, fontWeight: FontWeight.w800, color: muted)),
+          const SizedBox(height: 8),
+          for (final o in sorted)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 7),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text((o['name'] ?? '').toString(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: ink)),
+                  ),
+                  if (o['stations'] is num) ...[
+                    Text('${_comma((o['stations'] as num).round())}곳',
+                        style: TextStyle(fontSize: 11, color: muted)),
+                    const SizedBox(width: 10),
+                  ],
+                  Text('${_comma((o[key] as num).round())}원',
+                      style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.evGreen)),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   /// 4a 히어로 — 오늘 전국 평균이 주인공. 큰 휘발유값 + 등락 + 유종 타일 3개 (형 시안).
   Widget _heroToday(bool isDark) {
     const accent = AppColors.gasBlue;
@@ -1166,8 +1393,8 @@ class _FuelReportScreenState extends ConsumerState<FuelReportScreen>
   }
 
   /// 보기 방식 세그먼트 — 기본(요약 카드) | 대시보드(유종·그래프). Hive 저장.
-  Widget _layoutSwitcher(bool isDark) {
-    const accent = AppColors.gasBlue;
+  /// 기본/대시보드 토글 — 유가·충전 공용. 색만 주제를 따른다.
+  Widget _layoutSwitcher(bool isDark, {Color accent = AppColors.gasBlue}) {
     Widget seg(String key, IconData icon, String label) {
       final on = _layout == key;
       return GestureDetector(
@@ -2590,8 +2817,11 @@ class _FuelReportDetailScreenState extends State<FuelReportDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // 3줄 — 언론사 헤드라인은 40자대가 흔한데 2줄이면 폰트배율 1.2에서
+                      // 30자쯤에서 잘려나간다(형 제보). 제목이 잘리면 링크를 누를지 말지
+                      // 판단할 근거 자체가 사라지므로 한 줄 더 준다. 유가·충전 공용 위젯.
                       Text((s['title'] ?? '').toString(),
-                          maxLines: 2,
+                          maxLines: 3,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                               fontSize: 12.5,

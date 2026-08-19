@@ -119,7 +119,10 @@ class _CheerThanksCtaState extends State<CheerThanksCta> {
                               tier == null
                                   ? '첫 응원을 기다리고 있어요'
                                   : '${tier.name} · 누적 $total회',
-                              maxLines: 1,
+                              // 2줄 — 한 행에 [차][등급·누적][버튼] 셋이라, 폰트배율이 커지면
+                              // 버튼이 넓어지면서 가운데가 '누적 2…' 로 잘렸다(형 제보).
+                              // 평소엔 짧아 1줄 그대로고 배율이 클 때만 접힌다.
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                   fontSize: 11,
