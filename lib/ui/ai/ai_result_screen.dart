@@ -391,8 +391,143 @@ class _AiResultBodyState extends State<AiResultBody> {
     return lines.join('\n');
   }
 
+  /// 이 위젯의 build 는 `DraggableScrollableSheet` 의 LayoutBuilder 안,
+  /// 즉 **레이아웃 단계**에서 돌아간다. 그 안에서 예외가 나면 Flutter 가
+  /// ErrorWidget 조차 끼우지 못하고 서브트리를 통째로 비워버려서, 화면엔
+  /// 아무 안내도 없이 **흰 시트만** 남는다(형 제보 2026-08-19 — 팝업엔 추천이
+  /// 정상적으로 떴는데 상세 시트만 백지).
+  /// 추천 결과가 통째로 사라지는 것보다, 못 그린 이유가 보이는 편이 낫다.
   @override
   Widget build(BuildContext context) {
+    try {
+      return _buildSheet(context);
+    } catch (e, st) {
+      debugPrint('[AiResultBody] 렌더 실패: $e\n$st');
+      return _buildRenderFailure(context, e);
+    }
+  }
+
+  /// build 가 실패했을 때의 대체 화면 — 시트 드래그는 그대로 살리고,
+  /// 최소한의 추천 정보 + 실패 원인을 보여준다(제보용으로 그대로 캡처 가능).
+  Widget _buildRenderFailure(BuildContext context, Object error) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final amber = isDark ? AppColors.darkAmberBright : const Color(0xFF8A6D3B);
+    String? name;
+    String? price;
+    try {
+      final d = widget.data;
+      for (final k in const ['on_route', 'best_detour']) {
+        final slot = d[k];
+        if (slot is Map && slot['station'] is Map) {
+          final st = slot['station'] as Map;
+          name = st['display_name']?.toString().trim().isNotEmpty == true
+              ? st['display_name'].toString()
+              : st['name']?.toString();
+          final p = st['price_won_per_liter'];
+          if (p is num) price = '${_wonFmt.format(p.round())}원/L';
+          if (name != null && name.isNotEmpty) break;
+        }
+      }
+    } catch (_) {}
+
+    final children = <Widget>[
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: isDark
+              ? AppColors.darkAmberBright.withValues(alpha: 0.14)
+              : const Color(0xFFFFF9E8),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+              color: isDark
+                  ? AppColors.darkAmberBright.withValues(alpha: 0.35)
+                  : const Color(0xFFFFE6A6)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.error_outline_rounded, size: 18, color: amber),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('추천 상세를 표시하지 못했어요. 지도의 추천 마커는 정상이에요.',
+                      style: TextStyle(
+                          fontSize: 13, color: amber, height: 1.4)),
+                ),
+              ],
+            ),
+            if (name != null && name.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(name,
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : const Color(0xFF1a1a1a))),
+              if (price != null)
+                Text(price,
+                    style: TextStyle(
+                        fontSize: 13,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : const Color(0xFF64748B))),
+            ],
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => setState(() {}),
+                icon: Icon(Icons.refresh_rounded, size: 15, color: amber),
+                label: Text('다시 시도',
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: amber)),
+                style: TextButton.styleFrom(
+                  minimumSize: Size.zero,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 10),
+      // 제보용 — 이 줄만 캡처해 주면 원인이 바로 나온다.
+      Text('오류: $error',
+          style: TextStyle(
+              fontSize: 11,
+              height: 1.35,
+              color: isDark
+                  ? AppColors.darkTextMuted
+                  : const Color(0xFF999999))),
+    ];
+
+    if (widget.scrollController != null) {
+      return CustomScrollView(
+        controller: widget.scrollController,
+        slivers: [
+          SliverPersistentHeader(
+              pinned: true, delegate: _PinnedSheetHandleDelegate()),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+            sliver: SliverList(delegate: SliverChildListDelegate(children)),
+          ),
+        ],
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+      children: children,
+    );
+  }
+
+  Widget _buildSheet(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final data = widget.data;
     final computed = data['computed'] is Map
@@ -2335,6 +2470,11 @@ class _CompareCards extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 9),
+        // ★ 두 경우 모두 IntrinsicHeight 로 감싼다 — 카드 내부 Column 이 하단 버튼을
+        //   Spacer 로 밀어 붙이는데(_col), Spacer 는 높이가 유한해야 성립한다.
+        //   시트는 스크롤 안이라 높이가 무한이므로, 카드 1장만 그릴 때(우회 후보가
+        //   없어 추천이 1곳뿐인 응답) 감싸지 않으면 레이아웃 단계에서 예외가 나고
+        //   시트 전체가 통째로 안 그려졌다 — "결과가 백지"(형 제보 2026-08-19).
         if (cols.length == 2)
           IntrinsicHeight(
             child: Row(
@@ -2347,7 +2487,7 @@ class _CompareCards extends StatelessWidget {
             ),
           )
         else
-          cols.first,
+          IntrinsicHeight(child: cols.first),
         const SizedBox(height: 9),
         _banner(isDark, labelColor),
       ],

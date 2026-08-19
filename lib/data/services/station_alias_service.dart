@@ -24,11 +24,21 @@ class StationAliasService {
   static String _key(String stationId, String type) => '${type}_$stationId';
 
   /// 별칭 조회. 없거나 빈 문자열이면 null.
+  ///
+  /// 박스가 안 열려 있으면 `Hive.box` 가 던진다. 이 함수는 카드·리스트·시트의
+  /// **build 안에서** 불리는데, 그 build 가 DraggableScrollableSheet 의
+  /// LayoutBuilder 안(=레이아웃 단계)에서 돌면 예외가 ErrorWidget 으로도 안 잡히고
+  /// 서브트리가 통째로 안 그려진다 — "흰 시트만 뜸". 이름은 별칭이 없어도 원본으로
+  /// 보여주면 그만이라, 여기선 절대 던지지 않는다.
   static String? get(String stationId, {required String type}) {
-    final v = _box.get(_key(stationId, type));
-    if (v is! String) return null;
-    final trimmed = v.trim();
-    return trimmed.isEmpty ? null : trimmed;
+    try {
+      final v = _box.get(_key(stationId, type));
+      if (v is! String) return null;
+      final trimmed = v.trim();
+      return trimmed.isEmpty ? null : trimmed;
+    } catch (_) {
+      return null;
+    }
   }
 
   /// 별칭 저장. trim 후 빈 문자열이면 자동 삭제.
