@@ -258,6 +258,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           );
         }
         _saveToInbox(message);
+      } else if (message.data['type'] == 'inbox') {
+        // 케이스가 없으면 아래 폴백으로 떨어져 '공지' 모양으로 뜨고 탭해도 안 간다.
+        if (drawLocal) {
+          showInboxNotification(
+            title: message.notification?.title ??
+                message.data['title']?.toString(),
+            body:
+                message.notification?.body ?? message.data['body']?.toString(),
+            inboxId: int.tryParse(message.data['inboxId']?.toString() ?? ''),
+          );
+        }
+        _saveToInbox(message);
+      } else if (message.data['type'] == 'report_done') {
+        if (drawLocal) {
+          showReportDoneNotification(
+            title: message.notification?.title ??
+                message.data['title']?.toString(),
+            body:
+                message.notification?.body ?? message.data['body']?.toString(),
+          );
+        }
+        _saveToInbox(message);
       } else if (message.notification != null ||
           message.data['title'] != null ||
           message.data['body'] != null) {
@@ -373,6 +395,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       } else if (message.data['type'] == 'fuel_report') {
         _openFuelReport(
             int.tryParse(message.data['id']?.toString() ?? '') ?? 0);
+      } else if (message.data['type'] == 'inbox') {
+        // 소식함 — id 0 은 '이동 없음' 이라 목록만 열 때는 -1.
+        final id =
+            int.tryParse(message.data['inboxId']?.toString() ?? '') ?? 0;
+        navigateToInboxNotifier.value = id > 0 ? id : -1;
       } else if (message.data['type'] == 'cheer') {
         _openCheerScreen();
       }
@@ -435,6 +462,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         final id = int.tryParse(message.data['id']?.toString() ?? '') ?? 0;
         Future.delayed(
             const Duration(milliseconds: 600), () => _openFuelReport(id));
+      } else if (message.data['type'] == 'inbox') {
+        final id =
+            int.tryParse(message.data['inboxId']?.toString() ?? '') ?? 0;
+        Future.delayed(const Duration(milliseconds: 600),
+            () => navigateToInboxNotifier.value = id > 0 ? id : -1);
       } else if (message.data['type'] == 'cheer') {
         Future.delayed(
             const Duration(milliseconds: 600), () => _openCheerScreen());
@@ -510,8 +542,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       title: title,
       body: body,
       type: type,
-      refId:
-          (message.data['id'] ?? message.data['inquiryId'])?.toString() ?? '',
+      // 종류마다 id 키가 다르다 — inboxId/reportId 가 빠져 있어 소식함·제보 알림이
+      // 알림함에서 안 눌렸다. main.dart _saveGenericPushToHive 와 같은 규칙.
+      refId: (message.data['id'] ??
+                  message.data['inquiryId'] ??
+                  message.data['inboxId'] ??
+                  message.data['reportId'])
+              ?.toString() ??
+          '',
     );
     _messageBadgeKey.currentState?.refreshCount();
   }
@@ -657,7 +695,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       title: title ?? '알림',
       body: body ?? '',
       type: message.data['type']?.toString(),
-      refId: (message.data['id'] ?? message.data['inquiryId'])?.toString(),
+      // 종류마다 id 키가 다르다 — inboxId/reportId 누락으로 소식함·제보 알림이
+      // ref_id 없이 저장돼 알림함에서 안 눌렸다. 저장 경로 3곳 모두 같은 규칙.
+      refId: (message.data['id'] ??
+              message.data['inquiryId'] ??
+              message.data['inboxId'] ??
+              message.data['reportId'])
+          ?.toString(),
     );
     _messageBadgeKey.currentState?.refreshCount();
   }
@@ -1875,6 +1919,14 @@ class _AlertPageState extends State<_AlertPage> {
         // 응원 푸시는 ref_id 가 없다 — 종류만으로 응원 화면을 연다.
         navigateToCheerNotifier.value++;
         break;
+      case 'inbox':
+        // 소식함 — id 0 은 '이동 없음' 이라 목록만 열 때는 -1 을 쓴다(main.dart 와 동일).
+        navigateToInboxNotifier.value = refInt > 0 ? refInt : -1;
+        break;
+      case 'report_done':
+        // 제보 반영·확인 안내 → 내 제보 내역. ref_id 없이도 열린다.
+        navigateToMyReportsNotifier.value++;
+        break;
       case 'ev':
       case 'ev_alarm':
       case 'ev_watch':
@@ -1890,6 +1942,12 @@ class _AlertPageState extends State<_AlertPage> {
   bool _canOpen(Map<String, dynamic> msg) {
     final type = (msg['type'] ?? '').toString();
     final refId = (msg['ref_id'] ?? '').toString();
+    // 소식함·제보는 ref_id 가 없어도 목록 화면을 열 수 있다. ref_id 를 강제하면
+    // 예전 버전에서 ref_id 없이 쌓인 알림이 영영 안 눌린다.
+    // cheer 도 여기 — _openFromAlert 에 처리가 있는데 ref_id 를 요구해서 막혀 있었다.
+    if (type == 'inbox' || type == 'report_done' || type == 'cheer') {
+      return true;
+    }
     if (refId.isEmpty) return false;
     return const {
       'notice',
@@ -1919,6 +1977,16 @@ class _AlertPageState extends State<_AlertPage> {
         );
       case 'fuel_report':
         return (icon: Icons.insights_rounded, color: AppColors.gasBlue);
+      case 'inbox':
+        return (
+          icon: Icons.redeem_rounded,
+          color: const Color(0xFFDB2777)
+        );
+      case 'report_done':
+        return (
+          icon: Icons.fact_check_rounded,
+          color: const Color(0xFF0EA5E9)
+        );
       case 'ev':
       case 'ev_alarm':
       case 'ev_watch':

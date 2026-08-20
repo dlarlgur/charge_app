@@ -1814,9 +1814,10 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
   }
 
   // ─── 공용 소형 위젯 ───
-  /// 안내문 행 — 문구가 길어 한 줄에 안 들어가므로 줄바꿈을 허용하고,
-  /// 출처가 이용자 제보면 문구 아래 작은 칩으로 분리한다(문장 끝에 '(이용자 제보)'를
-  /// 붙이면 줄바꿈이 어색하게 걸리고 우리가 검증한 정보처럼 읽힌다).
+  /// 안내문 행 — 문구가 길어 한 줄에 안 들어가고, 콘솔에서 개행을 넣은 안내문은 여러 줄로 온다.
+  /// 우측 정렬이면 줄마다 시작점이 달라 계단처럼 보여서 **왼쪽 정렬**로 읽는다(다른 행은
+  /// 값이 짧아 우측 정렬 유지). 출처가 이용자 제보면 문구 아래 작은 칩으로 분리한다
+  /// (문장 끝에 '(이용자 제보)'를 붙이면 줄바꿈이 어색하게 걸리고 우리가 검증한 정보처럼 읽힌다).
   Widget _noteRow(String note, String? source, bool isDark) => Container(
         padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 4),
         decoration: BoxDecoration(
@@ -1835,10 +1836,10 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
             const SizedBox(width: 12),
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(note,
-                      textAlign: TextAlign.end,
+                      textAlign: TextAlign.start,
                       style: TextStyle(
                           fontSize: 13,
                           height: 1.45,

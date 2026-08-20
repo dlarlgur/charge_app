@@ -231,6 +231,12 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
             body: b,
             inboxId: int.tryParse(message.data['inboxId']?.toString() ?? ''));
         break;
+      case 'report_done':
+        // 케이스가 없으면 default 로 떨어져 '공지' 알림으로 그려지고(공지 채널·아이콘)
+        // 탭 payload 도 notice:null 이 돼 내 제보 내역으로 못 간다.
+        // 서버는 이 케이스가 min_version 에 들어간 뒤에야 data-only 로 전환한다.
+        showReportDoneNotification(title: t, body: b);
+        break;
       default: // notice·free_push 등
         showNoticeNotification(title: t, body: b, noticeId: id);
     }
@@ -263,8 +269,14 @@ Future<void> _saveGenericPushToHive(dynamic box, RemoteMessage message) async {
     );
     // type/ref_id — 알림 내역에서 항목 탭 시 해당 상세로 이동용.
     final type = message.data['type']?.toString() ?? '';
-    final refId =
-        (message.data['id'] ?? message.data['inquiryId'])?.toString() ?? '';
+    // 종류마다 id 키 이름이 다르다 — 하나라도 빠지면 알림함에 ref_id 가 안 실려
+    // 그 줄을 눌러도 아무 데도 안 간다(소식함·제보 알림이 실제로 그랬다).
+    final refId = (message.data['id'] ??
+            message.data['inquiryId'] ??
+            message.data['inboxId'] ??
+            message.data['reportId'])
+        ?.toString() ??
+        '';
     msgs.insert(0, {
       'id': DateTime.now().millisecondsSinceEpoch.toString(),
       'title': title.isEmpty ? '알림' : title,

@@ -2729,9 +2729,10 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
         color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
       );
 
-  /// 안내문 행 — 값이 길어 우측 정렬 한 줄에 안 들어간다. 왼쪽 정렬 + 줄바꿈으로 읽히게 하고,
-  /// 출처가 이용자 제보면 문구 아래 작은 칩으로 분리한다(문장 끝에 '(이용자 제보)'를
-  /// 붙이면 줄바꿈이 어색하게 걸리고 우리가 검증한 정보처럼 읽힌다).
+  /// 안내문 행 — 값이 길어 한 줄에 안 들어가고, 콘솔에서 개행을 넣은 안내문은 여러 줄로 온다.
+  /// 우측 정렬이면 줄마다 시작점이 달라 계단처럼 보여서 **왼쪽 정렬**로 읽는다(다른 _infoRow 는
+  /// 값이 짧아 우측 정렬 유지). 출처가 이용자 제보면 문구 아래 작은 칩으로 분리한다
+  /// (문장 끝에 '(이용자 제보)'를 붙이면 줄바꿈이 어색하게 걸리고 우리가 검증한 정보처럼 읽힌다).
   Widget _noteRow(String note, String? source, bool isDark) {
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     final fromReport = source == 'report';
@@ -2749,11 +2750,11 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
           const SizedBox(width: 12),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   note,
-                  textAlign: TextAlign.end,
+                  textAlign: TextAlign.start,
                   style: TextStyle(
                     fontSize: 13.5,
                     height: 1.45,
