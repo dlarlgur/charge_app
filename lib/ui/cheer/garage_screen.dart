@@ -93,20 +93,9 @@ class _GarageScreenState extends State<GarageScreen>
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.3)),
         actions: [
-          // 내 차 꾸미기 — 보유 차가 있을 때만
-          if (cur != null)
-            IconButton(
-              tooltip: '내 차 꾸미기',
-              icon: Icon(Icons.format_paint_rounded,
-                  size: 21, color: CheerDs.secondary(isDark)),
-              onPressed: () => Navigator.of(context)
-                  .push(MaterialPageRoute(
-                      builder: (_) =>
-                          CarPaintScreen(tier: cur, total: total)))
-                  .then((_) {
-                if (mounted) setState(() {});
-              }),
-            ),
+          // 꾸미기 진입점은 앱바 아이콘이 아니라 본문의 이름 붙은 줄로 내렸다 —
+          // 라벨 없는 붓 아이콘은 아무도 누르지 않았고, 앱바에 글자를 더 넣으면
+          // 큰 글자 배율에서 제목이 밀린다.
           Center(
             child: Container(
               margin: const EdgeInsets.only(right: 16),
@@ -149,6 +138,11 @@ class _GarageScreenState extends State<GarageScreen>
                 _tierCard(t, total >= t.threshold, t == cur, total, isDark),
             ],
           ),
+          // 보유 차가 있으면 꾸미기 줄 — 그리드 바로 아래, 이름과 설명을 달고.
+          if (cur != null) ...[
+            const SizedBox(height: 10),
+            _paintRow(cur, total, isDark),
+          ],
           if (next != null) ...[
             const SizedBox(height: 10),
             _nextCard(next, cur, total, nextProgress, isDark),
@@ -371,6 +365,94 @@ class _GarageScreenState extends State<GarageScreen>
       r, g, b, 0, off, //
       0, 0, 0, 1, 0,
     ]);
+  }
+
+  // ─── 내 차 꾸미기 진입 ───
+  /// 앱바 붓 아이콘을 대신하는 본문 줄. 무엇을 하는 곳인지 부제로 못 박고,
+  /// 안 써본 해금 컬러가 있으면 그 이름을 그대로 부제에 올린다.
+  Widget _paintRow(CheerTierTheme cur, int total, bool isDark) {
+    final reward = CarPaint.rewardFor(cur.level);
+    final fresh = reward != null &&
+        reward.unlockedFor(total) &&
+        CarPaintService.instance.of(cur.level).isDefault;
+    final sub = fresh
+        ? '「${reward.name}」 컬러가 열려 있어요'
+        : '보유한 차의 바디 컬러를 바꿔요';
+
+    return Material(
+      color: CheerDs.card(isDark),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () {
+          CarPaintService.instance.markCoachSeen();
+          Navigator.of(context)
+              .push(MaterialPageRoute(
+                  builder: (_) => CarPaintScreen(tier: cur, total: total)))
+              .then((_) {
+            if (mounted) setState(() {});
+          });
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border:
+                Border.all(color: CheerDs.cardBorder(isDark), width: 0.5),
+          ),
+          padding: const EdgeInsets.fromLTRB(12, 11, 10, 11),
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: CheerDs.iconBg(isDark),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.format_paint_rounded,
+                    size: 18, color: CheerDs.secondary(isDark)),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('내 차 꾸미기',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w800,
+                            color: CheerDs.ink(isDark))),
+                    const SizedBox(height: 2),
+                    Text(sub,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: fresh
+                                ? (isDark ? CheerDs.success : CheerDs.ev)
+                                : CheerDs.muted(isDark))),
+                  ],
+                ),
+              ),
+              if (fresh) ...[
+                const SizedBox(width: 6),
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(
+                      shape: BoxShape.circle, color: Color(0xFFEF4444)),
+                ),
+              ],
+              Icon(Icons.chevron_right_rounded,
+                  size: 18, color: CheerDs.muted(isDark)),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   // ─── 다음 입고 ───

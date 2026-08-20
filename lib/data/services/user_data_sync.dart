@@ -178,6 +178,8 @@ class UserDataSync {
                 'batteryCapacity': v['batteryCapacity'] ?? 64.0,
                 'evEfficiency': v['evEfficiency'] ?? 5.0,
                 'currentLevelPercent': v['currentLevelPercent'] ?? 25.0,
+                // 잔량 확인 시각 — 구서버 응답엔 없어 null (확인 기록 없음으로 취급)
+                'levelUpdatedAt': v['levelUpdatedAt'],
                 'targetMode': v['targetMode'] ?? 'FULL',
                 'targetValue': v['targetValue'] ?? 50000.0,
                 'targetChargePercent': v['targetChargePercent'] ?? 80.0,
@@ -296,6 +298,7 @@ class UserDataSync {
               'evEfficiency': m['evEfficiency'],
               'targetChargePercent': m['targetChargePercent'],
               'currentLevelPercent': m['currentLevelPercent'],
+              'levelUpdatedAt': m['levelUpdatedAt'],
               'isSelected': m['id'] == selected,
             })
         .toList();

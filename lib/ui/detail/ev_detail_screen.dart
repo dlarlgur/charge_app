@@ -66,6 +66,27 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
     }
   }
 
+  // 당겨서 새로고침 — 도착해서 화면 켜둔 채 기다리는 시나리오(사용자 제보).
+  // 서버는 배경 루프가 상태를 계속 갱신 중이라 재조회는 Redis 읽기뿐.
+  // 쿨다운은 연타 헛요청만 거른다 (환경부 원천이 5분 주기).
+  DateTime? _lastRefreshAt;
+
+  Future<void> _refresh() async {
+    final now = DateTime.now();
+    if (_lastRefreshAt != null &&
+        now.difference(_lastRefreshAt!) < const Duration(seconds: 15)) {
+      // 쿨다운 — 요청은 안 나가되 짧게 돌려서 '동작했다' 피드백은 준다
+      await Future.delayed(const Duration(milliseconds: 400));
+      return;
+    }
+    _lastRefreshAt = now;
+    // Redis 캐시 응답이 수십 ms 라 스피너가 안 보인다 — 최소 회전 시간 보장
+    await Future.wait([
+      _loadDetail(),
+      Future.delayed(const Duration(milliseconds: 600)),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -75,9 +96,13 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
               child: CircularProgressIndicator(color: AppColors.evGreen))
           : _station == null
               ? const Center(child: Text('정보를 불러올 수 없습니다'))
-              : EvDetailContent(
-                  station: _station!,
-                  onSelectRoute: widget.onSelectRoute,
+              : RefreshIndicator(
+                  onRefresh: _refresh,
+                  color: AppColors.evGreen,
+                  child: EvDetailContent(
+                    station: _station!,
+                    onSelectRoute: widget.onSelectRoute,
+                  ),
                 ),
     );
   }
@@ -421,6 +446,8 @@ class _EvDetailContentState extends ConsumerState<EvDetailContent> {
 
     return CustomScrollView(
       controller: _scroll,
+      // 당겨서 새로고침 — 내용이 화면보다 짧은 충전소에서도 당김이 먹게.
+      physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         if (widget.sheetMode) SliverToBoxAdapter(child: _dragHandle(isDark)),
         // 운영 종료 확인분 — 목록·지도에서는 서버가 빼지만 즐겨찾기·딥링크로는 들어올 수

@@ -55,17 +55,23 @@ class _TierDetailDialog extends StatelessWidget {
     final muted = CheerDs.muted(isDark);
     final acquiredAt = status?.tierAcquiredAt['${tier.level}'];
     final canAd = !(status?.doneToday ?? false);
+    // 이 등급과 함께 열리는 보상 컬러(1단계는 없다)
+    final reward = CarPaint.rewardFor(tier.level);
 
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+      // 세로 여백을 둬야 작은 폰(SE 667dp)에서 팝업이 화면에 붙지 않는다.
+      insetPadding:
+          const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
         child: Container(
           // 딤 위 팝업 — 불투명 표면
           color: CheerDs.cardSolid(isDark),
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
-          child: Column(
+          // 해금 안내 한 줄이 더 붙었다 — 큰 글자 배율에서 넘치면 스크롤로 흘린다.
+          child: SingleChildScrollView(
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               // 스포트라이트 삼각형 + 차
@@ -159,6 +165,29 @@ class _TierDetailDialog extends StatelessWidget {
               Text(tier.popupDescEffective(dailyLimit: status?.dailyLimit ?? 3),
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 12, height: 1.55, color: muted)),
+              // 잠긴 등급이라도 무엇이 함께 열리는지는 말해준다 — 컬러가 존재한다는
+              // 사실 자체를 여기서 처음 아는 사람이 대부분이다.
+              if (!owned && reward != null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.palette_rounded, size: 13, color: muted),
+                    const SizedBox(width: 5),
+                    Flexible(
+                      child: Text('달성하면 「${reward.name}」 컬러도 함께 열려요',
+                          maxLines: 2,
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: muted)),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 14),
               if (owned && status != null) ...[
                 _ownedStats(status!, isDark),
@@ -181,7 +210,9 @@ class _TierDetailDialog extends StatelessWidget {
                     },
                     icon: Icon(Icons.format_paint_rounded,
                         size: 17, color: CheerDs.secondary(isDark)),
-                    label: Text('컬러 꾸미기',
+                    // 용어 통일 — 히어로 pill·개러지 줄·이 버튼이 모두 같은 이름을
+                    // 써야 한 번 본 사람이 다시 찾을 수 있다.
+                    label: Text('내 차 꾸미기',
                         style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
@@ -249,6 +280,7 @@ class _TierDetailDialog extends StatelessWidget {
                 ),
               ],
             ],
+          ),
           ),
         ),
       ),

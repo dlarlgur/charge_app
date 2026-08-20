@@ -1,7 +1,10 @@
 import 'dart:io' show Platform;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_colors.dart';
@@ -11,6 +14,7 @@ import '../../data/services/auth_service.dart';
 import '../../data/services/user_data_sync.dart';
 import '../../providers/providers.dart';
 import '../widgets/login_bottom_banner.dart';
+import '../widgets/policy_sheet.dart';
 import 'signup_complete_screen.dart';
 
 /// 소셜 로그인 화면. 카카오 / 네이버 / 구글.
@@ -29,12 +33,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   // 간편로그인 노출 여부(콘솔 원격설정). null=로딩 중(버튼 대신 로더 → 끄는 버튼 깜빡임 방지).
   Map<String, bool>? _enabled;
 
+  // 약관 문구의 링크 탭 — TextSpan recognizer 는 위젯 수명과 함께 dispose 해야 한다
+  // (build 마다 새로 만들면 누수).
+  late final TapGestureRecognizer _termsTap;
+  late final TapGestureRecognizer _privacyTap;
+
   @override
   void initState() {
     super.initState();
+    _termsTap = TapGestureRecognizer()..onTap = () => _openConsentDoc('terms');
+    _privacyTap = TapGestureRecognizer()
+      ..onTap = () => _openConsentDoc('privacy');
     AuthService.fetchEnabledProviders().then((m) {
       if (mounted) setState(() => _enabled = m);
     });
+  }
+
+  @override
+  void dispose() {
+    _termsTap.dispose();
+    _privacyTap.dispose();
+    super.dispose();
   }
 
   Future<void> _onProvider(String provider) async {
@@ -85,7 +104,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _showEmailInUse(String provider) {
-    const names = {'kakao': '카카오', 'naver': '네이버', 'google': '구글', 'apple': '애플'};
+    const names = {
+      'kakao': '카카오',
+      'naver': '네이버',
+      'google': '구글',
+      'apple': '애플'
+    };
     final name = names[provider] ?? '다른 소셜';
     showAppDialog<void>(
       context,
@@ -114,227 +138,315 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (mounted) context.go('/permission');
   }
 
+  /// 약관 문구의 '이용약관'/'개인정보처리방침' 탭 — 부트스트랩 동의 문서로 연결.
+  /// 문서 링크가 없으면(원격설정 미구성) 탭만 무동작 — 문구는 그대로 보인다.
+  void _openConsentDoc(String key) {
+    final docs = DkswCore.signupConsents.where((c) => c.key == key).toList();
+    if (docs.isEmpty) return;
+    final url = docs.first.viewUrl;
+    if (url == null || url.isEmpty) return;
+    showPolicySheet(context, url: url, title: docs.first.title);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? AppColors.darkBg : AppColors.lightBg;
-    final textPrimary =
-        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary =
-        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-    final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    final dividerColor =
-        (isDark ? Colors.white : Colors.black).withValues(alpha: 0.08);
+    // 이 화면은 앱 첫 진입(순백 미니멀 시안) 전용이라 다크 대응을 하지 않는다 —
+    // 시스템 테마와 무관하게 항상 라이트로 그린다(형 확정 2026-08-20).
+    final size = MediaQuery.of(context).size;
+    // 작은 화면(높이 700 미만)에서 로고·헤드라인 축소 — 오버플로 대신 비율 축소.
+    final compact = size.height < 700;
+    final logoSize = compact ? 92.0 : 120.0;
+    final headlineSize = compact ? 27.0 : 32.0;
+
+    const textPrimary = AppColors.lightTextPrimary;
+    const textSecondary = AppColors.lightTextSecondary;
+    const muted = AppColors.lightTextMuted;
+
+    // 배경 — 상단 순백을 62%까지 유지하다 아주 옅은 청록으로.
+    const bgGradient = LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [
+        AppColors.loginHeroTop,
+        AppColors.loginHeroTop,
+        AppColors.loginHeroBottom,
+      ],
+      stops: [0.0, 0.62, 1.0],
+    );
 
     return PopScope(
-        canPop: !widget.gate,
+      canPop: !widget.gate,
+      // 이 화면만 항상 라이트라, 상태바 아이콘도 여기서 강제로 어둡게 잡는다.
+      // 앱 전역(main.dart)은 statusBarColor 만 투명으로 두고 밝기를 안 정해서,
+      // 시스템이 다크 모드면 iOS 가 흰 글자 상태바를 그린다 → 순백 배경에서 실종.
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.dark.copyWith(
+          statusBarColor: Colors.transparent,
+          systemNavigationBarColor: Colors.transparent,
+        ),
         child: Scaffold(
-          backgroundColor: bg,
-          body: Stack(
-            children: [
-              SafeArea(
-                child: Column(
-                  children: [
-                    if (widget.gate)
-                      const SizedBox(height: 56)
-                    else
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(8, 8, 0, 0),
-                          child: IconButton(
-                            icon:
-                                Icon(Icons.close_rounded, color: textSecondary),
-                            onPressed: _busy
-                                ? null
-                                : () => Navigator.of(context).maybePop(),
+          backgroundColor: AppColors.loginHeroTop,
+          body: DecoratedBox(
+            decoration: const BoxDecoration(gradient: bgGradient),
+            // 글로우는 화면 밖으로 걸치게 두고 잘라낸다(블러 없이 radial 만으로).
+            child: ClipRect(
+              child: Stack(
+                children: [
+                  Positioned(
+                    top: -160,
+                    left: -140,
+                    child: _glow(AppColors.gasBlue, 460, 0.30),
+                  ),
+                  Positioned(
+                    top: 120,
+                    right: -180,
+                    child: _glow(AppColors.evGreen, 440, 0.26),
+                  ),
+                  SafeArea(
+                    child: Column(
+                      children: [
+                        if (widget.gate)
+                          const SizedBox(height: 56)
+                        else
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(8, 8, 0, 0),
+                              child: IconButton(
+                                icon: Icon(Icons.close_rounded,
+                                    color: textSecondary),
+                                onPressed: _busy
+                                    ? null
+                                    : () => Navigator.of(context).maybePop(),
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 28),
-                        // 배너 2지면 + Apple 포함 4버튼(iOS) 조합에서 히어로 공간이
-                        // 부족하면 overflow 대신 블록 전체를 비율 축소. 공간이
-                        // 충분하면 원본 크기 그대로 (scaleDown 은 확대 안 함).
-                        child: Align(
-                          alignment: Alignment.centerLeft,
+                        // ── 히어로 ── 로고 → 헤드라인 → 서브카피 (중앙 정렬)
+                        // Spacer(flex) 와 Flexible 을 같이 쓰면 둘이 공간을 나눠 가져
+                        // 히어로가 점만큼 줄어든다(2026-08-20 사고). 여백은 Expanded 가
+                        // 통째로 갖고, 그 안에서 FittedBox 가 '넘칠 때만' 축소한다.
+                        // 정렬은 시안의 10:14 비율에 맞춰 중앙보다 살짝 위로.
+                        Expanded(
                           child: FittedBox(
                             fit: BoxFit.scaleDown,
-                            alignment: Alignment.centerLeft,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Image.asset(
-                                  'assets/halfNhalf.png',
-                                  width: 76,
-                                  height: 76,
-                                  filterQuality: FilterQuality.medium,
-                                ),
-                                const SizedBox(height: 18),
-                                Text(
-                                  '주유부터 충전까지,\n한 번에.',
-                                  style: TextStyle(
-                                    fontSize: 26,
-                                    height: 1.32,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.5,
-                                    color: textPrimary,
+                            alignment: const Alignment(0, -0.15),
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 24),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Image.asset(
+                                    'assets/halfNhalf.png',
+                                    width: logoSize,
+                                    height: logoSize,
+                                    filterQuality: FilterQuality.medium,
                                   ),
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  '로그인하면 차량 정보·설정이\n기기를 바꿔도 그대로 유지돼요.',
-                                  style: TextStyle(
-                                      fontSize: 14.5,
-                                      height: 1.5,
-                                      color: textSecondary),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
-                      child: Column(
-                        children: _enabled == null
-                            ? const [
-                                SizedBox(
-                                  height: 160,
-                                  child: Center(
-                                    child: SizedBox(
-                                      width: 22,
-                                      height: 22,
-                                      child: CircularProgressIndicator(strokeWidth: 2.4),
+                                  const SizedBox(height: 30),
+                                  Text(
+                                    '주유부터 충전까지,\n한 번에.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: headlineSize,
+                                      height: 1.25,
+                                      fontWeight: FontWeight.w800,
+                                      // 시안 -0.035em
+                                      letterSpacing: headlineSize * -0.035,
+                                      color: textPrimary,
                                     ),
                                   ),
-                                ),
-                              ]
-                            : [
-                                // Apple 심사 가이드라인 4.8 — 제3자 소셜로그인 제공 시
-                                // 'Apple로 로그인'을 동등 이상으로 노출해야 함 (iOS 한정, 최상단).
-                                if (Platform.isIOS &&
-                                    (_enabled!['apple'] ?? true)) ...[
-                                  _SocialButton(
-                                    label: 'Apple로 시작하기',
-                                    bg: Colors.black,
-                                    fg: Colors.white,
-                                    icon: Icons.apple,
-                                    onTap: () => _onProvider('apple'),
+                                  const SizedBox(height: 14),
+                                  Text(
+                                    '로그인하면 차량 정보와 설정이\n기기를 바꿔도 그대로 유지돼요.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                        fontSize: 14,
+                                        height: 1.6,
+                                        color: textSecondary),
                                   ),
-                                  const SizedBox(height: 10),
                                 ],
-                                if (_enabled!['kakao'] ?? true) ...[
-                                  _SocialButton(
-                                    label: '카카오로 시작하기',
-                                    bg: const Color(0xFFFEE500),
-                                    fg: const Color(0xFF191600),
-                                    // 공식 심볼 — 카카오 로그인 버튼 리소스에서 추출
-                                    iconChild: Image.asset(
-                                        'assets/social/kakao_symbol.png',
-                                        width: 19,
-                                        height: 19),
-                                    onTap: () => _onProvider('kakao'),
-                                  ),
-                                  const SizedBox(height: 10),
-                                ],
-                                if (_enabled!['naver'] ?? true) ...[
-                                  _SocialButton(
-                                    label: '네이버로 시작하기',
-                                    bg: const Color(0xFF03C75A),
-                                    fg: Colors.white,
-                                    iconChild: const Text('N',
-                                        style: TextStyle(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.w900,
-                                            color: Colors.white)),
-                                    onTap: () => _onProvider('naver'),
-                                  ),
-                                  const SizedBox(height: 10),
-                                ],
-                                if (_enabled!['google'] ?? true)
-                                  _SocialButton(
-                                    label: '구글로 시작하기',
-                                    bg: Colors.white,
-                                    fg: const Color(0xFF1F1F1F),
-                                    border: const Color(0xFFDADCE0),
-                                    // 공식 4색 G 로고 (Google Identity 배포 에셋)
-                                    iconChild: Image.asset(
-                                        'assets/social/google_g.png',
-                                        width: 19,
-                                        height: 19),
-                                    onTap: () => _onProvider('google'),
-                                  ),
-                              ],
-                      ),
-                    ),
-                    // 로그인 배너 — 소셜 버튼 바로 아래 지면 (콘솔 '로그인
-                    // 소셜버튼 아래 배너' 모드로 제어. 버튼과 같은 폭·라운드)
-                    const LoginBottomBanner(slot: 'social'),
-                    if (widget.gate) ...[
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(40, 6, 40, 0),
-                        child: Row(
-                          children: [
-                            Expanded(
-                                child: Divider(color: dividerColor, height: 1)),
-                            Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 12),
-                              child: Text('또는',
-                                  style:
-                                      TextStyle(fontSize: 12.5, color: muted)),
+                              ),
                             ),
-                            Expanded(
-                                child: Divider(color: dividerColor, height: 1)),
-                          ],
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: _busy ? null : _startGuest,
-                        child: Text(
-                          '게스트로 시작하기',
-                          style: TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w600,
-                            color: textSecondary,
-                            decoration: TextDecoration.underline,
-                            decorationColor: textSecondary,
                           ),
                         ),
-                      ),
-                    ],
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(28, 6, 28, 18),
-                      child: Text(
-                        '로그인 시 이용약관 및 개인정보처리방침에 동의하게 됩니다.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          height: 1.5,
-                          color: isDark
-                              ? AppColors.darkTextMuted
-                              : AppColors.lightTextMuted,
+                        // ── 소셜 버튼 (로직·순서 그대로) ──
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
+                          child: Column(
+                            children: _enabled == null
+                                ? const [
+                                    SizedBox(
+                                      height: 160,
+                                      child: Center(
+                                        child: SizedBox(
+                                          width: 22,
+                                          height: 22,
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2.4),
+                                        ),
+                                      ),
+                                    ),
+                                  ]
+                                : [
+                                    // Apple 심사 가이드라인 4.8 — 제3자 소셜로그인 제공 시
+                                    // 'Apple로 로그인'을 동등 이상으로 노출 (iOS 한정, 최상단).
+                                    if (Platform.isIOS &&
+                                        (_enabled!['apple'] ?? true)) ...[
+                                      _SocialButton(
+                                        label: 'Apple로 시작하기',
+                                        bg: Colors.black,
+                                        fg: Colors.white,
+                                        icon: Icons.apple,
+                                        onTap: () => _onProvider('apple'),
+                                      ),
+                                      const SizedBox(height: 10),
+                                    ],
+                                    if (_enabled!['kakao'] ?? true) ...[
+                                      _SocialButton(
+                                        label: '카카오로 시작하기',
+                                        bg: const Color(0xFFFEE500),
+                                        fg: const Color(0xFF191600),
+                                        // 공식 심볼 — 카카오 로그인 버튼 리소스에서 추출
+                                        iconChild: Image.asset(
+                                            'assets/social/kakao_symbol.png',
+                                            width: 19,
+                                            height: 19),
+                                        onTap: () => _onProvider('kakao'),
+                                      ),
+                                      const SizedBox(height: 10),
+                                    ],
+                                    if (_enabled!['naver'] ?? true) ...[
+                                      _SocialButton(
+                                        label: '네이버로 시작하기',
+                                        bg: const Color(0xFF03C75A),
+                                        fg: Colors.white,
+                                        iconChild: const Text('N',
+                                            style: TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.w900,
+                                                color: Colors.white)),
+                                        onTap: () => _onProvider('naver'),
+                                      ),
+                                      const SizedBox(height: 10),
+                                    ],
+                                    if (_enabled!['google'] ?? true)
+                                      _SocialButton(
+                                        label: '구글로 시작하기',
+                                        bg: Colors.white,
+                                        fg: const Color(0xFF1F1F1F),
+                                        border: const Color(0xFFDADCE0),
+                                        // 공식 4색 G 로고 (Google Identity 배포 에셋)
+                                        iconChild: Image.asset(
+                                            'assets/social/google_g.png',
+                                            width: 19,
+                                            height: 19),
+                                        onTap: () => _onProvider('google'),
+                                      ),
+                                  ],
+                          ),
                         ),
-                      ),
+                        // 로그인 배너 — 소셜 버튼 바로 아래 지면 (콘솔 제어, 없으면 높이 0)
+                        const LoginBottomBanner(slot: 'social'),
+                        // ── 게스트 진입 (게이트 모드에서만) ──
+                        if (widget.gate)
+                          SizedBox(
+                            height: 52,
+                            child: TextButton(
+                              onPressed: _busy ? null : _startGuest,
+                              style: TextButton.styleFrom(
+                                foregroundColor: textSecondary,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(999)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text('게스트로 시작하기',
+                                      style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: textSecondary)),
+                                  Icon(Icons.chevron_right_rounded,
+                                      size: 18, color: textSecondary),
+                                ],
+                              ),
+                            ),
+                          ),
+                        // ── 약관 ── '이용약관'/'개인정보처리방침'만 링크 톤 + 탭
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(
+                              28, widget.gate ? 2 : 10, 28, 14),
+                          child: Text.rich(
+                            TextSpan(
+                              style: TextStyle(
+                                  fontSize: 11, height: 1.5, color: muted),
+                              children: [
+                                const TextSpan(text: '로그인 시 '),
+                                TextSpan(
+                                  text: '이용약관',
+                                  style: TextStyle(
+                                    color: textSecondary,
+                                    decoration: TextDecoration.underline,
+                                    decorationColor: textSecondary,
+                                  ),
+                                  recognizer: _termsTap,
+                                ),
+                                const TextSpan(text: ' 및 '),
+                                TextSpan(
+                                  text: '개인정보처리방침',
+                                  style: TextStyle(
+                                    color: textSecondary,
+                                    decoration: TextDecoration.underline,
+                                    decorationColor: textSecondary,
+                                  ),
+                                  recognizer: _privacyTap,
+                                ),
+                                const TextSpan(text: '에 동의하게 됩니다.'),
+                              ],
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        // 로그인 배너 — 화면 하단 지면 (콘솔 제어, 없으면 높이 0)
+                        const LoginBottomBanner(slot: 'bottom'),
+                      ],
                     ),
-                    // 로그인 배너 — 화면 하단 지면 (콘솔 '로그인 하단 배너' 모드로 제어).
-                    // 첫 로그인 게이트/설정 진입 둘 다 이 화면이라 한 곳으로 커버.
-                    const LoginBottomBanner(slot: 'bottom'),
-                  ],
-                ),
+                  ),
+                  if (_busy)
+                    Container(
+                      color: Colors.black26,
+                      child: const Center(child: CircularProgressIndicator()),
+                    ),
+                ],
               ),
-              if (_busy)
-                Container(
-                  color: Colors.black26,
-                  child: const Center(child: CircularProgressIndicator()),
-                ),
-            ],
+            ),
           ),
-        ));
+        ),
+      ),
+    );
+  }
+
+  /// 배경 글로우 한 덩어리 — blur 없이 radial 만으로 (셰이더 비용 0).
+  Widget _glow(Color color, double size, double centerAlpha) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            center: Alignment.center,
+            radius: 0.5,
+            colors: [
+              color.withValues(alpha: centerAlpha),
+              color.withValues(alpha: centerAlpha / 3),
+              color.withValues(alpha: 0),
+            ],
+            stops: const [0.0, 0.45, 0.72],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -361,7 +473,7 @@ class _SocialButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 54,
+      height: 56, // 시안 스펙
       child: Material(
         color: bg,
         borderRadius: BorderRadius.circular(12),

@@ -15,6 +15,10 @@ Future<void> showCheerPromotionOverlay(
   required CheerTierTheme tier,
   required CheerStatus status,
   required VoidCallback onSeeGarage,
+
+  /// 이 승급으로 보상 컬러가 열렸을 때의 진입점. 해금이 있는 승급이면 주 버튼이
+  /// '개러지'에서 '컬러 입혀보기'로 바뀐다(버튼을 늘리지 않는다 — 목적지가 겹친다).
+  VoidCallback? onOpenPaint,
 }) {
   return showGeneralDialog<void>(
     context: context,
@@ -22,8 +26,11 @@ Future<void> showCheerPromotionOverlay(
     barrierLabel: 'cheer-promotion',
     barrierColor: Colors.transparent,
     transitionDuration: const Duration(milliseconds: 180),
-    pageBuilder: (_, __, ___) =>
-        _PromotionOverlay(tier: tier, status: status, onSeeGarage: onSeeGarage),
+    pageBuilder: (_, __, ___) => _PromotionOverlay(
+        tier: tier,
+        status: status,
+        onSeeGarage: onSeeGarage,
+        onOpenPaint: onOpenPaint),
     transitionBuilder: (_, anim, __, child) =>
         FadeTransition(opacity: anim, child: child),
   );
@@ -33,8 +40,12 @@ class _PromotionOverlay extends StatefulWidget {
   final CheerTierTheme tier;
   final CheerStatus status;
   final VoidCallback onSeeGarage;
+  final VoidCallback? onOpenPaint;
   const _PromotionOverlay(
-      {required this.tier, required this.status, required this.onSeeGarage});
+      {required this.tier,
+      required this.status,
+      required this.onSeeGarage,
+      this.onOpenPaint});
 
   @override
   State<_PromotionOverlay> createState() => _PromotionOverlayState();
@@ -80,6 +91,10 @@ class _PromotionOverlayState extends State<_PromotionOverlay>
     final t = widget.tier;
     final ink = CheerDs.ink(isDark);
     final sub = CheerDs.secondary(isDark);
+    // 이 승급으로 열린 보상 컬러 — 있으면 고지하고 주 버튼을 그쪽으로 돌린다.
+    final reward = widget.onOpenPaint == null
+        ? null
+        : CarPaint.rewardFor(t.level);
 
     return Stack(
       children: [
@@ -99,11 +114,16 @@ class _PromotionOverlayState extends State<_PromotionOverlay>
             child: Stack(
               children: [
                 // 하단 버튼 영역(≈130px)을 뺀 나머지에서 세로 중앙 정렬 (형 지시).
+                // 중앙 정렬은 자리가 남을 때만 — 작은 폰(SE 667dp)에 큰 글자 배율이
+                // 겹치면 칩까지 얹은 높이가 넘친다. 넘치는 만큼만 스크롤로 흘린다.
                 Positioned.fill(
                   bottom: 130,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Column(
+                  child: LayoutBuilder(
+                    builder: (_, c) => SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(minHeight: c.maxHeight),
+                        child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         // 오버라인 필 — 앱 톤(블루)로 통일 (형 지시: 주황이 앱 톤과 안 맞음)
@@ -139,41 +159,34 @@ class _PromotionOverlayState extends State<_PromotionOverlay>
                             textAlign: TextAlign.center,
                             style: TextStyle(
                                 fontSize: 13, height: 1.45, color: sub)),
-                        if (widget.status.streak >= 1) ...[
+                        if (widget.status.streak >= 1 || reward != null) ...[
                           const SizedBox(height: 14),
-                          // 연속 응원 뱃지 — 앱 시그니처(⚡ 블루) 톤
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 13, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? const Color(0x2660A5FA)
-                                  : const Color(0xFFEAF2FE),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.bolt_rounded,
-                                    size: 15,
-                                    color: isDark
-                                        ? const Color(0xFF60A5FA)
-                                        : const Color(0xFF3B82F6)),
-                                const SizedBox(width: 5),
-                                Flexible(child: Text('${widget.status.streak}일째 연속 응원',
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        color: isDark
-                                            ? const Color(0xFF93C5FD)
-                                            : const Color(0xFF2563EB)),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis),)
-                              ],
-                            ),
+                          // 칩이 둘이면 좁은 폰·큰 글자에서 한 줄을 넘긴다 — 아래로 접는다.
+                          Wrap(
+                            alignment: WrapAlignment.center,
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              // 해금 고지 — 승급 보상 컬러를 받았다는 사실을 여기서 처음 말한다.
+                              if (reward != null)
+                                _chip(
+                                  isDark: isDark,
+                                  icon: Icons.palette_rounded,
+                                  text: '새 컬러 「${reward.name}」 해금',
+                                ),
+                              // 연속 응원 뱃지 — 앱 시그니처(⚡ 블루) 톤
+                              if (widget.status.streak >= 1)
+                                _chip(
+                                  isDark: isDark,
+                                  icon: Icons.bolt_rounded,
+                                  text: '${widget.status.streak}일째 연속 응원',
+                                ),
+                            ],
                           ),
                         ],
                       ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -203,12 +216,21 @@ class _PromotionOverlayState extends State<_PromotionOverlay>
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12)),
                             ),
+                            // 해금이 있는 승급이면 목적지를 컬러로 돌린다. 버튼을 하나 더
+                            // 붙이지 않는 이유 — 개러지와 목적지가 겹쳐 결정만 늘어난다.
                             onPressed: () {
                               Navigator.of(context).pop();
-                              widget.onSeeGarage();
+                              if (reward != null) {
+                                widget.onOpenPaint!();
+                              } else {
+                                widget.onSeeGarage();
+                              }
                             },
-                            child: const Text('내 뱃지 보러가기',
-                                style: TextStyle(
+                            child: Text(
+                                reward != null ? '컬러 입혀보기' : '내 뱃지 보러가기',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w700,
                                     color: Colors.white)),
@@ -216,15 +238,41 @@ class _PromotionOverlayState extends State<_PromotionOverlay>
                         ),
                       ),
                       const SizedBox(height: 6),
+                      // 주 버튼이 컬러로 갔을 때만 개러지가 보조로 내려온다.
+                      // 두 칸은 Expanded 로 나눠 큰 글자에서도 가로로 안 넘친다.
                       SizedBox(
                         height: 42,
-                        child: TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: Text('닫기',
-                              style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: CheerDs.muted(isDark))),
+                        child: Row(
+                          children: [
+                            if (reward != null)
+                              Expanded(
+                                child: TextButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                    widget.onSeeGarage();
+                                  },
+                                  child: Text('내 뱃지 보러가기',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: CheerDs.secondary(isDark))),
+                                ),
+                              ),
+                            Expanded(
+                              child: TextButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                child: Text('닫기',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: CheerDs.muted(isDark))),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -235,6 +283,39 @@ class _PromotionOverlayState extends State<_PromotionOverlay>
           ),
         ),
       ],
+    );
+  }
+
+  /// 승급 고지 칩 — 해금·연속 응원이 같은 모양을 쓴다(앱 시그니처 ⚡ 블루 톤).
+  /// Wrap 이 준 가로 한계 안에서 Flexible 이 말줄임 처리하므로 넘치지 않는다.
+  Widget _chip({
+    required bool isDark,
+    required IconData icon,
+    required String text,
+  }) {
+    final fg = isDark ? const Color(0xFF93C5FD) : const Color(0xFF2563EB);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0x2660A5FA) : const Color(0xFFEAF2FE),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon,
+              size: 15,
+              color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF3B82F6)),
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w700, color: fg)),
+          ),
+        ],
+      ),
     );
   }
 

@@ -384,12 +384,14 @@ class _AiVehicleSetupScreenState extends ConsumerState<AiVehicleSetupScreen>
     box.put(AppConstants.keyAiVehicles,
         jsonEncode(vehicles.map((x) => x.toJson()).toList()));
 
-    // 선택 차량이 없거나 이 차량이면 선택 차량으로 설정
-    final selectedId = box.get(AppConstants.keyAiSelectedVehicleId) as String?;
-    if (selectedId == null || selectedId.isEmpty || widget.isEdit) {
-      box.put(AppConstants.keyAiSelectedVehicleId, v.id);
-      _syncToLegacyKeys(box, v);
-    }
+    // 방금 저장한 차량을 항상 선택 차량으로 — 신규 등록이든 수정이든.
+    // (예전엔 '선택 차량이 없을 때만' 이라 두 번째 차를 등록해도 목록으로 나가면
+    //  먼저 등록한 차가 선택돼 있었다. 형 제보 2026-08-20)
+    box.put(AppConstants.keyAiSelectedVehicleId, v.id);
+    // 모드(주유/충전)별 '마지막에 쓰던 차량' 기억도 같이 갱신 — 안 그러면 모드
+    // 전환 후 복귀 때 이전 차량으로 되돌아간다(ai_main_screen 의 복원 키와 같은 규약).
+    box.put('ai_last_vehicle_${v.isEV ? 'ev' : 'gas'}', v.id);
+    _syncToLegacyKeys(box, v);
 
     ref.read(settingsProvider.notifier).completeAiOnboarding();
     mirrorAiVehiclesToServer(); // 로그인 회원이면 서버 미러(replace-all)

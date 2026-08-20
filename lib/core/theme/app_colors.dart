@@ -55,6 +55,11 @@ class AppColors {
   static const lightIconBg = Color(0xFFF1F5F9);
   static const lightEvIconBg = Color(0xFFECFDF5);
 
+  // 로그인 히어로(순백 미니멀 3a) — 상단 순백에서 하단 옅은 청록으로 떨어지는 배경.
+  // 일반 화면 배경(lightBg)보다 밝아야 글로우 2개가 살아난다.
+  static const loginHeroTop = Color(0xFFFFFFFF);
+  static const loginHeroBottom = Color(0xFFF7FBFA);
+
   // Gas active card (light)
   static const lightGasActiveCard = Color(0xFFEFF6FF);
   static const lightGasActiveBorder = Color(0xFFBFDBFE);

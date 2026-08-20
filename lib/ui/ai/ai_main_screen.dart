@@ -55,6 +55,9 @@ import '../../data/services/rating_prompt_service.dart';
 import '../../core/utils/navigation_util.dart';
 import '../../core/utils/ev_brand.dart';
 
+/// 낡은 잔량 1탭 확인 모달의 선택지 (null = 닫음)
+enum _StaleLevelChoice { keep, edit }
+
 class AiMainScreen extends ConsumerStatefulWidget {
   const AiMainScreen({super.key});
 
@@ -798,6 +801,16 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     }
   }
 
+  // 모드(주유/충전)별로 '마지막에 쓰던 차량'을 기억한다. 없으면 모드 전환 때마다
+  // 등록 순서상 첫 차량으로 되돌아간다 — 쏘나타·아반떼를 등록한 뒤 아반떼를 골라도
+  // 충전 탭 갔다 오면 쏘나타로 복귀하던 문제(형 제보 2026-08-20).
+  String _lastVehicleKey(bool ev) => 'ai_last_vehicle_${ev ? 'ev' : 'gas'}';
+
+  void _rememberVehicleForMode(Box box, VehicleProfile v) {
+    final key = _lastVehicleKey(v.isEV);
+    if (box.get(key) != v.id) box.put(key, v.id);
+  }
+
   /// 상단 세그먼트 탭 → 모드 즉시 전환.
   /// 해당 모드 차량 보유 시 → 선택 차량을 그 모드 차량으로 교체.
   /// 없으면 → 차량 등록 페이지로 이동.
@@ -814,14 +827,20 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       } catch (_) {}
     }
 
-    // 현재 선택 차량이 이미 그 모드면 noop
+    // 현재 선택 차량이 이미 그 모드면 noop (떠나기 전에 이 차를 기억해 둔다)
     final current = _readSelectedVehicle(box);
+    if (current != null) _rememberVehicleForMode(box, current);
     if (current != null && current.isEV == ev) return;
 
-    // 해당 모드 차량 찾기
+    // 해당 모드 차량 찾기 — 그 모드에서 '마지막에 쓰던 차'가 아직 있으면 그것부터.
+    // (없으면 그 모드의 첫 차량으로 폴백)
+    final lastId = box.get(_lastVehicleKey(ev)) as String?;
     final candidate = all.cast<VehicleProfile?>().firstWhere(
-          (v) => v != null && v.isEV == ev,
-          orElse: () => null,
+          (v) => v != null && v.isEV == ev && v.id == lastId,
+          orElse: () => all.cast<VehicleProfile?>().firstWhere(
+                (v) => v != null && v.isEV == ev,
+                orElse: () => null,
+              ),
         );
 
     if (candidate != null) {
@@ -870,6 +889,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       if (idx < 0) return;
       all[idx] = all[idx].copyWith(
         currentLevelPercent: level,
+        // 잔량을 쓸 때 확인 시각도 같은 트랜잭션으로 — 값과 시각이 갈릴 수 없다.
+        levelUpdatedAt: DateTime.now().millisecondsSinceEpoch,
         targetMode: mode,
         targetValue: price ?? all[idx].targetValue,
         targetChargePercent:
@@ -879,6 +900,234 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           jsonEncode(all.map((v) => v.toJson()).toList()));
       mirrorAiVehiclesToServer(); // 로그인 회원이면 서버 미러
     } catch (_) {}
+  }
+
+  // ── 잔량 신선도 게이트 ──────────────────────────────────────────
+  // 낡은 잔량으로 추천이 계산되는 걸 막는다. 값 자체는 안 건드리고
+  // "언제 확인된 값인가"를 차량별 타임스탬프 키 하나로만 관리한다
+  // (VehicleProfile 스키마 무변경 — 설정 여부를 값이 아니라 갱신시각 유무로 판정).
+  static const Duration _kLevelFreshFor = Duration(hours: 6);
+
+  // 확인 시각은 차량 프로필(VehicleProfile.levelUpdatedAt) 안에 산다 — 잔량 값과
+  // 같은 객체라 짝이 어긋날 수 없고, 차량을 지우면 같이 사라지며, 기존 서버 미러에
+  // 그대로 실려 간다. 차량이 없는 사용자만 전역 Hive 키를 쓴다.
+  // (구버전: ai_level_updated_at_<id> 별도 키 → 아래에서 1회 이관 후 정리)
+  static const String _kLevelStampGlobal = 'ai_level_updated_at_global';
+
+  String _legacyStampKey(String vehicleId) => 'ai_level_updated_at_$vehicleId';
+
+  DateTime? _sane(num? raw) {
+    if (raw == null) return null;
+    final t = DateTime.fromMillisecondsSinceEpoch(raw.toInt());
+    final now = DateTime.now();
+    // 미래·30일 초과는 신뢰할 수 없는 값(기기 시계 이상·백업 복원)으로 보고 무시.
+    if (t.isAfter(now) || now.difference(t) > const Duration(days: 30)) return null;
+    return t;
+  }
+
+  /// 저장된 확인 시각 — 선택 차량의 프로필 값. 차량이 없으면 전역 키.
+  DateTime? _levelStampAt(Box box) {
+    final v = _readSelectedVehicle(box);
+    if (v != null) {
+      final fromProfile = _sane(v.levelUpdatedAt);
+      if (fromProfile != null) return fromProfile;
+      // 구버전 별도 키가 남아 있으면 그것으로 판정(다음 저장 때 프로필로 옮겨진다)
+      final legacy = _sane(box.get(_legacyStampKey(v.id)) as num?);
+      if (legacy != null) return legacy;
+      return null;
+    }
+    return _sane(box.get(_kLevelStampGlobal) as num?);
+  }
+
+  /// 확인 시각 갱신 — 프로필에 기록(+서버 미러). 차량이 없으면 전역 키만.
+  void _stampLevelFresh(Box box) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    box.put(_kLevelStampGlobal, now); // 차량 없는 사용자 · 폴백용
+    final v = _readSelectedVehicle(box);
+    if (v == null) return;
+    _updateSelectedVehicle(box, (cur) => cur.copyWith(levelUpdatedAt: now));
+    box.delete(_legacyStampKey(v.id)); // 이관 완료 — 떠다니던 키 정리
+  }
+
+  /// 선택 차량 프로필을 갱신하고 저장(+서버 미러). 차량이 없으면 no-op.
+  void _updateSelectedVehicle(
+      Box box, VehicleProfile Function(VehicleProfile cur) update) {
+    final rawVehicles = box.get(AppConstants.keyAiVehicles);
+    final selectedId = box.get(AppConstants.keyAiSelectedVehicleId) as String?;
+    if (rawVehicles == null || selectedId == null) return;
+    try {
+      final List decoded = jsonDecode(rawVehicles as String);
+      final all = decoded
+          .map((e) => VehicleProfile.fromJson(e as Map<String, dynamic>))
+          .toList();
+      final idx = all.indexWhere((v) => v.id == selectedId);
+      if (idx < 0) return;
+      all[idx] = update(all[idx]);
+      box.put(AppConstants.keyAiVehicles,
+          jsonEncode(all.map((v) => v.toJson()).toList()));
+      mirrorAiVehiclesToServer();
+    } catch (_) {}
+  }
+
+  /// 추천 실행 직전 잔량 신선도 확인. true = 진행, false = 사용자가 접음.
+  /// 미설정(저장 흔적 자체가 없음) → 시트 강제, 저장하면 이어서 진행.
+  /// 낡음(6시간 경과 or 타임스탬프 없음) → 1탭 확인. [이대로]는 시각만 갱신.
+  Future<bool> _ensureLevelFresh({required bool isEv}) async {
+    final box = Hive.box(AppConstants.settingsBox);
+    final updatedAt = _levelStampAt(box);
+    if (updatedAt != null &&
+        DateTime.now().difference(updatedAt) < _kLevelFreshFor) {
+      return true; // 신선 — 조용히 통과
+    }
+
+    // 저장 흔적이 전혀 없는 진짜 신규만 시트 강제. 기존 사용자(값은 있는데
+    // 타임스탬프만 없는 경우)는 1탭 확인으로 강등 — 업데이트 직후 전원에게
+    // 시트가 뜨는 마찰을 피한다. 확인 모달도 현재 값을 보여주니 안전성은 같다.
+    final hasStored = _readSelectedVehicle(box) != null ||
+        box.get(AppConstants.keyAiCurrentLevelPercent) != null;
+    if (!hasStored) return _openLevelSheetForCurrentVehicle(isEv: isEv);
+
+    if (kDebugMode) {
+      // '확인했는데 또 뜬다' 재현 시 원인 추적용 — 어떤 키의 어떤 값이 낡음 판정을
+      // 만들었는지 로그로 남긴다(값의 출처가 코드상 설명되지 않는 사례가 있었다).
+      final sv = _readSelectedVehicle(box);
+      debugPrint('[level-gate] stale: veh=${sv?.id} '
+          'profile=${sv?.levelUpdatedAt} '
+          'global=${box.get(_kLevelStampGlobal)} → updatedAt=$updatedAt');
+    }
+    final choice = await _confirmStaleLevel(isEv: isEv, updatedAt: updatedAt);
+    if (!mounted) return false;
+    switch (choice) {
+      case _StaleLevelChoice.keep:
+        _stampLevelFresh(box); // 사용자가 맞다고 확인 — 지금부터 다시 신선
+        return true;
+      case _StaleLevelChoice.edit:
+        return _openLevelSheetForCurrentVehicle(isEv: isEv);
+      case null:
+        return false; // 닫음 — 추천 진행 안 함
+    }
+  }
+
+  /// 선택 차량 기준 용량/효율로 잔량 시트 오픈. true = 저장하고 닫음.
+  Future<bool> _openLevelSheetForCurrentVehicle({required bool isEv}) {
+    final box = Hive.box(AppConstants.settingsBox);
+    final sv = _readSelectedVehicle(box);
+    final capacity = sv == null
+        ? (box.get(AppConstants.keyAiTankCapacity, defaultValue: 55.0) as num)
+            .toDouble()
+        : (sv.isEV ? sv.batteryCapacity : sv.tankCapacity);
+    final efficiency = sv == null
+        ? (box.get(AppConstants.keyAiEfficiency, defaultValue: 12.5) as num)
+            .toDouble()
+        : (sv.isEV ? sv.evEfficiency : sv.efficiency);
+    return _showLevelEditSheet(
+      isEv: isEv,
+      capacity: capacity,
+      efficiency: efficiency,
+      targetChargePercent: sv?.targetChargePercent ?? 80.0,
+    );
+  }
+
+  /// 낡은 잔량 1탭 확인 모달 — [수정] / [이대로 진행]
+  Future<_StaleLevelChoice?> _confirmStaleLevel(
+      {required bool isEv, DateTime? updatedAt}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = modeAccent(isEv);
+    final ink = isDark ? AppColors.darkTextPrimary : const Color(0xFF1A1A1A);
+    final muted =
+        isDark ? AppColors.darkTextSecondary : const Color(0xFF6B7280);
+    String ago;
+    if (updatedAt == null) {
+      ago = '입력한 지 오래됐어요.';
+    } else {
+      final d = DateTime.now().difference(updatedAt);
+      ago = d.inDays >= 1
+          ? '${d.inDays}일 전에 입력한 값이에요.'
+          : '${d.inHours}시간 전에 입력한 값이에요.';
+    }
+    return showDialog<_StaleLevelChoice>(
+      context: context,
+      // 바깥 탭으로 닫으면 확인 시각이 갱신되지 않아 다음 추천에서 또 뜬다
+      // ('계속 뜬다' 신고의 실제 원인 — 형 제보 2026-08-20). 둘 중 하나를 고르게 한다.
+      barrierDismissible: false,
+      builder: (ctx) => Dialog(
+        backgroundColor: isDark ? AppColors.darkBg : Colors.white,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(22, 24, 22, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${isEv ? '배터리' : '잔량'} ${_currentLevelPercent.round()}%',
+                style: TextStyle(
+                    fontSize: 19, fontWeight: FontWeight.w800, color: ink),
+              ),
+              const SizedBox(height: 6),
+              Text('$ago 지금도 맞나요?',
+                  style:
+                      TextStyle(fontSize: 13.5, height: 1.45, color: muted)),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () =>
+                          Navigator.pop(ctx, _StaleLevelChoice.edit),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: muted,
+                        side: BorderSide(
+                            color: isDark
+                                ? AppColors.darkCardBorder
+                                : const Color(0xFFE5E7EB)),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('수정',
+                          style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () =>
+                          Navigator.pop(ctx, _StaleLevelChoice.keep),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: accent,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('이대로 진행',
+                          style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 결과 시트 '잔량 기준 · 수정' 탭 → 시트 → 저장 시에만 같은 종류로 재추천
+  /// (AI 쿼터는 사용자가 명시적으로 값을 고쳤을 때만 나간다)
+  Future<void> _editLevelFromResult({required bool isEv}) async {
+    final saved = await _openLevelSheetForCurrentVehicle(isEv: isEv);
+    if (!saved || !mounted) return;
+    if (isEv) {
+      await _runEvAnalyze();
+    } else if (_isCompareResultMode) {
+      await _runCompare();
+    } else {
+      await _runAnalyze();
+    }
   }
 
   void _loadSaved() {
@@ -2334,6 +2583,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       return;
     }
 
+    // 잔량 신선도 게이트 — 낡은 값으로 추천 나가는 것 차단
+    if (!await _ensureLevelFresh(isEv: false)) return;
+    if (!mounted) return;
+
     if (_targetMode == 'PRICE') {
       final p =
           double.tryParse(_priceController.text.replaceAll(',', '.')) ?? 0;
@@ -2573,7 +2826,14 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           _lastResultData = data;
           _lastRouteSummary = '$originLabel → ${_destName ?? '목적지'}';
         });
-        _triggerSavingsReveal(data);
+        // 주유 불필요(추천 슬롯 둘 다 빈) 케이스 — AI 배너가 이미 설명하는데
+        // '가는 길이 최적!' 축하 팝업까지 뜨면 헛축하 중복(형 제보 2026-08-20).
+        final _revealHasStation =
+            (data['on_route'] is Map &&
+                (data['on_route'] as Map)['station'] is Map) ||
+            (data['best_detour'] is Map &&
+                (data['best_detour'] as Map)['station'] is Map);
+        if (_revealHasStation) _triggerSavingsReveal(data);
 
         // 추천 주유소 경유 경로: 서버에서 미리 받은 전체 길찾기 우선, 없으면 클라이언트 네이버 호출
         var viaPathPoints = _lastPathPoints;
@@ -4062,6 +4322,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       showAppToast(context, '목적지를 선택해 주세요.');
       return;
     }
+    // 잔량 신선도 게이트 — 시트 저장 시 아래 프로필 재조회가 새 값을 읽는다
+    if (!await _ensureLevelFresh(isEv: true)) return;
+    if (!mounted) return;
     // 서드파티 AI 문구 동의 (첫 사용 1회 고지)
     final aiOk = await AiConsent.ensure(context);
     if (!mounted) return;
@@ -4184,7 +4447,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           'brands': _preferredEvBrands.toList(),
         if (_evChargerType == 'FAST' && _evFastOutputs.isNotEmpty)
           'fastOutputs': _evFastOutputs.toList(),
-        'ai_text': AiConsent.value == true, // 서드파티 AI 문구 동의
+        'ai_text': aiOk, // 서드파티 AI 문구 동의 (바로 위 ensure 반환값)
       });
 
       if (!mounted) return;
@@ -4208,7 +4471,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         _lastResultData = data;
         _lastRouteSummary = '$originLabel → ${_destName ?? '목적지'}';
       });
-      _triggerEvSavingsReveal(data);
+      // 충전 불필요 케이스 — 추천 자체가 없으므로 축하 팝업도 띄우지 않는다
+      // (주유의 NO_REFUEL_NEEDED 와 동일 취급, 형 제보 2026-08-20)
+      if (data['recommended'] is Map) _triggerEvSavingsReveal(data);
 
       // 지도에 경로 + 마커 그리기
       final recommended = data['recommended'] is Map
@@ -4374,6 +4639,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       showAppToast(context, '목적지를 선택해 주세요.');
       return;
     }
+
+    // 잔량 신선도 게이트 — 시트 저장 시 아래 프로필 재조회가 새 값을 읽는다
+    if (!await _ensureLevelFresh(isEv: true)) return;
+    if (!mounted) return;
 
     final box = Hive.box(AppConstants.settingsBox);
     VehicleProfile? selectedVehicle;
@@ -4671,6 +4940,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       showAppToast(context, '목적지를 선택해 주세요.');
       return;
     }
+
+    // 잔량 신선도 게이트 — 낡은 값으로 후보 계산 나가는 것 차단
+    if (!await _ensureLevelFresh(isEv: false)) return;
+    if (!mounted) return;
 
     double startLat, startLng;
     if (_originLat != null && _originLng != null) {
@@ -5119,6 +5392,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   Future<void> _runCompare() async {
     if (_selectedStationAId == null || _selectedStationBId == null) return;
 
+    // 잔량 신선도 게이트 — 낡은 값으로 비교 계산 나가는 것 차단
+    if (!await _ensureLevelFresh(isEv: false)) return;
+    if (!mounted) return;
+
     final stA = _selectableStations!
         .firstWhere((s) => s['id']?.toString() == _selectedStationAId);
     final stB = _selectableStations!
@@ -5471,8 +5748,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           _currentLevelPercent = lv;
           _lastCarSyncAt = DateTime.now();
         });
-        Hive.box(AppConstants.settingsBox)
-            .put(AppConstants.keyAiCurrentLevelPercent, lv);
+        final box = Hive.box(AppConstants.settingsBox);
+        // 프로필에도 저장 — 글로벌 키만 갱신하면 EV 추천은 프로필 값
+        // (selectedVehicle.currentLevelPercent)을 보내 옛 잔량이 나간다.
+        _saveVehicleLevel(box, level: lv, mode: _targetMode);
+        box.put(AppConstants.keyAiCurrentLevelPercent, lv);
+        _stampLevelFresh(box); // 실측값 — 신선도 갱신
         showAppToast(context, '차에서 불러왔어요 · $detail');
       } else {
         showAppToast(context, '차량 데이터를 가져오지 못했어요', isError: true);
@@ -5486,13 +5767,15 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     }
   }
 
-  void _showLevelEditSheet(
+  /// 잔량 편집 시트. true = 저장하고 닫음, false = 그냥 닫음(신선도 게이트 판단용).
+  Future<bool> _showLevelEditSheet(
       {bool isEv = false,
       required double capacity,
       required double efficiency,
-      double targetChargePercent = 80.0}) {
+      double targetChargePercent = 80.0}) async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    showModalBottomSheet(
+    var saved = false;
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       // 슬라이더 드래그가 시트 끌어내림(drag-to-dismiss)과 경합해 풀리는 것 방지. 닫기는 X 버튼.
@@ -5540,10 +5823,13 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             if (mode == 'LITER')
               box.put(AppConstants.keyAiLiterTarget, targetValue);
           }
+          _stampLevelFresh(box); // 사용자가 직접 입력 — 신선도 갱신
+          saved = true;
           Navigator.pop(ctx);
         },
       ),
     );
+    return saved;
   }
 
   @override
@@ -5630,6 +5916,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       }
     }
     final isEvVehicle = selectedVehicle?.isEV ?? false;
+    // 차량 목록 화면에서 고른 것도 여기서 기억된다 — 그래야 모드 전환 후 복귀 때
+    // 등록 순서 첫 차량이 아니라 '내가 마지막에 쓰던 차'로 돌아온다.
+    if (selectedVehicle != null) _rememberVehicleForMode(box, selectedVehicle);
 
     // 선택 차량에 따라 분석 타입 자동 동기화
     final expectedType = isEvVehicle ? 'ev' : 'gas';
@@ -6641,6 +6930,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                               key: _evResultBodyKey,
                               data: _lastResultData!,
                               scrollController: sc,
+                              levelPercent: _currentLevelPercent,
+                              // build 의 tankCapacity/efficiency 는 선택 차량 기준으로
+                              // 이미 해석돼 있다 (EV = 배터리 kWh × km/kWh)
+                              kmPerPercent: tankCapacity * efficiency / 100,
+                              onEditLevel: () =>
+                                  _editLevelFromResult(isEv: true),
                               onStationMapTap: _showEvStationRouteOnMap,
                             onClearBrandFilter: () {
                               setState(() => _preferredEvBrands.clear());
@@ -6658,6 +6953,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                   data: _lastResultData!,
                                   destinationName: _destName ?? '목적지',
                                   scrollController: sc,
+                                  levelPercent: _currentLevelPercent,
+                                  kmPerPercent:
+                                      tankCapacity * efficiency / 100,
+                                  onEditLevel: () =>
+                                      _editLevelFromResult(isEv: false),
                                   wonFmt: _wonFmt,
                                   fuelLabel: fuelLabel,
                                   originLat: _lastStartLat,
@@ -6672,6 +6972,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                                   originLat: _lastStartLat,
                                   originLng: _lastStartLng,
                                   scrollController: sc,
+                                  levelPercent: _currentLevelPercent,
+                                  kmPerPercent:
+                                      tankCapacity * efficiency / 100,
+                                  onEditLevel: () =>
+                                      _editLevelFromResult(isEv: false),
                                   onAltRouteView: _showAltRouteOnMap,
                                   onResetToAiRec: _resetToAiRec,
                                   onDisableHighwayAndRetry:

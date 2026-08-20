@@ -9,6 +9,8 @@ import '../../providers/providers.dart'
     show
         favoritesProvider,
         bottomNavIndexProvider,
+        favGasStationsProvider,
+        favEvStationsProvider,
         favGasStationsSortedProvider,
         favEvStationsSortedProvider;
 import '../../core/utils/navigation_util.dart';
@@ -40,6 +42,36 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
   void _setByPrice(bool v) {
     setState(() => _byPrice = v);
     Hive.box(AppConstants.settingsBox).put('fav_sort_by_price', v);
+  }
+
+  // ── 새로고침 — 충전기 상태가 세션 내내 캐시돼 낡는 문제(사용자 제보) ──
+  // 서버는 배경 루프가 상태를 계속 갱신 중이라 재조회는 Redis 읽기뿐 — 쿼터 영향 0.
+  // 쿨다운은 연타 시 헛요청만 거른다 (환경부 원천이 5분 주기라 그 이상 자주는 무의미).
+  DateTime? _lastRefreshAt;
+  static const _refreshCooldown = Duration(seconds: 15);
+  static const _autoRefreshAfter = Duration(minutes: 2);
+
+  Future<void> _refreshStations() async {
+    final now = DateTime.now();
+    if (_lastRefreshAt != null &&
+        now.difference(_lastRefreshAt!) < _refreshCooldown) {
+      // 쿨다운 — 요청은 안 나가되 짧게 돌려서 '동작했다' 피드백은 준다
+      await Future.delayed(const Duration(milliseconds: 400));
+      return;
+    }
+    _lastRefreshAt = now;
+    ref.invalidate(favGasStationsProvider);
+    ref.invalidate(favEvStationsProvider);
+    try {
+      // 응답이 빨라도 스피너가 눈에 보이게 최소 회전 시간 보장
+      await Future.wait([
+        ref.read(favGasStationsProvider.future),
+        ref.read(favEvStationsProvider.future),
+        Future.delayed(const Duration(milliseconds: 600)),
+      ]);
+    } catch (_) {
+      // 실패는 provider 의 error 상태로 표시된다 — 여기선 삼킨다
+    }
   }
 
   List<GasStation> _sortedGas(List<GasStation> l) {
@@ -127,6 +159,17 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
 
   @override
   Widget build(BuildContext context) {
+    // 즐겨찾기 탭(IndexedStack index 3) 재진입 시 데이터가 오래됐으면 자동 재조회 —
+    // IndexedStack 이라 화면이 항상 살아 있어 fetch 가 앱 시작 시점에 멈춰 있었다.
+    ref.listen<int>(bottomNavIndexProvider, (prev, next) {
+      if (next != 3 || prev == next) return;
+      final last = _lastRefreshAt;
+      if (last == null ||
+          DateTime.now().difference(last) > _autoRefreshAfter) {
+        _refreshStations();
+      }
+    });
+
     final favorites = ref.watch(favoritesProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final gasCount = favorites.where((f) => f['type'] == 'gas').length;
@@ -660,20 +703,25 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
         final sorted = _sortedGas(list);
         // 단골 상태 변경(등록/교체/해제) 시 섹션이 즉시 따라오게 구독.
         // 즐겨찾기 카드는 기존 그대로 — 단골 요소를 카드에 넣지 않는다.
-        return ValueListenableBuilder<List<RegularStation>>(
-          valueListenable: RegularStationService.notifier,
-          builder: (context, regs, _) => ListView(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            children: [
-              ..._regularSection(regs, sorted, isDark),
-              if (sorted.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 40),
-                  child: _empty(),
-                )
-              else
-                for (final s in sorted) _gasCard(s),
-            ],
+        return RefreshIndicator(
+          onRefresh: _refreshStations,
+          color: AppColors.gasBlue,
+          child: ValueListenableBuilder<List<RegularStation>>(
+            valueListenable: RegularStationService.notifier,
+            builder: (context, regs, _) => ListView(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                ..._regularSection(regs, sorted, isDark),
+                if (sorted.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 40),
+                    child: _empty(),
+                  )
+                else
+                  for (final s in sorted) _gasCard(s),
+              ],
+            ),
           ),
         );
       },
@@ -689,10 +737,15 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
         final sorted = _sortedEv(list);
         return sorted.isEmpty
             ? _empty()
-            : ListView.builder(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                itemCount: sorted.length,
-                itemBuilder: (_, i) => _evCard(sorted[i]),
+            : RefreshIndicator(
+                onRefresh: _refreshStations,
+                color: AppColors.evGreen,
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  itemCount: sorted.length,
+                  itemBuilder: (_, i) => _evCard(sorted[i]),
+                ),
               );
       },
     );
@@ -710,12 +763,17 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
     }
     if (gas.isEmpty && ev.isEmpty) return _empty();
 
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      children: [
-        for (final s in _sortedGas(gas)) _gasCard(s),
-        for (final s in _sortedEv(ev)) _evCard(s),
-      ],
+    return RefreshIndicator(
+      onRefresh: _refreshStations,
+      color: AppColors.gasBlue,
+      child: ListView(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          for (final s in _sortedGas(gas)) _gasCard(s),
+          for (final s in _sortedEv(ev)) _evCard(s),
+        ],
+      ),
     );
   }
 }

@@ -147,6 +147,18 @@ class CarPaint {
 
   /// 미드나잇 블랙 해금 조건 — 하이퍼카 등급(누적 120회)
   static bool blackUnlocked(int total) => black.unlockedFor(total);
+
+  /// 이 등급으로 올라설 때 함께 열리는 보상 컬러. 없으면 null(1단계 쿠페).
+  ///
+  /// 유광 3색은 승급 보상으로 설계돼 있는데 정작 승급 연출이 그 사실을 말하지 않아
+  /// 아무도 모르고 지나갔다. 승급 오버레이·개러지·등급 팝업이 "무엇이 열렸는지"를
+  /// 같은 문장으로 말하도록 해금 표를 여기 한 곳에 둔다.
+  static CarPaint? rewardFor(int tierLevel) {
+    for (final p in all) {
+      if (p.minLevel == tierLevel) return p;
+    }
+    return null;
+  }
 }
 
 /// 등급별 치환 레시피 — SVG 안에서 '차체'로 판정한 것만 바꾼다.
@@ -198,6 +210,31 @@ class CarPaintService {
   Map<int, String> get paints => Map.unmodifiable(_paints);
 
   CarPaint of(int tierLevel) => CarPaint.byId(_paints[tierLevel]);
+
+  /// 한 번이라도 컬러를 바꿔본 적이 있는지 — 있으면 최초 안내가 필요 없다.
+  bool get hasAnyPaint {
+    _loadLocal();
+    return _paints.isNotEmpty;
+  }
+
+  static const _coachKey = 'cheer_paint_coach_seen';
+
+  /// 컬러 기능 최초 안내(히어로 힌트)를 이미 봤는지.
+  /// Hive 를 못 읽으면 '봤다'로 답한다 — 안내를 한 번 못 띄우는 건 사소하지만
+  /// 매 진입마다 다시 뜨는 건 사고다.
+  bool get coachSeen {
+    try {
+      return Hive.box('settings').get(_coachKey) == true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  void markCoachSeen() {
+    try {
+      Hive.box('settings').put(_coachKey, true);
+    } catch (_) {}
+  }
 
   void _loadLocal() {
     if (_loadedLocal) return;

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/util/app_toast.dart';
 import '../../data/services/cheer_service.dart';
+import 'car_paint.dart';
+import 'car_paint_screen.dart';
 import 'cheer_tier_theme.dart';
 import 'garage_screen.dart';
 import 'promotion_overlay.dart';
@@ -90,11 +92,23 @@ Future<bool> runCheerAdFlow(
       final tier = CheerTierTheme.of(st.total);
       if (tier != null && tier.level > levelBefore) {
         // 승급 — 감사 시트 대신 승급 오버레이 우선 (핸드오프 스펙).
-        showCheerPromotionOverlay(context, tier: tier, status: st,
-            onSeeGarage: () {
-          Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => GarageScreen(initialStatus: st)));
-        }).then((_) => onCelebrationClosed?.call(st));
+        showCheerPromotionOverlay(
+          context,
+          tier: tier,
+          status: st,
+          onSeeGarage: () {
+            Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => GarageScreen(initialStatus: st)));
+          },
+          // 승급 보상 컬러가 열렸으면 그 자리에서 바로 입혀볼 수 있게 — 여기서
+          // 안내하지 않으면 유광 3색은 아무도 모르고 지나간다.
+          onOpenPaint: () {
+            CarPaintService.instance.markCoachSeen();
+            Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) =>
+                    CarPaintScreen(tier: tier, total: st.total)));
+          },
+        ).then((_) => onCelebrationClosed?.call(st));
       } else if (inlineReward) {
         // 팝업 없이 바로 화면 연출 — 시안의 '광고 닫힘 직후 메인 화면' 흐름.
         onCelebrationClosed?.call(st);

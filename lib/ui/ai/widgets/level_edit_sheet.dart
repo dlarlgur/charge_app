@@ -56,6 +56,8 @@ class _LevelEditSheetState extends State<LevelEditSheet> {
     _targetChargePercent = widget.initialTargetChargePercent;
     _customTarget = widget.initialTargetChargePercent != 80 &&
         widget.initialTargetChargePercent != 100;
+    // 기본은 슬라이더 (DTE 기본안은 원복 — 형 판단: 슬라이더를 움직이면
+    // 주행가능거리가 같이 바뀌어 보이므로 연비 오차 걱정 없이 맞출 수 있다).
   }
 
   @override

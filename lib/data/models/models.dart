@@ -586,6 +586,10 @@ class VehicleProfile {
 
   // 공통
   final double currentLevelPercent;
+  /// 잔량을 마지막으로 '확인/입력'한 시각 (epoch ms). null = 확인 기록 없음.
+  /// 값과 같은 객체 안에 두어야 차량 삭제·ID 변경에도 짝이 어긋나지 않는다
+  /// (예전엔 Hive 별도 키 ai_level_updated_at_<id> 로 떠 있었다).
+  final int? levelUpdatedAt;
 
   // 내연기관 목표
   final String targetMode;   // FULL | PRICE | LITER
@@ -609,6 +613,7 @@ class VehicleProfile {
     this.batteryCapacity = 64.0,
     this.evEfficiency = 5.0,
     this.currentLevelPercent = 25.0,
+    this.levelUpdatedAt,
     this.targetMode = 'FULL',
     this.targetValue = 50000.0,
     this.targetChargePercent = 80.0,
@@ -639,6 +644,7 @@ class VehicleProfile {
     'batteryCapacity': batteryCapacity,
     'evEfficiency': evEfficiency,
     'currentLevelPercent': currentLevelPercent,
+    'levelUpdatedAt': levelUpdatedAt,
     'targetMode': targetMode,
     'targetValue': targetValue,
     'targetChargePercent': targetChargePercent,
@@ -657,6 +663,8 @@ class VehicleProfile {
     batteryCapacity: (json['batteryCapacity'] as num? ?? 64.0).toDouble(),
     evEfficiency: (json['evEfficiency'] as num? ?? 5.0).toDouble(),
     currentLevelPercent: (json['currentLevelPercent'] as num? ?? 25.0).toDouble(),
+    // 구버전 데이터엔 없는 필드 — null 이면 '확인 기록 없음'으로 취급된다.
+    levelUpdatedAt: (json['levelUpdatedAt'] as num?)?.toInt(),
     targetMode: json['targetMode']?.toString() ?? 'FULL',
     targetValue: (json['targetValue'] as num? ?? 50000.0).toDouble(),
     targetChargePercent: (json['targetChargePercent'] as num? ?? 80.0).toDouble(),
@@ -674,6 +682,7 @@ class VehicleProfile {
     double? batteryCapacity,
     double? evEfficiency,
     double? currentLevelPercent,
+    int? levelUpdatedAt,
     String? targetMode,
     double? targetValue,
     double? targetChargePercent,
@@ -690,6 +699,7 @@ class VehicleProfile {
     batteryCapacity: batteryCapacity ?? this.batteryCapacity,
     evEfficiency: evEfficiency ?? this.evEfficiency,
     currentLevelPercent: currentLevelPercent ?? this.currentLevelPercent,
+    levelUpdatedAt: levelUpdatedAt ?? this.levelUpdatedAt,
     targetMode: targetMode ?? this.targetMode,
     targetValue: targetValue ?? this.targetValue,
     targetChargePercent: targetChargePercent ?? this.targetChargePercent,

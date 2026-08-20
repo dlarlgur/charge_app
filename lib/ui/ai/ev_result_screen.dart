@@ -8,6 +8,7 @@ import '../../data/services/station_alias_service.dart';
 import '../../data/services/watch_service.dart';
 import '../detail/ev_detail_screen.dart';
 import '../widgets/watch_switch_dialog.dart';
+import 'widgets/level_basis_card.dart';
 
 const _kBlue = Color(0xFF1D6FE0);
 const _kGreen = Color(0xFF1D9E75);
@@ -53,6 +54,15 @@ class EvResultBody extends StatefulWidget {
   final double? destLng;
   final String? destName;
 
+  /// 이 결과가 계산된 기준 배터리 % — 상단 기준 칩으로 상시 노출
+  final double? levelPercent;
+
+  /// 1%당 주행가능 km (용량 × 효율 / 100) — 칩의 km 환산용
+  final double? kmPerPercent;
+
+  /// 기준 칩 탭 → 잔량 시트 → 저장 시 재추천
+  final VoidCallback? onEditLevel;
+
   const EvResultBody({
     super.key,
     required this.data,
@@ -64,6 +74,9 @@ class EvResultBody extends StatefulWidget {
     this.destLat,
     this.destLng,
     this.destName,
+    this.levelPercent,
+    this.kmPerPercent,
+    this.onEditLevel,
   });
 
   @override
@@ -111,6 +124,42 @@ class EvResultBodyState extends State<EvResultBody> {
   GlobalKey _keyFor(String slot, String? statId, int index) {
     final k = (statId == null || statId.isEmpty) ? '$slot#$index' : '$slot#$statId';
     return _stationKeys.putIfAbsent(k, () => GlobalKey());
+  }
+
+  /// 완화/폴백 안내 노트줄 — 주유(AiResultBody._noteRow)와 동일 디자인, 칩만 EV 초록.
+  Widget _evNoteRow(bool isDark, {required String label, required String text}) {
+    final chipBg = isDark
+        ? AppColors.darkGreenBright.withValues(alpha: 0.16)
+        : const Color(0xFFE7F6EF);
+    final chipFg = isDark ? AppColors.darkGreenBright : _kEvGreenDark;
+    final bodyFg =
+        isDark ? AppColors.darkTextPrimary : const Color(0xFF334155);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 칩은 첫 줄 높이에 맞춰 살짝 내린다 — 본문이 여러 줄이어도 위에 붙어 있게.
+        Padding(
+          padding: const EdgeInsets.only(top: 1),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: chipBg,
+              borderRadius: BorderRadius.circular(7),
+            ),
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: chipFg)),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(text,
+              style: TextStyle(fontSize: 13, height: 1.45, color: bodyFg)),
+        ),
+      ],
+    );
   }
 
   /// 추천 카드의 예상 충전요금 — 접힌 후보 행 '추천 대비 차액'의 기준값.
@@ -168,97 +217,83 @@ class EvResultBodyState extends State<EvResultBody> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── 헤더 (9a) — [bolt 급속 pill] 주행 가능 127km · 후보 638개 ──
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: chipBg,
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            chargerType == 'FAST'
-                                ? Icons.bolt_rounded
-                                : Icons.electrical_services_rounded,
-                            size: 14,
-                            color: chipFg,
-                          ),
-                          const SizedBox(width: 3),
-                          Text(
-                            chargerType == 'FAST' ? '급속' : '완속',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
+                // ── 기준 카드 (4a) — 배터리·조건·후보 수를 한 덩어리로 ──
+                // 급속 pill + '주행 가능·후보' 줄이 추천과 잔량 편집 사이에 끼어
+                // 보이던 문제를 이 카드가 흡수한다(형 제보 2026-08-20).
+                if (widget.levelPercent != null)
+                  LevelBasisCard(
+                      levelPercent: widget.levelPercent!,
+                      kmPerPercent: widget.kmPerPercent ?? 0,
+                      isEv: true,
+                      onEdit: widget.onEditLevel,
+                      // '도달 범위 내'는 뺐다 — 이 필터는 끌 수 없어 항상 참이라
+                      // 정보량이 0이고, 바로 위 '주행 가능 약 N km'가 같은 말을 한다.
+                      conditionLabel:
+                          chargerType == 'FAST' ? '급속만' : '완속만',
+                      countLabel: totalCandidates != null
+                          ? '후보 $totalCandidates개'
+                          : null,
+                      // 기준 안내도 카드 안으로 (형 제보 2026-08-20 — 카드 밖에
+                      // 떠 있으면 추천과 잔량 편집 사이에 끼어 보인다)
+                      notes: [
+                        if (data['speed_relaxed'] == true)
+                          _evNoteRow(isDark,
+                              label: '충전 속도',
+                              text: '선택한 충전 속도의 충전소가 경로에 없어 전체 급속으로 추천했어요'),
+                        if (data['highway_fallback'] == true)
+                          _evNoteRow(isDark,
+                              label: '경로 유형',
+                              text: '주행 가능 거리 내에 고속도로 충전소가 없어 일반 충전소에서 추천했어요'),
+                      ])
+                else ...[
+                  // 기준 카드가 없는 구버전 경로 — 기존 헤더 줄 유지
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: chipBg,
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              chargerType == 'FAST'
+                                  ? Icons.bolt_rounded
+                                  : Icons.electrical_services_rounded,
+                              size: 14,
                               color: chipFg,
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        [
-                          if (reachableKm > 0)
-                            '주행 가능 ${reachableKm.toStringAsFixed(0)}km',
-                          if (totalCandidates != null) '후보 $totalCandidates개',
-                        ].join(' · '),
-                        style: TextStyle(fontSize: 12, color: mutedColor),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // ── 속도 필터 완화 안내 — 선택 kW 구간 충전소가 없어 전체 급속으로 추천됨 ──
-                if (data['speed_relaxed'] == true) ...[
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? const Color(0xFF3A2E12)
-                          : const Color(0xFFFFF7E6),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                          color: isDark
-                              ? const Color(0xFF6B5518)
-                              : const Color(0xFFF3DFAE),
-                          width: 0.8),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.info_outline_rounded,
-                            size: 15,
-                            color: isDark
-                                ? const Color(0xFFE8C35C)
-                                : const Color(0xFFB8860B)),
-                        const SizedBox(width: 7),
-                        Expanded(
-                          child: Text(
-                            '선택한 충전 속도의 충전소가 경로에 없어 전체 급속으로 추천했어요',
-                            style: TextStyle(
-                              fontSize: 12,
-                              height: 1.35,
-                              fontWeight: FontWeight.w500,
-                              color: isDark
-                                  ? const Color(0xFFE8C35C)
-                                  : const Color(0xFF8A6A10),
+                            const SizedBox(width: 3),
+                            Text(
+                              chargerType == 'FAST' ? '급속' : '완속',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: chipFg),
                             ),
-                          ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          [
+                            if (reachableKm > 0)
+                              '주행 가능 ${reachableKm.toStringAsFixed(0)}km',
+                            if (totalCandidates != null)
+                              '후보 $totalCandidates개',
+                          ].join(' · '),
+                          style: TextStyle(fontSize: 12, color: mutedColor),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                 ],
 
                 // ── AI 추천 메시지 ──
@@ -266,17 +301,26 @@ class EvResultBodyState extends State<EvResultBody> {
                   _EvAiMessageBanner(
                       message: recommended['ui_message']?.toString() ?? ''),
                   const SizedBox(height: 18),
+                ]
+                // 충전 불필요 — 실패(회색 '충전소 없음')가 아니라 정상 결과이므로
+                // 추천이 있을 때와 같은 초록 배너로 알린다(주유와 동일 취급).
+                else if (data['no_charge_needed'] == true) ...[
+                  _EvAiMessageBanner(
+                      message: data['message']?.toString() ?? ''),
+                  const SizedBox(height: 8),
                 ],
 
                 // ── 추천 충전소 ──
-                if (recommended == null)
+                if (recommended == null && data['no_charge_needed'] != true)
                   _NoStationCard(
                     filteredOut: filteredOut,
                     message: data['message']?.toString(),
                     brandFilterEmpty: data['brand_filter_empty'] == true,
                     onClearBrandFilter: widget.onClearBrandFilter,
                   )
-                else ...[
+                // recommended 가 null 인 '충전 불필요' 케이스가 이 가지로 새면
+                // recommended['statId'] 에서 죽는다 — 명시적으로 non-null 일 때만.
+                else if (recommended != null) ...[
                   Text(
                     'AI 추천 충전소',
                     style: TextStyle(

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/services/cheer_service.dart';
 import 'car_paint.dart';
+import 'car_paint_screen.dart';
 import 'cheer_flow.dart';
 import 'cheer_tier_theme.dart';
 import 'garage_screen.dart';
@@ -14,7 +15,11 @@ import 'garage_screen.dart';
 /// 광고를 끝까지 보면 에너지 오브가 차로 날아가 게이지를 올리는 리워드 연출이
 /// 화면에서 1회 재생된다(시안 3·4번째 패널).
 class CheerScreen extends StatefulWidget {
-  const CheerScreen({super.key});
+  /// 이미 알고 있는 상태로 첫 프레임부터 그린다(개러지와 같은 seam).
+  /// null 이면 평소대로 서버에서 읽는다.
+  final CheerStatus? initialStatus;
+
+  const CheerScreen({super.key, this.initialStatus});
 
   @override
   State<CheerScreen> createState() => _CheerScreenState();
@@ -26,6 +31,9 @@ class _CheerScreenState extends State<CheerScreen>
   bool _loading = true;
   bool _failed = false;
   bool _showing = false;
+
+  /// 컬러 기능 최초 1회 안내 — 차를 가진 사람이 아직 한 번도 색을 안 바꿔봤을 때만.
+  bool _showCoach = false;
 
   /// 리워드 연출 1회 재생 — 시안 타임라인 총 4.7초 (design-spec 표 그대로).
   late final AnimationController _reward = AnimationController(
@@ -48,6 +56,9 @@ class _CheerScreenState extends State<CheerScreen>
   void initState() {
     super.initState();
     CarPaintService.instance.init();
+    _status = widget.initialStatus;
+    _loading = _status == null;
+    if (_status != null) _syncPaintHint(_status!);
     _load();
     CheerService.instance.preload(onChanged: _refresh);
   }
@@ -69,8 +80,12 @@ class _CheerScreenState extends State<CheerScreen>
     if (!mounted) return;
     setState(() {
       _loading = false;
-      _failed = st == null;
-      _status = st;
+      // 이미 그린 화면(initialStatus)이 있으면 조회 실패로 재시도 화면에 덮이면 안 된다.
+      _failed = st == null && _status == null;
+      if (st != null) {
+        _status = st;
+        _syncPaintHint(st);
+      }
     });
     if (st == null) return;
     // 콘솔 원격설정 승급 임계값 반영 — 등급 판정·해금 표시가 서버 값을 따르게.
@@ -79,6 +94,13 @@ class _CheerScreenState extends State<CheerScreen>
     // 로그인 회원이면 계정에 저장된 차 컬러를 따라간다(기기 바뀌어도 유지).
     CarPaintService.instance.applyServer(st.carPaints,
         signedIn: await CheerService.instance.signedIn);
+  }
+
+  /// 차가 있는데 아직 색을 한 번도 안 바꿔봤으면 최초 1회 힌트를 켠다.
+  void _syncPaintHint(CheerStatus st) {
+    _showCoach = CheerTierTheme.of(st.total) != null &&
+        !CarPaintService.instance.coachSeen &&
+        !CarPaintService.instance.hasAnyPaint;
   }
 
   void _animateTo(double target) {
@@ -134,8 +156,29 @@ class _CheerScreenState extends State<CheerScreen>
 
   void _openGarage() {
     final st = _status;
-    Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => GarageScreen(initialStatus: st)));
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => GarageScreen(initialStatus: st)))
+        // 개러지에서 색을 바꿨을 수 있다 — 돌아오면 히어로 차가 따라가야 한다.
+        .then((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  /// 내 차 꾸미기 — 히어로에서 바로. 여기까지 왔으면 안내는 역할을 다했다.
+  void _openPaint(CheerTierTheme tier, int total) {
+    CarPaintService.instance.markCoachSeen();
+    setState(() => _showCoach = false);
+    Navigator.of(context)
+        .push(MaterialPageRoute(
+            builder: (_) => CarPaintScreen(tier: tier, total: total)))
+        .then((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  void _dismissCoach() {
+    CarPaintService.instance.markCoachSeen();
+    setState(() => _showCoach = false);
   }
 
   @override
@@ -268,7 +311,7 @@ class _CheerScreenState extends State<CheerScreen>
           borderRadius: BorderRadius.circular(14),
           onTap: _openGarage,
           child: Padding(
-            padding: const EdgeInsets.only(top: 14, bottom: 4),
+            padding: const EdgeInsets.only(top: 14, bottom: 10),
             child: Column(
               children: [
                 _HeroStage(
@@ -290,38 +333,178 @@ class _CheerScreenState extends State<CheerScreen>
                         letterSpacing: -0.3,
                         color: CheerDs.ink(isDark))),
                 const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Flexible(
-                      child: Text.rich(
-                        TextSpan(children: [
-                          TextSpan(
-                              text: next == null
-                                  ? '누적 ${st.total}회 · 최고 등급'
-                                  : '누적 ${st.total}회 · ${next.name.replaceAll(' 서포터', '')}까지 ',
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  color: CheerDs.secondary(isDark))),
-                          if (next != null)
-                            TextSpan(
-                                text: '${next.threshold - st.total}회',
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w800,
-                                    color: accent)),
-                        ]),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    // 시안에는 없지만 개러지 진입점이 메인에서 사라지면 안 된다.
-                    Icon(Icons.chevron_right_rounded,
-                        size: 16, color: CheerDs.muted(isDark)),
-                  ],
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: Text.rich(
+                    TextSpan(children: [
+                      TextSpan(
+                          text: next == null
+                              ? '누적 ${st.total}회 · 최고 등급'
+                              : '누적 ${st.total}회 · ${next.name.replaceAll(' 서포터', '')}까지 ',
+                          style: TextStyle(
+                              fontSize: 12, color: CheerDs.secondary(isDark))),
+                      if (next != null)
+                        TextSpan(
+                            text: '${next.threshold - st.total}회',
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: accent)),
+                    ]),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
+                if (owned && _showCoach) ...[
+                  const SizedBox(height: 10),
+                  _paintCoach(isDark),
+                ],
+                const SizedBox(height: 10),
+                // 진입점은 이름을 달고 나온다 — chevron 하나로는 어디로 가는지 아무도
+                // 몰랐다. 개러지는 카드 전체 탭으로도 여전히 열린다.
+                _heroActions(isDark, owned: owned, tier: tier, total: st.total),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 히어로 하단 진입점. 좁은 폰·큰 글자 배율에서 한 줄에 안 들어가면 Wrap 이
+  /// 아래로 접는다(가로 오버플로 금지). 광고 CTA 와 경쟁하면 안 되므로 secondary 톤.
+  Widget _heroActions(bool isDark,
+      {required bool owned, required CheerTierTheme tier, required int total}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: LayoutBuilder(
+        builder: (_, c) => Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            if (owned)
+              _heroPill(
+                isDark: isDark,
+                maxWidth: c.maxWidth,
+                icon: Icons.format_paint_rounded,
+                label: '내 차 꾸미기',
+                dot: _hasFreshPaint(tier, total),
+                onTap: () => _openPaint(tier, total),
+              ),
+            _heroPill(
+              isDark: isDark,
+              maxWidth: c.maxWidth,
+              icon: Icons.garage_rounded,
+              label: '내 개러지',
+              chevron: true,
+              onTap: _openGarage,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 승급 보상 컬러가 열려 있는데 아직 기본색인 상태 — 점을 찍어 다시 부른다.
+  bool _hasFreshPaint(CheerTierTheme tier, int total) {
+    final reward = CarPaint.rewardFor(tier.level);
+    if (reward == null || !reward.unlockedFor(total)) return false;
+    return CarPaintService.instance.of(tier.level).isDefault;
+  }
+
+  Widget _heroPill({
+    required bool isDark,
+    required double maxWidth,
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    bool chevron = false,
+    bool dot = false,
+  }) {
+    final fg = CheerDs.secondary(isDark);
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: Material(
+        color: CheerDs.iconBg(isDark),
+        borderRadius: BorderRadius.circular(999),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(999),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 15, color: fg),
+                const SizedBox(width: 5),
+                Flexible(
+                  child: Text(label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: CheerDs.ink(isDark))),
+                ),
+                if (dot) ...[
+                  const SizedBox(width: 5),
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                        shape: BoxShape.circle, color: Color(0xFFEF4444)),
+                  ),
+                ],
+                if (chevron) ...[
+                  const SizedBox(width: 1),
+                  Icon(Icons.chevron_right_rounded, size: 16, color: fg),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 최초 1회 힌트. 오버레이 대신 인라인 칩이다 — 좁은 폰에서 말풍선 꼬리가
+  /// 잘리거나 스테이지를 가리는 사고가 없고, 닫기 전까지 그대로 남는다.
+  Widget _paintCoach(bool isDark) {
+    final fg = isDark ? const Color(0xFF93C5FD) : const Color(0xFF2563EB);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(11, 5, 5, 5),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0x2660A5FA) : const Color(0xFFEAF2FE),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.palette_rounded, size: 14, color: fg),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text('내 차 색을 바꿀 수 있어요',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: fg)),
+              ),
+              InkWell(
+                borderRadius: BorderRadius.circular(999),
+                onTap: _dismissCoach,
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(Icons.close_rounded, size: 13, color: fg),
+                ),
+              ),
+            ],
           ),
         ),
       ),

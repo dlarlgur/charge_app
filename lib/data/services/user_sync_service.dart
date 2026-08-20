@@ -208,6 +208,9 @@ Future<void> mirrorAiVehiclesToServer() async {
             'evEfficiency': m['evEfficiency'],
             'targetChargePercent': m['targetChargePercent'],
             'currentLevelPercent': m['currentLevelPercent'],
+            // 잔량 확인 시각 — 기기를 바꿔도 '언제 확인한 값인지'가 따라오게.
+            // 구서버는 이 필드를 무시한다(additive).
+            'levelUpdatedAt': m['levelUpdatedAt'],
             'isSelected': m['id'] == selectedId,
           })
       .toList();

@@ -92,6 +92,8 @@ void main() {
     await pumpSheet(tester, data);
 
     expect(tester.takeException(), isNull);
+    // 라벨 칩 + 문장 (형 시안 2c) — 앰버 박스/아이콘 제거
+    expect(find.text('경로 유형'), findsOneWidget);
     expect(find.textContaining('고속도로 필터가 켜져 있어'), findsOneWidget);
   });
 

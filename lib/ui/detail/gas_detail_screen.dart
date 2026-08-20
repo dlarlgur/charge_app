@@ -56,13 +56,41 @@ class GasDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _GasDetailScreenState extends ConsumerState<GasDetailScreen> {
+  final GlobalKey<_GasDetailContentState> _contentKey =
+      GlobalKey<_GasDetailContentState>();
+
+  // 당겨서 새로고침 — 충전소 상세와 동일 패턴(일관성). 유가는 일 단위지만
+  // 오피넷 스냅샷이 하루 중에도 갱신되고, 서버 재조회는 캐시 읽기라 비용 없음.
+  DateTime? _lastRefreshAt;
+
+  Future<void> _refresh() async {
+    final now = DateTime.now();
+    if (_lastRefreshAt != null &&
+        now.difference(_lastRefreshAt!) < const Duration(seconds: 15)) {
+      // 쿨다운 — 요청은 안 나가되 짧게 돌려서 '동작했다' 피드백은 준다
+      await Future.delayed(const Duration(milliseconds: 400));
+      return;
+    }
+    _lastRefreshAt = now;
+    // 응답이 빨라도 스피너가 눈에 보이게 최소 회전 시간 보장
+    await Future.wait([
+      _contentKey.currentState?._loadDetail() ?? Future.value(),
+      Future.delayed(const Duration(milliseconds: 600)),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('주유소 상세')),
-      body: GasDetailContent(
-        stationId: widget.stationId,
-        station: widget.station,
+      body: RefreshIndicator(
+        onRefresh: _refresh,
+        color: AppColors.gasBlue,
+        child: GasDetailContent(
+          key: _contentKey,
+          stationId: widget.stationId,
+          station: widget.station,
+        ),
       ),
     );
   }
@@ -482,6 +510,8 @@ class _GasDetailContentState extends ConsumerState<GasDetailContent> {
       color: isDark ? const Color(0xFF0B0F14) : _kBg,
       child: CustomScrollView(
         controller: _scroll,
+        // 당겨서 새로고침 — 내용이 화면보다 짧은 충전소/주유소에서도 당김이 먹게.
+        physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           if (widget.sheetMode) SliverToBoxAdapter(child: _dragHandle(isDark)),
           SliverToBoxAdapter(child: _headerCard(name, brand, d, isDark)),

@@ -8,6 +8,7 @@ import '../../core/utils/navigation_util.dart';
 import '../../data/services/regular_station_service.dart';
 import '../../data/services/station_alias_service.dart';
 import '../widgets/shared_widgets.dart';
+import 'widgets/level_basis_card.dart';
 
 const _kPrimary = Color(0xFF3B82F6); // 주유=파랑 단일 축 (형 확정 6a — 색 3축이 짜쳐 보임)
 const _kPrimaryLight = Color(0xFFEFF6FF);
@@ -207,6 +208,15 @@ class AiResultBody extends StatefulWidget {
   /// (highway_filter.applied 배너의 "필터 끄고 재조회" 액션)
   final VoidCallback? onDisableHighwayAndRetry;
 
+  /// 이 결과가 계산된 기준 잔량 % — 상단 기준 칩으로 상시 노출
+  final double? levelPercent;
+
+  /// 1%당 주행가능 km (용량 × 효율 / 100) — 칩의 km 환산용
+  final double? kmPerPercent;
+
+  /// 기준 칩 탭 → 잔량 시트 → 저장 시 재추천
+  final VoidCallback? onEditLevel;
+
   const AiResultBody({
     super.key,
     required this.data,
@@ -218,6 +228,9 @@ class AiResultBody extends StatefulWidget {
     this.onAltRouteView,
     this.onResetToAiRec,
     this.onDisableHighwayAndRetry,
+    this.levelPercent,
+    this.kmPerPercent,
+    this.onEditLevel,
   });
 
   @override
@@ -409,6 +422,55 @@ class _AiResultBodyState extends State<AiResultBody> {
 
   /// build 가 실패했을 때의 대체 화면 — 시트 드래그는 그대로 살리고,
   /// 최소한의 추천 정보 + 실패 원인을 보여준다(제보용으로 그대로 캡처 가능).
+  /// 추천 조건 안내 한 줄 — 라벨 칩 + 문장 (형 시안 2c).
+  ///
+  /// 예전엔 앰버 박스 + 아이콘이었는데, 이건 경고가 아니라 "어떤 기준으로 골랐는지"
+  /// 설명이다. 노란 경고톤이 결과 카드 위에서 시각 소음이 커서 박스를 지우고
+  /// 라벨 + 본문 텍스트만 남긴다.
+  Widget _noteRow(bool isDark,
+      {required String label, required String text, Widget? trailing}) {
+    final chipBg = isDark
+        ? AppColors.darkBlueBright.withValues(alpha: 0.16)
+        : const Color(0xFFE8F0FE);
+    final chipFg = isDark ? AppColors.darkBlueBright : const Color(0xFF2563EB);
+    final bodyFg =
+        isDark ? AppColors.darkTextPrimary : const Color(0xFF334155);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 칩은 첫 줄 높이에 맞춰 살짝 내린다 — 본문이 여러 줄이어도 위에 붙어 있게.
+            Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: chipBg,
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: Text(label,
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: chipFg)),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(text,
+                  style: TextStyle(
+                      fontSize: 13, height: 1.45, color: bodyFg)),
+            ),
+          ],
+        ),
+        if (trailing != null) trailing,
+      ],
+    );
+  }
+
   Widget _buildRenderFailure(BuildContext context, Object error) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final amber = isDark ? AppColors.darkAmberBright : const Color(0xFF8A6D3B);
@@ -793,186 +855,96 @@ class _AiResultBodyState extends State<AiResultBody> {
       );
     }
 
-    final sheetChildren = <Widget>[
-      // ── 유종 칩 ──
-      if (widget.fuelLabel != null) ...[
-        _FuelChip(label: widget.fuelLabel!),
-        const SizedBox(height: 10),
-      ],
-
-      // ── 도달 가능 범위 안내 (상단 노출) — 부드러운 앰버 톤 pill 카드 ──
-      if (reachable != null && reachable['enabled'] == true) ...[
-        Container(
-          padding: const EdgeInsets.fromLTRB(10, 8, 12, 8),
-          decoration: BoxDecoration(
-            color: isDark
-                ? AppColors.darkAmberBright.withValues(alpha: 0.10)
-                : const Color(0xFFFFF8E9),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-                color: isDark
-                    ? AppColors.darkAmberBright.withValues(alpha: 0.28)
-                    : const Color(0xFFF3E3B8),
-                width: 0.8),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 26,
-                height: 26,
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? AppColors.darkAmberBright.withValues(alpha: 0.18)
-                      : const Color(0xFFF7ECCB),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.local_gas_station_rounded,
-                    size: 14,
-                    color: isDark
-                        ? AppColors.darkAmberBright
-                        : const Color(0xFFA07A1C)),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '지금 연료로 도달 가능한 범위 안에서만 추천했어요',
-                  style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                      height: 1.3,
-                      color: isDark
-                          ? AppColors.darkAmberBright
-                          : const Color(0xFF8A6A1B)),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 10),
-      ],
-
-      // ── AI 메시지 ──
+    // 기준 안내 줄 — 카드 안에 담는다(형 제보 2026-08-20: 카드 밖에 떠 있으면
+    // 추천과 잔량 편집 사이에 끼어 보인다). 위젯 생성 코드는 그대로 재사용.
+    final basisNotes = <Widget>[
       // 선호 브랜드 폴백 안내 — 고른 브랜드가 경로에 없어 전체에서 추천한 경우.
+      // 연료 범위·경로 유형과 같은 계열(고른 기준 설명)이라 같은 라벨 + 문장으로.
       if (rec?['brand_filter'] is Map &&
-          (rec!['brand_filter'] as Map)['fallback'] == true) ...[
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-          decoration: BoxDecoration(
-            color: isDark
-                ? AppColors.darkAmberBright.withValues(alpha: 0.14)
-                : const Color(0xFFFFF9E8),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-                color: isDark
-                    ? AppColors.darkAmberBright.withValues(alpha: 0.35)
-                    : const Color(0xFFFFE6A6)),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.info_outline_rounded,
-                  size: 17,
-                  color: isDark
-                      ? AppColors.darkAmberBright
-                      : const Color(0xFF8A6D3B)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '선택한 선호 브랜드가 이 경로엔 없어 전체 주유소에서 추천했어요.',
-                  style: TextStyle(
-                      fontSize: 13,
-                      color: isDark
-                          ? AppColors.darkAmberBright
-                          : const Color(0xFF8A6D3B),
-                      height: 1.4),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-      ],
+          (rec!['brand_filter'] as Map)['fallback'] == true)
+        _noteRow(isDark,
+            label: '선호 브랜드',
+            text: '선택한 선호 브랜드가 이 경로엔 없어 전체 주유소에서 추천했어요'),
       // 고속도로 필터 안내 — 서버 highway_filter 신호(additive, 구서버는 필드 없음 → 미표시).
       //  · fallback: 들를 휴게소가 없어 서버가 필터를 무시하고 일반 추천으로 폴백함 — 안내만.
       //  · applied: 휴게소 모드로 추천됨 — 안내 + "필터 끄고 재조회" 액션.
-      // 브랜드 폴백 배너와 동일한 톤(앰버 컨테이너) 재사용 — 새 스타일 발명 금지.
+      // 경고가 아니라 '무슨 기준으로 골랐는지' 설명이라 라벨 + 문장으로 (형 시안 2c).
       if (rec?['highway_filter'] is Map &&
           ((rec!['highway_filter'] as Map)['fallback'] != null ||
-              (rec['highway_filter'] as Map)['applied'] == true)) ...[
+              (rec['highway_filter'] as Map)['applied'] == true))
         Builder(builder: (_) {
           final hwf = rec['highway_filter'] as Map;
           final fb = hwf['fallback']?.toString();
           final hasWarning = hwf['warning'] != null;
           final msg = fb != null
               ? (fb == 'rest_stops_unreachable'
-                  ? '경로상 휴게소는 모두 우회가 커서 일반 주유소에서 추천했어요.'
-                  : '경로가 고속도로를 지나지 않아 일반 주유소에서 추천했어요.')
+                  ? '경로상 휴게소는 모두 우회가 커서 일반 주유소에서 추천했어요'
+                  : '경로가 고속도로를 지나지 않아 일반 주유소에서 추천했어요')
               : (hasWarning
-                  ? '경로상 휴게소가 모두 우회가 커요. 필터를 끄면 더 나은 추천을 받을 수 있어요.'
-                  : '고속도로 필터가 켜져 있어 휴게소 주유소에서만 골랐어요.');
-          final amber =
-              isDark ? AppColors.darkAmberBright : const Color(0xFF8A6D3B);
+                  ? '경로상 휴게소가 모두 우회가 커요. 필터를 끄면 더 나은 추천을 받을 수 있어요'
+                  : '고속도로 필터가 켜져 있어 휴게소 주유소에서만 골랐어요');
           final showRetry =
               fb == null && widget.onDisableHighwayAndRetry != null;
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? AppColors.darkAmberBright.withValues(alpha: 0.14)
-                  : const Color(0xFFFFF9E8),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                  color: isDark
-                      ? AppColors.darkAmberBright.withValues(alpha: 0.35)
-                      : const Color(0xFFFFE6A6)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                        fb != null
-                            ? Icons.info_outline_rounded
-                            : Icons.alt_route_rounded,
-                        size: 17,
-                        color: amber),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        msg,
-                        style: TextStyle(
-                            fontSize: 13, color: amber, height: 1.4),
-                      ),
-                    ),
-                  ],
-                ),
-                if (showRetry)
-                  Align(
+          final linkFg =
+              isDark ? AppColors.darkBlueBright : const Color(0xFF2563EB);
+          return _noteRow(
+            isDark,
+            label: '경로 유형',
+            text: msg,
+            // 액션은 안내 문장 아래 오른쪽에 글자 버튼으로만 — 박스를 되살리지 않는다.
+            trailing: showRetry
+                ? Align(
                     alignment: Alignment.centerRight,
                     child: TextButton.icon(
                       onPressed: widget.onDisableHighwayAndRetry,
-                      icon: Icon(Icons.refresh_rounded, size: 15, color: amber),
+                      icon: Icon(Icons.refresh_rounded, size: 15, color: linkFg),
                       label: Text('필터 끄고 재조회',
                           style: TextStyle(
                               fontSize: 12.5,
                               fontWeight: FontWeight.w700,
-                              color: amber)),
+                              color: linkFg)),
                       style: TextButton.styleFrom(
                         minimumSize: Size.zero,
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 6),
+                            horizontal: 8, vertical: 4),
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                     ),
-                  ),
-              ],
-            ),
+                  )
+                : null,
           );
         }),
-        const SizedBox(height: 12),
+    ];
+
+    final sheetChildren = <Widget>[
+      // ── 기준 카드 (4a) — 잔량·유종·범위를 한 덩어리로 ──
+      // 유종 칩과 '연료 범위' 줄이 추천과 잔량 편집 사이에 끼어 보이던 문제를
+      // 이 카드가 흡수한다 (충전과 동일 구조, 색만 파랑. 형 제보 2026-08-20).
+      if (widget.levelPercent != null)
+        LevelBasisCard(
+            levelPercent: widget.levelPercent!,
+            kmPerPercent: widget.kmPerPercent ?? 0,
+            isEv: false,
+            onEdit: widget.onEditLevel,
+            // 유종만 남긴다 — 어느 유종 가격 기준인지는 실제 정보다.
+            // '도달 범위 내'는 항상 참이라 뺐다(위 '주행 가능 약 N km'와 중복).
+            conditionLabel: widget.fuelLabel,
+            notes: basisNotes)
+      else ...[
+        // 기준 카드가 없는 경로 — 기존 유종 칩 + 범위 안내 줄 유지
+        if (widget.fuelLabel != null) ...[
+          _FuelChip(label: widget.fuelLabel!),
+          const SizedBox(height: 10),
+        ],
+        if (reachable != null && reachable['enabled'] == true) ...[
+          _noteRow(isDark,
+              label: '연료 범위',
+              text: '지금 연료로 도달 가능한 범위 안에서만 추천했어요'),
+          const SizedBox(height: 10),
+        ],
+        for (final n in basisNotes) ...[n, const SizedBox(height: 10)],
       ],
+
       if (uiMessage.isNotEmpty) ...[
         _AiMessageBanner(
           message: uiMessage,
@@ -1039,6 +1011,10 @@ class _AiResultBodyState extends State<AiResultBody> {
         ),
         const SizedBox(height: 12),
       ] else if (!hasOverride && noStationToRecommend) ...[
+        // 주유 불필요 케이스 — AI 경로 추천 배너(ui_message)가 이미 설명하므로
+        // 같은 말을 반복하는 노란 배너는 안 그린다(형 제보 2026-08-20).
+        // 서버 메시지가 비어 있을 때만 폴백으로 노출.
+        if (uiMessage.isEmpty)
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
@@ -3875,6 +3851,15 @@ class CompareResultBody extends StatelessWidget {
   /// 카드 탭 시 해당 station 데이터(via_route 포함) 전달 → 지도에 경로 그리기
   final void Function(Map<String, dynamic> stationData)? onCardTap;
 
+  /// 이 결과가 계산된 기준 잔량 % — 상단 기준 칩으로 상시 노출
+  final double? levelPercent;
+
+  /// 1%당 주행가능 km (용량 × 효율 / 100) — 칩의 km 환산용
+  final double? kmPerPercent;
+
+  /// 기준 칩 탭 → 잔량 시트 → 저장 시 재비교
+  final VoidCallback? onEditLevel;
+
   const CompareResultBody({
     super.key,
     required this.data,
@@ -3887,6 +3872,9 @@ class CompareResultBody extends StatelessWidget {
     this.destLat,
     this.destLng,
     this.onCardTap,
+    this.levelPercent,
+    this.kmPerPercent,
+    this.onEditLevel,
   });
 
   static double? _d(dynamic v) {
@@ -3926,6 +3914,14 @@ class CompareResultBody extends StatelessWidget {
         : null;
 
     final sheetChildren = <Widget>[
+      // ── 기준 칩 (3a) — 기준 잔량 + 주행가능거리, 탭하면 잔량 시트 ──
+      if (levelPercent != null)
+        LevelBasisCard(
+            levelPercent: levelPercent!,
+            kmPerPercent: kmPerPercent ?? 0,
+            isEv: false,
+            onEdit: onEditLevel),
+
       // 헤더
       Padding(
         padding: const EdgeInsets.only(bottom: 12),
