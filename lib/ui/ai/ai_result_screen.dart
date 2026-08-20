@@ -3289,6 +3289,15 @@ Widget _costVerdictBox(Map<String, dynamic> ca, NumberFormat wonFmt, Color ink,
   // 시간값(원)을 돈에 안 섞고 '연료 기준 이득 + 우회 시간(분)'으로 분리 표시.
   final fuelWon = ca['detour_fuel_won'] is num ? gi('detour_fuel_won') : 0;
   final extraMin = ca['detour_extra_min'] is num ? gi('detour_extra_min') : 0;
+  // 서버가 시간값(분당 기회비용)까지 총액으로 계산한 경우만 '총비용 한 줄'을 추가로 노출.
+  // 순위는 총비용으로 갈리는데 박스엔 연료 기준 절약만 보여서 "돈은 2위가 이득인데 왜
+  // 1위냐"가 설명 안 되던 문제(형 제보 — 분당로/구도일 144원 케이스). 시간이 과금 안 된
+  // 비교(면제구간 이내·직접선택 합성 ca)는 기존 표시 그대로.
+  final int? netWon =
+      ca['net_benefit_won'] is num ? (ca['net_benefit_won'] as num).round() : null;
+  final int? timeWon =
+      ca['detour_time_won'] is num ? (ca['detour_time_won'] as num).round() : null;
+  final showTotal = timeWon != null && timeWon > 0 && netWon != null;
   final fuelBenefit = priceDiff - fuelWon; // 연료 기준 순이득(추가연료비까지 뺀 순수 돈)
   // 비교 대상 호칭 — 기본은 우회 후보, 대안 선택 비교면 '선택한 곳'.
   final subject = (ca['subject'] ?? '우회 쪽').toString();
@@ -3317,8 +3326,10 @@ Widget _costVerdictBox(Map<String, dynamic> ca, NumberFormat wonFmt, Color ink,
   } else if (worth) {
     verdict = '$extraMin분 더 걸려도 ${wonF.format(fuelBenefit)}원 아껴져서 갈 만해요';
   } else if (fuelBenefit > 0) {
-    verdict =
-        '${wonF.format(fuelBenefit)}원 아껴지긴 하지만, $extraMin분 더 갈 만큼 차이가 크진 않아요';
+    // 총비용(시간값 포함)이 있으면 "왜 그런데도 추천이 안 바뀌는지"를 숫자로 말한다.
+    verdict = (netWon != null && netWon < 0)
+        ? '${wonF.format(fuelBenefit)}원 아껴지긴 하지만, 시간까지 값으로 치면 총 ${wonF.format(-netWon)}원 손해예요'
+        : '${wonF.format(fuelBenefit)}원 아껴지긴 하지만, $extraMin분 더 갈 만큼 차이가 크진 않아요';
   } else {
     verdict = '기름값 차이보다 우회에 드는 기름이 더 커서 이득이 없어요';
   }
@@ -3373,6 +3384,22 @@ Widget _costVerdictBox(Map<String, dynamic> ca, NumberFormat wonFmt, Color ink,
           Text('$extraMin분 더 걸려요',
               style: TextStyle(
                   fontSize: 13, fontWeight: FontWeight.w800, color: ink)),
+        ]),
+      ],
+      if (showTotal) ...[
+        const SizedBox(height: 3),
+        Row(children: [
+          Expanded(
+              child: Text('시간까지 값으로 치면',
+                  style: TextStyle(fontSize: 12, color: muted))),
+          Text(
+              netWon == 0
+                  ? '차이 없음'
+                  : '총 ${wonF.format(netWon.abs())}원 ${netWon > 0 ? '절약' : '더 들어요'}',
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: netWon > 0 ? green : (netWon < 0 ? red : ink))),
         ]),
       ],
       const SizedBox(height: 6),

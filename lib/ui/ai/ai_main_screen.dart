@@ -5228,8 +5228,58 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
     await _mapController!.clearOverlays();
 
-    // 경로 — 목적지 입력 경로와 동일 렌더(혼잡도 구간색)
-    await _drawMainRoute('compare_route', _lastPathPoints, _lastPathSegments);
+    // A/B·승자 판정을 먼저 읽는다 — 경로 렌더가 승자 경유 경로를 쓰기 때문.
+    final stAWrap = data['station_a'] is Map ? data['station_a'] as Map : null;
+    final stBWrap = data['station_b'] is Map ? data['station_b'] as Map : null;
+    final winner = data['comparison'] is Map
+        ? (data['comparison'] as Map)['winner']?.toString()
+        : null;
+
+    // ── 경로: AI 추천 결과와 동일하게 '이긴 쪽 경유 경로'를 메인으로 그린다 (형 결정 2026-08-20).
+    // 서버가 station_a/b 에 via_route(경유 전체 경로)를 이미 내려주므로 재계산 없음.
+    // 진 쪽 경유 경로는 회색으로 밑에 깔아 두 선택지가 같이 보이게 한다
+    // (AI 화면의 '선택 안 된 대안 경로' 회색과 동일 톤). via_route 가 없으면 기존처럼 기준 경로.
+    final winnerWrap = winner == 'station_b' ? stBWrap : stAWrap;
+    final loserWrap = winner == 'station_b' ? stAWrap : stBWrap;
+    Map<String, dynamic>? viaOf(Map? wrap) => wrap?['via_route'] is Map
+        ? Map<String, dynamic>.from(wrap!['via_route'] as Map)
+        : null;
+    final winnerVia = viaOf(winnerWrap);
+    final loserVia = viaOf(loserWrap);
+    final mainPts = winnerVia != null
+        ? _pathPointsFromServerJson(winnerVia['path_points'])
+        : null;
+    final mainSegs =
+        winnerVia != null ? _segmentsFromPayload(winnerVia) : null;
+
+    final loserPts = loserVia != null
+        ? _pathPointsFromServerJson(loserVia['path_points'])
+        : null;
+    if (loserPts != null && loserPts.length >= 2) {
+      final gcoords = _densifyPath(_smoothPath(loserPts
+          .map((p) => NLatLng(
+                (p['lat'] as num).toDouble(),
+                (p['lng'] as num).toDouble(),
+              ))
+          .toList()));
+      final greyOverlay = NPathOverlay(
+        id: 'compare_route_loser',
+        coords: gcoords,
+        color: const Color(0xFFAEB6C2),
+        width: 7,
+        outlineColor: Colors.white,
+        outlineWidth: 1,
+      );
+      greyOverlay.setGlobalZIndex(-250000); // 메인 경로(-200000)보다 아래
+      await _mapController!.addOverlay(greyOverlay);
+    }
+
+    // 승자 via 에 혼잡도 세그먼트가 없으면 기준 경로 세그먼트를 재사용하지 않는다 —
+    // 다른 경로의 색을 입히면 구간이 어긋난다. 단색 렌더가 정직하다.
+    await _drawMainRoute(
+        'compare_route',
+        mainPts ?? _lastPathPoints,
+        mainPts != null ? mainSegs : _lastPathSegments);
 
     // 출발지/목적지 마커
     final originMarker = NMarker(
@@ -5250,12 +5300,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
 
     // A, B 주유소 마커 — 서버 응답은 {station:{...}, detour_time_min, ...} 중첩 구조.
     // (기존엔 최상위에서 lat/lng 를 읽어 항상 null → 마커가 아예 안 찍히던 버그)
-    final stAWrap = data['station_a'] is Map ? data['station_a'] as Map : null;
-    final stBWrap = data['station_b'] is Map ? data['station_b'] as Map : null;
-    final winner = data['comparison'] is Map
-        ? (data['comparison'] as Map)['winner']?.toString()
-        : null;
-
+    // stAWrap/stBWrap/winner 는 위 경로 렌더 단계에서 이미 파싱했다.
     final stPoints = <NLatLng>[];
     Future<void> addStationMarker(Map? wrap, String tag, bool isWin) async {
       if (wrap == null) return;
