@@ -47,7 +47,6 @@ String _normalizeMarkdownForKorean(String src) {
 
 // 통일된 색상 체계
 const _kMarkerRecommend = Color(0xFF3B82F6); // 추천 (파랑 — 주황 폐기)
-const _kMarkerRecommendLight = Color(0xFFEFF6FF); // 추천 배경 (연한 파랑)
 
 /// 직행 대비 추가 시간이 0분이면 '우회 없음', 1분부터 '우회'.
 const int _kDetourStartMinutes = 1;
@@ -1867,10 +1866,19 @@ class _RecommendedCard extends StatelessWidget {
   /// 1·2순위가 모두 내 단골인 경우.
   final bool regularSecondAlsoMine;
 
+  /// 파란 배지 문구 (기본 '추천'). 직접선택 비교는 '추천 A'/'추천 B' 로 쓴다.
+  final String? primaryBadgeText;
+
+  /// 옆 흰 배지 문구 (기본 '경로상/우회 최저가'). 직접선택 비교는 후보가 2곳뿐이라
+  /// '최저가'라고 단정하면 안 되므로 호출부가 다른 문구를 넣는다.
+  final String? badgeLabel;
+
   const _RecommendedCard({
     required this.name,
     this.brand,
     this.stationId,
+    this.primaryBadgeText,
+    this.badgeLabel,
     this.regularDiffWon,
     this.regularIsPrimary = false,
     this.regularName,
@@ -1981,14 +1989,14 @@ class _RecommendedCard extends StatelessWidget {
                       const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                   decoration: BoxDecoration(
                       color: accent, borderRadius: BorderRadius.circular(6)),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.auto_awesome_rounded,
+                      const Icon(Icons.auto_awesome_rounded,
                           size: 11, color: Colors.white),
-                      SizedBox(width: 4),
-                      Text('추천',
-                          style: TextStyle(
+                      const SizedBox(width: 4),
+                      Text(primaryBadgeText ?? '추천',
+                          style: const TextStyle(
                               color: Colors.white,
                               fontSize: 11,
                               fontWeight: FontWeight.w800)),
@@ -2005,7 +2013,8 @@ class _RecommendedCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(color: chipBorder),
                 ),
-                child: Text(isDetour ? '우회 최저가' : '경로상 최저가',
+                child: Text(
+                    badgeLabel ?? (isDetour ? '우회 최저가' : '경로상 최저가'),
                     style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -2224,56 +2233,6 @@ class _ShimmerSweepState extends State<_ShimmerSweep>
     );
   }
 }
-
-class _RecStatCell extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String value;
-  final String label;
-
-  /// true 면 다크모드에서 밝은 글자 — 다크 대응 카드(직접선택 추천카드)용.
-  /// AI 히어로 카드는 다크에서도 흰 박스 고정이라 false(진한 글자) 유지.
-  final bool darkAdaptive;
-
-  const _RecStatCell({
-    required this.icon,
-    required this.iconColor,
-    required this.value,
-    required this.label,
-    this.darkAdaptive = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Expanded(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 18, color: iconColor),
-          const SizedBox(height: 7),
-          Text(value,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: darkAdaptive && isDark
-                      ? AppColors.darkTextPrimary
-                      : const Color(0xFF1a1a1a))),
-          const SizedBox(height: 4),
-          Text(label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontSize: 10,
-                  color: isDark
-                      ? AppColors.darkTextMuted
-                      : const Color(0xFF999999))),
-        ],
-      ),
-    );
-  }
-}
-
 // ── 비교 테이블 ──────────────────────────────────────────────────────────────
 
 // 경로상 최저가 vs 우회 최저가 — 반응형 2-up 카드(둘 다 지도+경로안내). 표 대체.
@@ -3914,46 +3873,51 @@ class CompareResultBody extends StatelessWidget {
         : null;
 
     final sheetChildren = <Widget>[
-      // ── 기준 칩 (3a) — 기준 잔량 + 주행가능거리, 탭하면 잔량 시트 ──
+      // ── 기준 카드 — 잔량·유종·비교 대상 수를 한 덩어리로 ──
+      // AI 추천 결과와 같은 구조. 유종 칩과 '비교 분석 결과' 배지가 카드 밖에
+      // 따로 떠 있으면 잔량 카드와 결과 사이에 끼어 보인다(형 제보 2026-08-20).
       if (levelPercent != null)
         LevelBasisCard(
             levelPercent: levelPercent!,
             kmPerPercent: kmPerPercent ?? 0,
             isEv: false,
-            onEdit: onEditLevel),
-
-      // 헤더
-      Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: _kCompareWinner.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(20),
+            onEdit: onEditLevel,
+            conditionLabel: fuelLabel,
+            countLabel: '2곳 비교')
+      else
+        // 기준 카드가 없는 구버전 경로 — 기존 헤더 줄 유지
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: _kCompareWinner.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.compare_arrows_rounded,
+                        size: 14, color: _kCompareWinner),
+                    SizedBox(width: 4),
+                    Text('비교 분석 결과',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: _kCompareWinner)),
+                  ],
+                ),
               ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.compare_arrows_rounded,
-                      size: 14, color: _kCompareWinner),
-                  SizedBox(width: 4),
-                  Text('비교 분석 결과',
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: _kCompareWinner)),
-                ],
-              ),
-            ),
-            if (fuelLabel != null) ...[
-              const SizedBox(width: 8),
-              _FuelChip(label: fuelLabel!),
+              if (fuelLabel != null) ...[
+                const SizedBox(width: 8),
+                _FuelChip(label: fuelLabel!),
+              ],
             ],
-          ],
+          ),
         ),
-      ),
 
       // AI 메시지 (마크다운 지원)
       if (uiMessage.isNotEmpty) ...[
@@ -4172,6 +4136,11 @@ class _UserCompareTable extends StatelessWidget {
             ? (stationBData['detour_time_min'] as num).round()
             : null);
 
+    // 서버 판정(detour_is_none)을 그대로 쓴다 — 앱이 분 단위로 다시 판정하면
+    // '경로상' 배지와 '+N분' 표시가 갈린다.
+    final detourIsNoneA = stationAData['detour_is_none'] == true;
+    final detourIsNoneB = stationBData['detour_is_none'] == true;
+
     final latA = _d(stA['lat']);
     final lngA = _d(stA['lng']);
     final latB = _d(stB['lat']);
@@ -4184,12 +4153,21 @@ class _UserCompareTable extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 추천 카드 (승자)
-        _CompareRecommendCard(
-          label: aIsWinner ? 'A' : 'B',
+        // AI 추천 결과와 같은 카드를 그대로 쓴다 — 같은 '추천 주유소'인데 화면마다
+        // 생김새가 다를 이유가 없다(브랜드 로고·지도 버튼·경유 길안내 전부 동일).
+        // 배지 문구만 바꾼다: 후보가 직접 고른 2곳뿐이라 '최저가'로 단정하면 거짓말.
+        _RecommendedCard(
+          primaryBadgeText: aIsWinner ? '추천 A' : '추천 B',
+          badgeLabel: '선택한 2곳 중 유리',
           name: aIsWinner ? nameA : nameB,
+          brand: (aIsWinner ? stA['brand'] : stB['brand'])?.toString(),
+          stationId: (aIsWinner ? stA['id'] : stB['id'])?.toString(),
           price: aIsWinner ? priceA : priceB,
           cost: aIsWinner ? costA : costB,
-          detourMin: aIsWinner ? detourMinA : detourMinB,
+          // 시간(분)이 있으면 카드가 그걸로 우회 여부를 판정한다 — 거리는 폴백용.
+          detourM: (aIsWinner ? detourIsNoneA : detourIsNoneB) ? 0 : 600,
+          detourTimeMin: aIsWinner ? detourMinA : detourMinB,
+          isDetour: !(aIsWinner ? detourIsNoneA : detourIsNoneB),
           stLat: aIsWinner ? latA : latB,
           stLng: aIsWinner ? lngA : lngB,
           destLat: destLat,
@@ -4339,188 +4317,5 @@ class _UserCompareTable extends StatelessWidget {
   static String _detourText(int? detourMin) {
     if (detourMin == null || detourMin < _kDetourStartMinutes) return '우회 없음';
     return '+$detourMin분';
-  }
-}
-
-// ─── 비교 추천 카드 ────────────────────────────────────────────────────────────
-
-class _CompareRecommendCard extends StatelessWidget {
-  final String label;
-  final String name;
-  final double? price;
-  final int cost;
-  final int? detourMin;
-  final double? stLat, stLng, destLat, destLng;
-  final String destinationName;
-  final double originLat, originLng;
-  final NumberFormat wonFmt;
-  final VoidCallback? onViewOnMap;
-
-  const _CompareRecommendCard({
-    required this.label,
-    required this.name,
-    required this.price,
-    required this.cost,
-    required this.detourMin,
-    required this.stLat,
-    required this.stLng,
-    required this.destLat,
-    required this.destLng,
-    required this.destinationName,
-    required this.originLat,
-    required this.originLng,
-    required this.wonFmt,
-    this.onViewOnMap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final canNav =
-        stLat != null && stLng != null && destLat != null && destLng != null;
-    final isNegligible = detourMin == null || detourMin! < _kDetourStartMinutes;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : _kMarkerRecommendLight,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _kMarkerRecommend, width: 2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 헤더
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-            child: Row(
-              children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                      color: _kMarkerRecommend,
-                      borderRadius: BorderRadius.circular(5)),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.auto_awesome_rounded,
-                          size: 11, color: Colors.white),
-                      const SizedBox(width: 4),
-                      Text('추천 $label',
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // 주유소명
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-            child: Text(name,
-                style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: isDark
-                        ? AppColors.darkTextPrimary
-                        : const Color(0xFF1a1a1a))),
-          ),
-
-          // 수치 행
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: Container(
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0x14FFFFFF) : Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: IntrinsicHeight(
-                child: Row(
-                  children: [
-                    _RecStatCell(
-                      icon: Icons.local_gas_station_rounded,
-                      iconColor: _kMarkerRecommend,
-                      value: price != null
-                          ? '${wonFmt.format(price!.round())}원'
-                          : '—',
-                      label: '리터당 가격',
-                      darkAdaptive: true,
-                    ),
-                    VerticalDivider(
-                        width: 1,
-                        color: isDark
-                            ? AppColors.darkCardBorder
-                            : const Color(0xFFDDDDDD)),
-                    _RecStatCell(
-                      icon: Icons.access_time_rounded,
-                      iconColor: isNegligible
-                          ? _kMarkerRecommend
-                          : const Color(0xFFE07B1D),
-                      value: isNegligible
-                          ? '우회 없음'
-                          : (detourMin != null ? '+${detourMin}분' : '조금 우회'),
-                      label: '직행 대비',
-                      darkAdaptive: true,
-                    ),
-                    VerticalDivider(
-                        width: 1,
-                        color: isDark
-                            ? AppColors.darkCardBorder
-                            : const Color(0xFFDDDDDD)),
-                    _RecStatCell(
-                      icon: Icons.payments_outlined,
-                      iconColor: _kMarkerRecommend,
-                      value: cost > 0 ? '${wonFmt.format(cost)}원' : '—',
-                      label: '예상 주유비',
-                      darkAdaptive: true,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // 길안내 버튼
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-            child: SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: ElevatedButton.icon(
-                onPressed: canNav
-                    ? () => showViaWaypointNavigationSheet(
-                          context,
-                          originLat: originLat,
-                          originLng: originLng,
-                          waypointLat: stLat!,
-                          waypointLng: stLng!,
-                          waypointName: name,
-                          destinationLat: destLat!,
-                          destinationLng: destLng!,
-                          destinationName: destinationName,
-                          stopKind: '주유소',
-                        )
-                    : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _kMarkerRecommend,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                  elevation: 0,
-                ),
-                icon: const Icon(Icons.route_rounded, size: 16),
-                label: const Text('경유 길안내',
-                    style:
-                        TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
